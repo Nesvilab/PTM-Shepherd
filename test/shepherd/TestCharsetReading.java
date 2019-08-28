@@ -1,14 +1,12 @@
 package shepherd;
 
-import com.google.common.base.Charsets;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import org.junit.jupiter.api.Test;
 
 public class TestCharsetReading {
 
@@ -35,7 +33,7 @@ public class TestCharsetReading {
 //  @Test
   public void readAllLines() throws Exception {
     String path = "C:\\code\\msfragger\\ptmshepherd\\test-resources\\peaksummary.annotated-from-shepherd.tsv";
-    List<String> strings = Files.readAllLines(Paths.get(path), Charsets.UTF_8);
+    List<String> strings = Files.readAllLines(Paths.get(path), StandardCharsets.UTF_8);
 
     for (String string : strings) {
       System.out.println("Line: " + string);
@@ -67,7 +65,7 @@ public class TestCharsetReading {
   public void newBufferedReader() throws Exception {
     String path = "C:\\code\\msfragger\\ptmshepherd\\test-resources\\peaksummary.annotated-from-shepherd.tsv";
 
-    try (BufferedReader br = Files.newBufferedReader(Paths.get(path), Charsets.UTF_8)) {
+    try (BufferedReader br = Files.newBufferedReader(Paths.get(path), StandardCharsets.UTF_8)) {
       if (br == null) {
         System.out.println("Stream didn't open, exiting");
         return;
