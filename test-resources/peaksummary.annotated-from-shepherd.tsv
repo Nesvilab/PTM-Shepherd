@@ -1,0 +1,10 @@
+PeakApex	PeakLower	PeakUpper	experiment-1 (PSMs)	experiment-2 (PSMs)	experiment-1 (PSMs/million)	experiment-2 (PSMs/million)	experiment-1 (Peptides)	experiment-1 (% in unmodified)	experiment-2 (Peptides)	experiment-2 (% in unmodified)	Potential Modification 1	Potential Modification 2	Potential Modification 3
+229.16200	229.15200	229.17200	4	3	109.87	81.89	4	100.00	3	100.00	Sixplex Tandem Mass Tag®		
+385.26240	385.25240	385.27240	6	2	164.80	54.59	6	0.00	2	0.00	Unannotated mass-shift 385.2624		
+458.32340	458.31340	458.33340	5	5	137.33	136.49	5	0.00	5	0.00	Unannotated mass-shift 458.3234		
+3.06720	3.05720	3.07720	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 3.0672		
+495.33020	495.32020	495.34020	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 495.3302		
+127.20640	127.19640	127.21640	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 127.2064		
+498.35020	498.34020	498.36020	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 498.3502		
+158.12760	158.11760	158.13760	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 158.1276		
+128.11240	128.10240	128.12240	1	1	27.47	27.30	1	100.00	1	100.00	Unannotated mass-shift 128.1124		
