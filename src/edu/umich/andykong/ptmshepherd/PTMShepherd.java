@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	static final String name = "PTM-Shepherd";
-	static final String version = "20190828";
+	static final String version = "0.2.1";
 	
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
