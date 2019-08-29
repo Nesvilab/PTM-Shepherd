@@ -82,6 +82,7 @@ public class PTMShepherd {
 		params.put("peakpicking_width", "0.002"); //width for peakpicking
 		params.put("peakpicking_background", "0.005");
 		params.put("peakpicking_topN", "500"); //num peaks
+        params.put("peakpicking_minPsm", "10");
 
 		params.put("precursor_tol", "0.01");
 		params.put("precursor_tol_ppm", "20.0");

@@ -48,7 +48,7 @@ public class CombinedTable {
                     }
                     String[] split = line.split("\t");
                     String lineCut = String.join("\t", Arrays.asList(split).subList(1, split.length));
-                    records.set(lineIdx, String.format("%s%s", records.get(lineIdx), lineCut));
+                    records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
                 }
             }
         }

@@ -33,6 +33,7 @@ public class PeakPicker {
 		class DPair implements Comparable<DPair> {
 			double key, value;
 			int pos;
+			double sum;
 			public int compareTo(DPair arg0) {
 				return -1* Double.compare(key, arg0.key);
 			}
@@ -47,7 +48,7 @@ public class PeakPicker {
 				double ncpr = 0;
 				double mh = 0;
 				double isum = sum[i], osum = 0;
-				int icount = 1, ocount = 0;
+				int icount = 1, ocount = 0; //inner sum/outer sumer
 				p = i-1;
 				while(p >= 0 && Math.abs(offsets[p]-offsets[i]) <= peakBackground) {
 					mh = Math.max(mh,sum[p]);
@@ -82,6 +83,7 @@ public class PeakPicker {
 					dp.pos = i;
 					dp.key = isum/icount - osum/ocount;
 					dp.value = offsets[i];
+					dp.sum = isum;
 					dps.add(dp);
 				}
 			}
@@ -95,6 +97,7 @@ public class PeakPicker {
 			peaks[i][0] = dps.get(i).value;
 			peaks[i][1] = sum[dps.get(i).pos];
 			peaks[i][2] = prom[dps.get(i).pos];
+			//System.out.println(dps.get(i).sum);
 		}
 
 	}
