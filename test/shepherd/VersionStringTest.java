@@ -44,12 +44,17 @@ public class VersionStringTest {
         log.info("Looking for build.gradle in: {}", p.normalize().toAbsolutePath());
         if (Files.exists(p)) {
           gradle = p;
+          break;
         }
       }
+
+      Assertions.assertNotNull(gradle);
       if (gradle == null) {
         log.warn("Could not find build.gradle");
         return;
       }
+
+
       log.info("Found build script: " + gradle.toString());
       List<String> lines = Files.readAllLines(gradle, StandardCharsets.UTF_8);
       String buildScript = String.join("\n", lines);
