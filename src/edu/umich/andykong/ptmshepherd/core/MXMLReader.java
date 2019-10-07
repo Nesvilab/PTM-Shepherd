@@ -52,6 +52,19 @@ public class MXMLReader {
 			source = new MZMLFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".raw")) {
 			source = new ThermoRawFile(f.getAbsolutePath());
+			/*
+		} else if (fn.endsWith(".d")) {
+			String tempFn = fn.replaceFirst(".d$", ".mzBIN");
+			File tempF = new File(tempFn);
+			if (tempF.exists()) {
+				String f = tempFn;
+				source = new MZBINFile(tempF.getAbsolutePath());
+			} else {
+				System.out.println("Cannot read .d files without associated .mzBIN");
+				System.exit(1);
+			}
+			*/
+
 		}
 		if (source == null) {
 			System.out.println("Cannot read mzFile with unrecognized extension: " + f.getName());

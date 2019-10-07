@@ -18,7 +18,7 @@ public class AAMasses {
 	public static final float monoisotopic_masses[] = {
 	  (float) 71.03711, // A
 	  (float) 0, // B
-	  (float) (103.00919), // C
+	  (float) 103.00919, // C
 	  (float) 115.02694, // D
 	  (float) 129.04259, // E
 	  (float) 147.06841, // F

@@ -10,7 +10,10 @@ public class PeakAnnotator {
 	ArrayList<String> mods;
 	ArrayList<Double> mod_diffs;
 	ArrayList<Integer> allowed_list;
-	
+	String userMods = "";
+	ArrayList<String> vModNames;
+	ArrayList<Double> vModMasses;
+
 	static final double C13delta = 1.003355;
 	static final double modEqual_tol = 0.001;
 	static final double mod_tol = 0.002;
@@ -21,8 +24,11 @@ public class PeakAnnotator {
 	static boolean found, debug;
 	
 	public void annotateTSV(File inTSV, File outTSV) throws Exception {
-		if(mods == null)
-			init();
+        //ArrayList<String> vModNames = new ArrayList<>();
+        //ArrayList<Double> vModMasses = new ArrayList<>();
+
+		//if(mods == null)
+		//	init(varMods);
 		
 		ArrayList<String> inFile = new ArrayList<>();
 		String cline;
@@ -54,7 +60,7 @@ public class PeakAnnotator {
 	
 	public String [][] annotate(double [] masses) throws Exception {
 		String [][] res = new String[masses.length][maxDepth];
-		init();
+		//init(userMods);
 		for(int i = 0; i < masses.length; i++) {
 			int [] cres = checkMod(masses[i]);
 			for(int j = 0; j < cres.length; j++) {
@@ -133,7 +139,7 @@ public class PeakAnnotator {
 	public void addMod(String tag, double v) {
 		for(int i = 0; i < mod_diffs.size(); i++) {
 			if(Math.abs(v-mod_diffs.get(i)) < modEqual_tol) {
-				mods.set(i,mods.get(i)+ "/"+tag);
+				mods.set(i, mods.get(i)+ "/"+tag);
 				return;
 			}
 		}
@@ -141,27 +147,54 @@ public class PeakAnnotator {
 		mod_diffs.add(v);
 	}
 	
-	public void init() throws Exception {
-		mods = new ArrayList<String>();
-		mod_diffs = new ArrayList<Double>();
-		allowed_list = new ArrayList<Integer>();
+	public void init(String varMods) throws Exception {
+		mods = new ArrayList<String>(); //all modification names
+		mod_diffs = new ArrayList<Double>(); //all modification mass shifts
+		allowed_list = new ArrayList<Integer>(); //mods that can be added at any given step
 		indices = new int[128];
-		
-		BufferedReader in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream("unimod.txt")));
+		userMods = new String("");
+		vModNames = new ArrayList<String>();
+		vModMasses = new ArrayList<Double>();
+
+		userMods = varMods;
+
+		if(!varMods.equals("")) {
+			List<String> tMods = Arrays.asList(varMods.split(","));
+			for(int i = 0; i < tMods.size(); i++){
+				List<String> md = Arrays.asList(tMods.get(i).split(":"));
+				String m = md.get(0);
+				double dMass = Double.parseDouble(md.get(1));
+				vModNames.add(m);
+				vModMasses.add(dMass);
+			}
+		}
+
+		BufferedReader in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream("unimod_20191002.txt")));
 		String cline;
+		//add isotopic peaks to modification list
 		addMod("First isotopic peak",C13delta);
 		addMod("Second isotopic peak",2*C13delta);
 		addMod("Third isotopic peak",3*C13delta);
+		//make isotopic peaks statically accessible
+		for(int i = 0; i < 3; i++){
+			allowed_list.add(i);
+		}
+		//add user-defined mods to modification list
+        for (int i = 0; i < vModNames.size(); i++) {
+            addMod(vModNames.get(i), vModMasses.get(i));
+            allowed_list.add(i);
+        };
+
 		while((cline = in.readLine())!= null) {
 			String [] sp = cline.split("\\t");
 			addMod(sp[0],Double.parseDouble(sp[1]));
 		}
 		in.close();
-		
+
 		for(int i = 0; i < AAMasses.monoisotopic_masses.length; i++) {
 			if(AAMasses.monoisotopic_masses[i] > 0) {
 				addMod("Addition of " + (char)('A'+i),(double)AAMasses.monoisotopic_masses[i]);
-				addMod("Deletion of " + (char)('A'+i),-1*(double)AAMasses.monoisotopic_masses[i]);
+				addMod("Deletion of " + (char)('A'+i),-1.0*(double)AAMasses.monoisotopic_masses[i]);
 			}
 		}
 	}

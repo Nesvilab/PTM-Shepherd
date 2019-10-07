@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.2";
+ 	public static final String version = "0.2.3";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -83,13 +83,13 @@ public class PTMShepherd {
 		params.put("peakpicking_background", "0.005");
 		params.put("peakpicking_topN", "500"); //num peaks
         params.put("peakpicking_minPsm", "10");
-
-		params.put("precursor_tol", "0.01");
-		params.put("precursor_tol_ppm", "20.0");
+        params.put("varmod_masses", ":0");
+		params.put("precursor_tol", "0.01"); //unimod peakpicking width
+		//params.put("precursor_tol_ppm", "20.0"); unused
 		
-		params.put("spectra_ppmtol", "20.0");
-		params.put("spectra_condPeaks", "100");
-		params.put("spectra_condRatio", "0.01");
+		//params.put("spectra_ppmtol", "20.0"); //unused
+		//params.put("spectra_condPeaks", "100"); //unused
+		//params.put("spectra_condRatio", "0.01"); //unused
 		
 		//load parameters
 		for(int i = 0; i < args.length; i++) {
@@ -281,7 +281,7 @@ public class PTMShepherd {
 		File peakannotated = new File("peaksummary.annotated.tsv");
 		if(!peakannotated.exists()) {
 			PeakAnnotator pa = new PeakAnnotator();
-			pa.init();
+			pa.init(params.get("varmod_masses"));
 			pa.annotateTSV(peaksummary, peakannotated);
 			print("annotated summary table\n");
 		}

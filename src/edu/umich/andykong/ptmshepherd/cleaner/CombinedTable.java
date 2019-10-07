@@ -16,8 +16,9 @@ public class CombinedTable {
         List<String> subTabs = new ArrayList<>();
         List<String> records = new ArrayList<>();
         subTabs.add("peaksummary.annotated.tsv");
-        subTabs.add(dataset + ".locprofile.txt");
         subTabs.add(dataset + ".simrtprofile.txt");
+        subTabs.add(dataset + ".locprofile.txt");
+
 
         Set<Integer> observedLineCounts = new HashSet<>();
 

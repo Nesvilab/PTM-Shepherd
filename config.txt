@@ -17,3 +17,4 @@ spectra_ppmtol = 20.0
 spectra_condPeaks = 100
 spectra_condRatio = 0.01
 
+varmod_masses = None:0
