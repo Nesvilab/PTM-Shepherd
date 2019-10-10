@@ -18,3 +18,5 @@ spectra_condPeaks = 100
 spectra_condRatio = 0.01
 
 varmod_masses = None:0
+
+localization_background = 1

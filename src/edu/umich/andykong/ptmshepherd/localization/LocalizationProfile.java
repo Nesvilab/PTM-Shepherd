@@ -3,6 +3,7 @@ package edu.umich.andykong.ptmshepherd.localization;
 import java.io.*;
 import java.util.*;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 
 public class LocalizationProfile {
@@ -12,7 +13,7 @@ public class LocalizationProfile {
 	public FastLocator locate;
 	double [] masses;
 	double peakTol;
-	
+
 	static final int [] AAcnts = {3637222,0,1163038,2477586,3690290,1854622,
 			  3426107,1356881,2222643,0,2959209,5141499,
 			  1134389,1840802,0,3301694,2489112,2946921,
@@ -28,9 +29,10 @@ public class LocalizationProfile {
 	public LocalizationProfile(double [] massRanges, double peakTol) {
 		masses = Arrays.copyOf(massRanges, massRanges.length);
 		this.peakTol = peakTol;
-		
+
 		locate = new FastLocator(masses, peakTol);
 		records = new LocalizationRecord[masses.length];
+
 		for(int i = 0; i < masses.length; i++)
 			records[i] = new LocalizationRecord(masses[i], i);
 	}

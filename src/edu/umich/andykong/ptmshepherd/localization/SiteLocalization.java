@@ -63,7 +63,7 @@ public class SiteLocalization {
 		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
 		condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
-		
+
 		for(int i = 0; i < pf.data.size(); i++) {
 			String [] sp = pf.data.get(i).split("\t");
 			String bn = sp[specCol].substring(0,sp[specCol].indexOf("."));

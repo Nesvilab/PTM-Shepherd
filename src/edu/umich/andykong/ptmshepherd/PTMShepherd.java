@@ -83,13 +83,17 @@ public class PTMShepherd {
 		params.put("peakpicking_background", "0.005");
 		params.put("peakpicking_topN", "500"); //num peaks
         params.put("peakpicking_minPsm", "10");
+        params.put("localization_background", "1");
         params.put("varmod_masses", ":0");
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width
-		//params.put("precursor_tol_ppm", "20.0"); unused
+		//params.put("precursor_tol_ppm", "20.0"); //unused
 		
-		//params.put("spectra_ppmtol", "20.0"); //unused
-		//params.put("spectra_condPeaks", "100"); //unused
-		//params.put("spectra_condRatio", "0.01"); //unused
+		params.put("spectra_ppmtol", "20.0"); //obvious, used in localization and simrt
+		params.put("spectra_condPeaks", "100"); //
+		params.put("spectra_condRatio", "0.01"); //
+
+		params.put("output_verbose", "false");
+		//params.put("output_verbose", "true");
 		
 		//load parameters
 		for(int i = 0; i < args.length; i++) {
@@ -99,7 +103,7 @@ public class PTMShepherd {
 			} else
 				parseParamFile(args[i]);
 		}
-		
+		params.put("peakpicking_background", Double.toString(2.5*Double.parseDouble(params.get("peakpicking_width"))));
 		//replace overrides
 		for(Iterator<String> it = overrides.keySet().iterator(); it.hasNext();) {
 			String ckey = it.next();
@@ -310,7 +314,7 @@ public class PTMShepherd {
 			LocalizationProfile loc_current = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol")));
 			SiteLocalization sl = new SiteLocalization(ds);
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
-			sl.updateLocalizationProfiles(loc_targets);
+			sl.updateLocalizationProfiles(loc_targets); //this is where the localization is actually happening
 			loc_current.writeProfile(ds+".locprofile.txt");
 		} 
 		loc_global.writeProfile("global.locprofile.txt");
@@ -345,19 +349,25 @@ public class PTMShepherd {
 		simrt_global.writeProfile("global.simrtprofile.txt");
 		print("Created similarity/RT reports\n");
 
-		//Clean output
+		//Combine tables
 		System.out.println("Combining and cleaning reports");
 		CombinedTable.writeCombinedTable("global");
-
-		// delete dataset files with specific extensions
-		List<String> extsToDelete = Arrays
-				.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt");
-		for (String ds : datasets.keySet()) {
+		for (String ds : datasets.keySet()){
 			System.out.println("Writing combined table for dataset " + ds);
 			CombinedTable.writeCombinedTable(ds);
-			for (String ext : extsToDelete) {
-				Path p = Paths.get(ds + ext).toAbsolutePath().normalize();
-				deleteFile(p, true);
+		}
+
+		if(!Boolean.parseBoolean(params.get("output_verbose"))) {
+			// delete dataset files with specific extensions
+			List<String> extsToDelete = Arrays
+					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt");
+			for (String ds : datasets.keySet()) {
+				//System.out.println("Writing combined table for dataset " + ds);
+				//CombinedTable.writeCombinedTable(ds);
+				for (String ext : extsToDelete) {
+					Path p = Paths.get(ds + ext).toAbsolutePath().normalize();
+					deleteFile(p, true);
+				}
 			}
 		}
 
@@ -367,15 +377,6 @@ public class PTMShepherd {
 			deleteFile(crcpath, true);
 		}
 
-		// delete specific files
-		List<String> filesToDelete = Arrays
-				.asList("combined.histo", "combined.tsv", "global.simrtprofile.txt",
-						"global.locprofile.txt", "peaks.tsv",
-						"peaksummary.annotated.tsv", "peaksummary.tsv");
-		for (String f : filesToDelete) {
-			Path p = Paths.get(f).toAbsolutePath().normalize();
-			deleteFile(p, true);
-		}
 	}
 
 	private static void deleteFile(Path p, boolean printOnDeletion) throws IOException {
