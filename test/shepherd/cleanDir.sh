@@ -3,3 +3,4 @@ rm 02*
 rm cache-*
 rm combined*
 rm peaks*
+rm global*
