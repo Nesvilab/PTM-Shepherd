@@ -1,0 +1,22 @@
+dataset = 01 /home/geiszler/Documents/PTMShepherdTestCases/01/psm.tsv /home/geiszler/Documents/PTMShepherdTestCases/01
+dataset = 02 /home/geiszler/Documents/PTMShepherdTestCases/02/psm.tsv /home/geiszler/Documents/PTMShepherdTestCases/02
+
+threads = 8
+histo_bindivs = 5000
+histo_smoothbins = 3
+
+peakpicking_promRatio = 0.3
+peakpicking_width = 0.07
+peakpicking_background = 0.0125
+peakpicking_topN = 500
+
+precursor_tol = 0.3
+precursor_tol_ppm = 20.0
+
+spectra_ppmtol = 20.0
+spectra_condPeaks = 100
+spectra_condRatio = 0.01
+
+varmod_masses = None:0
+
+localization_background = 1

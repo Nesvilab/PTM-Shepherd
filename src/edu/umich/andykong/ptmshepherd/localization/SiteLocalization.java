@@ -58,7 +58,7 @@ public class SiteLocalization {
 		specCol = pf.getColumn("Spectrum");
 		pepCol = pf.getColumn("Peptide");
 		modCol = pf.getColumn("Assigned Modifications");
-		deltaCol = pf.getColumn("Original Delta Mass");
+		deltaCol = pf.getColumn("Adjusted Delta Mass");
 		
 		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));

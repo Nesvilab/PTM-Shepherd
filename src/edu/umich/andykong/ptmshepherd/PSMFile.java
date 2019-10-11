@@ -57,7 +57,7 @@ public class PSMFile {
 	
 	public ArrayList<Float> getMassDiffs() {
 		ArrayList<Float> res = new ArrayList<>();
-		int col = getColumn("Original Delta Mass");
+		int col = getColumn("Adjusted Delta Mass");
 		for(int i = 0; i < data.size(); i++) {
 			String [] sp = data.get(i).split("\t");
 			res.add(Float.parseFloat(sp[col]));

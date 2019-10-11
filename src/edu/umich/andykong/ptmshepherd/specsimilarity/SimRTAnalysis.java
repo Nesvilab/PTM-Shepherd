@@ -65,7 +65,7 @@ public class SimRTAnalysis {
 		pepCol = pf.getColumn("Peptide");
 		modpepCol = pf.getColumn("Modified Peptide");
 		chargeCol = pf.getColumn("Charge");
-		deltaCol = pf.getColumn("Original Delta Mass");
+		deltaCol = pf.getColumn("Adjusted Delta Mass");
 		rtCol = pf.getColumn("Retention");
 		intCol = pf.getColumn("Intensity");
 		
