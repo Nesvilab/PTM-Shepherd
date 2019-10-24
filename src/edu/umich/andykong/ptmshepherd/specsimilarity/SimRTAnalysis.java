@@ -31,7 +31,10 @@ public class SimRTAnalysis {
 	public String reNormName(String s) {
 		String [] sp = s.split("\\.");
 		int sn = Integer.parseInt(sp[1]);
-		return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+		//with charge state
+		//return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+		//without charge state
+		return String.format("%s.%d.%d",sp[0],sn,sn);
 	}
 	
 	public boolean isComplete() throws Exception {
@@ -65,7 +68,7 @@ public class SimRTAnalysis {
 		pepCol = pf.getColumn("Peptide");
 		modpepCol = pf.getColumn("Modified Peptide");
 		chargeCol = pf.getColumn("Charge");
-		deltaCol = pf.getColumn("Original Delta Mass");
+		deltaCol = pf.dMassCol;
 		rtCol = pf.getColumn("Retention");
 		intCol = pf.getColumn("Intensity");
 		
@@ -134,6 +137,7 @@ public class SimRTAnalysis {
 				for(int i = 0; i < relLines.size(); i++) {
 					String [] crow = pf.data.get(relLines.get(i)).split("\t");
 					String specNormName = reNormName(crow[specCol]);
+					//System.out.println(specNormName);
 					Spectrum cspec = mr.getSpectrum(specNormName);
 					if (cspec == null) {
 						linesWithoutSpectra.add(specNormName);

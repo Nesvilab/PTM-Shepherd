@@ -140,7 +140,7 @@ public class PeakSummary {
 	
 	public void appendPSMs(PSMFile pf) {
 		int seqcol = pf.getColumn("Peptide");
-		int mdcol = pf.getColumn("Original Delta Mass");
+		int mdcol = pf.dMassCol;
 //		long stime = System.currentTimeMillis();
 		for(int i = 0; i < pf.data.size(); i++) {
 			String [] sp = pf.data.get(i).split("\t");

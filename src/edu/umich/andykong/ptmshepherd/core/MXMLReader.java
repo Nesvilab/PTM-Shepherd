@@ -111,7 +111,10 @@ public class MXMLReader {
 			}
 			ns.scanNum = scanNumRaw;
 			ns.rt = scan.getRt();
-			ns.scanName = baseName+"."+scanNumRaw+"."+scanNumRaw+"."+ns.charge;
+			//includes charge state in scan num
+			//ns.scanName = baseName+"."+scanNumRaw+"."+scanNumRaw+"."+ns.charge;
+			//does not include charge state in scan num
+			ns.scanName = baseName+"."+scanNumRaw+"."+scanNumRaw;
 			ns.precursorMass = scan.getPrecursor().getMzTarget();
 			for(int i = 0; i < clen; i++) {
 				ns.peakMZ[i] = (float)spectrum.getMZs()[i];

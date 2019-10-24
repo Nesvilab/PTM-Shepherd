@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.4";
+ 	public static final String version = "0.2.5";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -76,14 +76,14 @@ public class PTMShepherd {
 		//default values
 		params.put("threads", ""+Math.min(8, Runtime.getRuntime().availableProcessors()));
 		params.put("histo_bindivs", "5000"); //number of divisions in histogram
-		params.put("histo_smoothbins", "3"); //smoothing factor
+		params.put("histo_smoothbins", "5"); //smoothing factor
 		
 		params.put("peakpicking_promRatio", "0.3"); //prominence ratio for peakpicking
-		params.put("peakpicking_width", "0.002"); //width for peakpicking
-		params.put("peakpicking_background", "0.005");
+		params.put("peakpicking_width", "0.005"); //width for peakpicking
+		//params.put("peakpicking_background", "0.005");
 		params.put("peakpicking_topN", "500"); //num peaks
         params.put("peakpicking_minPsm", "10");
-        params.put("localization_background", "1");
+        params.put("localization_background", "4");
         params.put("varmod_masses", ":0");
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width
 		//params.put("precursor_tol_ppm", "20.0"); //unused
@@ -92,8 +92,8 @@ public class PTMShepherd {
 		params.put("spectra_condPeaks", "100"); //
 		params.put("spectra_condRatio", "0.01"); //
 
-		params.put("output_verbose", "false");
-		//params.put("output_verbose", "true");
+		params.put("output_extended", "false");
+		//params.put("output_extended", "true");
 		
 		//load parameters
 		for(int i = 0; i < args.length; i++) {
@@ -357,10 +357,17 @@ public class PTMShepherd {
 			CombinedTable.writeCombinedTable(ds);
 		}
 
-		if(!Boolean.parseBoolean(params.get("output_verbose"))) {
+		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
+
+		for (String f : filesToDelete) {
+			Path p = Paths.get(f).toAbsolutePath().normalize();
+			deleteFile(p, true);
+		}
+
+		if(!Boolean.parseBoolean(params.get("output_extended"))) {
 			// delete dataset files with specific extensions
 			List<String> extsToDelete = Arrays
-					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt");
+					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt", ".rawlocalize", ".rawsimrt");
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -369,6 +376,17 @@ public class PTMShepherd {
 					deleteFile(p, true);
 				}
 			}
+			String dsTmp = "combined";
+			for (String ext : extsToDelete) {
+				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				deleteFile(p, true);
+			}
+			dsTmp = "global";
+			for (String ext : extsToDelete) {
+				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				deleteFile(p, true);
+			}
+
 		}
 
 		for (String crc : cacheFiles) {

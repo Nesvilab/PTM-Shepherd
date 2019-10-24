@@ -3,6 +3,7 @@ package edu.umich.andykong.ptmshepherd.peakpicker;
 import java.io.*;
 import java.util.*;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
 public class PeakAnnotator {
@@ -16,7 +17,8 @@ public class PeakAnnotator {
 
 	static final double C13delta = 1.003355;
 	static final double modEqual_tol = 0.001;
-	static final double mod_tol = 0.002;
+	//static final double mod_tol = 0.002;
+	static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("precursor_tol")));
 	
 	int [] indices;
 	static final int maxDepth = 3;
