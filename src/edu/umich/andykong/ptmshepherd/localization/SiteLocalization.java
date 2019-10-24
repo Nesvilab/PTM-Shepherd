@@ -24,7 +24,10 @@ public class SiteLocalization {
 	public String reNormName(String s) {
 		String [] sp = s.split("\\.");
 		int sn = Integer.parseInt(sp[1]);
-		return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+		//with charge state
+		//return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+		//without charge state
+		return String.format("%s.%d.%d",sp[0],sn,sn);
 	}
 	
 	public boolean isComplete() throws Exception {
@@ -58,8 +61,7 @@ public class SiteLocalization {
 		specCol = pf.getColumn("Spectrum");
 		pepCol = pf.getColumn("Peptide");
 		modCol = pf.getColumn("Assigned Modifications");
-		deltaCol = pf.getColumn("Adjusted Delta Mass");
-		
+		deltaCol = pf.dMassCol;
 		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
 		condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));

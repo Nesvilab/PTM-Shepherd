@@ -7,6 +7,7 @@ public class PSMFile {
 
 	String [] headers;
 	public ArrayList<String> data;
+	public static int dMassCol;
 	
 	public PSMFile(String fn) throws Exception {
 		this(new File(fn));
@@ -57,7 +58,14 @@ public class PSMFile {
 	
 	public ArrayList<Float> getMassDiffs() {
 		ArrayList<Float> res = new ArrayList<>();
-		int col = getColumn("Adjusted Delta Mass");
+		int col = getColumn("Delta Mass");
+		if (col == -1) {
+			col = getColumn("Adjusted Delta Mass");
+		}
+		if (col == -1) {
+			col = getColumn("Original Delta Mass");
+		}
+		this.dMassCol = col;
 		for(int i = 0; i < data.size(); i++) {
 			String [] sp = data.get(i).split("\t");
 			res.add(Float.parseFloat(sp[col]));

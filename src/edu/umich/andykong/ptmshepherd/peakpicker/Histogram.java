@@ -164,7 +164,7 @@ public class Histogram {
 			double lo = nd.cumulativeProbability(lower+i*width);
 			double hi = nd.cumulativeProbability(lower +(i+1)*width);
 			gweights[i] = hi-lo;
+			//System.out.println(gweights[i]);
 		}
 	}
-	
 }
