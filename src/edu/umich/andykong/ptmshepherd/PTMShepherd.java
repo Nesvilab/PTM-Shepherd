@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.5";
+ 	public static final String version = "0.2.6";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -131,7 +131,48 @@ public class PTMShepherd {
 		}
 		
 		init(args);
-		
+
+		if(!Boolean.parseBoolean(params.get("run_from_old"))) {
+			List<String> filesToDelete = Arrays.asList("peaks.tsv",
+				"peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
+
+			for (String f : filesToDelete) {
+				Path p = Paths.get(f).toAbsolutePath().normalize();
+				deleteFile(p, true);
+			}
+
+			// delete dataset files with specific extensions
+			List<String> extsToDelete = Arrays
+					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt", ".rawlocalize", ".rawsimrt");
+			for (String ds : datasets.keySet()) {
+				//System.out.println("Writing combined table for dataset " + ds);
+				//CombinedTable.writeCombinedTable(ds);
+				for (String ext : extsToDelete) {
+					Path p = Paths.get(ds + ext).toAbsolutePath().normalize();
+					deleteFile(p, true);
+				}
+			}
+			String dsTmp = "combined";
+			for (String ext : extsToDelete) {
+				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				deleteFile(p, true);
+			}
+			dsTmp = "global";
+			for (String ext : extsToDelete) {
+				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				deleteFile(p, true);
+			}
+
+		}
+		//Do I need to delete cache files? TODO It doesnt seems so....
+		//for (String crc : cacheFiles) {
+		//	File crcf = new File("cache-"+crc +".txt");
+		//	Path crcpath = crcf.toPath().toAbsolutePath();
+		//	deleteFile(crcpath, true);
+		//}
+
+
+
 		//Get mzData mapping
 		ArrayList<String> cacheFiles = new ArrayList<>();
 		for(String ds : datasets.keySet()) {
@@ -268,7 +309,6 @@ public class PTMShepherd {
 			PeakSummary ps = new PeakSummary(peaks,Double.parseDouble(params.get("precursor_tol")));
 			for(String ds : datasets.keySet()) {
 				ps.reset();
-				
 				ArrayList<String []> dsData = datasets.get(ds);
 				for(int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
@@ -357,7 +397,8 @@ public class PTMShepherd {
 			CombinedTable.writeCombinedTable(ds);
 		}
 
-		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
+		List<String> filesToDelete = Arrays.asList("peaks.tsv",
+				"peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
 
 		for (String f : filesToDelete) {
 			Path p = Paths.get(f).toAbsolutePath().normalize();

@@ -26,9 +26,9 @@ public class PeakPicker {
 			}
 		}
 	}
-	
-	public void pickPeaks(double [] offsets, double [] sum, double promRatio, double peakWidth, double peakBackground, int nBins) throws Exception {
 
+	//inputs: bin divisions, bin weights, input prominence ratio, peakwidth, peakbackground, number of top peaks to report
+	public void pickPeaks(double [] offsets, double [] sum, double promRatio, double peakWidth, double peakBackground, int nBins) throws Exception {
 		//inner double pair class
 		class DPair implements Comparable<DPair> {
 			double key, value;
@@ -38,7 +38,8 @@ public class PeakPicker {
 				return -1* Double.compare(key, arg0.key);
 			}
 		}
-		
+
+		//calculates prominence of every bin
 		double [] prom = Prominence.computeProminence(sum);
 		ArrayList<DPair> dps = new ArrayList<DPair>();
 		for(int i = 0; i < prom.length; i++) {

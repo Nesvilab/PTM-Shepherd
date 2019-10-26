@@ -41,7 +41,18 @@ public class CombinedTable {
             // update
             if (subTabIdx == 0) {
                 records.addAll(lines);
-            } else {
+            } else if (subTabIdx == 2) {
+                for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
+                    String line = lines.get(lineIdx);
+                    if (line == null) {
+                        continue;
+                    }
+                    String[] split = line.split("\t");
+                    String lineCut = String.join("\t", Arrays.asList(split).subList(1, 7));
+                    records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
+                }
+            }
+            else {
                 for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
                     String line = lines.get(lineIdx);
                     if (line == null) {
@@ -55,7 +66,7 @@ public class CombinedTable {
         }
 
 
-        String fnOut = dataset + ".combined.profile.tsv";
+        String fnOut = dataset + ".profile.tsv";
         Path pOut = Paths.get(fnOut);
         System.out.println("Writing to file: " + pOut.toString());
         try (BufferedWriter bw = Files.newBufferedWriter(pOut)) {

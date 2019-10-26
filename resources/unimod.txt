@@ -145,7 +145,6 @@ C13 label (Phosphotyrosine)	88.996524
 Hydroxyphenylglyoxal arginine	132.021129
 bis(hydroxphenylglyoxal) arginine	282.052824
 APTA d3	174.168569
-O18 label at both C-terminal oxygens	4.008491
 6-aminoquinolyl-N-hydroxysuccinimidyl carbamate	170.048013
 DiMethyl-CHD2	32.056407
 EAPTA d0	184.157563
@@ -164,7 +163,6 @@ Crotonaldehyde	70.041865
 bromination	77.910511
 Tyrosine oxidation to 2-aminotyrosine	15.010899
 oxidized Arginine biotinylated with biotin hydrazide	199.066699
-O18 Labeling	2.004246
 13C(6) 15N(2) Silac label	8.014199
 Thiophosphorylation	95.943487
 4-sulfophenyl isothiocyanate	214.971084
@@ -506,10 +504,10 @@ O-Isopropylmethylphosphonylation	120.034017
 Accurate mass for 115, 118, 119 & 121	304.199040
 Dithiothreitol (DTT)	136.001656
 Carboxyl modification with ethanolamine	43.042199
-Sixplex Tandem Mass Tag®	229.162932
+Sixplex Tandem Mass Tagï¿½	229.162932
 Dithiothreitol (DTT) on Cys	120.024500
-Duplex Tandem Mass Tag®	225.155833
-Native Tandem Mass Tag®	224.152478
+Duplex Tandem Mass Tagï¿½	225.155833
+Native Tandem Mass Tagï¿½	224.152478
 ExacTag Thiol label mass for 2-4-7-10 plex	972.365219
 ExacTag Amine label mass for 2-4-7-10 plex	1046.347854
 Nitroso Sulfamethoxazole Sulphenamide thiol adduct	252.044287
@@ -632,8 +630,8 @@ maleimide-5-saccharide	1293.471879
 Puromycin	453.212452
 Condensation product of glucosone	160.037173
 Dimethyl 13C(6) Silac label	34.051429
-Native cysteine-reactive Tandem Mass Tag®	299.166748
-cysteine-reactive Sixplex Tandem Mass Tag®	304.177202
+Native cysteine-reactive Tandem Mass Tagï¿½	299.166748
+cysteine-reactive Sixplex Tandem Mass Tagï¿½	304.177202
 ISD (z+2)-series	-15.010899
 replacement of proton with ammonium ion	17.026549
 was Biotin-maleimide	449.173290
@@ -953,8 +951,8 @@ N-dimethylphosphate	107.013615
 phosphate-ribosylation	212.008590
 Formation of five membered aromatic heterocycle	-20.026215
 Biotin-PEG11-maleimide	921.461652
-Native iodoacetyl Tandem Mass Tag®	324.216141
-Sixplex iodoacetyl Tandem Mass Tag®	329.226595
+Native iodoacetyl Tandem Mass Tagï¿½	324.216141
+Sixplex iodoacetyl Tandem Mass Tagï¿½	329.226595
 13C(2) 15N(2)	4.000780
 Phosphogluconoylation	258.014069
 3-fold methylated lysine labelled with Acetyl_heavy	62.063875

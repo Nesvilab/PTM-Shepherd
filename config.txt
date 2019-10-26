@@ -10,7 +10,6 @@ peakpicking_width = 0.005
 peakpicking_topN = 500
 
 precursor_tol = 0.01
-precursor_tol_ppm = 20.0
 
 spectra_ppmtol = 20.0
 spectra_condPeaks = 100

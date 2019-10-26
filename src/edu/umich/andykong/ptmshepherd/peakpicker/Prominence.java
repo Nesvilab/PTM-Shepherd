@@ -4,16 +4,17 @@ import java.util.Arrays;
 
 public class Prominence {
 
+	//takes histo heights as argument
 	public static double [] computeProminence(double [] v) {
 		double [] pv = new double[v.length + 2];
 		int [] qPos = new int[v.length + 2];
 		double [] res = new double[v.length];
 		Arrays.fill(res,1e100);
 		int pos = 0;
-		pv[0] = pv[pv.length-1] = 1e100;		
+		pv[0] = pv[pv.length-1] = 1e100; //sets terminal values of pv
 		for(int i = 0; i < v.length; i++) 
-			pv[i+1] = v[i] + (Math.random() / 100000.0);
-		RMQ rmq = new RMQ(pv);
+			pv[i+1] = v[i] + (Math.random() / 100000.0); //sets pv to be noisy v
+		RMQ rmq = new RMQ(pv); //takes pv (noisy v)
 		
 		qPos[pos++] = 0;
 		for(int i = 1; i < pv.length - 1; i++) {
