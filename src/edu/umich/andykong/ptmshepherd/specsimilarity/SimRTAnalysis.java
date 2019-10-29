@@ -63,7 +63,11 @@ public class SimRTAnalysis {
 		//assemble PSMs into per file groupings
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(simRTFile,true));
-		
+
+		//Write header
+		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mod_Peptide","Shift","Is_Zero_Pep",
+				"DeltaRT", "nSpecs_DeltaRT", "Avg_Sim", "Avg_ZeroSim", "nSpecs_Sim");
+
 		specCol = pf.getColumn("Spectrum");
 		pepCol = pf.getColumn("Peptide");
 		modpepCol = pf.getColumn("Modified Peptide");
@@ -75,7 +79,7 @@ public class SimRTAnalysis {
 		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
 		condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
-		peakTol = Double.parseDouble(PTMShepherd.getParam("precursor_tol"));
+		peakTol = Double.parseDouble(PTMShepherd.getParam("precursor_tol")); //determines zero bin
 		
 		for(int i = 0; i < pf.data.size(); i++) {
 			String [] sp = pf.data.get(i).split("\t");
@@ -124,7 +128,7 @@ public class SimRTAnalysis {
 			List<String> linesWithoutSpectra = new ArrayList<>();
 			for(String pepZ : zTolLines.keySet()) {
 				ArrayList<Integer> relLines = zTolLines.get(pepZ);
-				Collections.shuffle(zTolLines.get(pepZ));
+				Collections.shuffle(zTolLines.get(pepZ)); //shuffled to remove bias
 				int nComp = Math.min(relLines.size(), MAX_ZERO_COMPARE);
 				zTolSpecs.put(pepZ, new ArrayList<>());
 				for(int i = 0; i < nComp; i++) {
@@ -178,7 +182,7 @@ public class SimRTAnalysis {
 				double rtDelta = -1e10;
 				double avgSim = -1e10, avgZeroSim = -1e10;
 				
-				if(zTolRT.containsKey(key)) {
+				if(zTolRT.containsKey(key)) { //calculated against average RT time
 					rtDelta = Double.parseDouble(crow[rtCol]) - avgzRT.get(key);
 					rtSize = zTolRT.get(key).size();
 				}
@@ -187,7 +191,7 @@ public class SimRTAnalysis {
 				if(zTolSpecs.containsKey(key)) {
 					Spectrum cspec = mr.getSpectrum(reNormName(crow[specCol]));
 					if(cspec != null) {
-						avgSim = cspec.averageSimilarity(zTolSpecs.get(key), ppmTol);
+						avgSim = cspec.averageSimilarity(zTolSpecs.get(key), ppmTol); //all v all comparison
 						avgZeroSim = avgzSim.get(key);
 						specSimSize = zTolSpecs.get(key).size();
 					}
@@ -208,6 +212,7 @@ public class SimRTAnalysis {
 	public void updateSimRTProfiles(SimRTProfile [] profiles) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(simRTFile));
 		String cline;
+		in.readLine();
 		while((cline = in.readLine())!= null) {
 			if(cline.equals("COMPLETE"))
 				break;

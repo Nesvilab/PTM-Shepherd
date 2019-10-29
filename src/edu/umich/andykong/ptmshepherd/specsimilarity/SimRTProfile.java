@@ -26,8 +26,8 @@ public class SimRTProfile {
 	
 	public void writeProfile(String path) throws Exception {
 		PrintWriter out = new PrintWriter(new FileWriter(path));
-		out.printf("%s\t%s\t%s\t%s\t%s\t%s\n",
-				"Peak","Matched PSMs","Similarity (mean)","Similarity (variance)","Delta RT (mean)", "Delta RT (variance)");
+		out.printf("%s\t%s\t%s\t%s\t%s\n",
+				"Peak","Matched PSMs","Similarity (mean)","Similarity (variance)","DeltaRT_Stat (mean/variance)");
 		for(int i = 0; i < records.length; i++) {
 			out.println(records[i].toString());
 		}

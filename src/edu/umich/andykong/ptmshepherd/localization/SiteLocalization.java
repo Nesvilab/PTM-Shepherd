@@ -57,7 +57,11 @@ public class SiteLocalization {
 		//assemble PSMs into per file groupings
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(localizationFile,true));
-		
+
+		//write headers
+		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mods","Shift","Localized_Pep",
+				"MaxHyper_Unloc", "MaxHyper_Loc", "MaxPeaks_Unloc", "MaxPeaks_Loc");
+
 		specCol = pf.getColumn("Spectrum");
 		pepCol = pf.getColumn("Peptide");
 		modCol = pf.getColumn("Assigned Modifications");
@@ -181,6 +185,7 @@ public class SiteLocalization {
 	public void updateLocalizationProfiles(LocalizationProfile [] profiles) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(localizationFile));
 		String cline;
+		in.readLine();
 		while((cline = in.readLine())!= null) {
 			if(cline.equals("COMPLETE"))
 				break;

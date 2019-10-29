@@ -19,19 +19,19 @@ public class PeakAnnotator {
 	static final double modEqual_tol = 0.001;
 	static final double mod_tol = 0.005;
 	//static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("precursor_tol")));
-
+	
 	int [] indices;
 	static final int maxDepth = 2;
 	static int cmaxDepth;
 	static boolean found, debug;
-
+	
 	public void annotateTSV(File inTSV, File outTSV) throws Exception {
         //ArrayList<String> vModNames = new ArrayList<>();
         //ArrayList<Double> vModMasses = new ArrayList<>();
 
 		//if(mods == null)
 		//	init(varMods);
-
+		
 		ArrayList<String> inFile = new ArrayList<>();
 		String cline;
 		BufferedReader in = new BufferedReader(new FileReader(inTSV));
@@ -45,7 +45,7 @@ public class PeakAnnotator {
 			masses[i-1] = Double.parseDouble(sp[0]);
 		}
 		String [][] annotations = annotate(masses);
-
+		
 		PrintWriter out = new PrintWriter(new FileWriter(outTSV));
 		out.print(inFile.get(0));
 		for(int i = 1; i <= maxDepth; i++)
@@ -59,7 +59,7 @@ public class PeakAnnotator {
 		}
 		out.close();
 	}
-
+	
 	public String [][] annotate(double [] masses) throws Exception {
 		String [][] res = new String[masses.length][maxDepth];
 		//init(userMods);
@@ -74,7 +74,7 @@ public class PeakAnnotator {
 		}
 		return res;
 	}
-
+	
 	public void dfs(int depth, double rem) {
 		if(Math.abs(rem) < mod_tol) {
 			found = true;
@@ -82,7 +82,7 @@ public class PeakAnnotator {
 		}
 //		if(debug) {
 //			System.out.print("depth: " + depth + " rem: " + rem);
-//			for(int i = 0; i < depth; i++)
+//			for(int i = 0; i < depth; i++) 
 //				System.out.printf(" [%.4f]",mod_diffs.get(indices[i]));
 //			System.out.println();
 //		}
@@ -96,7 +96,7 @@ public class PeakAnnotator {
 			indices[depth] = -1;
 		}
 	}
-
+	
 	public int [] checkMod(double v) {
 //		System.out.println(v);
 //		debug=true;
@@ -130,7 +130,7 @@ public class PeakAnnotator {
 					return res;
 				}
 		}
-		if(debug)
+		if(debug) 
 			for(int i = 0; i < allowed_list.size(); i++) {
 				System.out.printf("%s - %.4f\n",mods.get(allowed_list.get(i)),mod_diffs.get(allowed_list.get(i)));
 			}
@@ -140,7 +140,7 @@ public class PeakAnnotator {
 			dfs(0,v);
 			if(found) {
 				for(int j = 0; j < i; j++)
-					res[j] = indices[j];
+					res[j] = indices[j]; 
 				break;
 			}
 		}
@@ -153,7 +153,7 @@ public class PeakAnnotator {
 		debug = false;
 		return res;
 	}
-
+	
 	public void addMod(String tag, double v) {
 		for(int i = 0; i < mod_diffs.size(); i++) {
 			if(Math.abs(v-mod_diffs.get(i)) < modEqual_tol) {
@@ -164,7 +164,7 @@ public class PeakAnnotator {
 		mods.add(tag);
 		mod_diffs.add(v);
 	}
-
+	
 	public void init(String varMods) throws Exception {
 		mods = new ArrayList<String>(); //all modification names
 		mod_diffs = new ArrayList<Double>(); //all modification mass shifts
