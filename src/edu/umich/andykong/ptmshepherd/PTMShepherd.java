@@ -79,7 +79,7 @@ public class PTMShepherd {
 		params.put("histo_smoothbins", "5"); //smoothing factor
 		
 		params.put("peakpicking_promRatio", "0.3"); //prominence ratio for peakpicking
-		params.put("peakpicking_width", "0.005"); //width for peakpicking
+		params.put("peakpicking_width", "0.002"); //width for peakpicking
 		//params.put("peakpicking_background", "0.005");
 		params.put("peakpicking_topN", "500"); //num peaks
         params.put("peakpicking_minPsm", "10");
