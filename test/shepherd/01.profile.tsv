@@ -1,16 +1,17 @@
 PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/million)	01 (Peptides)	01 (% in unmodified)	02 (Peptides)	02 (% in unmodified)	Potential Modification 1	Potential Modification 2	Matched PSMs	Similarity (mean)	Similarity (variance)	DeltaRT_Stat (mean/variance)	Localized PSMs	Total PSMs	N-term rate	EnrichedAA_1	EnrichedAA_2	EnrichedAA_3
--0.00020	-0.01020	0.00980	1001	1130	27493.96	30845.66	912	100.00	1043	100.00			1001	0.9949	0.0005	0.0000	6	1001	0.50	Q - 4.85	M - 2.79	E - 2.54
-1.00220	0.99220	1.01220	255	288	7003.96	7861.55	236	21.19	269	20.07	First isotopic peak		255	0.8553	0.0150	0.0004	122	255	12.55	W - 3.79	I - 1.69	P - 1.57
-27.99560	27.98560	28.00560	20	24	549.33	655.13	20	30.00	24	20.83	Formylation		20	0.6975	0.0467	0.0005	15	20	65.00	C - 3.19	N - 3.10	Q - 2.01
+-0.00040	-0.01040	0.00960	1001	1132	27493.96	30900.26	912	100.00	1043	100.00			1001	0.9948	0.0005	0.0000	6	1001	0.50	Q - 4.85	M - 2.79	E - 2.54
+1.00220	0.99220	1.01220	255	288	7003.96	7861.55	236	21.19	269	20.07	First isotopic peak		255	0.8550	0.0150	0.0004	122	255	12.55	W - 3.79	I - 1.69	P - 1.57
+27.99540	27.98540	28.00540	20	24	549.33	655.13	20	30.00	24	20.83	Formylation		20	0.6964	0.0461	0.0005	15	20	65.00	C - 3.19	N - 3.10	Q - 2.01
 79.96680	79.95680	79.97680	16	24	439.46	655.13	16	0.00	24	0.00	Phosphorylation		16	0.0000	0.0000	NaN	0	16	0.00	A - 0.00	A - 0.00	A - 0.00
 229.16240	229.15240	229.17240	15	23	412.00	627.83	14	21.43	22	18.18	Sixplex Tandem Mass Tag®		15	0.0000	0.0000	-0.0049	14	15	0.00	S - 11.86	T - 1.41	L - 0.41
-2.00580	1.99580	2.01580	15	12	412.00	327.56	14	57.14	11	63.64	Second isotopic peak		15	0.8244	0.0100	-0.0009	10	15	0.00	E - 3.75	P - 2.81	T - 2.31
+2.00560	1.99560	2.01560	15	12	412.00	327.56	14	57.14	11	63.64	Second isotopic peak		15	0.8233	0.0098	-0.0009	10	15	0.00	E - 3.75	P - 2.81	T - 2.31
 -0.98400	-0.99400	-0.97400	7	10	192.27	272.97	6	16.67	9	22.22	Amidation		7	0.8463	0.0000	-Infinity	0	7	0.00	A - 0.00	A - 0.00	A - 0.00
-115.02720	115.01720	115.03720	14	17	384.53	464.05	14	28.57	15	26.67	Cleavage product of EGS protein crosslinks by hydroylamine treatment/Addition of D		14	0.4470	0.0875	0.0022	11	14	71.43	H - 4.85	C - 4.35	T - 3.59
+115.02700	115.01700	115.03700	14	17	384.53	464.05	14	28.57	15	26.67	Cleavage product of EGS protein crosslinks by hydroylamine treatment/Addition of D		14	0.4470	0.0875	0.0022	11	14	71.43	H - 4.85	C - 4.35	T - 3.59
 57.02220	57.01220	57.03220	12	19	329.60	518.64	12	33.33	18	33.33	Iodoacetamide derivative/Addition of Glycine/Addition of G		12	0.4977	0.0641	0.0105	10	12	66.67	H - 13.33	I - 2.65	T - 1.98
-43.00600	42.99600	43.01600	13	15	357.06	409.46	12	25.00	15	33.33	Carbamylation		13	0.7858	0.0056	0.0056	8	13	61.54	Y - 10.42	D - 4.44	H - 1.67
+43.00560	42.99560	43.01560	13	15	357.06	409.46	12	25.00	15	33.33	Carbamylation		13	0.7858	0.0056	0.0056	8	13	61.54	Y - 10.42	D - 4.44	H - 1.67
 100.01580	100.00580	100.02580	10	16	274.66	436.75	10	10.00	16	0.00	Succinic anhydride labeling reagent light form (N-term &amp; K)/Methylmalonylation on Serine		10	0.7402	0.0000	Infinity	9	10	60.00	R - 4.82	V - 3.04	S - 2.95
-15.01020	15.00020	15.02020	11	9	302.13	245.67	11	45.45	9	33.33	Tyrosine oxidation to 2-aminotyrosine/Conversion of carboxylic acid to hydroxamic acid		11	0.7352	0.0207	-0.0007	6	11	0.00	M - 11.14	P - 5.61	D - 5.26
+15.01160	15.01090	15.02160	6	6	164.80	163.78	6	33.33	6	33.33	Tyrosine oxidation to 2-aminotyrosine/Conversion of carboxylic acid to hydroxamic acid		6	0.7749	0.0318	-0.0004	5	6	0.00	M - 13.37	D - 6.31	E - 3.15
+15.01020	15.00020	15.01090	5	4	137.33	109.19	5	60.00	4	25.00	Tyrosine oxidation to 2-aminotyrosine/Conversion of carboxylic acid to hydroxamic acid		5	0.6557	0.0000	-0.0029	1	5	0.00	P - 33.69	A - 0.00	A - 0.00
 -201.17000	-201.18000	-201.16000	10	9	274.66	245.67	10	10.00	8	12.50	Mod1	replacement of proton with ammonium ion	10	0.4888	0.0000	Infinity	7	10	0.00	K - 13.47	P - 4.81	A - 0.00
 17.02600	17.01600	17.03600	4	10	109.87	272.97	4	100.00	10	90.00	replacement of proton with ammonium ion		4	0.9430	0.0005	-0.0066	0	4	0.00	A - 0.00	A - 0.00	A - 0.00
 230.16460	230.15460	230.17460	5	12	137.33	327.56	5	20.00	12	8.33	First isotopic peak	Sixplex Tandem Mass Tag®	5	0.0000	0.0000	Infinity	5	5	0.00	S - 11.96	P - 3.37	A - 0.00
@@ -25,19 +26,19 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 -17.02580	-17.02620	-17.02170	1	0	27.47	0.00	1	0.00	0	0.00	Pyro-glu from Q/Loss of ammonia		1	0.0000	0.0000	NaN	1	1	100.00	H - 26.65	Q - 11.32	A - 0.00
 -17.01760	-17.02170	-17.01260	1	1	27.47	27.30	1	100.00	1	100.00	Unannotated mass-shift -17.0176		1	0.0000	0.0000	Infinity	1	1	0.00	I - 13.24	A - 5.34	A - 0.00
 -17.00500	-17.00570	-16.99500	1	0	27.47	0.00	1	100.00	0	0.00	First isotopic peak	Dehydration/Pyro-glu from E	1	0.0000	0.0000	Infinity	1	1	0.00	T - 9.88	A - 5.34	A - 0.00
-15.99400	15.98400	16.00400	3	5	82.40	136.49	3	100.00	4	50.00	Oxidation or Hydroxylation		3	0.6463	0.0341	-0.0019	2	3	33.33	P - 16.84	L - 5.77	A - 0.00
+15.99400	15.98400	16.00400	3	5	82.40	136.49	3	100.00	4	50.00	Oxidation or Hydroxylation		3	0.6449	0.0334	-0.0019	2	3	33.33	P - 16.84	L - 5.77	A - 0.00
 -129.14700	-129.15700	-129.13700	5	5	137.33	136.49	5	20.00	5	40.00	Unannotated mass-shift -129.1470		5	0.6005	0.0000	Infinity	3	5	20.00	K - 10.48	T - 3.29	G - 1.96
--375.27020	-375.28020	-375.26870	1	3	27.47	81.89	1	100.00	3	66.67	Unannotated mass-shift -375.2702		1	0.3821	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
--375.26720	-375.26870	-375.25720	2	2	54.93	54.59	2	100.00	1	100.00	Unannotated mass-shift -375.2702		2	0.3948	0.0023	-0.0008	0	2	0.00	A - 0.00	A - 0.00	A - 0.00
+-375.27020	-375.28020	-375.26870	1	3	27.47	81.89	1	100.00	3	66.67	Unannotated mass-shift -375.2702		1	0.3789	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+-375.26720	-375.26870	-375.25720	2	2	54.93	54.59	2	100.00	1	100.00	Unannotated mass-shift -375.2702		2	0.3933	0.0025	-0.0008	0	2	0.00	A - 0.00	A - 0.00	A - 0.00
 -113.08740	-113.09740	-113.07740	3	0	82.40	0.00	2	0.00	0	0.00	Deletion of I/Deletion of L		3	0.0000	0.0000	NaN	3	3	100.00	L - 11.54	A - 0.00	A - 0.00
 72.02000	72.01000	72.03000	2	6	54.93	163.78	2	0.00	6	0.00	carboxyethyl/Dihydroxy methylglyoxal adduct/Ethoxyformylation		2	0.0000	0.0000	NaN	2	2	100.00	Q - 11.32	A - 5.34	A - 0.00
-80.97020	80.96020	80.98020	0	7	0.00	191.08	0	0.00	6	0.00	Mod1	Native cysteine-reactive Tandem Mass Tag®	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+80.97040	80.96040	80.98040	0	7	0.00	191.08	0	0.00	6	0.00	Mod1	Native cysteine-reactive Tandem Mass Tag®	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 156.10200	156.09200	156.11200	5	2	137.33	54.59	5	20.00	2	0.00	Addition of arginine due to transpeptidation/Addition of R		5	0.0000	0.0000	-Infinity	3	5	0.00	N - 8.46	P - 3.74	R - 2.41
 -186.15860	-186.16860	-186.14860	1	5	27.47	136.49	1	0.00	4	0.00	Unannotated mass-shift -186.1586		1	0.0000	0.0000	NaN	1	1	0.00	K - 15.71	A - 0.00	A - 0.00
 -357.25900	-357.26900	-357.24900	2	4	54.93	109.19	2	0.00	4	0.00	Unannotated mass-shift -357.2590		2	0.0000	0.0000	NaN	1	2	0.00	K - 15.71	A - 0.00	A - 0.00
 97.01680	97.00680	97.02680	2	4	54.93	109.19	2	0.00	4	25.00	maleimide		2	0.0000	0.0000	NaN	2	2	100.00	A - 5.34	E - 5.25	A - 0.00
+3.00900	2.99900	3.01900	2	3	54.93	81.89	2	100.00	3	100.00	Third isotopic peak/13C3 label for SILAC		2	0.7739	0.0130	-0.0009	2	2	0.00	T - 8.24	D - 3.94	V - 2.28
 -172.14200	-172.15200	-172.13200	1	3	27.47	81.89	1	0.00	3	0.00	Unannotated mass-shift -172.1420		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
-3.00860	2.99860	3.01860	2	3	54.93	81.89	2	100.00	3	100.00	Third isotopic peak/13C3 label for SILAC		2	0.7760	0.0138	-0.0009	2	2	0.00	T - 8.24	D - 3.94	V - 2.28
 18.02920	18.01920	18.03920	1	4	27.47	109.19	1	100.00	2	100.00	First isotopic peak	replacement of proton with ammonium ion	1	0.0000	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 59.00140	58.99140	59.01140	4	2	109.87	54.59	4	50.00	2	0.00	Carbamylation	Oxidation or Hydroxylation	4	0.9112	0.0005	-0.0045	4	4	0.00	Y - 31.27	S - 3.32	A - 0.00
 -48.00240	-48.00440	-48.00140	1	1	27.47	27.30	1	0.00	1	0.00	Homoserine lactone/Prompt loss of side chain from oxidised Met		1	0.0000	0.0000	NaN	1	1	0.00	M - 66.84	A - 0.00	A - 0.00
@@ -46,24 +47,24 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 45.01920	45.01030	45.02920	1	0	27.47	0.00	1	0.00	0	0.00	Formylation	replacement of proton with ammonium ion	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 220.08760	220.07760	220.09760	2	1	54.93	27.30	2	100.00	1	100.00	Unannotated mass-shift 220.0876		2	0.6947	0.0000	-0.0018	1	2	0.00	D - 15.77	A - 0.00	A - 0.00
 -48.00040	-48.00140	-47.99040	1	0	27.47	0.00	1	0.00	0	0.00	Homoserine lactone/Prompt loss of side chain from oxidised Met		1	0.0000	0.0000	NaN	1	1	0.00	M - 66.84	A - 0.00	A - 0.00
-14.01520	14.00520	14.02520	3	1	82.40	27.30	3	0.00	1	0.00	Methylation		3	0.0000	0.0000	NaN	2	3	0.00	R - 10.85	V - 6.84	A - 0.00
+14.01500	14.00500	14.02500	3	1	82.40	27.30	3	0.00	1	0.00	Methylation		3	0.0000	0.0000	NaN	2	3	0.00	R - 10.85	V - 6.84	A - 0.00
 45.00140	44.99140	45.01030	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 45.0014		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 45.04040	45.03040	45.05040	1	0	27.47	0.00	1	0.00	0	0.00	Mod1	Tween 80 synthetic polymer terminus	1	0.0000	0.0000	NaN	1	1	100.00	I - 26.48	A - 0.00	A - 0.00
-101.01700	101.00700	101.02700	3	0	82.40	0.00	2	50.00	0	0.00	First isotopic peak	Succinic anhydride labeling reagent light form (N-term &amp; K)/Methylmalonylation on Serine	3	0.5161	0.0000	Infinity	3	3	100.00	C - 39.88	R - 3.62	A - 0.00
 114.04320	114.03320	114.05320	1	0	27.47	0.00	1	0.00	0	0.00	ubiquitinylation residue/Double Carbamidomethylation/Addition of N		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 114.08600	114.07600	114.08780	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 114.0860		1	0.8500	0.0000	Infinity	1	1	0.00	K - 15.71	A - 0.00	A - 0.00
+101.01720	101.00720	101.02720	3	0	82.40	0.00	2	50.00	0	0.00	First isotopic peak	Succinic anhydride labeling reagent light form (N-term &amp; K)/Methylmalonylation on Serine	3	0.5161	0.0000	Infinity	3	3	100.00	C - 39.88	R - 3.62	A - 0.00
 -432.28860	-432.29860	-432.27860	1	2	27.47	54.59	1	100.00	2	100.00	Unannotated mass-shift -432.2886		1	0.4650	0.0000	Infinity	1	1	0.00	K - 15.71	A - 0.00	A - 0.00
 116.04400	116.03590	116.05400	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 116.0440		1	0.0000	0.0000	NaN	1	1	0.00	S - 6.64	T - 4.94	E - 2.63
-60.03100	60.03040	60.04100	1	1	27.47	27.30	1	0.00	1	0.00	Third isotopic peak/13C3 label for SILAC	Iodoacetamide derivative/Addition of Glycine/Addition of G	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+60.03080	60.03030	60.04080	1	1	27.47	27.30	1	0.00	1	0.00	Third isotopic peak/13C3 label for SILAC	Iodoacetamide derivative/Addition of Glycine/Addition of G	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 114.08960	114.08780	114.09960	1	1	27.47	27.30	1	100.00	1	0.00	Unannotated mass-shift 114.0860		1	0.0000	0.0000	Infinity	1	1	0.00	K - 15.71	A - 0.00	A - 0.00
 42.00920	41.99920	42.01920	1	2	27.47	54.59	1	0.00	2	50.00	Acetylation		1	0.0000	0.0000	NaN	1	1	100.00	M - 66.84	A - 0.00	A - 0.00
 58.02580	58.01580	58.03580	1	2	27.47	54.59	1	100.00	1	0.00	2,3-dihydro-2,2-dimethyl-7-benzofuranol N-methyl carbamate		1	0.8441	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
-60.02980	60.01980	60.03040	1	0	27.47	0.00	1	0.00	0	0.00	Third isotopic peak/13C3 label for SILAC	Iodoacetamide derivative/Addition of Glycine/Addition of G	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+60.02980	60.01980	60.03030	1	0	27.47	0.00	1	0.00	0	0.00	Third isotopic peak/13C3 label for SILAC	Iodoacetamide derivative/Addition of Glycine/Addition of G	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -1.16720	-1.17720	-1.15720	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -1.1672		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 73.06080	73.05080	73.07080	3	1	82.40	27.30	3	0.00	1	0.00	Sixplex Tandem Mass Tag®	Loss of arginine due to transpeptidation/Deletion of R	3	0.0000	0.0000	NaN	3	3	100.00	R - 21.71	A - 0.00	A - 0.00
 188.06040	188.05040	188.07040	3	1	82.40	27.30	3	0.00	1	0.00	carboxyethyl/Dihydroxy methylglyoxal adduct/Ethoxyformylation	Unannotated mass-shift 116.0440	3	0.0000	0.0000	NaN	0	3	0.00	A - 0.00	A - 0.00	A - 0.00
 71.09360	71.08360	71.10360	3	3	82.40	81.89	3	33.33	3	33.33	Unannotated mass-shift 71.0936		3	0.0000	0.0000	NaN	3	3	100.00	S - 11.07	A - 1.78	A - 0.00
-44.00900	43.99900	44.01900	2	0	54.93	0.00	2	0.00	0	0.00	S-Ethylcystine from Serine		2	0.0000	0.0000	NaN	0	2	0.00	A - 0.00	A - 0.00	A - 0.00
+44.00920	43.99920	44.01920	2	0	54.93	0.00	2	0.00	0	0.00	S-Ethylcystine from Serine		2	0.0000	0.0000	NaN	0	2	0.00	A - 0.00	A - 0.00	A - 0.00
 -170.10440	-170.11440	-170.09440	2	1	54.93	27.30	2	0.00	1	0.00	Unannotated mass-shift -170.1044		2	0.0000	0.0000	NaN	2	2	100.00	L - 5.77	V - 3.42	A - 2.67
 173.05260	173.04350	173.06260	1	0	27.47	0.00	1	0.00	0	0.00	Cleavage product of EGS protein crosslinks by hydroylamine treatment/Addition of D	2,3-dihydro-2,2-dimethyl-7-benzofuranol N-methyl carbamate	1	0.0000	0.0000	NaN	1	1	100.00	E - 10.50	A - 0.00	A - 0.00
 428.22120	428.21120	428.22340	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 428.2212		1	0.8290	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -72,7 +73,7 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 474.12400	474.12150	474.13400	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 474.1190		1	0.0000	0.0000	NaN	1	1	0.00	L - 11.54	A - 0.00	A - 0.00
 -203.14880	-203.15880	-203.13880	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift -203.1488		1	0.0000	0.0000	NaN	1	1	100.00	L - 11.54	A - 0.00	A - 0.00
 -157.14200	-157.15200	-157.13200	1	2	27.47	54.59	1	0.00	2	50.00	Unannotated mass-shift -157.1420		1	0.0000	0.0000	NaN	1	1	0.00	K - 15.71	A - 0.00	A - 0.00
--164.23480	-164.24480	-164.22480	1	2	27.47	54.59	1	0.00	1	0.00	Unannotated mass-shift -164.2348		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+-164.23500	-164.24500	-164.22500	1	2	27.47	54.59	1	0.00	1	0.00	Unannotated mass-shift -164.2350		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 113.08520	113.07520	113.09520	1	2	27.47	54.59	1	0.00	2	0.00	Acetylhypusine/Addition of I/Addition of L		1	0.0000	0.0000	NaN	1	1	0.00	R - 21.71	A - 0.00	A - 0.00
 199.09220	199.08220	199.10220	1	2	27.47	54.59	1	0.00	1	0.00	Unannotated mass-shift 199.0922		1	0.0000	0.0000	NaN	1	1	0.00	R - 21.71	A - 0.00	A - 0.00
 -184.11920	-184.12050	-184.10920	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -184.1192		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -142,7 +143,7 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 9.00640	8.99640	9.01640	1	1	27.47	27.30	1	0.00	1	0.00	Dehydration/Pyro-glu from E	Unannotated mass-shift 27.0174	1	0.0000	0.0000	NaN	1	1	100.00	C - 23.93	D - 7.89	A - 0.00
 9.98520	9.97520	9.99520	1	1	27.47	27.30	1	0.00	1	0.00	Formylation	Dehydration/Pyro-glu from E	1	0.0000	0.0000	NaN	1	1	100.00	Y - 13.90	D - 5.26	S - 4.43
 53.91480	53.90480	53.92480	1	1	27.47	27.30	1	100.00	1	100.00	Replacement of 2 protons by iron		1	0.0000	0.0000	Infinity	1	1	0.00	N - 12.68	D - 7.89	A - 0.00
-63.02700	63.01700	63.03700	1	1	27.47	27.30	1	0.00	1	0.00	13C(4) 15N(2) Lysine glygly	Deletion of G	1	0.0000	0.0000	NaN	1	1	100.00	M - 66.84	A - 0.00	A - 0.00
+63.02680	63.01680	63.03680	1	1	27.47	27.30	1	0.00	1	0.00	13C(4) 15N(2) Lysine glygly	Deletion of G	1	0.0000	0.0000	NaN	1	1	100.00	M - 66.84	A - 0.00	A - 0.00
 83.00840	82.99840	83.01840	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 83.0084		1	0.0000	0.0000	NaN	1	1	100.00	G - 7.84	E - 3.50	A - 0.00
 86.03560	86.02560	86.04560	1	1	27.47	27.30	1	0.00	1	0.00	Michael addition of hydroxymethylvinyl ketone to cysteine/transamidation of glycine ethyl ester to glutamine/2-hydroxyisobutyrylation		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 158.07260	158.06260	158.08260	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 158.0726		1	0.0000	0.0000	NaN	1	1	0.00	R - 21.71	A - 0.00	A - 0.00
@@ -157,11 +158,10 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 384.21240	384.20240	384.22240	1	1	27.47	27.30	1	0.00	1	100.00	Unannotated mass-shift 384.2124		1	0.0000	0.0000	NaN	1	1	100.00	D - 15.77	A - 0.00	A - 0.00
 404.23520	404.22520	404.24520	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 404.2352		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 447.20780	447.19780	447.21780	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 447.2078		1	0.0000	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
--453.23120	-453.24120	-453.22930	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -453.2312		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
--453.22740	-453.22930	-453.21740	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -453.2312		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+-453.23120	-453.24120	-453.22940	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -453.2312		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+-453.22760	-453.22940	-453.21760	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -453.2312		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -155.13500	-155.14500	-155.12500	0	1	0.00	27.30	0	0.00	1	100.00	Second isotopic peak	Unannotated mass-shift -157.1420	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 142.08140	142.07140	142.09140	1	1	27.47	27.30	1	0.00	1	0.00	Formylation	Unannotated mass-shift 114.0860	1	0.0000	0.0000	NaN	1	1	100.00	Y - 20.85	L - 5.77	A - 0.00
-87.03220	87.02220	87.04220	1	2	27.47	54.59	1	100.00	2	50.00	glycidamide adduct/Addition of S		1	0.7402	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -230.14760	-230.15760	-230.13760	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -230.1476		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -230.10180	-230.11180	-230.09180	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -230.1018		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -155.09960	-155.10960	-155.08960	0	1	0.00	27.30	0	0.00	1	0.00	First isotopic peak	Loss of arginine due to transpeptidation/Deletion of R	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -172,9 +172,9 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 30.06880	30.05880	30.07000	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 30.0688		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 30.07120	30.07000	30.08120	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 30.0688		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 34.95440	34.94440	34.96440	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 34.9544		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
-35.91600	35.90600	35.92600	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 35.9160		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+35.91620	35.90620	35.92620	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 35.9162		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 88.01780	88.00780	88.02750	0	1	0.00	27.30	0	0.00	1	0.00	Oxidation or Hydroxylation	carboxyethyl/Dihydroxy methylglyoxal adduct/Ethoxyformylation	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
-88.03720	88.02750	88.04720	0	1	0.00	27.30	0	0.00	1	0.00	First isotopic peak	glycidamide adduct/Addition of S	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+88.03720	88.02750	88.04720	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 88.0372		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 112.00680	111.99680	112.00740	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 112.0068		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 192.02360	192.01360	192.03360	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 192.0236		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 293.01920	293.00920	293.02920	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 293.0192		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -184,8 +184,9 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 35.93740	35.92740	35.94740	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 35.9374		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 112.00800	112.00740	112.01800	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 112.0068		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 192.05600	192.04600	192.06600	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift 192.0560		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+87.03200	87.02200	87.04200	1	2	27.47	54.59	1	100.00	2	50.00	glycidamide adduct/Addition of S		1	0.7402	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 173.03440	173.02440	173.04350	1	0	27.47	0.00	1	0.00	0	0.00	Deletion of A	Unannotated mass-shift 244.0702	1	0.0000	0.0000	NaN	1	1	100.00	V - 13.67	A - 0.00	A - 0.00
-32.01060	32.00060	32.02060	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 32.0106		1	0.8942	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+32.01060	32.00060	32.02060	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 32.0106		1	0.8896	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 163.02780	163.01780	163.03780	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 163.0278		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 247.20160	247.19160	247.21160	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 247.2016		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 31.98680	31.97680	31.99680	1	0	27.47	0.00	1	0.00	0	0.00	dihydroxy		1	0.0000	0.0000	NaN	1	1	0.00	P - 25.27	G - 2.94	A - 0.00
@@ -194,19 +195,19 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 471.20660	471.19660	471.21660	1	1	27.47	27.30	1	0.00	1	0.00	Third isotopic peak/13C3 label for SILAC	Unannotated mass-shift 468.1950	1	0.0000	0.0000	NaN	1	1	100.00	Y - 41.69	A - 0.00	A - 0.00
 436.16200	436.15200	436.17200	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 436.1620		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 495.29920	495.28920	495.30920	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 495.2992		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
--142.07380	-142.08380	-142.06380	0	2	0.00	54.59	0	0.00	2	50.00	Unannotated mass-shift -172.1420	Unannotated mass-shift 30.0688	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+-142.07400	-142.08400	-142.06400	0	2	0.00	54.59	0	0.00	2	50.00	Unannotated mass-shift -172.1420	Unannotated mass-shift 30.0688	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 293.17480	293.16480	293.17540	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 293.1748		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 31.05740	31.04740	31.06740	1	1	27.47	27.30	1	0.00	1	0.00	Unannotated mass-shift 31.0574		1	0.0000	0.0000	NaN	1	1	100.00	P - 16.84	T - 9.88	A - 0.00
 293.17600	293.17540	293.18600	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 293.1748		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -448.28240	-448.29240	-448.27240	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -448.2824		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
--446.30360	-446.31360	-446.29360	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift -375.2702	Deletion of A	1	0.3852	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+-446.30360	-446.31360	-446.29360	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift -375.2702	Deletion of A	1	0.3821	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -351.31280	-351.32280	-351.30280	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -351.3128		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -257.12660	-257.13660	-257.11660	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -257.1266		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -198.15520	-198.16520	-198.14520	1	0	27.47	0.00	1	0.00	0	0.00	Oxidation or Hydroxylation	Unannotated mass-shift -214.1516	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -161.11920	-161.12920	-161.10920	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -184.1192	Unannotated mass-shift 23.0006	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -125.12640	-125.13640	-125.11640	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -157.1420	Unannotated mass-shift 32.0106	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -61.22400	-61.23400	-61.21400	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -61.2240		1	0.0000	0.0000	NaN	1	1	0.00	K - 7.86	S - 6.64	A - 0.00
--51.11600	-51.12600	-51.10600	1	0	27.47	0.00	1	0.00	0	0.00	Deletion of S	Unannotated mass-shift 35.9160	1	0.0000	0.0000	NaN	1	1	0.00	S - 13.28	A - 0.00	A - 0.00
+-51.11600	-51.12600	-51.10600	1	0	27.47	0.00	1	0.00	0	0.00	Deletion of S	Unannotated mass-shift 35.9162	1	0.0000	0.0000	NaN	1	1	0.00	S - 13.28	A - 0.00	A - 0.00
 -26.02020	-26.03020	-26.01020	1	0	27.47	0.00	1	0.00	0	0.00	Homoserine lactone/Prompt loss of side chain from oxidised Met	Sodium adduct	1	0.0000	0.0000	NaN	1	1	0.00	H - 17.77	K - 5.24	G - 3.92
 -14.01600	-14.02600	-14.00600	1	0	27.47	0.00	1	0.00	0	0.00	Third isotopic peak/13C3 label for SILAC	Pyro-glu from Q/Loss of ammonia	1	0.0000	0.0000	NaN	1	1	0.00	L - 11.54	A - 0.00	A - 0.00
 -495.22880	-495.23880	-495.21880	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift -495.2288		1	0.5368	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -227,7 +228,7 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 24.01900	24.00900	24.02900	1	0	27.47	0.00	1	0.00	0	0.00	Monomethylated Arg13C(6) 15N(4)		1	0.0000	0.0000	NaN	1	1	100.00	C - 23.93	D - 7.89	A - 0.00
 52.01400	52.00400	52.02400	1	0	27.47	0.00	1	100.00	0	0.00	Formylation	Monomethylated Arg13C(6) 15N(4)	1	0.6495	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 56.00060	55.99060	56.01060	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 56.0006		1	0.1000	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
-61.89280	61.88280	61.90280	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 25.9804	Unannotated mass-shift 35.9160	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+61.89280	61.88280	61.90280	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 25.9804	Unannotated mass-shift 35.9162	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 89.01540	89.00540	89.02540	1	0	27.47	0.00	1	0.00	0	0.00	Iodoacetamide derivative/Addition of Glycine/Addition of G	dihydroxy	1	0.0000	0.0000	NaN	1	1	0.00	K - 15.71	A - 0.00	A - 0.00
 90.94040	90.93040	90.95040	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -129.1470	Unannotated mass-shift 220.0876	1	0.0000	0.0000	NaN	1	1	0.00	K - 7.86	S - 6.64	A - 0.00
 105.04960	105.03960	105.05960	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 105.0496		1	0.0000	0.0000	NaN	1	1	100.00	C - 23.93	D - 7.89	A - 0.00
@@ -239,7 +240,7 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 189.04680	189.03680	189.05680	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 189.0468		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 237.95580	237.94580	237.96580	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 237.9558		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 245.14180	245.13180	245.15180	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 245.1418		1	0.0000	0.0000	NaN	1	1	100.00	W - 210.55	A - 0.00	A - 0.00
-265.08060	265.07060	265.09060	1	0	27.47	0.00	1	100.00	0	0.00	Sixplex Tandem Mass Tag®	Unannotated mass-shift 35.9160	1	0.2285	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+265.08060	265.07060	265.09060	1	0	27.47	0.00	1	100.00	0	0.00	Sixplex Tandem Mass Tag®	Unannotated mass-shift 35.9162	1	0.2285	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 274.13920	274.12920	274.14920	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 244.0702	Unannotated mass-shift 30.0688	1	0.0000	0.0000	NaN	1	1	100.00	S - 13.28	A - 0.00	A - 0.00
 276.15580	276.14580	276.16580	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -17.0176	Unannotated mass-shift 293.1748	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 277.14420	277.13420	277.15420	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 277.1442		1	0.0000	0.0000	NaN	1	1	100.00	W - 210.55	A - 0.00	A - 0.00
@@ -257,6 +258,7 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 366.07380	366.06380	366.08380	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 366.0738		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 366.20780	366.19780	366.21780	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 366.2078		1	0.0000	0.0000	NaN	1	1	0.00	M - 22.28	T - 6.59	G - 3.92
 371.24220	371.23220	371.25220	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 371.2422		1	0.0000	0.0000	NaN	1	1	100.00	I - 26.48	A - 0.00	A - 0.00
+386.18300	386.17300	386.19300	1	0	27.47	0.00	1	0.00	0	0.00	Methylation	Unannotated mass-shift 372.1658	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 400.14940	400.13940	400.15940	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 400.1494		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 406.56040	406.55040	406.57040	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 406.5604		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 411.24460	411.23460	411.25460	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 411.2446		1	0.0000	0.0000	NaN	1	1	0.00	K - 15.71	A - 0.00	A - 0.00
@@ -286,7 +288,6 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 168.05380	168.04380	168.06380	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 168.0538		1	0.4031	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 209.93780	209.92780	209.94780	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 209.9378		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 295.92600	295.91600	295.93600	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 295.9260		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
-386.18280	386.17280	386.19280	1	0	27.47	0.00	1	0.00	0	0.00	Methylation	Unannotated mass-shift 372.1658	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 388.17280	388.16280	388.18280	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 388.1728		1	0.0000	0.0000	NaN	1	1	100.00	G - 11.76	A - 0.00	A - 0.00
 408.21180	408.20180	408.22180	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 23.0006	Unannotated mass-shift 385.2098	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 479.17100	479.16100	479.18100	1	0	27.47	0.00	1	0.00	0	0.00	Carbamylation	Unannotated mass-shift 436.1620	1	0.0000	0.0000	NaN	1	1	0.00	T - 19.77	A - 0.00	A - 0.00
@@ -301,11 +302,12 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 -416.24880	-416.25880	-416.23880	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -416.2488		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -376.25380	-376.26380	-376.24380	0	1	0.00	27.30	0	0.00	1	100.00	Amidation	Unannotated mass-shift -375.2702	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -329.15200	-329.16200	-329.14200	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -329.1520		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+-302.18100	-302.19100	-302.17100	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -302.1810		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -299.14700	-299.15700	-299.13700	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -184.1192	Deletion of D	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -255.15980	-255.16980	-255.14980	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -184.1192	Deletion of A	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -221.18460	-221.19460	-221.17460	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 35.9374	Unannotated mass-shift -257.1266	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -213.12300	-213.13300	-213.11300	0	1	0.00	27.30	0	0.00	1	0.00	replacement of proton with ammonium ion	Unannotated mass-shift -230.1476	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
--188.09720	-188.10720	-188.08720	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -188.0972		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+-188.09720	-188.10720	-188.08720	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 114.0860	Unannotated mass-shift -302.1810	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -187.05580	-187.06580	-187.04580	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 283.1648	Unannotated mass-shift -470.2166	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -175.15220	-175.16220	-175.14220	0	1	0.00	27.30	0	0.00	1	0.00	Mod1	Carboxyl modification with ethanolamine	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -112.12240	-112.13240	-112.11240	0	1	0.00	27.30	0	0.00	1	0.00	replacement of proton with ammonium ion	Unannotated mass-shift -129.1470	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -316,7 +318,7 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 -28.99120	-29.00120	-28.98120	0	1	0.00	27.30	0	0.00	1	0.00	First isotopic peak	Homoserine	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -22.03520	-22.04520	-22.02520	0	1	0.00	27.30	0	0.00	1	0.00	Gluconoylation	Unannotated mass-shift -200.0814	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -4.05560	-4.06560	-4.04560	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -203.1488	Unannotated mass-shift 199.0922	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
-2.30040	2.29040	2.31040	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift 2.3004		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+2.30020	2.29020	2.31020	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift 2.3002		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -498.19600	-498.20600	-498.18600	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -498.1960		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -478.12600	-478.13600	-478.11600	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -478.1260		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -459.22860	-459.23860	-459.21860	0	1	0.00	27.30	0	0.00	1	0.00	Dehydration/Pyro-glu from E	Unannotated mass-shift -441.2218	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -326,7 +328,6 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 -340.23220	-340.24220	-340.22220	0	1	0.00	27.30	0	0.00	1	0.00	replacement of proton with ammonium ion	Unannotated mass-shift -357.2590	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -334.18580	-334.19580	-334.17580	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -334.1858		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -327.05880	-327.06880	-327.04880	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -327.0588		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
--302.18080	-302.19080	-302.17080	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -302.1808		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -261.19360	-261.20360	-261.18360	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -261.1936		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -247.17400	-247.18400	-247.16400	0	1	0.00	27.30	0	0.00	1	0.00	Pyro-glu from Q/Loss of ammonia	Unannotated mass-shift -230.1476	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -242.13720	-242.14720	-242.12720	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -242.1372		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -341,13 +342,14 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 19.02820	19.01820	19.03820	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 19.0282		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 47.91680	47.90680	47.92680	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -8.0820	Unannotated mass-shift 56.0006	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 49.98140	49.97140	49.99140	0	1	0.00	27.30	0	0.00	1	0.00	Formylation	Sodium adduct	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
-69.98300	69.97300	69.99300	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 372.1658	Unannotated mass-shift -302.1808	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+69.98300	69.97300	69.99300	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 372.1658	Unannotated mass-shift -302.1810	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 75.08680	75.07680	75.09680	0	1	0.00	27.30	0	0.00	1	0.00	Sixplex Tandem Mass Tag®	Unannotated mass-shift -154.0746	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 83.97700	83.96700	83.98700	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -214.1516	Unannotated mass-shift 298.1306	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 104.04660	104.03660	104.05660	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 104.0466		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 124.96560	124.95560	124.97560	0	1	0.00	27.30	0	0.00	1	100.00	Phosphorylation	Unannotated mass-shift 45.0014	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 126.06660	126.05660	126.07660	0	1	0.00	27.30	0	0.00	1	0.00	Beta elimination of alkylated Cys followed by Michael addition of labelled DTT		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 128.05940	128.04940	128.06940	0	1	0.00	27.30	0	0.00	1	0.00	Addition of Q		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+143.09160	143.08160	143.10160	0	1	0.00	27.30	0	0.00	1	0.00	replacement of proton with ammonium ion	Beta elimination of alkylated Cys followed by Michael addition of labelled DTT	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 151.99640	151.98640	152.00640	0	1	0.00	27.30	0	0.00	1	100.00	DTT adduct of cysteine		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 157.10480	157.09480	157.11480	0	1	0.00	27.30	0	0.00	1	0.00	First isotopic peak	Addition of arginine due to transpeptidation/Addition of R	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 174.02960	174.01960	174.03960	0	1	0.00	27.30	0	0.00	1	0.00	Thiadiazolydation of Cys		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -411,7 +413,6 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 52.91200	52.90200	52.92200	0	1	0.00	27.30	0	0.00	1	100.00	Replacement of 3 protons by iron		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 80.14840	80.13840	80.15840	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 80.1484		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 140.03880	140.02880	140.04880	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 140.0388		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
-143.09140	143.08140	143.10140	0	1	0.00	27.30	0	0.00	1	0.00	replacement of proton with ammonium ion	Beta elimination of alkylated Cys followed by Michael addition of labelled DTT	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 205.11040	205.10040	205.12040	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 71.0936	Unannotated mass-shift 134.0140	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 231.06420	231.05420	231.07420	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift 231.0642		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 342.57500	342.56500	342.58500	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 342.5750		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
@@ -436,18 +437,18 @@ PeakApex	PeakLower	PeakUpper	01 (PSMs)	02 (PSMs)	01 (PSMs/million)	02 (PSMs/mill
 -480.18820	-480.19820	-480.17820	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -480.1882		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -473.33520	-473.34520	-473.32520	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift -434.2156	Unannotated mass-shift -39.1240	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -473.24800	-473.25800	-473.23800	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift -214.1516	Unannotated mass-shift -259.0916	1	0.0000	0.0000	Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
--16.03720	-16.04720	-16.02720	1	0	27.47	0.00	1	100.00	0	0.00	Addition of arginine due to transpeptidation/Addition of R	Unannotated mass-shift -172.1420	1	0.8736	0.0000	-Infinity	1	1	0.00	V - 13.67	A - 0.00	A - 0.00
+-16.03720	-16.04720	-16.02720	1	0	27.47	0.00	1	100.00	0	0.00	Addition of arginine due to transpeptidation/Addition of R	Unannotated mass-shift -172.1420	1	0.8702	0.0000	-Infinity	1	1	0.00	V - 13.67	A - 0.00	A - 0.00
 -15.97660	-15.98660	-15.96660	1	0	27.47	0.00	1	0.00	0	0.00	Tyrosine oxidation to 2-aminotyrosine/Conversion of carboxylic acid to hydroxamic acid	Unannotated mass-shift -30.9828	1	0.0000	0.0000	NaN	1	1	100.00	C - 23.93	D - 7.89	A - 0.00
 1.47680	1.46680	1.48680	1	0	27.47	0.00	1	100.00	0	0.00	Unannotated mass-shift 1.4768		1	0.0000	0.0000	-Infinity	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 97.95640	97.94640	97.96640	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 54.9152	Carboxyl modification with ethanolamine	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 -158.12660	-158.13660	-158.11660	0	1	0.00	27.30	0	0.00	1	0.00	Amidation	Unannotated mass-shift -157.1420	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 -158.07000	-158.08000	-158.06000	0	1	0.00	27.30	0	0.00	1	0.00	Acetylation	Unannotated mass-shift -200.0814	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
-0.40860	0.39860	0.41860	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -416.2488	Unannotated mass-shift 416.6562	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 1.35920	1.34920	1.36920	1	0	27.47	0.00	1	0.00	0	0.00	Unannotated mass-shift 1.3592		1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
 367.18500	367.17500	367.19500	1	0	27.47	0.00	1	0.00	0	0.00	Pyro-glu from Q/Loss of ammonia	Unannotated mass-shift 384.2124	1	0.0000	0.0000	NaN	0	1	0.00	A - 0.00	A - 0.00	A - 0.00
+0.40880	0.39880	0.41880	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift -416.2488	Unannotated mass-shift 416.6562	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 98.12300	98.11300	98.13300	0	1	0.00	27.30	0	0.00	1	100.00	Unannotated mass-shift 98.1230		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 167.01740	167.00740	167.02740	0	1	0.00	27.30	0	0.00	1	0.00	Mod1	Unannotated mass-shift 385.2098	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
-167.07840	167.06840	167.08840	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 163.0278	Unannotated mass-shift 4.0476	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
+167.07860	167.06860	167.08860	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 163.0278	Unannotated mass-shift 4.0476	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 300.09400	300.08400	300.10400	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift -129.1470	Unannotated mass-shift 429.2428	0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 300.15120	300.14120	300.16120	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 300.1512		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00
 355.95400	355.94400	355.96400	0	1	0.00	27.30	0	0.00	1	0.00	Unannotated mass-shift 355.9540		0	0.0000	0.0000	NaN	0	0	0.00	A - 0.00	A - 0.00	A - 0.00

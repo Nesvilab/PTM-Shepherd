@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.7";
+ 	public static final String version = "0.2.8";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -143,7 +143,7 @@ public class PTMShepherd {
 
 			// delete dataset files with specific extensions
 			List<String> extsToDelete = Arrays
-					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt", ".rawlocalize", ".rawsimrt");
+					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt", ".rawlocalize", ".rawsimrt", ".modsummary.tsv");
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -329,7 +329,15 @@ public class PTMShepherd {
 			pa.annotateTSV(peaksummary, peakannotated);
 			print("annotated summary table\n");
 		}
-		
+
+		//Mod-centric quantification
+		File modSummary = new File("global.modsummary.tsv");
+		if(!modSummary.exists()) {
+			ModSummary ms = new ModSummary(peakannotated, datasets.keySet());
+			ms.toFile(modSummary);
+			print("created modification summary");
+		}
+
 		//Localization analysis
 		
 		//Perform initial annotation
