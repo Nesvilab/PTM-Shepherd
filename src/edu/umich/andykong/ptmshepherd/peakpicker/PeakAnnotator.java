@@ -100,9 +100,13 @@ public class PeakAnnotator {
 	public int [] checkMod(double v) {
 //		System.out.println(v);
 //		debug=true;
+
 		int [] res = new int[maxDepth];
 		Arrays.fill(indices,-1);
 		Arrays.fill(res,-1);
+		if(v < mod_tol){
+			return res;
+		}
 		for(int i = 0; i < mods.size(); i++)
 			if(Math.abs(v-mod_diffs.get(i)) < mod_tol) {
 				for(int j = 0; j < allowed_list.size(); j++)

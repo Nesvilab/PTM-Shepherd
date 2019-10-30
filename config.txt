@@ -15,6 +15,6 @@ spectra_ppmtol = 20.0
 spectra_condPeaks = 100
 spectra_condRatio = 0.02
 
-varmod_masses = :0
+varmod_masses = Failed Carbamidymethylation:-57.021464
 
 localization_background = 4
