@@ -405,8 +405,7 @@ public class PTMShepherd {
 			CombinedTable.writeCombinedTable(ds);
 		}
 
-		List<String> filesToDelete = Arrays.asList("peaks.tsv",
-				"peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
+		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
 
 		for (String f : filesToDelete) {
 			Path p = Paths.get(f).toAbsolutePath().normalize();

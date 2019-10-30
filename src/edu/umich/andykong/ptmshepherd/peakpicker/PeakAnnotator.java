@@ -17,7 +17,7 @@ public class PeakAnnotator {
 
 	static final double C13delta = 1.003355;
 	static final double modEqual_tol = 0.001;
-	static final double mod_tol = 0.005;
+	static final double mod_tol = 0.01;
 	//static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("precursor_tol")));
 	
 	int [] indices;
@@ -64,12 +64,18 @@ public class PeakAnnotator {
 		String [][] res = new String[masses.length][maxDepth];
 		//init(userMods);
 		for(int i = 0; i < masses.length; i++) {
-			int [] cres = checkMod(masses[i]);
-			for(int j = 0; j < cres.length; j++) {
-				if(cres[j] != -1) {
-					res[i][j] = mods.get(cres[j]);
-				} else
+			if(Math.abs(masses[i]) < mod_tol){
+				for(int j = 0; j < maxDepth; j++){
 					res[i][j] = "";
+				}
+			} else {
+				int [] cres = checkMod(masses[i]);
+				for(int j = 0; j < cres.length; j++) {
+					if (cres[j] != -1) {
+						res[i][j] = mods.get(cres[j]);
+					} else
+						res[i][j] = "";
+				}
 			}
 		}
 		return res;
@@ -104,9 +110,7 @@ public class PeakAnnotator {
 		int [] res = new int[maxDepth];
 		Arrays.fill(indices,-1);
 		Arrays.fill(res,-1);
-		if(v < mod_tol){
-			return res;
-		}
+
 		for(int i = 0; i < mods.size(); i++)
 			if(Math.abs(v-mod_diffs.get(i)) < mod_tol) {
 				for(int j = 0; j < allowed_list.size(); j++)

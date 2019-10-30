@@ -229,7 +229,6 @@ O-Isopropylphosphorylation	122.013281
 Bruker Daltonics SERVA-ICPL(TM) quantification chemistry, heavy form	111.041593
 Carbamidomethylated DTT modification of cysteine	209.018035
 Bruker Daltonics SERVA-ICPL(TM) quantification chemistry, light form	105.021464
-Deamidation in presence of O18	2.988261
 Ornithine from Arginine	-42.021798
 Replacement of proton by copper	61.921774
 Half of a disulfide bridge	-1.007825

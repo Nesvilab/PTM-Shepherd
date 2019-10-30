@@ -38,6 +38,7 @@ public class ModSummary {
         mods = new HashSet<>();
         modsMap = new LinkedHashMap<>();
 
+        //get modification names
         for(int i = 1; i <= 2; i++){
             modi = headis.get("Potential Modification "+i);
             for(int j = 1; j < inFile.size(); j++) {
@@ -47,20 +48,15 @@ public class ModSummary {
                 }
             }
         }
+        //map apexes
         int mod1i = headis.get("Potential Modification 1");
         for(int j = 1; j < inFile.size(); j++){
-            if(inFile.get(j).length == mod1i){
-
-            }
-        }
-        for(int j = 1; j < inFile.size(); j++){
-            if(inFile.get(j).length == headis.get("Potential Modification 1") + 1){
-                //System.out.println(j);
-                //System.out.println(inFile.get(j)[0]);
+            if(inFile.get(j).length == mod1i + 1){
                 if(!modsMap.containsKey(inFile.get(j)[mod1i])){
                     modsMap.put(inFile.get(j)[mod1i], inFile.get(j)[0]);
                 }
-            }else if(inFile.get(j).length == headis.get("Potential Modification 1")){
+            }else if(inFile.get(j).length == mod1i){
+                //System.out.println(inFile.get(j)[0]);
                 modsMap.put("None", inFile.get(j)[0]);
             }
         }
@@ -125,7 +121,7 @@ public class ModSummary {
         }
         // write to file
         PrintWriter out = new PrintWriter(new FileWriter(modOut));
-        out.print("Modification\tMass Shift");
+        out.print("Modification\tDetected Mass Shift");
         for(String ds : datasets){
             out.printf("\t%s (PSMs)\t%s (PSMs/million)", ds, ds);
         }
