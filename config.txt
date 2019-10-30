@@ -6,7 +6,7 @@ histo_bindivs = 5000
 histo_smoothbins = 5
 
 peakpicking_promRatio = 0.3
-peakpicking_width = 0.005
+peakpicking_width = 0.002
 peakpicking_topN = 500
 
 precursor_tol = 0.01
@@ -15,6 +15,6 @@ spectra_ppmtol = 20.0
 spectra_condPeaks = 100
 spectra_condRatio = 0.02
 
-varmod_masses = None:0
+varmod_masses = :0
 
 localization_background = 4
