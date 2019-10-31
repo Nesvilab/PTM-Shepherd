@@ -17,15 +17,8 @@ public class LocalizationProfile {
 	static final int [] AAcnts = {3637222,0,1163038,2477586,3690290,1854622,
 			  3426107,1356881,2222643,0,2959209,5141499,
 			  1134389,1840802,0,3301694,2489112,2946921,
-			  4383423,2856550,0,3117149,647263,0,1358211,0};
-	static final double [] AAnorm = {
-		0.06994, 1.00000, 0.02236, 0.04764,	0.07096,
-		0.03566, 0.06588, 0.02609, 0.04274,	1.00000,
-		0.05690, 0.09887, 0.02181, 0.03540, 1.00000,
-		0.06349, 0.04786, 0.05667, 0.08429, 0.05493,
-		1.00000, 0.05994, 0.01245, 1.00000, 0.02612,
-		1.00000 };
-	
+			  4383423,2856550,0,3117149,647263,0,1358211,0}; //this is unnecessary now but an easy check for letters that aren't real
+
 	public LocalizationProfile(double [] massRanges, double peakTol) {
 		masses = Arrays.copyOf(massRanges, massRanges.length);
 		this.peakTol = peakTol;
