@@ -187,8 +187,8 @@ public class PeakAnnotator {
 		if(!varMods.equals("None:0")) {
 			List<String> tMods = Arrays.asList(varMods.split(","));
 			for(int i = 0; i < tMods.size(); i++){
-				List<String> md = Arrays.asList(tMods.get(i).split(":"));
-				String m = md.get(0);
+				List<String> md = Arrays.asList(tMods.get(i).trim().split(":"));
+				String m = md.get(0).trim();
 				double dMass = Double.parseDouble(md.get(1));
 				vModNames.add(m);
 				vModMasses.add(dMass);

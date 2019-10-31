@@ -76,7 +76,7 @@ public class PTMShepherd {
 		//default values
 		params.put("threads", ""+Math.min(8, Runtime.getRuntime().availableProcessors()));
 		params.put("histo_bindivs", "5000"); //number of divisions in histogram
-		params.put("histo_smoothbins", "5"); //smoothing factor
+		params.put("histo_smoothbins", "2"); //smoothing factor
 		
 		params.put("peakpicking_promRatio", "0.3"); //prominence ratio for peakpicking
 		params.put("peakpicking_width", "0.002"); //width for peakpicking
@@ -265,7 +265,7 @@ public class PTMShepherd {
 						PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 						vals.addAll(pf.getMassDiffs());
 					}
-					Histogram chisto = new Histogram(vals, datasetMS2.get(ds), Integer.parseInt(params.get("histo_bindivs")),Integer.parseInt(params.get("histo_smoothbins")));
+					Histogram chisto = new Histogram(vals, datasetMS2.get(ds), Integer.parseInt(params.get("histo_bindivs")),Integer.parseInt(params.get("histo_smoothbins"))*2+1);
 					min = Math.min(min, chisto.start);
 					max = Math.max(max, chisto.end);
 					chisto.writeHistogram(histoFile);
