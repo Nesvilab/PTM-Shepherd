@@ -17,8 +17,8 @@ public class PeakAnnotator {
 
 	static final double C13delta = 1.003355;
 	static final double modEqual_tol = 0.001;
-	static final double mod_tol = 0.01;
-	//static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("precursor_tol")));
+	//static final double mod_tol = 0.01;
+	static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("precursor_tol")));
 	
 	int [] indices;
 	static final int maxDepth = 2;
