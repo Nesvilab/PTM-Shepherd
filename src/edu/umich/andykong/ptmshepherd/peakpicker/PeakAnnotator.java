@@ -7,9 +7,9 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
 public class PeakAnnotator {
-	
-	ArrayList<String> mods;
-	ArrayList<Double> mod_diffs;
+
+	public static ArrayList<String> mods;
+	public static ArrayList<Double> mod_diffs;
 	ArrayList<Integer> allowed_list;
 	String userMods = "";
 	ArrayList<String> vModNames; //privileged mods that can be matched with any mass in unimod

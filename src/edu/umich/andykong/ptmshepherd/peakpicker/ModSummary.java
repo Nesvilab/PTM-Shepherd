@@ -11,7 +11,7 @@ public class ModSummary {
     HashMap<String, HashMap<String, Double>> psmCounts;
     Set<String> datasets;
     Set<String> mods;
-    LinkedHashMap<String, String> modsMap;
+    LinkedHashMap<String, Double> modsMap;
 
 
 
@@ -38,30 +38,27 @@ public class ModSummary {
         mods = new HashSet<>();
         modsMap = new LinkedHashMap<>();
 
-        //get modification names
+        //get modification names and map apexes
         for(int i = 1; i <= 2; i++){
             modi = headis.get("Potential Modification "+i);
             for(int j = 1; j < inFile.size(); j++) {
                 //System.out.println(inFile.get(j));
                 if(inFile.get(j).length > modi) {
-                    mods.add(inFile.get(j)[modi]);
+                    String mod = inFile.get(j)[modi];
+                    mods.add(mod);
+                    for(int k = 0; k < PeakAnnotator.mods.size(); k++){
+                        if(PeakAnnotator.mods.get(k).equals(mod)){
+                            //System.out.println(PeakAnnotator.mods.get(k));
+                            modsMap.put(mod, PeakAnnotator.mod_diffs.get(k));
+                        }
+                    }
                 }
             }
         }
-        //map apexes
-        int mod1i = headis.get("Potential Modification 1");
-        for(int j = 1; j < inFile.size(); j++){
-            if(inFile.get(j).length == mod1i + 1){
-                if(!modsMap.containsKey(inFile.get(j)[mod1i])){
-                    modsMap.put(inFile.get(j)[mod1i], inFile.get(j)[0]);
-                }
-            }else if(inFile.get(j).length == mod1i){
-                //System.out.println(inFile.get(j)[0]);
-                modsMap.put("None", inFile.get(j)[0]);
-            }
-        }
+        modsMap.put("None", 0.0);
 
         // initialize empty hashmaps
+        int mod1i = headis.get("Potential Modification 1");
         psmCounts = new HashMap<String, HashMap<String, Double>>();
         psmCountsNorm = new HashMap<String, HashMap<String, Double>>();
         for(String ds : datasets){
@@ -121,7 +118,7 @@ public class ModSummary {
         }
         // write to file
         PrintWriter out = new PrintWriter(new FileWriter(modOut));
-        out.print("Modification\tDetected Mass Shift");
+        out.print("Modification\tTheoretical Mass Shift");
         for(String ds : datasets){
             out.printf("\t%s (PSMs)\t%s (PSMs/million)", ds, ds);
         }
