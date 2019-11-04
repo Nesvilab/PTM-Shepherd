@@ -216,6 +216,8 @@ public class SimRTAnalysis {
 		while((cline = in.readLine())!= null) {
 			if(cline.equals("COMPLETE"))
 				break;
+			if(cline.startsWith("Spectrum"))
+				continue;
 			String [] sp = cline.split("\\t");
 			double md = Double.parseDouble(sp[3]);
 			for(int i = 0; i < profiles.length; i++) {

@@ -29,6 +29,10 @@ public class SimRTRecord {
 		//General stats
 		sb.append(String.format("%.4f\t%d", mass,count));
 		sb.append(String.format("\t%.4f\t%.4f", sim.getMean(),sim.getVariance()));
+		double deltartStat = deltart.getMean()/deltart.getVariance();
+		if (deltartStat == Double.POSITIVE_INFINITY || deltartStat == Double.NEGATIVE_INFINITY) {
+			deltartStat = Double.NaN;
+		}
 		sb.append(String.format("\t%.4f", deltart.getMean()/deltart.getVariance()));
 		
 		return sb.toString();

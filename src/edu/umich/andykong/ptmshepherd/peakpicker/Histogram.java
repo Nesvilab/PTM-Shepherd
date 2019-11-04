@@ -38,11 +38,9 @@ public class Histogram {
 		histo = new double[(end-start)*binDivs];
 		calcWeights(smoothBins);
 		for(int i = 0; i < vals.size(); i++) {
-			System.out.println(vals.get(i));
+			//System.out.println(vals.get(i));
 			int cb = (int)(binDivs*(vals.get(i) + Math.random()/1000000 - 0.0000005 - start + 1.0 / binDivs));
 			for(int j = cb - smoothBins/2; j <= (cb + smoothBins/2); j++) {
-				//System.out.println(j);
-				//System.out.println(j - (cb - smoothBins/2));
 				histo[j] += gweights[j - (cb - smoothBins/2)];
 			}
 		}

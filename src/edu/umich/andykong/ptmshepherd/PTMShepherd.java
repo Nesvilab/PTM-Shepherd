@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.11";
+ 	public static final String version = "0.2.12";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -406,10 +406,18 @@ public class PTMShepherd {
 		}
 
 		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
-
+		//delete redundant files
 		for (String f : filesToDelete) {
 			Path p = Paths.get(f).toAbsolutePath().normalize();
 			deleteFile(p, true);
+		}
+		//delete individual tsv profile
+		if(datasets.keySet().size() == 1) {
+			for (String ds : datasets.keySet()) {
+				String f = ds + ".profile.tsv";
+				Path p = Paths.get(f).toAbsolutePath().normalize();
+				deleteFile(p, true);
+			}
 		}
 
 		if(!Boolean.parseBoolean(params.get("output_extended"))) {

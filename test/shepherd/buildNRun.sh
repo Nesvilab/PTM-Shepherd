@@ -1,5 +1,5 @@
 cd ../../
 ./gradlew packageWDeps
 cd test/shepherd/
-java -jar ../../build/libs/ptmshepherd-0.2.10.jar shepherd.config
+java -jar ../../build/libs/ptmshepherd-0.2.12.jar shepherd_smooth5.config
 
