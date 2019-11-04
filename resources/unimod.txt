@@ -634,9 +634,6 @@ cysteine-reactive Sixplex Tandem Mass Tag�	304.177202
 ISD (z+2)-series	-15.010899
 replacement of proton with ammonium ion	17.026549
 was Biotin-maleimide	449.173290
-15N(1)	0.997035
-15N(2)	1.994070
-15N(3)	2.991105
 aminotyrosine with sulfation	94.967714
 Azidohomoalanine (AHA) bound to propargylglycine-NH2 (alkyne)	107.077339
 Azidohomoalanine (AHA) bound to DDDDK-propargylglycine-NH2 (alkyne)	695.280074
@@ -952,7 +949,6 @@ Formation of five membered aromatic heterocycle	-20.026215
 Biotin-PEG11-maleimide	921.461652
 Native iodoacetyl Tandem Mass Tag�	324.216141
 Sixplex iodoacetyl Tandem Mass Tag�	329.226595
-13C(2) 15N(2)	4.000780
 Phosphogluconoylation	258.014069
 3-fold methylated lysine labelled with Acetyl_heavy	62.063875
 Hex1dHex1	308.110732
