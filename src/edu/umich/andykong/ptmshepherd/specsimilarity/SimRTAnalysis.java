@@ -66,7 +66,7 @@ public class SimRTAnalysis {
 
 		//Write header
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mod_Peptide","Shift","Is_Zero_Pep",
-				"DeltaRT", "nSpecs_DeltaRT", "Avg_Sim", "Avg_ZeroSim", "nSpecs_Sim");
+				"DeltaRT", "nZeroSpecs_DeltaRT", "Avg_Sim", "Avg_ZeroSim", "nZeroSpecs_Sim");
 
 		specCol = pf.getColumn("Spectrum");
 		pepCol = pf.getColumn("Peptide");
@@ -187,7 +187,7 @@ public class SimRTAnalysis {
 					rtSize = zTolRT.get(key).size();
 				}
 				
-				key += "." + crow[chargeCol];
+				key += "." + crow[chargeCol]; //based on charge state
 				if(zTolSpecs.containsKey(key)) {
 					Spectrum cspec = mr.getSpectrum(reNormName(crow[specCol]));
 					if(cspec != null) {

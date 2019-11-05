@@ -17,10 +17,12 @@ public class SimRTRecord {
 	
 	public void updateWithLine(String [] sp) {
 		count++;
-		if(Integer.parseInt(sp[6]) > 0)
-			deltart.update(Double.parseDouble(sp[5]));
-		if(Integer.parseInt(sp[9]) > 0)
-			sim.update(Double.parseDouble(sp[7]));
+		if(Integer.parseInt(sp[4]) == 0) { //not zero pep
+			if (Integer.parseInt(sp[6]) > 0) //num spectra > 0
+				deltart.update(Double.parseDouble(sp[5]));
+			if (Integer.parseInt(sp[9]) > 0) //num spectra > 0
+				sim.update(Double.parseDouble(sp[7]));
+		}
 	}
 	
 	public String toString() {
@@ -29,11 +31,16 @@ public class SimRTRecord {
 		//General stats
 		sb.append(String.format("%.4f\t%d", mass,count));
 		sb.append(String.format("\t%.4f\t%.4f", sim.getMean(),sim.getVariance()));
-		double deltartStat = deltart.getMean()/deltart.getVariance();
-		if (deltartStat == Double.POSITIVE_INFINITY || deltartStat == Double.NEGATIVE_INFINITY) {
-			deltartStat = Double.NaN;
-		}
-		sb.append(String.format("\t%.4f", deltart.getMean()/deltart.getVariance()));
+		//double deltartStat = deltart.getMean()/deltart.getVariance();
+		//if (deltartStat == Double.POSITIVE_INFINITY || deltartStat == Double.NEGATIVE_INFINITY) {
+		//	deltartStat = Double.NaN;
+		//}
+		//double deltartMean = deltart.getMean();
+		//double deltartVar = deltart.getVariance();
+		//if (deltartMean == 0.0){
+		//	deltartMean = Double.NaN;
+		//}
+		sb.append(String.format("\t%.4f\t%.4f", deltart.getMean(), deltart.getVariance()));
 		
 		return sb.toString();
 	}
