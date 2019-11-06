@@ -19,4 +19,4 @@ varmod_masses = Mod1:-218.196
 
 localization_background = 4
 
-output_extended = true
+output_extended = false
