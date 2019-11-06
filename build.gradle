@@ -27,7 +27,7 @@ repositories {
 
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
-version = '0.2.12'
+version = '0.2.13'
 
 application {
     // Define the main class for the application
