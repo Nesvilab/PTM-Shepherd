@@ -82,7 +82,7 @@ public class PSMFile {
 			}
 		} else {
 			String [] ns = splitName(path.getName());
-			if(mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML"))) {
+			if(mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw"))) {
 				mappings.put(ns[0], path);
 			}
 		}

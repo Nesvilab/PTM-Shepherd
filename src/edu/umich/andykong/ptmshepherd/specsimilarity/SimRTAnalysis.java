@@ -99,25 +99,25 @@ public class SimRTAnalysis {
 			HashMap<String,ArrayList<Integer>> zTolLines = new HashMap<>();
 			HashMap<String,ArrayList<Spectrum>> zTolSpecs = new HashMap<>();
 			HashMap<String,ArrayList<Double>> zTolRT = new HashMap<>();
-			HashMap<String,Double> avgzSim = new HashMap<>();
+			HashMap<String,Double> avgzSim = new HashMap<>(); //{modPep.charge:avg zero sim in bin}
 			HashMap<String,Double> avgzRT = new HashMap<>();
 			
-			//get zero bin data
+			//get zero bin data and calculate baselines
 			for(int i = 0; i < clines.size(); i++) {
 				String [] crow = pf.data.get(clines.get(i)).split("\t");
 				boolean isZero = (Math.abs(Double.parseDouble(crow[deltaCol])) <= peakTol);
 				if(!isZero)
 					continue;
 				
-				String key = crow[pepCol].trim();
+				String key = crow[pepCol].trim(); //using pep seq as key
 				if(crow[modpepCol].trim().length() != 0)
 					key = crow[modpepCol].trim();
 				
-				if(!zTolRT.containsKey(key)) 
+				if(!zTolRT.containsKey(key)) //structure {modpep:<rt>}
 					zTolRT.put(key, new ArrayList<>());
 				zTolRT.get(key).add(Double.parseDouble(crow[rtCol]));
 				
-				key += "." + crow[chargeCol];
+				key += "." + crow[chargeCol]; //structure {modpep.charge:<spec line>}
 				if(!zTolLines.containsKey(key))
 					zTolLines.put(key, new ArrayList<>());
 				zTolLines.get(key).add(clines.get(i));

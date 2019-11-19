@@ -17,12 +17,10 @@ public class SimRTRecord {
 	
 	public void updateWithLine(String [] sp) {
 		count++;
-		if(Integer.parseInt(sp[4]) == 0) { //not zero pep
-			if (Integer.parseInt(sp[6]) > 0) //num spectra > 0
-				deltart.update(Double.parseDouble(sp[5]));
-			if (Integer.parseInt(sp[9]) > 0) //num spectra > 0
-				sim.update(Double.parseDouble(sp[7]));
-		}
+		if (Integer.parseInt(sp[6]) > 0) //num zero bin spectra > 0
+			deltart.update(Double.parseDouble(sp[5]));
+		if (Integer.parseInt(sp[9]) > 0) //num zero bin spectra > 0
+			sim.update(Double.parseDouble(sp[7]));
 	}
 	
 	public String toString() {

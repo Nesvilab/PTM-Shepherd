@@ -115,7 +115,13 @@ public class MXMLReader {
 			//ns.scanName = baseName+"."+scanNumRaw+"."+scanNumRaw+"."+ns.charge;
 			//does not include charge state in scan num
 			ns.scanName = baseName+"."+scanNumRaw+"."+scanNumRaw;
-			ns.precursorMass = scan.getPrecursor().getMzTarget();
+			if (scan.getPrecursor().getMzTargetMono() != null) {
+				ns.precursorMass = scan.getPrecursor().getMzTargetMono();
+			} else if (scan.getPrecursor().getMzTarget() != null) {
+				ns.precursorMass = scan.getPrecursor().getMzTarget();
+			} else {
+				throw new IllegalStateException("No precursor mz information found");
+			}
 			for(int i = 0; i < clen; i++) {
 				ns.peakMZ[i] = (float)spectrum.getMZs()[i];
 				ns.peakInt[i] = (float)spectrum.getIntensities()[i];
