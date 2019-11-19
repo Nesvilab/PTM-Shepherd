@@ -1,67 +1,69 @@
 Modification	Theoretical Mass Shift	01 (PSMs)	01 (PSMs/million)	02 (PSMs)	02 (PSMs/million)
-None	0.0	995	27329.1600	1125	30709.1800
-First isotopic peak	1.003355	294	8075.1600	329	8980.7600
-Deamidation	0.984016	48	1318.4200	42	1146.4900
-Failed Carbamidymethylation/Pyrrolidone from Proline	-27.9954	41	1126.1700	48	1310.2800
+None	0.0	996	27356.6200	1125	30709.1800
+First isotopic peak	1.003355	294	8075.1600	330	9008.0600
+Failed Carbamidymethylation/Pyrrolidone from Proline	-27.9954	42	1153.6400	48	1310.2800
+Deamidation	0.984016	46	1263.4900	41	1119.1900
 Sixplex Tandem Mass Tag®	229.162932	25	686.6800	41	1119.1900
-Amidation	-0.984016	26	714.1500	29	791.6300
+Amidation	-0.984016	26	714.1500	30	818.9300
 Formylation	27.994915	23	631.7400	29	791.6300
 Tyrosine oxidation to 2-aminotyrosine/Conversion of carboxylic acid to hydroxamic acid	15.010899	26	714.1400	22	600.5400
 Phosphorylation	79.966331	18	494.4000	24	655.1400
+Second isotopic peak	2.00671	22	604.2700	17	464.0600
 Succinic anhydride labeling reagent light form (N-term &amp; K)/Methylmalonylation on Serine	100.016044	18	494.4000	19	518.6500
 Iodoacetamide derivative/Addition of Glycine/Addition of G	57.021464	13	357.0700	23	627.8400
-Second isotopic peak	2.00671	20	549.3400	16	436.7600
-Half of a disulfide bridge	-1.007825	13	357.0800	22	600.5600
-Unannotated mass-shift -201.1700	-201.17	15	412.0000	20	545.9600
+Unannotated mass-shift -201.1700	-201.17	16	439.4700	20	545.9600
 Cleavage product of EGS protein crosslinks by hydroylamine treatment/Addition of D	115.026943	16	439.4700	19	518.6500
 Unannotated mass-shift -129.1470	-129.147	21	576.8100	14	382.1600
+Half of a disulfide bridge	-1.007825	12	329.6100	21	573.2600
 Dehydration/Pyro-glu from E	-18.010565	17	466.9300	15	409.4700
 Carbamylation	43.005814	13	357.0600	16	436.7600
-deuterated methyl ester	17.03448	7	192.2700	13	354.8700
+deuterated methyl ester	17.03448	7	192.2700	14	382.1700
+Unannotated mass-shift -0.0700	-0.07	6	164.8100	15	409.4500
 Unannotated mass-shift -357.2590	-357.259	9	247.2100	10	272.9800
-Unannotated mass-shift -0.0700	-0.07	5	137.3400	13	354.8600
 di-Methylation/Acetaldehyde +28/Ethylation	28.0313	9	247.2100	8	218.3800
-Unannotated mass-shift -0.1168	-0.1168	8	219.7400	8	218.3900
+Unannotated mass-shift -0.1164	-0.1164	8	219.7400	8	218.3900
 Oxidation or Hydroxylation	15.994915	7	192.2800	9	245.6900
 trifluoroleucine replacement of leucine	53.971735	6	164.8000	10	272.9800
 Unannotated mass-shift 1.0888	1.0888	7	192.2700	7	191.0900
-Unannotated mass-shift 59.0014	59.0014	7	192.2800	5	136.4900
 Loss of arginine due to transpeptidation/Deletion of R	-156.101111	4	109.8700	8	218.3900
-Methylation	14.01565	6	164.8100	5	136.5000
+Unannotated mass-shift 59.0014	59.0014	7	192.2800	4	109.1900
 carboxyethyl/Dihydroxy methylglyoxal adduct/Ethoxyformylation	72.021129	3	82.4000	8	218.3800
+Addition of arginine due to transpeptidation/Addition of R	156.101111	6	164.8000	5	136.4900
 S-methyl amino phosphinate	108.975121	2	54.9400	9	245.6800
-Addition of arginine due to transpeptidation/Addition of R	156.101111	6	164.8000	4	109.1900
+nitrosylation	28.990164	4	109.8800	6	163.7800
 Tryptophan oxidation to beta-unsaturated-2,4-bis-tryptophandione	27.958529	6	164.8000	4	109.2000
 Third isotopic peak/13C3 label for SILAC	3.010065	4	109.8700	5	136.4900
 deamidation followed by esterification with ethanol	29.015316	3	82.4000	6	163.7800
+Unannotated mass-shift 0.1208	0.1208	2	54.9400	7	191.0900
 Loss of C-terminal K from Heavy Chain of MAb/Deletion of K	-128.094963	6	164.8000	3	81.8900
-nitrosylation	28.990164	4	109.8800	5	136.4800
+Methylation	14.01565	5	137.3400	4	109.2000
 Unannotated mass-shift -172.1420	-172.142	3	82.4000	6	163.7900
 Pyro-glu from Q/Loss of ammonia	-17.026549	6	164.8100	3	81.9000
 2,3-dihydro-2,2-dimethyl-7-benzofuranol N-methyl carbamate	58.029289	5	137.3400	4	109.1900
 Acetylhypusine/Addition of I/Addition of L	113.084064	4	109.8700	5	136.4900
 maleimide	97.016378	3	82.4000	6	163.7900
-Unannotated mass-shift 0.8188	0.8188	0	0.0000	8	218.3900
+Unannotated mass-shift 0.8186	0.8186	0	0.0000	8	218.3900
 Lysine oxidation to aminoadipic semialdehyde	-1.031634	2	54.9300	6	163.7900
-Unannotated mass-shift 0.1204	0.1204	1	27.4700	7	191.0900
 Unannotated mass-shift 188.0604	188.0604	6	164.8100	2	54.6000
-Unannotated mass-shift 372.1658	372.1658	4	109.8700	3	81.9000
 quinone	29.974179	5	137.3400	2	54.5900
 Unannotated mass-shift 71.0934	71.0934	3	82.4000	4	109.1900
+Unannotated mass-shift -0.0570	-0.057	5	137.3300	2	54.6000
 Unannotated mass-shift -214.1516	-214.1516	2	54.9400	5	136.5000
-Deletion of S	-87.03202819824219	3	82.4100	3	81.9000
 monomethylation	18.037835	2	54.9400	4	109.1900
-Deletion of A	-71.037109375	1	27.4700	5	136.4900
+Unannotated mass-shift 372.1658	372.1658	3	82.4000	3	81.9000
 Unannotated mass-shift 199.0926	199.0926	2	54.9400	4	109.1900
 Homoserine	-29.992806	4	109.8800	2	54.6000
 Unannotated mass-shift 384.2124	384.2124	3	82.4100	3	81.9000
-Unannotated mass-shift 63.0270	63.027	3	82.4100	3	81.9000
-proline oxidation to pyroglutamic acid/Tryptophan oxidation to oxolactone/aldehyde and ketone modifications	13.979265	3	82.4100	3	81.9000
+Unannotated mass-shift 2.1158	2.1158	4	109.8700	2	54.5900
+Unannotated mass-shift 63.0268	63.0268	3	82.4100	3	81.9000
 Addition of T	101.04768371582031	4	109.8700	2	54.6000
+ubiquitinylation residue/Double Carbamidomethylation/Addition of N	114.042927	3	82.4100	3	81.9000
 Unannotated mass-shift 277.1442	277.1442	6	164.8200	0	0.0000
 Unannotated mass-shift 83.0080	83.008	1	27.4700	5	136.4900
 Unannotated mass-shift -115.0572	-115.0572	3	82.4000	3	81.8900
+Deletion of S	-87.03202819824219	3	82.4100	2	54.6000
 Acetylation	42.010565	1	27.4700	4	109.1900
+Deletion of A	-71.037109375	1	27.4700	4	109.1900
 Monomethylated Arg13C(6) 15N(4)	24.023919	3	82.4100	2	54.6000
 Unannotated mass-shift 1.4768	1.4768	3	82.4100	2	54.6000
 Unannotated mass-shift 293.1750	293.175	2	54.9400	3	81.8900
@@ -71,16 +73,15 @@ Unannotated mass-shift 245.1418	245.1418	4	109.8800	1	27.3000
 Unannotated mass-shift 447.2078	447.2078	3	82.4100	2	54.6000
 addition of GGE	243.085521	3	82.4000	2	54.6000
 Homoserine lactone/Prompt loss of side chain from oxidised Met	-48.003371	3	82.4000	2	54.6000
-Unannotated mass-shift 1.9492	1.9492	3	82.4000	2	54.6000
+proline oxidation to pyroglutamic acid/Tryptophan oxidation to oxolactone/aldehyde and ketone modifications	13.979265	3	82.4100	2	54.6000
 Unannotated mass-shift 357.2594	357.2594	2	54.9400	3	81.8900
 glycidamide adduct/Addition of S	87.032028	2	54.9400	3	81.8900
 Unannotated mass-shift 163.0278	163.0278	4	109.8800	1	27.3000
-ubiquitinylation residue/Double Carbamidomethylation/Addition of N	114.042927	3	82.4100	2	54.6000
 Unannotated mass-shift -317.3196	-317.3196	3	82.4100	2	54.6000
 Unannotated mass-shift -132.1442	-132.1442	2	54.9400	3	81.9000
 Unannotated mass-shift 438.2436	438.2436	2	54.9400	3	81.9000
-Unannotated mass-shift -0.0570	-0.057	3	82.4000	2	54.6000
 Unannotated mass-shift -170.1046	-170.1046	2	54.9300	2	54.6000
+Deletion of Q	-128.05857849121094	1	27.4700	3	81.8900
 Deletion of O	-114.07930755615234	0	0.0000	4	109.1900
 Unannotated mass-shift -1.1480	-1.148	1	27.4700	3	81.9000
 Unannotated mass-shift -432.2886	-432.2886	1	27.4700	3	81.8900
@@ -89,14 +90,15 @@ Unannotated mass-shift -0.8258	-0.8258	2	54.9400	2	54.5900
 Deletion of I/Deletion of L	-113.08406066894531	3	82.4000	1	27.3000
 hypusine	87.068414	1	27.4700	3	81.8900
 Unannotated mass-shift 498.1856	498.1856	2	54.9400	2	54.6000
+EDT-iodo-PEO-biotin	490.174218	0	0.0000	4	109.1900
 Unannotated mass-shift 9.0064	9.0064	1	27.4700	3	81.9000
 Unannotated mass-shift -26.0202	-26.0202	2	54.9400	2	54.6000
 Phosphogluconoylation	258.014069	2	54.9400	2	54.6000
 Unannotated mass-shift -448.2824	-448.2824	1	27.4700	3	81.9000
-Unannotated mass-shift -188.0972	-188.0972	0	0.0000	4	109.2000
 Water-quenched monolink of DSSO crosslinker	176.01433	2	54.9400	2	54.6000
 Unannotated mass-shift -164.2348	-164.2348	1	27.4700	3	81.8900
 Unannotated mass-shift -203.1488	-203.1488	1	27.4700	3	81.9000
+Unannotated mass-shift -187.0558	-187.0558	0	0.0000	4	109.2000
 Unannotated mass-shift -154.0746	-154.0746	2	54.9400	2	54.6000
 2H(3) 13C(1) monomethylated Arg13C(6) 15N(4)	28.046104	3	82.4100	1	27.3000
 5-hydroxy-N6,N6,N6-trimethyl	59.04969	3	82.4000	1	27.3000
@@ -105,34 +107,33 @@ Unannotated mass-shift 474.1190	474.119	3	82.4000	1	27.3000
 Unannotated mass-shift 220.0876	220.0876	3	82.4000	1	27.3000
 Unannotated mass-shift -446.3036	-446.3036	1	27.4700	2	54.6000
 Deletion of G	-57.021461486816406	1	27.4700	2	54.6000
-Unannotated mass-shift 483.2296	483.2296	1	27.4700	2	54.6000
-Deletion of Q	-128.05857849121094	1	27.4700	2	54.5900
 DiMethyl-CHD2	32.056407	2	54.9400	1	27.3000
 Unannotated mass-shift 400.1494	400.1494	1	27.4700	2	54.6000
 Unannotated mass-shift 153.0880	153.088	2	54.9400	1	27.3000
 Unannotated mass-shift 411.2446	411.2446	1	27.4700	2	54.6000
-EDT-iodo-PEO-biotin	490.174218	1	27.4700	2	54.5900
+N-Acetylhexosamine	203.079373	0	0.0000	3	81.9000
 Unannotated mass-shift 366.0738	366.0738	2	54.9400	1	27.3000
 O-Sulfonation	79.956815	1	27.4700	2	54.5900
+Unannotated mass-shift -188.0972	-188.0972	0	0.0000	3	81.9000
 Unannotated mass-shift -257.1266	-257.1266	1	27.4700	2	54.6000
-Unannotated mass-shift 303.1118	303.1118	0	0.0000	3	81.9000
 Unannotated mass-shift 284.2170	284.217	2	54.9400	1	27.3000
 Unannotated mass-shift 420.1500	420.15	0	0.0000	3	81.9000
 Unannotated mass-shift -487.2426	-487.2426	1	27.4700	2	54.6000
-Unannotated mass-shift 496.0898	496.0898	3	82.4000	0	0.0000
+Unannotated mass-shift 496.0896	496.0896	3	82.4000	0	0.0000
 2,4-diacetamido-2,4,6-trideoxyglucopyranose	228.111007	0	0.0000	3	81.9000
 Fucose	146.057909	3	82.4100	0	0.0000
 Michael addition of hydroxymethylvinyl ketone to cysteine/transamidation of glycine ethyl ester to glutamine/2-hydroxyisobutyrylation	86.036779	1	27.4700	2	54.6000
 ethyl amino	27.047285	1	27.4700	2	54.6000
 Unannotated mass-shift 24.9488	24.9488	1	27.4700	2	54.6000
 Unannotated mass-shift -1.1674	-1.1674	2	54.9400	1	27.3000
-Unannotated mass-shift -46.9998	-46.9998	1	27.4700	2	54.6000
-Unannotated mass-shift 2.1378	2.1378	1	27.4700	2	54.6000
 Unannotated mass-shift -441.2218	-441.2218	2	54.9400	1	27.3000
+Unannotated mass-shift -47.0000	-47.0	1	27.4700	2	54.6000
 Guanidination/amidino	42.021798	0	0.0000	2	54.6000
 Iodoacetic acid derivative w/ 13C label	60.012189	1	27.4700	1	27.3000
 cyano	24.995249	0	0.0000	2	54.6000
 Deletion of V	-99.06841278076172	0	0.0000	2	54.6000
+Unannotated mass-shift 483.2296	483.2296	1	27.4700	1	27.3000
+Unannotated mass-shift 473.2892	473.2892	2	54.9300	0	0.0000
 Unannotated mass-shift 478.2844	478.2844	1	27.4700	1	27.3000
 Unannotated mass-shift -496.2756	-496.2756	1	27.4700	1	27.3000
 Oxidized lysine biotinylated with biotin-LC-hydrazide	352.156911	1	27.4700	1	27.3000
@@ -143,10 +144,10 @@ Unannotated mass-shift 1.7462	1.7462	1	27.4700	1	27.3000
 Unannotated mass-shift -210.1340	-210.134	0	0.0000	2	54.6000
 Unannotated mass-shift -125.1264	-125.1264	1	27.4700	1	27.3000
 S-(2-succinyl) cysteine	116.010959	0	0.0000	2	54.6000
-N-Acetylhexosamine	203.079373	0	0.0000	2	54.6000
 Unannotated mass-shift -261.1936	-261.1936	0	0.0000	2	54.6000
 Unannotated mass-shift -39.1240	-39.124	0	0.0000	2	54.6000
 Unannotated mass-shift -52.1128	-52.1128	1	27.4700	1	27.3000
+Beta elimination of alkylated Cys followed by Michael addition of labelled DTT	126.062161	0	0.0000	2	54.6000
 Unannotated mass-shift 356.2884	356.2884	2	54.9400	0	0.0000
 Unannotated mass-shift 355.9540	355.954	0	0.0000	2	54.6000
 Unannotated mass-shift 432.8938	432.8938	0	0.0000	2	54.6000
@@ -160,18 +161,17 @@ Unannotated mass-shift 298.1306	298.1306	1	27.4700	1	27.3000
 Unannotated mass-shift 407.2828	407.2828	0	0.0000	2	54.6000
 Unannotated mass-shift -434.2156	-434.2156	0	0.0000	2	54.6000
 carbobenzoxy-L-glutaminyl-glycine	320.100836	0	0.0000	2	54.6000
+Condensation product of 3-deoxyglucosone/S-(2-dimethylsuccinyl) cysteine	144.042259	1	27.4700	1	27.3000
 Unannotated mass-shift -480.2564	-480.2564	1	27.4700	1	27.3000
 Unannotated mass-shift 45.0404	45.0404	1	27.4700	1	27.3000
 Unannotated mass-shift -299.1470	-299.147	0	0.0000	2	54.6000
 Unannotated mass-shift 436.1620	436.162	1	27.4700	1	27.3000
 Thiadiazolydation of Cys	174.025169	0	0.0000	2	54.6000
 Unannotated mass-shift -255.1598	-255.1598	0	0.0000	2	54.6000
+Unannotated mass-shift 2.1376	2.1376	0	0.0000	2	54.6000
 Unannotated mass-shift 306.5960	306.596	1	27.4700	1	27.3000
 Unannotated mass-shift 462.1104	462.1104	0	0.0000	2	54.6000
 Unannotated mass-shift -0.8068	-0.8068	0	0.0000	2	54.5900
-Unannotated mass-shift -201.0392	-201.0392	1	27.4700	1	27.3000
-Unannotated mass-shift 473.2876	473.2876	2	54.9300	0	0.0000
-Unannotated mass-shift 488.2400	488.24	1	27.4700	1	27.3000
 DTT adduct of cysteine	151.996571	0	0.0000	2	54.6000
 aminotyrosine with sulfation	94.967714	1	27.4700	0	0.0000
 Unannotated mass-shift 336.5322	336.5322	1	27.4700	0	0.0000
@@ -205,7 +205,6 @@ Unannotated mass-shift 61.8928	61.8928	1	27.4700	0	0.0000
 Unannotated mass-shift -161.1192	-161.1192	1	27.4700	0	0.0000
 Unannotated mass-shift 134.0140	134.014	1	27.4700	0	0.0000
 Unannotated mass-shift 448.1750	448.175	1	27.4700	0	0.0000
-Beta elimination of alkylated Cys followed by Michael addition of labelled DTT	126.062161	0	0.0000	1	27.3000
 Unannotated mass-shift -329.1520	-329.152	0	0.0000	1	27.3000
 Levuglandinyl-lysine pyrrole adduct	316.203845	0	0.0000	1	27.3000
 Unannotated mass-shift 214.8090	214.809	0	0.0000	1	27.3000
@@ -219,12 +218,11 @@ Shimadzu NBS-12C	152.988449	0	0.0000	1	27.3000
 Unannotated mass-shift 496.2870	496.287	1	27.4700	0	0.0000
 Loss of ammonia (15N)	-18.023584	1	27.4700	0	0.0000
 Unidentified modification of 249.981 found in open search	249.981018	0	0.0000	1	27.3000
-Unannotated mass-shift 2.1160	2.116	1	27.4700	0	0.0000
 Pent(2)	264.084518	0	0.0000	1	27.3000
 Unannotated mass-shift 187.1446	187.1446	0	0.0000	1	27.3000
 Unannotated mass-shift 140.9830	140.983	1	27.4700	0	0.0000
 Unannotated mass-shift -458.5282	-458.5282	1	27.4700	0	0.0000
-Unannotated mass-shift -186.0466	-186.0466	0	0.0000	1	27.3000
+Unannotated mass-shift 492.1182	492.1182	1	27.4700	0	0.0000
 Unannotated mass-shift -327.0588	-327.0588	0	0.0000	1	27.3000
 Hex NeuGc	469.143155	0	0.0000	1	27.3000
 Unannotated mass-shift 219.1440	219.144	0	0.0000	1	27.3000
@@ -242,4 +240,5 @@ Unannotated mass-shift -473.3352	-473.3352	1	27.4700	0	0.0000
 Unannotated mass-shift 464.2628	464.2628	0	0.0000	1	27.3000
 Unannotated mass-shift 293.0192	293.0192	0	0.0000	1	27.3000
 Unannotated mass-shift 299.8358	299.8358	0	0.0000	1	27.3000
+Unannotated mass-shift 488.2400	488.24	1	27.4700	0	0.0000
 Unannotated mass-shift -230.1476	-230.1476	0	0.0000	1	27.3000
