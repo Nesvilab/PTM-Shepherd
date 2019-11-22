@@ -840,3 +840,4 @@ gradle-app.setting
 
 # End of https://www.gitignore.io/api/vim,java,maven,macos,linux,emacs,csharp,gradle,eclipse,windows,netbeans,intellij,notepadpp,visualstudio,visualstudiocode
 test
+!lib/*
