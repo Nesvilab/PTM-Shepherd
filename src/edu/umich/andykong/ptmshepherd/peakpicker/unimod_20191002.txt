@@ -133,7 +133,6 @@ Shimadzu NBS-13C	159.008578
 monomethylation	18.037835
 dimethylation	36.07567
 Shimadzu NBS-12C	152.988449
-glycosylated asparagine 18O labeling	2.988261
 APTA-d0	171.149738
 Michael addition of BHT quinone methide to Cysteine and Lysine	218.167065
 S-Ethylcystine from Serine	44.008456
@@ -145,7 +144,6 @@ C13 label (Phosphotyrosine)	88.996524
 Hydroxyphenylglyoxal arginine	132.021129
 bis(hydroxphenylglyoxal) arginine	282.052824
 APTA d3	174.168569
-O18 label at both C-terminal oxygens	4.008491
 6-aminoquinolyl-N-hydroxysuccinimidyl carbamate	170.048013
 DiMethyl-CHD2	32.056407
 EAPTA d0	184.157563
@@ -164,7 +162,6 @@ Crotonaldehyde	70.041865
 bromination	77.910511
 Tyrosine oxidation to 2-aminotyrosine	15.010899
 oxidized Arginine biotinylated with biotin hydrazide	199.066699
-O18 Labeling	2.004246
 13C(6) 15N(2) Silac label	8.014199
 Thiophosphorylation	95.943487
 4-sulfophenyl isothiocyanate	214.971084
@@ -231,7 +228,6 @@ O-Isopropylphosphorylation	122.013281
 Bruker Daltonics SERVA-ICPL(TM) quantification chemistry, heavy form	111.041593
 Carbamidomethylated DTT modification of cysteine	209.018035
 Bruker Daltonics SERVA-ICPL(TM) quantification chemistry, light form	105.021464
-Deamidation in presence of O18	2.988261
 Ornithine from Arginine	-42.021798
 Replacement of proton by copper	61.921774
 Half of a disulfide bridge	-1.007825

@@ -15,6 +15,7 @@ public class LocalizationRecord {
 	static boolean globalEnrich = false;
 
 	double [] aaScores;
+	double [] aaScoresSafe;
 
 	String mostImprovedSpectrum;
 	double mostImprovedScore;
@@ -36,6 +37,7 @@ public class LocalizationRecord {
 		backgroundEnrich = Integer.parseInt(PTMShepherd.getParam("localization_background"));
 		
 		aaScores = new double[26];
+		aaScoresSafe = new double[26];
 		nTerm = improved = total = 0;
 	}
 	
@@ -51,7 +53,7 @@ public class LocalizationRecord {
 		int origFrag = Integer.parseInt(sp[7]);
 		int bestFrag = Integer.parseInt(sp[8]);
 
-		//check for local or global enrichment calculation, default is local (<= 2)
+		//check for local or global enrichment calculation, default is global (4)
 		if(backgroundEnrich > 2)
 			globalEnrich = true;
 
@@ -132,13 +134,11 @@ public class LocalizationRecord {
 			AAnorms = localAANorm;
 		}
 
-		//for (int i = 0; i < 26; i++)
-		//System.out.printf("%.5f\n", AAnorms[0]);
-
-
 		double sum = 0;
-		for(int i = 0; i < 26; i++)
+		for(int i = 0; i < 26; i++) {
 			sum += aaScores[i]; // == number of successfully localized peptides
+			aaScoresSafe[i] = aaScores[i];
+		}
 
 		if(sum != 0) //if at least 1 peptide was successfully localized
 			for(int i = 0; i < 26; i++)
@@ -158,14 +158,14 @@ public class LocalizationRecord {
 			if(Double.isNaN(aaScores[best]))
 				sb.append("\tERROR");
 			else
-				sb.append(String.format("\t%c - %.2f",b,(sum == 0)?0:(aaScores[best])));
+				sb.append(String.format("\t%c - %.2f - %.2f",b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
 			aaScores[best] = 0;
 		}
 		
 		//Output rest of localized scores
 		for(int i = 0; i < 26; i++)
 			if(LocalizationProfile.AAcnts[i] != 0)
-				sb.append(String.format("\t%.4f", taScores[i]));
+				sb.append(String.format("\t%.4f - %.4f", taScores[i], aaScoresSafe[i]));
 		
 		return sb.toString();
 	}

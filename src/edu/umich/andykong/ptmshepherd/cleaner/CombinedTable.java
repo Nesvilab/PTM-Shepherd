@@ -47,8 +47,10 @@ public class CombinedTable {
                     if (line == null) {
                         continue;
                     }
-                    String[] split = line.split("\t");
-                    String lineCut = String.join("\t", Arrays.asList(split).subList(1, 7));
+                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
+                    List<String> newLine = split.subList(1, 7);
+                    newLine.remove(1);
+                    String lineCut = String.join("\t", newLine);
                     records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
                 }
             }
@@ -58,8 +60,9 @@ public class CombinedTable {
                     if (line == null) {
                         continue;
                     }
-                    String[] split = line.split("\t");
-                    String lineCut = String.join("\t", Arrays.asList(split).subList(1, split.length));
+                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
+                    List<String> newLine = split.subList(3, split.size());
+                    String lineCut = String.join("\t", newLine);
                     records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
                 }
             }

@@ -133,7 +133,6 @@ Shimadzu NBS-13C	159.008578
 monomethylation	18.037835
 dimethylation	36.075670
 Shimadzu NBS-12C	152.988449
-glycosylated asparagine 18O labeling	2.988261
 APTA-d0	171.149738
 Michael addition of BHT quinone methide to Cysteine and Lysine	218.167065
 S-Ethylcystine from Serine	44.008456

@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.14";
+ 	public static final String version = "0.2.15";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -175,6 +175,7 @@ public class PTMShepherd {
 
 		//Get mzData mapping
 		ArrayList<String> cacheFiles = new ArrayList<>();
+
 		for(String ds : datasets.keySet()) {
 			ArrayList<String []> dsData = datasets.get(ds);
 			mzMap.put(ds, new HashMap<>());
