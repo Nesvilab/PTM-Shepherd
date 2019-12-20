@@ -12,7 +12,7 @@ import umich.ms.fileio.filetypes.thermo.ThermoRawFile;
 
 public class MS2Counts {
 
-	public static int countMS2Scans(File f) throws Exception {
+	public static int countMS2Scans(File f, int threads) throws Exception {
 		int count = 0;
 		String ext = f.getName().substring(f.getName().lastIndexOf(".")+1);
 		if(ext.length() == 0)
@@ -20,7 +20,7 @@ public class MS2Counts {
 		try {
 			if(ext.equals("mzXML")) {
 				MZXMLFile source = new MZXMLFile(f.getAbsolutePath());
-				source.setNumThreadsForParsing(Math.min(4,Runtime.getRuntime().availableProcessors()));
+				source.setNumThreadsForParsing(threads);
 				source.setExcludeEmptyScans(false);
 				ScanCollectionDefault scans = new ScanCollectionDefault();
 				scans.setDataSource(source);
@@ -35,7 +35,7 @@ public class MS2Counts {
 				scans.reset();
 			} else if(ext.equals("mzML")) {
 				MZMLFile source = new MZMLFile(f.getAbsolutePath());
-				source.setNumThreadsForParsing(Math.min(4, Runtime.getRuntime().availableProcessors()));
+				source.setNumThreadsForParsing(threads);
 				source.setExcludeEmptyScans(false);
 				ScanCollectionDefault scans = new ScanCollectionDefault();
 				scans.setDataSource(source);
@@ -50,7 +50,7 @@ public class MS2Counts {
 				scans.reset();
 //			} else if(ext.equals("raw")) {
 //				ThermoRawFile source = new ThermoRawFile(f.getAbsolutePath());
-//				source.setNumThreadsForParsing(Math.min(4,Runtime.getRuntime().availableProcessors()));
+//				source.setNumThreadsForParsing(threads);
 //				source.setExcludeEmptyScans(false);
 //				ScanCollectionDefault scans = new ScanCollectionDefault();
 //				scans.setDataSource(source);

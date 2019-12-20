@@ -64,6 +64,10 @@ public class PTMShepherd {
 			}
 		}
 		in.close();
+
+		if (Integer.parseInt(params.get("threads")) <= 0) {
+			params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
+		}
 	}
 	
 	public static void init(String [] args) throws Exception {
@@ -74,7 +78,7 @@ public class PTMShepherd {
 		datasetMS2 = new HashMap<>();
 		
 		//default values
-		params.put("threads", ""+Math.min(8, Runtime.getRuntime().availableProcessors()));
+		params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
 		params.put("histo_bindivs", "5000"); //number of divisions in histogram
 		params.put("histo_smoothbins", "2"); //smoothing factor
 		
@@ -221,7 +225,7 @@ public class PTMShepherd {
 				print("Counting MS2 scans for dataset " + ds);
 				for(String crun : mzMap.get(ds).keySet()) {
 					File tf = mzMap.get(ds).get(crun);
-					int cnt = MS2Counts.countMS2Scans(tf);
+					int cnt = MS2Counts.countMS2Scans(tf, Integer.parseInt(params.get("threads")));
 					print(String.format("\t%s - %d scans", crun,cnt));
 					counts.put(crun, cnt);
 				}

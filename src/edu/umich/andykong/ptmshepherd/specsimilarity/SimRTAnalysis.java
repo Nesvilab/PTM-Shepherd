@@ -92,7 +92,7 @@ public class SimRTAnalysis {
 		//iterate and calculate similarity/retention time deltas for each file
 		for(String cf : mappings.keySet()) {
 			long t1 = System.currentTimeMillis();
-			mr = new MXMLReader(mzMappings.get(cf));
+			mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
 			mr.readFully();
 			long t2 = System.currentTimeMillis();
 			ArrayList<Integer> clines = mappings.get(cf);

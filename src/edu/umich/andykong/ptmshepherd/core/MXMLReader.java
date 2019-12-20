@@ -19,6 +19,7 @@ import umich.ms.fileio.filetypes.thermo.ThermoRawFile;
 public class MXMLReader {
 
 	File f;
+	final int threads;
 	
 	int nSpecs;
 	Spectrum [] specs;
@@ -38,8 +39,9 @@ public class MXMLReader {
 			return specName;
 	}
 	
-	public MXMLReader(File f) {
+	public MXMLReader(File f, int threads) {
 		this.f = f;
+		this.threads = threads;
 	}
 	
 	public void readFully() throws Exception {
@@ -85,7 +87,7 @@ public class MXMLReader {
 		baseName = baseName.substring(0,baseName.lastIndexOf("."));
 
 		source.setExcludeEmptyScans(false);
-		source.setNumThreadsForParsing(Math.min(8,Runtime.getRuntime().availableProcessors()));
+		source.setNumThreadsForParsing(threads);
 
 		ScanCollectionDefault scans = new ScanCollectionDefault();
 		scans.setDataSource(source);
@@ -135,7 +137,7 @@ public class MXMLReader {
 	}
 	
 	public static void main(String [] args) throws Exception {
-		MXMLReader mr = new MXMLReader(new File("E:\\q01507.mzXML"));
+		MXMLReader mr = new MXMLReader(new File("E:\\q01507.mzXML"), 7);
 		mr.readFully();
 		for(int i = 0; i < mr.specs.length; i++)
 			System.out.println(mr.specs[i].scanName);
