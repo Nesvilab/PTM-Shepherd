@@ -61,7 +61,7 @@ public class CombinedTable {
                         continue;
                     }
                     List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-                    List<String> newLine = split.subList(3, split.size());
+                    List<String> newLine = split.subList(2, split.size());
                     String lineCut = String.join("\t", newLine);
                     records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
                 }
