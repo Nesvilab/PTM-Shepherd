@@ -158,7 +158,7 @@ public class LocalizationRecord {
 			if(Double.isNaN(aaScores[best]))
 				sb.append("\tERROR");
 			else
-				sb.append(String.format("\t%c - %.2f - %.2f",b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
+				sb.append(String.format("\t%c - %.1f - %.1f",b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
 			aaScores[best] = 0;
 		}
 		
