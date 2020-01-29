@@ -102,6 +102,22 @@ task packageNoDeps(group: 'ptm-shepherd') {
     tasks.findByName('jar').mustRunAfter 'test'
 }
 
+task updateFragpipeJazz(group: 'ptm-shepherd', type: Copy) {
+    dependsOn 'packageNoDeps'
+    String dest = "$buildDir/../../fragpipe/MSFragger-GUI/tools"
+    if (!file(dest).exists()) {
+        println "ERROR: Destination directory does not exist: " + dest
+    } else {
+        copy {
+            from "$buildDir/libs/"
+            include "ptms*.jar"
+            into file(dest)
+            rename '(.+)(\\.jar)', '$1' + '.jazz'
+        }
+    }
+}
+
+
 task printSrcSets(group: 'ptm-shepherd') {
     doLast {
         sourceSets.each { ss ->
