@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.15";
+ 	public static final String version = "0.2.16";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -88,7 +88,7 @@ public class PTMShepherd {
 		params.put("peakpicking_topN", "500"); //num peaks
         params.put("peakpicking_minPsm", "10");
         params.put("localization_background", "4");
-        params.put("varmod_masses", ":0");
+        params.put("varmod_masses", "");
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width
 		//params.put("precursor_tol_ppm", "20.0"); //unused
 		

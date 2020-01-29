@@ -178,7 +178,7 @@ public class PeakAnnotator {
 		mod_diffs = new ArrayList<Double>(); //all modification mass shifts
 		allowed_list = new ArrayList<Integer>(); //mods that can be added at any given step
 		indices = new int[128];
-		userMods = new String("");
+		//userMods = new String("");
 		vModNames = new ArrayList<String>();
 		vModMasses = new ArrayList<Double>();
 

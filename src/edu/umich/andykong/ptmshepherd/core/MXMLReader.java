@@ -139,8 +139,8 @@ public class MXMLReader {
 	public static void main(String [] args) throws Exception {
 		MXMLReader mr = new MXMLReader(new File("E:\\q01507.mzXML"), 7);
 		mr.readFully();
-		for(int i = 0; i < mr.specs.length; i++)
-			System.out.println(mr.specs[i].scanName);
+		//for(int i = 0; i < mr.specs.length; i++)
+		//	System.out.println(mr.specs[i].scanName);
 	}
 	
 }

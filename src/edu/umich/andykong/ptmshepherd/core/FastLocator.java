@@ -10,7 +10,7 @@ public class FastLocator {
 	int [] massOrder;
 	int [] hintIndex;
 	
-	static final int scale = 5000;
+	static final int scale = 10000;
 	int offset;
 	
 	double peakTol;
