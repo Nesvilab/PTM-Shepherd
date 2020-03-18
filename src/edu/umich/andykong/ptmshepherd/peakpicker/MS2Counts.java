@@ -48,21 +48,21 @@ public class MS2Counts {
 						count++;
 				}
 				scans.reset();
-//			} else if(ext.equals("raw")) {
-//				ThermoRawFile source = new ThermoRawFile(f.getAbsolutePath());
-//				source.setNumThreadsForParsing(threads);
-//				source.setExcludeEmptyScans(false);
-//				ScanCollectionDefault scans = new ScanCollectionDefault();
-//				scans.setDataSource(source);
-//				scans.loadData(LCMSDataSubset.STRUCTURE_ONLY);
-//				TreeMap<Integer,IScan> num2scan = scans.getMapNum2scan();
-//				Set<Map.Entry<Integer, IScan>> scanEntries = num2scan.entrySet();
-//				for (Map.Entry<Integer, IScan> scanEntry : scanEntries) {
-//					IScan scan = scanEntry.getValue();
-//					if(scan.getMsLevel() == 2)
-//						count++;
-//				}
-//				scans.reset();
+			} else if(ext.equals("raw")) {
+				ThermoRawFile source = new ThermoRawFile(f.getAbsolutePath());
+				source.setNumThreadsForParsing(threads);
+				source.setExcludeEmptyScans(false);
+				ScanCollectionDefault scans = new ScanCollectionDefault();
+				scans.setDataSource(source);
+				scans.loadData(LCMSDataSubset.STRUCTURE_ONLY);
+				TreeMap<Integer,IScan> num2scan = scans.getMapNum2scan();
+				Set<Map.Entry<Integer, IScan>> scanEntries = num2scan.entrySet();
+				for (Map.Entry<Integer, IScan> scanEntry : scanEntries) {
+					IScan scan = scanEntry.getValue();
+					if(scan.getMsLevel() == 2)
+						count++;
+				}
+				scans.reset();
 			} else {
 				System.err.println("Unrecognized extension: " + ext);
 			}

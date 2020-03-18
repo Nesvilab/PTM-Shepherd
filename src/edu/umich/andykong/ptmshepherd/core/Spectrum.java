@@ -9,6 +9,7 @@ public class Spectrum implements Comparable<Spectrum> {
 
 	int scanNum, charge;
 	double precursorMass, rt;
+	double monoMass, targetMass;
 	float [] peakMZ;
 	float [] peakInt;
 	double norm;

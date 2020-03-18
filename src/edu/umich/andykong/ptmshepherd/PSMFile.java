@@ -7,7 +7,9 @@ public class PSMFile {
 
 	String [] headers;
 	public ArrayList<String> data;
+	public ArrayList<String> mappedRuns;
 	public static int dMassCol;
+	public String prefType;
 	
 	public PSMFile(String fn) throws Exception {
 		this(new File(fn));
@@ -75,15 +77,28 @@ public class PSMFile {
 	}
 	
 	public static void getMappings(File path, HashMap<String,File> mappings) {
+		HashMap<String, Integer> datTypes = new HashMap<>();
+			datTypes.put("raw", 0);
+			datTypes.put("mzXML", 1);
+			datTypes.put("mzML", 2);
+
 		if(path.isDirectory()) {		
 			File [] ls = path.listFiles();
+			//get mapping for each file
 			for(int i = 0; i < ls.length; i++) {
 				getMappings(ls[i],mappings);
 			}
 		} else {
 			String [] ns = splitName(path.getName());
-			if(mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw"))) {
-				mappings.put(ns[0], path);
+			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw"))) {
+				if (mappings.get(ns[0]) == null)
+					mappings.put(ns[0], path);
+				else {
+					File storedPath = mappings.get(ns[0]);
+					String[] storedNs = splitName(storedPath.getName());
+					if (datTypes.get(ns[1]) > datTypes.get(storedNs[1]))
+						mappings.put(ns[0], path);
+				}
 			}
 		}
 	}
@@ -99,5 +114,4 @@ public class PSMFile {
 		}
 		in.close();
 	}
-	
 }

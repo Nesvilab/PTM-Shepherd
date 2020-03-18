@@ -1,0 +1,3 @@
+PeakApex	PeakLower	PeakUpper	default-ptmshepherd-dataset (PSMs)	default-ptmshepherd-dataset (PSMs/million)	default-ptmshepherd-dataset (Peptides)	default-ptmshepherd-dataset (% in unmodified)	Potential Modification 1	Potential Modification 2	Similarity (mean)	Similarity (variance)	DeltaRT (mean)	DeltaRT (variance)	Localized PSMs	N-term rate	EnrichedAA_1	EnrichedAA_2	EnrichedAA_3
+-0.00080	-0.01080	0.00920	12	446.93	11	100.00			0.9806	0.0021	NaN	54.9967	1	0.00	E - 9.1 - 0.7	A - 7.6 - 0.3	A - 0.0 - 0.3
+80.96900	80.95900	80.97900	1	37.24	1	0.00	Unannotated mass-shift 80.9690		NaN	NaN	NaN	NaN	1	0.00	F - 5.8 - 0.4	D - 2.4 - 0.1	S - 1.9 - 0.1

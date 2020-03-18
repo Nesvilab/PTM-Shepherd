@@ -17,6 +17,7 @@ public class SimRTAnalysis {
 	String dsName;
 	File simRTFile;
 	MXMLReader mr;
+	HashMap<String, MXMLReader> multiMr;
 	double ppmTol, condRatio, peakTol;
 	int condPeaks;
 	int specCol, pepCol, modpepCol, chargeCol, deltaCol, rtCol, intCol;
@@ -64,6 +65,8 @@ public class SimRTAnalysis {
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(simRTFile,true));
 
+		boolean interRunComparisons = true;
+
 		//Write header
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mod_Peptide","Shift","Is_Zero_Pep",
 				"DeltaRT", "nZeroSpecs_DeltaRT", "Avg_Sim", "Avg_ZeroSim", "nZeroSpecs_Sim");
@@ -80,27 +83,62 @@ public class SimRTAnalysis {
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
 		condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
 		peakTol = Double.parseDouble(PTMShepherd.getParam("precursor_tol")); //determines zero bin
-		
-		for(int i = 0; i < pf.data.size(); i++) {
-			String [] sp = pf.data.get(i).split("\t");
-			String bn = sp[specCol].substring(0,sp[specCol].indexOf("."));
-			if(!mappings.containsKey(bn))
-				mappings.put(bn, new ArrayList<>());
-			mappings.get(bn).add(i);
+
+		if (!interRunComparisons) {
+			for (int i = 0; i < pf.data.size(); i++) {
+				String[] sp = pf.data.get(i).split("\t");
+				String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
+				if (!mappings.containsKey(bn))
+					mappings.put(bn, new ArrayList<>());
+				mappings.get(bn).add(i);
+			}
+		} else {
+			for (int i = 0; i < pf.data.size(); i++) {
+				String[] sp = pf.data.get(i).split("\t");
+				String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
+				if (!mappings.containsKey(bn))
+					mappings.put(bn, new ArrayList<>());
+			}
+			for (int i = 0; i < pf.data.size(); i++) {
+				for (String fraction : mappings.keySet())
+					mappings.get(fraction).add(i);
+			}
 		}
 
-		//iterate and calculate similarity/retention time deltas for each file
-		for(String cf : mappings.keySet()) {
-			long t1 = System.currentTimeMillis();
+		//read all files into memory
+		multiMr = new HashMap<>();
+		long t1 = System.currentTimeMillis();
+		for (String cf : mappings.keySet()) {
 			mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
 			mr.readFully();
-			long t2 = System.currentTimeMillis();
+			multiMr.put(cf, mr);
+		}
+		long t2 = System.currentTimeMillis();
+		PTMShepherd.print(String.format("\tSpectral data read into memory (%d ms)", t2-t1));
+
+
+		//itialize these outside of run iteractions for inter run comparisons
+		HashMap<String,ArrayList<Integer>> zTolLines = new HashMap<>();
+		HashMap<String,ArrayList<Spectrum>> zTolSpecs = new HashMap<>();
+		HashMap<String,ArrayList<Double>> zTolRT = new HashMap<>();
+		HashMap<String,Double> avgzSim = new HashMap<>(); //{modPep.charge:avg zero sim in bin}
+		HashMap<String,Double> avgzRT = new HashMap<>();
+
+		//iterate and calculate similarity/retention time deltas for each file
+		//if inter run comparisons is turned on, this look will be broken after first iteration
+		for(String cf : mappings.keySet()) { //cf = fraction
+			//leaving this here in case we need a less memory intensive application at some point
+			//mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+			//mr.readFully();
 			ArrayList<Integer> clines = mappings.get(cf);
-			HashMap<String,ArrayList<Integer>> zTolLines = new HashMap<>();
-			HashMap<String,ArrayList<Spectrum>> zTolSpecs = new HashMap<>();
-			HashMap<String,ArrayList<Double>> zTolRT = new HashMap<>();
-			HashMap<String,Double> avgzSim = new HashMap<>(); //{modPep.charge:avg zero sim in bin}
-			HashMap<String,Double> avgzRT = new HashMap<>();
+			//if not performing inter run comparisons, need to reset every time
+			if (!interRunComparisons) {
+				zTolLines = new HashMap<>();
+				zTolSpecs = new HashMap<>();
+				zTolRT = new HashMap<>();
+				avgzSim = new HashMap<>(); //{modPep.charge:avg zero sim in bin}
+				avgzRT = new HashMap<>();
+			}
 			
 			//get zero bin data and calculate baselines
 			for(int i = 0; i < clines.size(); i++) {
@@ -133,7 +171,8 @@ public class SimRTAnalysis {
 				zTolSpecs.put(pepZ, new ArrayList<>());
 				for(int i = 0; i < nComp; i++) {
 					String [] crow = pf.data.get(relLines.get(i)).split("\t");
-					zTolSpecs.get(pepZ).add(mr.getSpectrum(reNormName(crow[specCol])));
+					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
+					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(reNormName(crow[specCol])));
 				}
 				
 				double zSimSum = 0;
@@ -142,7 +181,8 @@ public class SimRTAnalysis {
 					String [] crow = pf.data.get(relLines.get(i)).split("\t");
 					String specNormName = reNormName(crow[specCol]);
 					//System.out.println(specNormName);
-					Spectrum cspec = mr.getSpectrum(specNormName);
+					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
+					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(specNormName);
 					if (cspec == null) {
 						linesWithoutSpectra.add(specNormName);
 						continue;
@@ -189,7 +229,8 @@ public class SimRTAnalysis {
 				
 				key += "." + crow[chargeCol]; //based on charge state
 				if(zTolSpecs.containsKey(key)) {
-					Spectrum cspec = mr.getSpectrum(reNormName(crow[specCol]));
+					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
+					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(reNormName(crow[specCol]));
 					if(cspec != null) {
 						avgSim = cspec.averageSimilarity(zTolSpecs.get(key), ppmTol); //all v all comparison
 						avgZeroSim = avgzSim.get(key);
@@ -202,8 +243,12 @@ public class SimRTAnalysis {
 			
 			out.flush();
 			long t3 = System.currentTimeMillis();
-			
-			PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
+
+			if (interRunComparisons) {
+				PTMShepherd.print(String.format("\tProcessed - %d (%d ms)", clines.size(), t3-t2));
+				break;
+			}
+			PTMShepherd.print(String.format("\t%s - %d (%d ms)", cf, clines.size(), t3-t2));
 		}
 		
 		out.close();

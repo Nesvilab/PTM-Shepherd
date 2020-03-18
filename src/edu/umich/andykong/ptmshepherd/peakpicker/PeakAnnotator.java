@@ -25,13 +25,15 @@ public class PeakAnnotator {
 	static int cmaxDepth;
 	static boolean found, debug;
 	
-	public void annotateTSV(File inTSV, File outTSV) throws Exception {
+	public void annotateTSV(File inTSV, File outTSV, String mos, String isos) throws Exception {
         //ArrayList<String> vModNames = new ArrayList<>();
         //ArrayList<Double> vModMasses = new ArrayList<>();
 
 		//if(mods == null)
 		//	init(varMods);
-		
+
+		buildOffsetList(mos, isos);
+
 		ArrayList<String> inFile = new ArrayList<>();
 		String cline;
 		BufferedReader in = new BufferedReader(new FileReader(inTSV));
@@ -102,7 +104,51 @@ public class PeakAnnotator {
 			indices[depth] = -1;
 		}
 	}
-	
+
+	public static void buildOffsetList(String massOffsets, String isotopes) {
+		boolean offsetMode = false;
+		double[] mos = new double[0];
+
+		if (!massOffsets.equals("") & (!massOffsets.equals("None"))) {
+			offsetMode = true;
+		}
+
+		if (offsetMode) {
+			String[] tmpIsos; //temp str to hold isotopes
+			String[] tmpMos = massOffsets.split("/"); //temp string to hold mass offsets
+			if (isotopes.equals("")) {
+				tmpIsos = new String[]{"0"};
+			} else {
+				tmpIsos = isotopes.split("/");
+			}
+			mos = new double[tmpMos.length * tmpIsos.length]; //list of mass offsets
+			//mos[0] = 0.0; //include unmodified peps
+			for (int i = 0; i < tmpMos.length; i++) {
+				for (int j = 0; j < tmpIsos.length; j++) {
+					double mo = Double.parseDouble(tmpMos[i]) + Integer.parseInt(tmpIsos[j]) * C13delta;
+					mos[i * tmpIsos.length + j + 1] = mo;
+				}
+			}
+
+			Arrays.sort(mos);
+
+			for(int i = 0; i < mos.length; i++){
+				System.out.println(mos[i]);
+			}
+
+			for (int i = 0; i < mos.length; i++) {
+				double massToCheck = mos[i];
+				for (int j = 1; j < mos.length; j++) {
+					for (int k = j; k < mos.length; k++) {
+						if (Math.abs(massToCheck - (mos[j] + mos[k])) < modEqual_tol){
+							System.out.println(massToCheck + "\t" + mos[j] + "\t" + mos[k] + "***");
+						}
+					}
+				}
+			}
+		}
+	}
+
 	public int [] checkMod(double v) {
 //		System.out.println(v);
 //		debug=true;

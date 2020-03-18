@@ -88,7 +88,10 @@ public class PTMShepherd {
 		params.put("peakpicking_topN", "500"); //num peaks
         params.put("peakpicking_minPsm", "10");
         params.put("localization_background", "4");
+
         params.put("varmod_masses", "");
+        params.put("mass_offsets", "");
+        params.put("isotope_states", "0");
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width
 		//params.put("precursor_tol_ppm", "20.0"); //unused
 		
@@ -168,14 +171,6 @@ public class PTMShepherd {
 			}
 
 		}
-		//Do I need to delete cache files? TODO It doesnt seems so....
-		//for (String crc : cacheFiles) {
-		//	File crcf = new File("cache-"+crc +".txt");
-		//	Path crcpath = crcf.toPath().toAbsolutePath();
-		//	deleteFile(crcpath, true);
-		//}
-
-
 
 		//Get mzData mapping
 		ArrayList<String> cacheFiles = new ArrayList<>();
@@ -224,6 +219,7 @@ public class PTMShepherd {
 			if(!countsFile.exists()) {
 				print("Counting MS2 scans for dataset " + ds);
 				for(String crun : mzMap.get(ds).keySet()) {
+					System.out.println(crun);
 					File tf = mzMap.get(ds).get(crun);
 					int cnt = MS2Counts.countMS2Scans(tf, Integer.parseInt(params.get("threads")));
 					print(String.format("\t%s - %d scans", crun,cnt));
@@ -304,10 +300,12 @@ public class PTMShepherd {
 		Histogram combined = Histogram.readHistogram(combinedHisto);
 		PeakPicker pp = new PeakPicker();
 		pp.pickPeaks(combined.getOffsets(), combined.histo, Double.parseDouble(params.get("peakpicking_promRatio")),
-				Double.parseDouble(params.get("peakpicking_width")),Double.parseDouble(params.get("peakpicking_background")),Integer.parseInt(params.get("peakpicking_topN")));
+				Double.parseDouble(params.get("peakpicking_width")),Double.parseDouble(params.get("peakpicking_background")),
+				Integer.parseInt(params.get("peakpicking_topN")), params.get("mass_offsets"), params.get("isotope_states"),
+				Double.parseDouble(params.get("precursor_tol")));
 		pp.writeTSV(new File("peaks.tsv"));
 		print("Picked top " + Integer.parseInt(params.get("peakpicking_topN")) + " peaks\n");
-		
+
 		//PSM assignment
 		File peaksummary = new File("peaksummary.tsv");
 		if(!peaksummary.exists()) {
@@ -319,7 +317,6 @@ public class PTMShepherd {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					ps.appendPSMs(pf);
 				}
-				
 				ps.commit(ds,datasetMS2.get(ds));
 			}
 			ps.writeTSVSummary(peaksummary);
@@ -331,7 +328,7 @@ public class PTMShepherd {
 		if(!peakannotated.exists()) {
 			PeakAnnotator pa = new PeakAnnotator();
 			pa.init(params.get("varmod_masses"));
-			pa.annotateTSV(peaksummary, peakannotated);
+			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_states"));
 			print("annotated summary table\n");
 		}
 

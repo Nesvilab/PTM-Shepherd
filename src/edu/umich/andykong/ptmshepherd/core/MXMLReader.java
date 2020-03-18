@@ -124,6 +124,10 @@ public class MXMLReader {
 			} else {
 				throw new IllegalStateException("No precursor mz information found");
 			}
+			if (scan.getPrecursor().getMzTargetMono() != null)
+				ns.monoMass = scan.getPrecursor().getMzTargetMono();
+			if (scan.getPrecursor().getMzTarget() != null)
+				ns.targetMass = scan.getPrecursor().getMzTarget();
 			for(int i = 0; i < clen; i++) {
 				ns.peakMZ[i] = (float)spectrum.getMZs()[i];
 				ns.peakInt[i] = (float)spectrum.getIntensities()[i];
