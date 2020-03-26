@@ -65,7 +65,7 @@ public class SimRTAnalysis {
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(simRTFile,true));
 
-		boolean interRunComparisons = true;
+		boolean interRunComparisons = false;
 
 		//Write header
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mod_Peptide","Shift","Is_Zero_Pep",

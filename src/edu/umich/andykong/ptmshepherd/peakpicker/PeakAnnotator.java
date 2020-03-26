@@ -32,7 +32,7 @@ public class PeakAnnotator {
 		//if(mods == null)
 		//	init(varMods);
 
-		buildOffsetList(mos, isos);
+		//buildOffsetList(mos, isos);
 
 		ArrayList<String> inFile = new ArrayList<>();
 		String cline;
@@ -126,7 +126,7 @@ public class PeakAnnotator {
 			for (int i = 0; i < tmpMos.length; i++) {
 				for (int j = 0; j < tmpIsos.length; j++) {
 					double mo = Double.parseDouble(tmpMos[i]) + Integer.parseInt(tmpIsos[j]) * C13delta;
-					mos[i * tmpIsos.length + j + 1] = mo;
+					mos[i * tmpIsos.length + j] = mo;
 				}
 			}
 
