@@ -28,12 +28,20 @@ public class PeakPicker {
 		}
 	}
 
+	public double calculatePeakTol(double pepmass, double ppmtol, double modmass){
+		double peakTol = ((pepmass + modmass) / 1000000.0) * ppmtol;
+		return peakTol;
+	}
+
 	//inputs: bin divisions, bin weights, input prominence ratio, peakwidth, peakbackground, number of top peaks to report
-	public void pickPeaks(double [] offsets, double [] sum, double promRatio, double peakWidth, double peakBackground, int nBins, String massOffsets, String isotopes, double precursorTol) throws Exception {
+	public void pickPeaks(double [] offsets, double [] sum, double promRatio, double peakBackground, int nBins, String massOffsets, String isotopes, int peakUnits, double pw, int precursorUnits, double pt) throws Exception {
+		double pepmass = 1500.0;
+		double precursorTol = pt;
+		double peakWidth = pw;
 
 		boolean offsetMode = false;
 		double[] mos = new double[0];
-		if (!massOffsets.equals("") & (!massOffsets.equals("None"))) {
+		if(massOffsets.contains("/")){
 			offsetMode = true;
 		}
 
@@ -73,6 +81,22 @@ public class PeakPicker {
 			int p;
 			double cpr = nzr(prom[i],sum[i]);
 			if(cpr > promRatio) {
+				if(peakUnits == 1) { //ppm
+					peakWidth = calculatePeakTol(pepmass, pw, offsets[i]);
+					peakBackground = 2.5 * peakWidth;
+				}
+				//filter out peaks that don't match offset
+				if (offsetMode) {
+					if(precursorUnits == 1) { //ppm
+						precursorTol = calculatePeakTol(pepmass, pt, offsets[i]);
+					}
+					//if a peak isnt within precursor_tol range of a mass offset, skip it
+					for (double mo : mos) {
+						if (!((mo - precursorTol <= offsets[i]) && (offsets[i] <= mo + precursorTol))) {
+							continue;
+						}
+					}
+				}
 				double ncpr = 0;
 				double mh = 0;
 				double isum = sum[i], osum = 0;
@@ -106,8 +130,6 @@ public class PeakPicker {
 					p++;
 				}
 
-
-
 				if(cpr >= (ncpr-1e3) && sum[i] >= (mh-1e-3)) {
 					DPair dp = new DPair();
 					dp.pos = i;
@@ -121,26 +143,27 @@ public class PeakPicker {
 		Collections.sort(dps);
 
 		//filter out peaks that don't match offset
-		if (offsetMode) {
-			//if a peak isnt within precursor_tol range of a mass offset, prep it to be removed
-			ArrayList<Integer> removeIs = new ArrayList<>();
-			for (int i = 0; i < dps.size(); i++) {
-				boolean keepDp = false;
-				for (double mo : mos) {
-					if ((mo - precursorTol <= dps.get(i).value) && (dps.get(i).value <= mo + precursorTol)) {
-						keepDp = true;
-					}
-				}
-				if (!keepDp) {
-					removeIs.add(i);
-				}
-			}
-			//iterate backwards over removeIs list to remove indices that don't correspond to a mass offset
-			for (int i = removeIs.size()-1; i >= 0; i--) {
-				int iToRemove = removeIs.get(i);
-				dps.remove(iToRemove);
-			}
-		}
+//
+//		if (offsetMode) {
+//			//if a peak isnt within precursor_tol range of a mass offset, prep it to be removed
+//			ArrayList<Integer> removeIs = new ArrayList<>();
+//			for (int i = 0; i < dps.size(); i++) {
+//				boolean keepDp = false;
+//				for (double mo : mos) {
+//					if ((mo - precursorTol <= dps.get(i).value) && (dps.get(i).value <= mo + precursorTol)) {
+//						keepDp = true;
+//					}
+//				}
+//				if (!keepDp) {
+//					removeIs.add(i);
+//				}
+//			}
+//			//iterate backwards over removeIs list to remove indices that don't correspond to a mass offset
+//			for (int i = removeIs.size()-1; i >= 0; i--) {
+//				int iToRemove = removeIs.get(i);
+//				dps.remove(iToRemove);
+//			}
+//		}
 
 		nBins = Math.min(dps.size(),nBins);
 

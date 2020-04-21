@@ -60,12 +60,10 @@ public class SimRTAnalysis {
 		out.close();
 	}
 	
-	public void simrtPSMs(PSMFile pf, HashMap<String,File> mzMappings) throws Exception {
+	public void simrtPSMs(PSMFile pf, HashMap<String,File> mzMappings, boolean interRunComparisons) throws Exception {
 		//assemble PSMs into per file groupings
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(simRTFile,true));
-
-		boolean interRunComparisons = false;
 
 		//Write header
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mod_Peptide","Shift","Is_Zero_Pep",

@@ -14,7 +14,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.2.17";
+ 	public static final String version = "0.3.1";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -83,28 +83,33 @@ public class PTMShepherd {
 		params.put("histo_smoothbins", "2"); //smoothing factor
 		
 		params.put("peakpicking_promRatio", "0.3"); //prominence ratio for peakpicking
+		params.put("peakpicking_mass_units", "0");
 		params.put("peakpicking_width", "0.002"); //width for peakpicking
 		//params.put("peakpicking_background", "0.005");
 		params.put("peakpicking_topN", "500"); //num peaks
-        params.put("peakpicking_minPsm", "10");
+        params.put("peakpicking_minPsm", "10");//unused
         params.put("localization_background", "4");
 
         params.put("varmod_masses", "");
+        params.put("precursor_mass_units", "0");
+		params.put("precursor_tol", "0.01"); //unimod peakpicking width collapse these two parameters to one (requires redefining precursor tol in peakannotation module)
+		//params.put("precursor_tol_ppm", "20.0"); //for use in mass offset and glyco modes
+		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
         params.put("mass_offsets", "");
-        params.put("isotope_states", "0");
-		params.put("precursor_tol", "0.01"); //unimod peakpicking width
-		//params.put("precursor_tol_ppm", "20.0"); //unused
+        params.put("isotope_error", "0");
+
 		
 		params.put("spectra_ppmtol", "20.0"); //obvious, used in localization and simrt
 		params.put("spectra_condPeaks", "100"); //
 		params.put("spectra_condRatio", "0.01"); //
+		params.put("compare_betweenRuns", "false");
 
 		params.put("output_extended", "false");
 		//params.put("output_extended", "true");
 		
 		//load parameters
 		for(int i = 0; i < args.length; i++) {
-			if(args[i].equals("--")) {
+			if(args[i].contains("--")) {
 				overrides.put(args[i].substring(2),args[i+1]);
 				i++;
 			} else
@@ -300,16 +305,17 @@ public class PTMShepherd {
 		Histogram combined = Histogram.readHistogram(combinedHisto);
 		PeakPicker pp = new PeakPicker();
 		pp.pickPeaks(combined.getOffsets(), combined.histo, Double.parseDouble(params.get("peakpicking_promRatio")),
-				Double.parseDouble(params.get("peakpicking_width")),Double.parseDouble(params.get("peakpicking_background")),
-				Integer.parseInt(params.get("peakpicking_topN")), params.get("mass_offsets"), params.get("isotope_states"),
-				Double.parseDouble(params.get("precursor_tol")));
+				Double.parseDouble(params.get("peakpicking_background")),
+				Integer.parseInt(params.get("peakpicking_topN")), params.get("mass_offsets"), params.get("isotope_error"),
+				Integer.parseInt(params.get("peakpicking_mass_units")), Double.parseDouble(params.get("peakpicking_width")),
+				Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 		pp.writeTSV(new File("peaks.tsv"));
 		print("Picked top " + Integer.parseInt(params.get("peakpicking_topN")) + " peaks\n");
 
 		//PSM assignment
 		File peaksummary = new File("peaksummary.tsv");
 		if(!peaksummary.exists()) {
-			PeakSummary ps = new PeakSummary(peaks,Double.parseDouble(params.get("precursor_tol")));
+			PeakSummary ps = new PeakSummary(peaks,Integer.parseInt(params.get("precursor_mass_units")),Double.parseDouble(params.get("precursor_tol")),params.get("mass_offsets"));
 			for(String ds : datasets.keySet()) {
 				ps.reset();
 				ArrayList<String []> dsData = datasets.get(ds);
@@ -328,7 +334,7 @@ public class PTMShepherd {
 		if(!peakannotated.exists()) {
 			PeakAnnotator pa = new PeakAnnotator();
 			pa.init(params.get("varmod_masses"));
-			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_states"));
+			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
 			print("annotated summary table\n");
 		}
 
@@ -381,7 +387,7 @@ public class PTMShepherd {
 			ArrayList<String []> dsData = datasets.get(ds);
 			for(int i = 0; i < dsData.size(); i++) {
 				PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-				sra.simrtPSMs(pf, mzMap.get(ds));
+				sra.simrtPSMs(pf, mzMap.get(ds),Boolean.parseBoolean(params.get("compare_betweenRuns")));
 			}
 			sra.complete();
 		}		

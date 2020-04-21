@@ -15,12 +15,14 @@ public class PeakSummary {
 	TreeMap<String,int [][]> counts;
 	TreeMap<String,Integer> dsSize;
 	
-	public PeakSummary(File peakTSV, double peakTol) throws Exception {
+	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(peakTSV));
 		features = new ArrayList<>();
 		counts = new TreeMap<>();
 		dsSize = new TreeMap<>();
-		
+		boolean offsetMode = massOffsets.contains("/");
+		double precursorTol = pt;
+
 		String cline;
 		int cnt = 0;
 		while((cline = in.readLine())!= null) {
@@ -43,8 +45,14 @@ public class PeakSummary {
 				left = features.get(i-1).peakCenter;
 			if(i != (features.size()-1))
 				right = features.get(i+1).peakCenter;
-			features.get(i).peakLower = Math.max((left+features.get(i).peakCenter) / 2, features.get(i).peakCenter - peakTol);
-			features.get(i).peakUpper = Math.min((right+features.get(i).peakCenter) / 2, features.get(i).peakCenter + peakTol);
+			if(precursorUnits == 1) { //ppm units
+				precursorTol = ((1500.0 + features.get(i).peakCenter) / 1000000.0) * pt;
+				features.get(i).peakLower = Math.max((left + features.get(i).peakCenter) / 2, features.get(i).peakCenter - precursorTol);
+				features.get(i).peakUpper = Math.min((right + features.get(i).peakCenter) / 2, features.get(i).peakCenter + precursorTol);
+			} else {
+				features.get(i).peakLower = Math.max((left + features.get(i).peakCenter) / 2, features.get(i).peakCenter - precursorTol);
+				features.get(i).peakUpper = Math.min((right + features.get(i).peakCenter) / 2, features.get(i).peakCenter + precursorTol);
+			}
 		}
 		for(int i = 0; i < features.size() - 1; i++) {
 			if(features.get(i).peakUpper == features.get(i+1).peakLower)

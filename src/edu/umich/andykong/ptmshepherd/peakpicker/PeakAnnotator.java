@@ -18,14 +18,14 @@ public class PeakAnnotator {
 	static final double C13delta = 1.003355;
 	static final double modEqual_tol = 0.001;
 	//static final double mod_tol = 0.01;
-	static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("precursor_tol")));
+	static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("annotation_tol")));
 	
 	int [] indices;
 	static final int maxDepth = 2;
 	static int cmaxDepth;
 	static boolean found, debug;
 	
-	public void annotateTSV(File inTSV, File outTSV, String mos, String isos) throws Exception {
+	public void annotateTSV(File inTSV, File outTSV, String mos, String isos, Double mod_tol) throws Exception {
         //ArrayList<String> vModNames = new ArrayList<>();
         //ArrayList<Double> vModMasses = new ArrayList<>();
 
@@ -157,6 +157,7 @@ public class PeakAnnotator {
 		Arrays.fill(indices,-1);
 		Arrays.fill(res,-1);
 
+		//first check direct match aainst unimod
 		for(int i = 0; i < mods.size(); i++)
 			if(Math.abs(v-mod_diffs.get(i)) < mod_tol) {
 				for(int j = 0; j < allowed_list.size(); j++)
@@ -169,7 +170,7 @@ public class PeakAnnotator {
 				return res;
 			}
 		for(int i = 0; i < vModNames.size(); i++){
-			double vPriv = v - vModMasses.get(i);
+			double vPriv = v - vModMasses.get(i); //privileged mass shift
 			for(int j = 0; j < mods.size(); j++)
 				if(Math.abs(vPriv-mod_diffs.get(j)) < mod_tol) {
 					for(int k = 0; k < allowed_list.size(); k++)
