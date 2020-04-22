@@ -102,7 +102,7 @@ task packageNoDeps(group: 'ptm-shepherd') {
     tasks.findByName('jar').mustRunAfter 'test'
 }
 
-task updateFragpipeJazz(group: 'ptm-shepherd', type: Copy) {
+task updateFragpipeJar(group: 'ptm-shepherd', type: Copy) {
     dependsOn 'packageNoDeps'
     String dest = "$buildDir/../../fragpipe/MSFragger-GUI/tools"
     if (!file(dest).exists()) {
@@ -112,7 +112,7 @@ task updateFragpipeJazz(group: 'ptm-shepherd', type: Copy) {
             from "$buildDir/libs/"
             include "ptms*.jar"
             into file(dest)
-            rename '(.+)(\\.jar)', '$1' + '.jazz'
+            //rename '(.+)(\\.jar)', '$1' + '.jazz'
         }
     }
 }
