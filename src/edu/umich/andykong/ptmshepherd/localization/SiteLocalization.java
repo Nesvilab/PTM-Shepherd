@@ -15,6 +15,7 @@ public class SiteLocalization {
 	double ppmTol, condRatio;
 	int condPeaks;
 	int specCol, pepCol, modCol, deltaCol;
+	List<String> linesWithoutSpectra;
 	
 	public SiteLocalization(String dsName) {
 		this.dsName = dsName;
@@ -69,6 +70,8 @@ public class SiteLocalization {
 		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
 		condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
+		linesWithoutSpectra = new ArrayList<>();
+		int totalLines;
 
 		for(int i = 0; i < pf.data.size(); i++) {
 			String [] sp = pf.data.get(i).split("\t");
@@ -79,12 +82,13 @@ public class SiteLocalization {
 		}
 		
 		//iterate and localize each file
-		for(String cf : mappings.keySet()) {
+		for(String cf : mappings.keySet()) { //cf = fraction
 			long t1 = System.currentTimeMillis();
 			mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
 			mr.readFully();
 			long t2 = System.currentTimeMillis();
 			ArrayList<Integer> clines = mappings.get(cf);
+			totalLines = 0;
 			for(int i = 0; i < clines.size(); i++) {
 				try {
 					out.println(annotateLine(pf.data.get(clines.get(i))));
@@ -92,10 +96,20 @@ public class SiteLocalization {
 					e.printStackTrace();
 					System.out.println("Error in: " +pf.data.get(clines.get(i)));
 				}
+				totalLines++;
 			}
+			totalLines--;
 			out.flush();
 			long t3 = System.currentTimeMillis();
-			
+
+			if (!linesWithoutSpectra.isEmpty()) {
+				System.out.printf("Could not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), totalLines,
+						100.0*((double)linesWithoutSpectra.size()/totalLines));
+				int previewSize = Math.min(linesWithoutSpectra.size(), 5);
+				System.out.printf("Showing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
+						String.join("\n\t", linesWithoutSpectra.subList(0, previewSize)));
+			}
+
 			PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
 		}
 		out.close();
@@ -112,12 +126,18 @@ public class SiteLocalization {
 		String [] smods = sp[modCol].split(",");
 		
 		sb.append(String.format("%s\t%s\t%s\t%.4f", specName,seq,sp[modCol],dmass));
-		
+
+		//System.out.println(mr.specs.length);
+		//for(int k = 0; k < mr.specs.length; k++) {
+		//	System.out.println(mr.specs[k].scanName + "\t" + reNormName(specName));
+		//}
 		Spectrum spec = mr.getSpectrum(reNormName(specName));
+		//System.out.println(mr.specs.length);
 		
 		if(spec == null) {
 			sb.append("\tMISSINGSPECTRA");
-			PTMShepherd.print("Cannot get spec: " + specName);
+			linesWithoutSpectra.add(specName);
+			//PTMShepherd.print("Cannot get spec: " + specName);
 			return sb.toString();
 		}
 		

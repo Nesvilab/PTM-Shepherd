@@ -1,5 +1,7 @@
 package edu.umich.andykong.ptmshepherd.core;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,10 +15,12 @@ public class Spectrum implements Comparable<Spectrum> {
 	float [] peakMZ;
 	float [] peakInt;
 	double norm;
-	String scanName;
+	public String scanName;
+	public int msLevel;
 	
 	static float [] fact;
-	
+
+	//this constructor parses batmass compatible filetypes
 	public Spectrum(int nfrags) {
 		peakMZ = new float[nfrags];
 		peakInt = new float[nfrags];
@@ -28,6 +32,26 @@ public class Spectrum implements Comparable<Spectrum> {
 				fact[i] = (float)(fact[i-1] + Math.log(i));
 		}
 	}
+
+	//this constructor parses MZBin files
+	public Spectrum(String scanname, int scannum, int z, int mslevel, double precursormass, double rettime, float[] peakmz, float[] peakint) {
+		scanName = scanname;
+		scanNum = scannum;
+		charge = z;
+		precursorMass = precursormass;
+		rt = rettime;
+		peakMZ = peakmz;
+		peakInt = peakint;
+		msLevel = mslevel;
+		norm = -1;
+		if(fact == null) {
+			fact = new float[128];
+			fact[0] = 0;
+			for(int i = 1; i < 128; i++)
+				fact[i] = (float)(fact[i-1] + Math.log(i));
+		}
+	}
+
 	
 	public String toString() {
 		StringBuffer sb = new StringBuffer();

@@ -5,22 +5,26 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.io.*;
+import java.util.concurrent.*;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
 import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 
+import static java.util.concurrent.Executors.newFixedThreadPool;
+
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.3.1";
+ 	public static final String version = "0.3.2";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
 	static HashMap<String,HashMap<String,File>> mzMap;
 	static HashMap<String,Integer> datasetMS2;
-	
+	public static ExecutorService executorService;
+
 	public static String getParam(String key) {
 		if(params.containsKey(key))
 			return params.get(key);
@@ -129,6 +133,8 @@ public class PTMShepherd {
 			die("no datasets specified!");
 		if(datasets.containsKey("combined"))
 			die("combined is a reserved keyword and cannot be a dataset name!");
+
+		executorService = Executors.newFixedThreadPool(Integer.parseInt(params.get("threads")));
 	}
 	
 	public static void main(String [] args) throws Exception {
@@ -224,7 +230,6 @@ public class PTMShepherd {
 			if(!countsFile.exists()) {
 				print("Counting MS2 scans for dataset " + ds);
 				for(String crun : mzMap.get(ds).keySet()) {
-					System.out.println(crun);
 					File tf = mzMap.get(ds).get(crun);
 					int cnt = MS2Counts.countMS2Scans(tf, Integer.parseInt(params.get("threads")));
 					print(String.format("\t%s - %d scans", crun,cnt));
@@ -458,6 +463,8 @@ public class PTMShepherd {
 			Path crcpath = crcf.toPath().toAbsolutePath();
 			deleteFile(crcpath, true);
 		}
+
+		executorService.shutdown();
 
 	}
 

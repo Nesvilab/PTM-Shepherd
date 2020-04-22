@@ -79,8 +79,9 @@ public class PSMFile {
 	public static void getMappings(File path, HashMap<String,File> mappings) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
 			datTypes.put("raw", 0);
-			datTypes.put("mzXML", 1);
-			datTypes.put("mzML", 2);
+			datTypes.put("mzBIN", 1);
+			datTypes.put("mzXML", 2);
+			datTypes.put("mzML", 3);
 
 		if(path.isDirectory()) {		
 			File [] ls = path.listFiles();
@@ -90,7 +91,7 @@ public class PSMFile {
 			}
 		} else {
 			String [] ns = splitName(path.getName());
-			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw"))) {
+			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN"))) {
 				if (mappings.get(ns[0]) == null)
 					mappings.put(ns[0], path);
 				else {

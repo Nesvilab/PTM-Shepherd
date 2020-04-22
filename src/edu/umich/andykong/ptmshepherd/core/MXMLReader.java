@@ -6,6 +6,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import umich.ms.datatypes.LCMSDataSubset;
 import umich.ms.datatypes.scan.IScan;
 import umich.ms.datatypes.scancollection.impl.ScanCollectionDefault;
@@ -22,10 +25,10 @@ public class MXMLReader {
 	final int threads;
 	
 	int nSpecs;
-	Spectrum [] specs;
+	public Spectrum [] specs;
 	HashMap<String,Spectrum> specsByName;
 	HashMap<String,Spectrum> specsByStrippedName;
-	
+
 	public Spectrum getSpectrum(String specName) {
 		return specsByStrippedName.get(specName);
 //		return specsByName.get(specName);
@@ -47,41 +50,41 @@ public class MXMLReader {
 	public void readFully() throws Exception {
 
 		String fn = f.toPath().getFileName().toString().toLowerCase();
+		String fnNoLower = f.toPath().getFileName().toString();
 		LCMSDataSource<?> source = null;
+		MZBINFile mzbinSource = null;
 		if(fn.endsWith(".mzxml")) {
 			source = new MZXMLFile(f.getAbsolutePath());
 		} else if(fn.endsWith(".mzml")) {
 			source = new MZMLFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".raw")) {
 			source = new ThermoRawFile(f.getAbsolutePath());
-			/*
-		} else if (fn.endsWith(".d")) {
-			String tempFn = fn.replaceFirst(".d$", ".mzBIN");
-			File tempF = new File(tempFn);
-			if (tempF.exists()) {
-				String f = tempFn;
-				source = new MZBINFile(tempF.getAbsolutePath());
-			} else {
-				System.out.println("Cannot read .d files without associated .mzBIN");
-				System.exit(1);
-			}
-			*/
-
+		} else if (fn.endsWith(".mzbin")) {
+			mzbinSource = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), fnNoLower, true);
 		}
-		if (source == null) {
+		if ((mzbinSource == null) && (source == null)) {
 			System.out.println("Cannot read mzFile with unrecognized extension: " + f.getName());
 			System.exit(1);
 		}
 
-		readFully(source);
 		specsByName = new HashMap<>();
 		specsByStrippedName = new HashMap<>();
-		for(int i = 0; i < specs.length; i++) {
-			specsByName.put(specs[i].scanName, specs[i]);
-			specsByStrippedName.put(specs[i].scanName, specs[i]);
+		if (mzbinSource == null) { //if filetype is not mzBin
+			readFully(source);
+			for(int i = 0; i < specs.length; i++) {
+				specsByName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(specs[i].scanName, specs[i]);
+			}
+		} else {
+			readAsMzBIN(mzbinSource);
+			for(int i = 0; i < specs.length; i++){
+				specsByName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(specs[i].scanName, specs[i]);
+			}
 		}
 	}
 
+	//TN_CSF_062617_32.46509.46509
 	public void readFully(LCMSDataSource<?> source) throws Exception {
 		String baseName = f.getName();
 		baseName = baseName.substring(0,baseName.lastIndexOf("."));
@@ -101,7 +104,6 @@ public class MXMLReader {
 			IScan scan = scanEntry.getValue();
 			if(scan.getMsLevel() != 2)
 				continue;
-
 			int scanNumRaw = scanNum;
 			ISpectrum spectrum = scan.fetchSpectrum();
 			int clen = (spectrum == null)?0:spectrum.getMZs().length;
@@ -138,8 +140,37 @@ public class MXMLReader {
 		specs = new Spectrum[nSpecs];
 		cspecs.toArray(specs);
 		scans.reset();
+		if (source instanceof ThermoRawFile) {
+			((ThermoRawFile) source).close();
+		};
 	}
-	
+
+	//400ngHeLaosmoothCE20-52lowguessSRIG450easy4_30tbl1_0NOexp12scansi_A1_01_3366.109793.109793.2
+	private void readAsMzBIN(MZBINFile mf) throws Exception {
+		ArrayList cspecs = new ArrayList<Spectrum>();
+		for (Spectrum spectrum : mf.specs) {
+			if (spectrum.msLevel == 2)
+				cspecs.add(spectrum);
+		}
+		nSpecs =  cspecs.size();
+		specs = new Spectrum[nSpecs];
+		cspecs.toArray(specs);
+	}
+
+
+	/*
+	private void readAsMzBIN(ExecutorService executorService) throws Exception {
+		ArrayList scans = new ArrayList<>();
+		MZBINFile mf = new MZBINFile(executorService, threads, f, true);
+		for (Spectrum spectrum : mf.specs) {
+			if (spectrum.msLevel == 2 && (sp.excludedScanSet.isEmpty() || !sp.excludedScanSet.contains(spectrum.scanName)))
+				scans.add(spectrum);
+		}
+		results = new SpecResults[scans.size()];
+		nScans = results.length;
+	}
+	*/
+
 	public static void main(String [] args) throws Exception {
 		MXMLReader mr = new MXMLReader(new File("E:\\q01507.mzXML"), 7);
 		mr.readFully();
