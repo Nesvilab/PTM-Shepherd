@@ -14,7 +14,6 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
 
-
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
