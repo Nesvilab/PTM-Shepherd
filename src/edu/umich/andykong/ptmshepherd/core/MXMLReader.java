@@ -50,7 +50,6 @@ public class MXMLReader {
 	public void readFully() throws Exception {
 
 		String fn = f.toPath().getFileName().toString().toLowerCase();
-		String fnNoLower = f.toPath().getFileName().toString();
 		LCMSDataSource<?> source = null;
 		MZBINFile mzbinSource = null;
 		if(fn.endsWith(".mzxml")) {
@@ -60,7 +59,7 @@ public class MXMLReader {
 		} else if (fn.endsWith(".raw")) {
 			source = new ThermoRawFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".mzbin")) {
-			mzbinSource = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), fnNoLower, true);
+			mzbinSource = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
 		}
 		if ((mzbinSource == null) && (source == null)) {
 			System.out.println("Cannot read mzFile with unrecognized extension: " + f.getName());
