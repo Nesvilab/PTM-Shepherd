@@ -14,13 +14,14 @@ public class CombinedTable {
 
     public static void writeCombinedTable(String dataset) throws IOException {
         List<String> subTabs = new ArrayList<>();
-        List<String> records = new ArrayList<>();
+        List<List<String>> records = new ArrayList<>();
         subTabs.add("peaksummary.annotated.tsv");
         subTabs.add(dataset + ".simrtprofile.txt");
         subTabs.add(dataset + ".locprofile.txt");
 
 
         Set<Integer> observedLineCounts = new HashSet<>();
+        int maxLineLen = 0;
 
         for (int subTabIdx = 0; subTabIdx < subTabs.size(); subTabIdx++) {
             String subTab = subTabs.get(subTabIdx);
@@ -39,8 +40,29 @@ public class CombinedTable {
             }
 
             // update
-            if (subTabIdx == 0) {
-                records.addAll(lines);
+            if  (subTabIdx == 0) {
+                for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
+                    String line = lines.get(lineIdx);
+                    if (line == null) {
+                        continue;
+                    }
+                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
+                    if (split.size() > maxLineLen)
+                        maxLineLen = split.size();
+                    List<String> newLine = split.subList(0, 3);
+                    //newLine.remove(1);
+                    //String lineCut = String.join("\t", newLine);
+                    records.add(newLine);
+                    List<String> newLine2 = split.subList(maxLineLen-2, split.size());
+                    int padding = 2 - newLine2.size();
+                    List<String> crec = records.get(lineIdx);
+                    crec.addAll(newLine2);
+                    for(int i = 0; i < padding; i++){
+                        crec.add("");
+                    }
+                    crec.add(split.get(maxLineLen-1));
+                    records.set(lineIdx, crec);
+                }
             } else if (subTabIdx == 2) {
                 for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
                     String line = lines.get(lineIdx);
@@ -50,8 +72,9 @@ public class CombinedTable {
                     List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
                     List<String> newLine = split.subList(1, 7);
                     newLine.remove(1);
-                    String lineCut = String.join("\t", newLine);
-                    records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
+                    List<String> crec = records.get(lineIdx);
+                    crec.addAll(newLine);
+                    records.set(lineIdx, crec);
                 }
             }
             else {
@@ -61,20 +84,61 @@ public class CombinedTable {
                         continue;
                     }
                     List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-                    List<String> newLine = split.subList(2, split.size());
-                    String lineCut = String.join("\t", newLine);
-                    records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
+                    List<String> newLine = split.subList(1, split.size());
+                    List<String> crec = records.get(lineIdx);
+                    crec.addAll(newLine);
+                    records.set(lineIdx, crec);
                 }
             }
+
+//
+//            else {
+//                for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
+//                    String line = lines.get(lineIdx);
+//                    if (line == null) {
+//                        continue;
+//                    }
+//                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
+//                    List<String> newLine = split.subList(1, 7);
+//                    List<String> crec = records.get(lineIdx);
+//                    crec.addAll(newLine);
+//                    records.set(lineIdx, crec);
+//
+//                    String line = lines.get(lineIdx);
+//                    if (line == null) {
+//                        continue;
+//                    }
+//                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
+//                    List<String> newLine = split.subList(2, split.size());
+//                    String lineCut = String.join("\t", newLine);
+//                    records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
+//                }
+//            }
         }
 
+
+        String subTab = subTabs.get(0);
+        Path p = Paths.get(subTab);
+        List<String> lines = readLines(p);
+        for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
+            String line = lines.get(lineIdx);
+            if (line == null) {
+                continue;
+            }
+            List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
+            List<String> newLine = split.subList(3, maxLineLen-3);
+            List<String> crec = records.get(lineIdx);
+            crec.addAll(newLine);
+            records.set(lineIdx, crec);
+        }
 
         String fnOut = dataset + ".profile.tsv";
         Path pOut = Paths.get(fnOut);
         System.out.println("Writing to file: " + pOut.toString());
         try (BufferedWriter bw = Files.newBufferedWriter(pOut)) {
-            for (String record: records) {
-                bw.write(record + System.lineSeparator());
+            for (List record: records) {
+                String outLine = String.join("\t", record);
+                bw.write(outLine + System.lineSeparator());
             }
         }
         //records.forEach(record ->{System.out.println(record);});

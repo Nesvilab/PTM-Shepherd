@@ -105,6 +105,7 @@ public class PeakSummary {
 			out.print("\t"+exps[i] + " (PSMs/million)");
 		for(int i = 0; i < exps.length; i++)
 			out.print("\t"+exps[i] + " (Peptides)\t" + exps[i] + " (% in unmodified)");
+		out.print("\t"+"Total % in unmodified");
 		out.println();
 		
 		for(int i = 0; i < features.size(); i++) {
@@ -119,6 +120,13 @@ public class PeakSummary {
 				out.printf("\t%.2f", (1000000.0*counts.get(exps[j])[pt][1])/dsSize.get(exps[j]));
 			for(int j = 0; j < exps.length; j++)
 				out.printf("\t%d\t%.2f", counts.get(exps[j])[pt][0],100*nzr(counts.get(exps[j])[pt][2],counts.get(exps[j])[pt][0]));
+			double weightedPeps = 0;
+			double totPep = 0;
+			for(int j = 0; j < exps.length; j++){
+				weightedPeps += counts.get(exps[j])[pt][0]*nzr(counts.get(exps[j])[pt][2],counts.get(exps[j])[pt][0]);
+				totPep += counts.get(exps[j])[pt][0];
+			}
+			out.printf("\t%.2f", 100*(weightedPeps/totPep));
 			out.println();
 		}
 		out.close();
