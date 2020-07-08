@@ -4,3 +4,4 @@ Open searching has proven to be an effective strategy for identifying both known
 
 It can be run either as a standalone JAR or as part of the FragPipe suite of tools.
 
+![PTM-Shepherd Workflow](https://github.com/Nesvilab/PTM-Shepherd/blob/master/Workflow.pdf)
