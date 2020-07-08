@@ -47,4 +47,4 @@ This is the only required parameter.
 * * 4 = PSMs with localizable mass shifts within the entire dataset are used as background
 * mass_offsets → takes a / separated list of values, at which modification peaks will be checked for (e.g. 0/79.9663). Default is unused.
 * isotope_error → takes a / separated list of isotope states that modify mass offsets to check for combinations of a mass shift and isotopic peaks (e.g. 0/1/2). Default is unused.
-* output_extended = takes true/false. Prints additional files related to the analysis. Useful if you are interested in spectrum-level analysis rather than aggregate analysis. Default is false.
+* output_extended → takes true/false. Prints additional files related to the analysis. Useful if you are interested in spectrum-level analysis rather than aggregate analysis. Default is false.
