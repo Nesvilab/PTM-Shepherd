@@ -15,6 +15,7 @@ Data processing begins by aggregating the mass shifts across all datasets into a
 java -jar ptm-shepherd.jar path/to/config.txt
 
 **Required parameters**
+
 Datasets are passed to PTM-Shepherd in the form of Philosopher psm.tsv files. If experiments (parameter: dataset) are given different names, they will be analyzed as separate experiments. If experiments share the same name, they will be pooled together during analysis. To pass datasets to PTM-Shepherd, format lines like this (one per psm.tsv file):
 
 
@@ -25,6 +26,7 @@ dataset = $DATASETNAME02[space]path/to/psm02.tsv[space]path/to/mzML/directory
 This is the only required parameter. 
 
 **Optional parameters**
+
 * threads → number of threads used for processing. Default is either 8 or the number of available threads, whichever is lower.
 * histo_bindivs → takes integer values > 0. Number of bins per dalton to be used for mass shift binning. The default is 5000 bins, or 0.0002 Da bins.
 * histo_smoothbins → takes integer values >= 0. Number of bins on each side of a bin that the weight of the bin is smoothed across. This smoothing traces a normal distribution. A value of 1, e.g., will smooth the weight of the bin across 1 bin to either side (3 bins total) using the weights 0.23 (bin to left), 0.49 (same bin), 0.23 (bin to right). Changing this parameter is not recommended for non-advanced users.
