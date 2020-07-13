@@ -1,8 +1,6 @@
 **Overview**
 
-Open searching has proven to be an effective strategy for identifying both known and unknown modifications in shotgun proteomics experiments. Rather than being limited to a small set of user-specified modifications, open searches identify peptides with any mass shift that may correspond to a single modification or a combination of several modifications. Here we present PTM-Shepherd, a bioinformatics tool that automates characterization of PTM profiles detected in open searches based on attributes such as amino acid localization, fragmentation spectra similarity, retention time shifts, and relative modification rates. PTM-Shepherd can also perform multi-experiment comparisons for studying changes in modification profiles, e.g. in data generated in different laboratories or under different conditions.
-
-It can be run either as a standalone JAR or as part of the [FragPipe suite of tools](http://fragpipe.nesvilab.org/).
+PTM-Shepherd is a bioinformatics tool that automates characterization of PTM profiles detected in open searches based on attributes such as amino acid localization, fragmentation spectra similarity, retention time shifts, and relative modification rates. PTM-Shepherd can also perform multi-experiment comparisons for studying changes in modification profiles, e.g. in data generated in different laboratories or under different conditions.
 
 **Workflow**
 
@@ -11,7 +9,12 @@ It can be run either as a standalone JAR or as part of the [FragPipe suite of to
 Data processing begins by aggregating the mass shifts across all datasets into a common histogram. Peaks are determined based on their prominence. The 500 most intense peaks in aggregate are then quantified for each dataset and normalized to size. Peptides with each mass shift are iteratively rescored with the peptide at each position, producing localization scores for each peptide and an aggregate localization enrichment for each mass shift. Finally, modified peptides and their unmodified counterparts are analyzed to have their pairwise cosine spectral similarity and change in retention time calculated.
 
 **Running PTM-Shepherd**
-PTM-Shepehrd can be run either from the command line as a standalone JAR file or as part of the [FragPipe suite of tools](http://fragpipe.nesvilab.org/). We recommend running PTM-Shepehrd via FragPipe to simplify open search analysis. If running via command line, parameters should be passed to PTM-Shepherd as text configuration file. PTM-Shepherd can be executed by the command line by running
+
+PTM-Shepehrd can be run either from the command line as a standalone JAR file or as part of the [FragPipe suite of tools](http://fragpipe.nesvilab.org/). We recommend running PTM-Shepherd via FragPipe to simplify open search analysis.
+* You can downlaod the latest Fragpipe release [here](https://github.com/Nesvilab/FragPipe/releases).
+* You can download the latest standlone release of PTM-Shepherd [here](https://github.com/Nesvilab/PTM-Shepherd/releases).
+
+If running via command line, parameters should be passed to PTM-Shepherd as text configuration file. PTM-Shepherd can be executed by the command line by running
 
 ```
 java -jar ptm-shepherd.jar path/to/config.txt
@@ -55,6 +58,7 @@ output_extended = false #takes true/false. Prints additional files related to th
 Daniel J. Geiszler, Andy T. Kong, Dmitry M. Avtonomov, Fengchao Yu, Felipe V. Leprevost, Alexey I. Nesvizhski. *PTM-Shepherd: analysis and summarization of post-translational and chemical modifications from open search results*. doi: https://doi.org/10.1101/2020.07.08.192583.
 
 **Check out our other tools**
-https://fragpipe.nesvilab.org/
-https://ionquant.nesvilab.org
-https://philosopher.nesvilab.org
+
+* https://fragpipe.nesvilab.org/
+* https://ionquant.nesvilab.org
+* https://philosopher.nesvilab.org
