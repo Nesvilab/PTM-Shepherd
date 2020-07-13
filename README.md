@@ -62,3 +62,4 @@ Daniel J. Geiszler, Andy T. Kong, Dmitry M. Avtonomov, Fengchao Yu, Felipe V. Le
 * https://fragpipe.nesvilab.org/
 * https://ionquant.nesvilab.org
 * https://philosopher.nesvilab.org
+* https://msfragger.nesvilab.org
