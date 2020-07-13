@@ -6,7 +6,7 @@ It can be run either as a standalone JAR or as part of the FragPipe suite of too
 
 **Workflow**
 
-![PTM-Shepherd Workflow](Workflow.png)
+![PTM-Shepherd Workflow](./Workflow.png)
 
 Data processing begins by aggregating the mass shifts across all datasets into a common histogram. Peaks are determined based on their prominence. The 500 most intense peaks in aggregate are then quantified for each dataset and normalized to size. Peptides with each mass shift are iteratively rescored with the peptide at each position, producing localization scores for each peptide and an aggregate localization enrichment for each mass shift. Finally, modified peptides and their unmodified counterparts are analyzed to have their pairwise cosine spectral similarity and change in retention time calculated.
 
