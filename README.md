@@ -8,7 +8,7 @@ PTM-Shepherd is a bioinformatics tool that automates characterization of PTM pro
 
 Data processing begins by aggregating the mass shifts across all datasets into a common histogram. Peaks are determined based on their prominence. The 500 most intense peaks in aggregate are then quantified for each dataset and normalized to size. Peptides with each mass shift are iteratively rescored with the peptide at each position, producing localization scores for each peptide and an aggregate localization enrichment for each mass shift. Finally, modified peptides and their unmodified counterparts are analyzed to have their pairwise cosine spectral similarity and change in retention time calculated.
 
-**Running PTM-Shepherd**
+**Usage**
 
 PTM-Shepehrd can be run either from the command line as a standalone JAR file or as part of the [FragPipe suite of tools](http://fragpipe.nesvilab.org/). We recommend running PTM-Shepherd via FragPipe to simplify open search analysis.
 * You can downlaod the latest Fragpipe release [here](https://github.com/Nesvilab/FragPipe/releases).
@@ -20,7 +20,7 @@ If running via command line, parameters should be passed to PTM-Shepherd as a te
 java -jar ptm-shepherd.jar path/to/config.txt
 ```
 
-**Required parameters**
+**Command line usage**
 
 Datasets are passed to PTM-Shepherd in the form of [Philosopher](https://philosopher.nesvilab.org/) psm.tsv files. If experiments (parameter: dataset) are given different names, they will be analyzed as separate experiments. If experiments share the same name, they will be pooled together during analysis. To pass datasets to PTM-Shepherd, datasets should be presented in the configuration file (one line per psm.tsv file) as:
 ```
@@ -33,7 +33,7 @@ dataset = $DATASETNAME02 path/to/psm02.tsv path/to/mzML/directory
 threads = 8 #number of threads used for processing. Default is either 8 or the number of available threads, whichever is lower.
 histo_bindivs = 5000 #takes integer values > 0. Number of bins per dalton to be used for mass shift binning. The default is 5000 bins, or 0.0002 Da bins.
 histo_smoothbins = 3 #takes integer values >= 0. Number of bins on each side of a bin that the weight of the bin is smoothed across. This smoothing traces a normal distribution. A value of 1, e.g., will smooth the weight of the bin across 1 bin to either side (3 bins total) using the weights 0.23 (bin to left), 0.49 (same bin), 0.23 (bin to right). Changing this parameter is not recommended for non-advanced users.
-peakpicking_promRatio 0.3 #takes values between 0 and 1. Ratio of peak apex to peak height used to call peaks. Peak height is determined by checking the shorter of the two peak shoulders. Changing this parameter is not recommended for non-advanced users.
+peakpicking_promRatio = 0.3 #takes values between 0 and 1. Ratio of peak apex to peak height used to call peaks. Peak height is determined by checking the shorter of the two peak shoulders. Changing this parameter is not recommended for non-advanced users.
 peakpicking_mass_units = 0 #units in which peakpicking is done, 0  = Da and 1 = ppm. PPM peakpicking widths are calculated based on an average peptide mass plus the mass shift. Default is 0. Changing this parameter is not recommended for non-advanced users.
 peakpicking_width = 0.002 #takes values > 0. Width of signal used in signal-to-noise calculation for peakpicking. This parameter is applied symmetrically, so the true width is 2\*peakpicking_width. Changing this parameter is not recommended for non-advanced users.
 peakpicking_topN = 500 #takes values > 0. Number of peaks reported in output. Larger numbers have very small effects on processing time, so it is rarely beneficial to reduce the number of peaks reported.
