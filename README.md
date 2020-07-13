@@ -10,7 +10,7 @@ Data processing begins by aggregating the mass shifts across all datasets into a
 
 **Usage**
 
-PTM-Shepehrd can be run either from the command line as a standalone JAR file or as part of the [FragPipe suite of tools](http://fragpipe.nesvilab.org/). We recommend running PTM-Shepherd via FragPipe to simplify open search analysis.
+We strongly recommend running PTM-Shepherd via [FragPipe]((http://fragpipe.nesvilab.org/) to simplify open search analysis. PTM-Shepherd can also be run from the command line as a standalone JAR file. 
 * You can downlaod the latest Fragpipe release [here](https://github.com/Nesvilab/FragPipe/releases).
 * You can download the latest standlone release of PTM-Shepherd [here](https://github.com/Nesvilab/PTM-Shepherd/releases).
 
