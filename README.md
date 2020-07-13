@@ -14,14 +14,11 @@ We strongly recommend running PTM-Shepherd via [FragPipe](http://fragpipe.nesvil
 * You can downlaod the latest Fragpipe release [here](https://github.com/Nesvilab/FragPipe/releases).
 * You can download the latest standlone release of PTM-Shepherd [here](https://github.com/Nesvilab/PTM-Shepherd/releases).
 
+### Command line usage
 If running via command line, parameters should be passed to PTM-Shepherd as a text configuration file. PTM-Shepherd can be executed by the command line by running
-
 ```
 java -jar ptm-shepherd.jar path/to/config.txt
 ```
-
-### Command line usage
-
 Datasets are passed to PTM-Shepherd in the form of [Philosopher](https://philosopher.nesvilab.org/) psm.tsv files. If experiments (parameter: dataset) are given different names, they will be analyzed as separate experiments. If experiments share the same name, they will be pooled together during analysis. To pass datasets to PTM-Shepherd, datasets should be presented in the configuration file (one line per psm.tsv file) as:
 ```
 dataset = $DATASETNAME01 path/to/psm01.tsv path/to/mzML/directory
