@@ -2,7 +2,7 @@
 
 Open searching has proven to be an effective strategy for identifying both known and unknown modifications in shotgun proteomics experiments. Rather than being limited to a small set of user-specified modifications, open searches identify peptides with any mass shift that may correspond to a single modification or a combination of several modifications. Here we present PTM-Shepherd, a bioinformatics tool that automates characterization of PTM profiles detected in open searches based on attributes such as amino acid localization, fragmentation spectra similarity, retention time shifts, and relative modification rates. PTM-Shepherd can also perform multi-experiment comparisons for studying changes in modification profiles, e.g. in data generated in different laboratories or under different conditions.
 
-It can be run either as a standalone JAR or as part of the FragPipe suite of tools.
+It can be run either as a standalone JAR or as part of the [FragPipe suite of tools](http://fragpipe.nesvilab.org/).
 
 **Workflow**
 
@@ -11,18 +11,20 @@ It can be run either as a standalone JAR or as part of the FragPipe suite of too
 Data processing begins by aggregating the mass shifts across all datasets into a common histogram. Peaks are determined based on their prominence. The 500 most intense peaks in aggregate are then quantified for each dataset and normalized to size. Peptides with each mass shift are iteratively rescored with the peptide at each position, producing localization scores for each peptide and an aggregate localization enrichment for each mass shift. Finally, modified peptides and their unmodified counterparts are analyzed to have their pairwise cosine spectral similarity and change in retention time calculated.
 
 **Running PTM-Shepherd**
+PTM-Shepehrd can be run either from the command line as a standalone JAR file or as part of the [FragPipe suite of tools](http://fragpipe.nesvilab.org/). We recommend running PTM-Shepehrd via FragPipe to simplify open search analysis. If running via command line, parameters should be passed to PTM-Shepherd as text configuration file. PTM-Shepherd can be executed by the command line by running
 
-```java -jar ptm-shepherd.jar path/to/config.txt
+```
+java -jar ptm-shepherd.jar path/to/config.txt
 ```
 
 **Required parameters**
 
-Datasets are passed to PTM-Shepherd in the form of Philosopher psm.tsv files. If experiments (parameter: dataset) are given different names, they will be analyzed as separate experiments. If experiments share the same name, they will be pooled together during analysis. To pass datasets to PTM-Shepherd, format lines like this (one per psm.tsv file):
+Datasets are passed to PTM-Shepherd in the form of [Philosopher](https://philosopher.nesvilab.org/) psm.tsv files. If experiments (parameter: dataset) are given different names, they will be analyzed as separate experiments. If experiments share the same name, they will be pooled together during analysis. To pass datasets to PTM-Shepherd, datasets should be presented in the configuration file (one line per psm.tsv file) as:
 ```
 dataset = $DATASETNAME01 path/to/psm01.tsv path/to/mzML/directory
 dataset = $DATASETNAME02 path/to/psm02.tsv path/to/mzML/directory
-
 ```
+
 **Optional parameters**
 ```
 threads = 8 #number of threads used for processing. Default is either 8 or the number of available threads, whichever is lower.
@@ -47,3 +49,12 @@ mass_offsets = 0 #takes a / separated list of values, at which modification peak
 isotope_error = 0 # takes a / separated list of isotope states that modify mass offsets to check for combinations of a mass shift and isotopic peaks (e.g. 0/1/2). Default is unused.
 output_extended = false #takes true/false. Prints additional files related to the analysis. Useful if you are interested in spectrum-level analysis rather than aggregate analysis. Default is false.
 ```
+
+**How to cite**
+
+Daniel J. Geiszler, Andy T. Kong, Dmitry M. Avtonomov, Fengchao Yu, Felipe V. Leprevost, Alexey I. Nesvizhski. *PTM-Shepherd: analysis and summarization of post-translational and chemical modifications from open search results*. doi: https://doi.org/10.1101/2020.07.08.192583.
+
+**Check out our other tools**
+https://fragpipe.nesvilab.org/
+https://ionquant.nesvilab.org
+https://philosopher.nesvilab.org
