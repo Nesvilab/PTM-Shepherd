@@ -17,8 +17,8 @@ public class Prominence {
 		RMQ rmq = new RMQ(pv); //takes pv (noisy v)
 		
 		qPos[pos++] = 0;
-		for(int i = 1; i < pv.length - 1; i++) {
-			while(pv[qPos[pos-1]] <= pv[i])
+		for(int i = 1; i < pv.length - 1; i++) { //for bin in noisy heights length
+			while(pv[qPos[pos-1]] <= pv[i])  //while noisy histo heights[pos] noisy histo height[i], move cursor left
 				pos--;
 			res[i-1] = Math.min(res[i-1],pv[i] - rmq.query(qPos[pos-1], i));
 			qPos[pos++] = i;

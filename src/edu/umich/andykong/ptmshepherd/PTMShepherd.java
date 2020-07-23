@@ -8,6 +8,7 @@ import java.io.*;
 import java.util.concurrent.*;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
+import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
 import edu.umich.andykong.ptmshepherd.specsimilarity.*;
@@ -17,7 +18,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.3.4";
+ 	public static final String version = "0.3.5";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -107,6 +108,7 @@ public class PTMShepherd {
 		params.put("spectra_condPeaks", "100"); //
 		params.put("spectra_condRatio", "0.01"); //
 		params.put("compare_betweenRuns", "false");
+		params.put("custom_modlist", "");
 
 		params.put("output_extended", "false");
 		//params.put("output_extended", "true");
@@ -338,7 +340,7 @@ public class PTMShepherd {
 		File peakannotated = new File("peaksummary.annotated.tsv");
 		if(!peakannotated.exists()) {
 			PeakAnnotator pa = new PeakAnnotator();
-			pa.init(params.get("varmod_masses"));
+			pa.init(params.get("varmod_masses"), params.get("custom_modlist"));
 			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
 			print("annotated summary table\n");
 		}
@@ -370,7 +372,7 @@ public class PTMShepherd {
 		
 		//Localization summaries
 		double [] peakCenters = PeakSummary.readPeakCenters(peaksummary);
-		LocalizationProfile loc_global = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol")));
+		LocalizationProfile loc_global = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO
 		for(String ds : datasets.keySet()) {
 			LocalizationProfile loc_current = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol")));
 			SiteLocalization sl = new SiteLocalization(ds);
@@ -399,7 +401,7 @@ public class PTMShepherd {
 		print("Done\n");
 		
 		//SimRT summaries
-		SimRTProfile simrt_global = new SimRTProfile(peakCenters, Double.parseDouble(params.get("precursor_tol")));
+		SimRTProfile simrt_global = new SimRTProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO add units
 		for(String ds : datasets.keySet()) {
 			SimRTProfile simrt_current = new SimRTProfile(peakCenters, Double.parseDouble(params.get("precursor_tol")));
 			SimRTAnalysis sra = new SimRTAnalysis(ds);
@@ -417,6 +419,14 @@ public class PTMShepherd {
 			System.out.println("Writing combined table for dataset " + ds);
 			CombinedTable.writeCombinedTable(ds);
 		}
+
+		//
+		//boolean glycoMode = true; //TODO
+		//
+		//Glyco anlyses
+		//if (glycoMode) {
+		//	GlycoProfile GlyProGLobal = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+		//}
 
 		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
 		//delete redundant files

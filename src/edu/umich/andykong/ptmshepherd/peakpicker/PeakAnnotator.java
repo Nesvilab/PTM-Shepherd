@@ -12,6 +12,7 @@ public class PeakAnnotator {
 	public static ArrayList<Double> mod_diffs;
 	ArrayList<Integer> allowed_list;
 	String userMods = "";
+	String modSource;
 	ArrayList<String> vModNames; //privileged mods that can be matched with any mass in unimod
 	ArrayList<Double> vModMasses;
 
@@ -220,7 +221,7 @@ public class PeakAnnotator {
 		mod_diffs.add(v);
 	}
 	
-	public void init(String varMods) throws Exception {
+	public void init(String varMods, String modSourcePath) throws Exception {
 		mods = new ArrayList<String>(); //all modification names
 		mod_diffs = new ArrayList<Double>(); //all modification mass shifts
 		allowed_list = new ArrayList<Integer>(); //mods that can be added at any given step
@@ -245,7 +246,17 @@ public class PeakAnnotator {
 			addMod(vModNames.get(i), vModMasses.get(i));
 		}
 
-		BufferedReader in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream("unimod_20191002.txt")));
+		BufferedReader in;
+		if (modSourcePath.equals("")) {
+			modSource = "unimod_20191002.txt";
+			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+		} else {
+			modSource = modSourcePath;
+			in = new BufferedReader(new FileReader(new File(modSource)));
+		}
+
+		//BufferedReader in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+
 		String cline;
 		//add isotopic peaks to modification list
 		addMod("First isotopic peak",C13delta);

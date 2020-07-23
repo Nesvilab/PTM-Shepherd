@@ -14,8 +14,8 @@ public class RMQ {
 		BLOCKSZ = (int)((Math.log(v.length)/Math.log(2))/4)+1;
 		double [] blockMins = new double[vals.length / BLOCKSZ + 1];
 		Arrays.fill(blockMins, 1e100);
-		for(int i = 0; i < v.length; i++) 
-			blockMins[i / BLOCKSZ] = Math.min(blockMins[i / BLOCKSZ], v[i]);
+		for(int i = 0; i < v.length; i++) //
+			blockMins[i / BLOCKSZ] = Math.min(blockMins[i / BLOCKSZ], v[i]); //the smallest value from adjacent BLOCKSZ bins
 		lmql = new RMQLinearithmic(blockMins);
 	}
 	
@@ -23,9 +23,9 @@ public class RMQ {
 		double res = 1e100;
 		int a = l / BLOCKSZ + 1;
 		int b = r / BLOCKSZ - 1;
-		for(int i = l; i <= r && i < a*BLOCKSZ; i++)
+		for(int i = l; i <= r && i < a*BLOCKSZ; i++) //find minimum value in block for fuzzy vals
 			res = Math.min(res,vals[i]);
-		for(int i = Math.max(l,(b+1)*BLOCKSZ); i <= r; i++)
+		for(int i = Math.max(l,(b+1)*BLOCKSZ); i <= r; i++) //
 			res = Math.min(res,vals[i]);
 		if(b >= a)
 			res = Math.min(res,lmql.query(a, b));

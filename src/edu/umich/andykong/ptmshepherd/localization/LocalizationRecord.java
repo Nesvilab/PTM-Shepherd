@@ -155,8 +155,10 @@ public class LocalizationRecord {
 					best = i;
 			char b = (char)('A'+best);
 			bscore = Math.max(bscore,aaScores[best]);
-			if(Double.isNaN(aaScores[best]))
-				sb.append("\tERROR");
+			if(aaScores[best] == 0.0)
+				sb.append(String.format("\t%c - NaN - NaN",b));//,b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
+			//if(Double.isNaN(aaScores[best]))
+			//	sb.append("\tERROR");
 			else
 				sb.append(String.format("\t%c - %.1f - %.1f",b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
 			aaScores[best] = 0;
