@@ -42,10 +42,22 @@ public class PTMShepherd {
 	}
 	
 	public static void parseParamFile(String fn) throws Exception {
-		File f = new File(fn);
-		if(!f.exists()) 
-			die(String.format("Parameter file %s does not exist",fn));
-		BufferedReader in = new BufferedReader(new FileReader(f));
+		Path path = null;
+		//String fn2 = fn.replaceAll("\"", "");
+		//for (int i = 0; i < fn2.length(); i++) {
+		//	System.out.println(fn.charAt(i) + "*");
+		//}
+		try {
+			path = Paths.get(fn.replaceAll("['\"]", ""));
+		} catch (Exception e) {
+			System.out.println(e);
+			die(String.format("Malformed parameter path string: [%s]", fn));
+		}
+		if (path == null || !Files.exists(path)) {
+			die(String.format("Parameter file does not exist: [%s]", fn));
+		}
+
+		BufferedReader in = new BufferedReader(new FileReader(path.toFile()));
 		String cline;
 		while((cline = in.readLine())!= null) {
 			int comments = cline.indexOf("//");
@@ -65,7 +77,7 @@ public class PTMShepherd {
 					datasets.put(dsName, new ArrayList<>());
 				datasets.get(dsName).add(new String[] {tsvTxt,mzPath});
 			} else {
-				params.put(key, value);
+				params.put(key, value.trim());
 			}
 		}
 		in.close();
@@ -119,7 +131,7 @@ public class PTMShepherd {
 				overrides.put(args[i].substring(2),args[i+1]);
 				i++;
 			} else
-				parseParamFile(args[i]);
+				parseParamFile(args[i].trim());
 		}
 		params.put("peakpicking_background", Double.toString(2.5*Double.parseDouble(params.get("peakpicking_width"))));
 		//replace overrides
