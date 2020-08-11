@@ -8,6 +8,7 @@ import java.io.*;
 import java.util.concurrent.*;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
+import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
@@ -18,7 +19,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.3.5";
+ 	public static final String version = "0.4.0";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -115,12 +116,26 @@ public class PTMShepherd {
         params.put("mass_offsets", "");
         params.put("isotope_error", "0");
 
-		
 		params.put("spectra_ppmtol", "20.0"); //obvious, used in localization and simrt
 		params.put("spectra_condPeaks", "100"); //
-		params.put("spectra_condRatio", "0.01"); //
+		params.put("spectra_condRatio", "0.01");
+		//params.put("spectra_iontypes", "by");//todo
+		params.put("spectra_maxfragcharge", "2");//todo
+
 		params.put("compare_betweenRuns", "false");
 		params.put("custom_modlist", "");
+
+		params.put("glyco_mode", "false");
+		params.put("cap_y_ions", "0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279");
+		params.put("diag_ions", "204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761");
+		params.put("remainder_masses", "0, 203.07937");//,406.15874,568.21156,730.26438,892.3172,349.137279");
+
+		params.put("iontype_a", "0");
+		params.put("iontype_b", "1");
+		params.put("iontype_c", "0");
+		params.put("iontype_x", "0");
+		params.put("iontype_y", "1");
+		params.put("iontype_z", "0");
 
 		params.put("output_extended", "false");
 		//params.put("output_extended", "true");
@@ -273,14 +288,14 @@ public class PTMShepherd {
 			datasetMS2.put(ds, sumMS2);
 			print(datasetMS2.get(ds) +" MS2 scans present in dataset " + ds + "\n");
 		}
-		
+
 		//Generate histograms
 		File combinedHisto = new File("combined.histo");
 		if(!combinedHisto.exists()) {
 			print("\nCreating combined histogram");
 			int min = 1 << 30;
 			int max = -1*(1<<30);
-			
+
 			for(String ds : datasets.keySet()) {
 				File histoFile = new File(ds+".histo");
 				if(!histoFile.exists()) {
@@ -302,7 +317,7 @@ public class PTMShepherd {
 					print(String.format("\tFound histogram file for dataset %s [%d - %d]",ds,h.start,h.end));
 				}
 			}
-			
+
 			Histogram combined = new Histogram(min,max,Integer.parseInt(params.get("histo_bindivs")));
 			for(String ds : datasets.keySet()) {
 				File histoFile = new File(ds+".histo");
@@ -314,7 +329,7 @@ public class PTMShepherd {
 			print("Created combined histogram!\n");
 		} else
 			print("Combined histogram found\n");
-		
+
 		//Perform peak detection
 		File peaks = new File("peaks.tsv");
 		if (peaks.exists()) {
@@ -366,7 +381,7 @@ public class PTMShepherd {
 		}
 
 		//Localization analysis
-		
+
 		//Perform initial annotation
 		print("Begin localization annotation");
 		for(String ds : datasets.keySet()) {
@@ -381,7 +396,7 @@ public class PTMShepherd {
 			sl.complete();
 		}
 		print("done\n");
-		
+
 		//Localization summaries
 		double [] peakCenters = PeakSummary.readPeakCenters(peaksummary);
 		LocalizationProfile loc_global = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO
@@ -391,12 +406,12 @@ public class PTMShepherd {
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
 			sl.updateLocalizationProfiles(loc_targets); //this is where the localization is actually happening
 			loc_current.writeProfile(ds+".locprofile.txt");
-		} 
+		}
 		loc_global.writeProfile("global.locprofile.txt");
 		print("Created localization reports\n");
-		
+
 		//Spectra similarity analysis with retention time analysis
-		
+
 		//Perform similarity and RT annotation
 		print("Begin similarity and retention time annotation");
 		for(String ds : datasets.keySet()) {
@@ -409,9 +424,9 @@ public class PTMShepherd {
 				sra.simrtPSMs(pf, mzMap.get(ds),Boolean.parseBoolean(params.get("compare_betweenRuns")));
 			}
 			sra.complete();
-		}		
+		}
 		print("Done\n");
-		
+
 		//SimRT summaries
 		SimRTProfile simrt_global = new SimRTProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO add units
 		for(String ds : datasets.keySet()) {
@@ -420,7 +435,7 @@ public class PTMShepherd {
 			SimRTProfile [] simrt_targets = {simrt_global, simrt_current};
 			sra.updateSimRTProfiles(simrt_targets);
 			simrt_current.writeProfile(ds+".simrtprofile.txt");
-		} 
+		}
 		simrt_global.writeProfile("global.simrtprofile.txt");
 		print("Created similarity/RT reports\n");
 
@@ -433,12 +448,25 @@ public class PTMShepherd {
 		}
 
 		//
-		//boolean glycoMode = true; //TODO
+		boolean glycoMode = true; //TODO
 		//
 		//Glyco anlyses
-		//if (glycoMode) {
-		//	GlycoProfile GlyProGLobal = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-		//}
+		if (glycoMode) {
+			System.out.println("Beginning glyco analysis");
+			for(String ds : datasets.keySet()) {
+				GlycoAnalysis ga = new GlycoAnalysis(ds);
+				if(ga.isComplete())
+					continue;
+				ArrayList<String []> dsData = datasets.get(ds);
+				for(int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					ga.glycoPSMs(pf, mzMap.get(ds));
+				}
+				ga.complete();
+			}
+			//GlycoProfile GlyProGLobal = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+			//GlycoAnalysis GlyAnalysis = new GlycoAnalysis()
+		}
 
 		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
 		//delete redundant files

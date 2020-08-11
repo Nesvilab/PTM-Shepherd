@@ -141,46 +141,78 @@ public class Spectrum implements Comparable<Spectrum> {
 		float score = 0.0f;
 		float iB = 0.0f, iY = 0.0f;
 		int nB = 0, nY = 0;
-		int maxCharge = (charge==2)?1:2;
-		
+		int maxCharge = Math.min(Integer.parseInt(PTMShepherd.getParam("spectra_maxfragcharge")), charge);
+
 		float [] aaMasses = AAMasses.monoisotopic_masses;
+		float [] fragTypeShifts = AAMasses.ionTypeShifts;
+
 		float cM = 0;
 		double tol;
 		int fP = 0;
 		int cLen = seq.length();
-		for(int ccharge = 1; ccharge <= maxCharge; ccharge++) {
-			double cmass = AAMasses.monoisotopic_nterm_mass;
-			fP = 0;
-			for (int i = 0; i < cLen - 1; i++) {
-				cmass += (aaMasses[seq.charAt(i) - 'A']+mods[i]) / ccharge;
-				tol = cmass * (ppmTol/1000000.0);
-				while(fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
-					fP++;
-				if(fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
-					cM = peakInt[fP];
-				} else 
-					cM = 0;
-				if(cM > 0) {
-					nB++;
-					iB += cM;
+
+		ArrayList<Character> nIonTypes = new ArrayList<>();
+		ArrayList<Character> cIonTypes = new ArrayList<>();
+
+		if (PTMShepherd.getParam("iontype_a") == "1")
+			nIonTypes.add('a');
+		if (PTMShepherd.getParam("iontype_b") == "1")
+			nIonTypes.add('b');
+		if (PTMShepherd.getParam("iontype_c") == "1")
+			nIonTypes.add('c');
+		if (PTMShepherd.getParam("iontype_x") == "1")
+			cIonTypes.add('x');
+		if (PTMShepherd.getParam("iontype_y") == "1")
+			cIonTypes.add('y');
+		if (PTMShepherd.getParam("iontype_z") == "1")
+			cIonTypes.add('z');
+
+		float nTermMass;
+		for (Character iType : nIonTypes) {
+			nTermMass = fragTypeShifts[iType - 'a'];
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+				double cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
+				fP = 0;
+				for (int i = 0; i < cLen - 1; i++) {
+					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
+					tol = cmass * (ppmTol / 1000000.0);
+					//System.out.println(Double.toString(cmass) + i);
+					//System.out.println(ccharge);
+					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+						fP++;
+					if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+						cM = peakInt[fP];
+					} else
+						cM = 0;
+					if (cM > 0) {
+						nB++;
+						iB += cM;
+					}
 				}
 			}
 		}
-		for(int ccharge = 1; ccharge <= maxCharge; ccharge++) {
-			double cmass = (AAMasses.monoisotopic_cterm_mass + (ccharge+1)*AAMasses.monoisotopic_nterm_mass) / ccharge;
-			fP = 0;
-			for (int i = 0; i < cLen - 1; i++) {
-				cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i])/ ccharge;
-				tol = cmass * (ppmTol/1000000.0);
-				while(fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
-					fP++;
-				if(fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
-					cM = peakInt[fP];
-				} else 
-					cM = 0;
-				if(cM > 0) {
-					nY++;
-					iY += cM;
+		float cTermMass;
+		for (Character iType : cIonTypes) {
+			cTermMass = fragTypeShifts[iType - 'x' + 3];
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+				//double cmass = (AAMasses.monoisotopic_cterm_mass + (ccharge+1)*AAMasses.monoisotopic_nterm_mass) / ccharge;
+				double cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+				fP = 0;
+				for (int i = 0; i < cLen - 1; i++) {
+					cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+					//System.out.println(Double.toString(cmass) + i);
+					//System.out.println(ccharge);
+					tol = cmass * (ppmTol / 1000000.0);
+					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+						fP++;
+					if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+						cM = peakInt[fP];
+					} else
+						cM = 0;
+					if (cM > 0) {
+						nY++;
+						iY += cM;
+					}
 				}
 			}
 		}
@@ -198,50 +230,87 @@ public class Spectrum implements Comparable<Spectrum> {
 		float iB = 0.0f, iY = 0.0f;
 		int nB = 0, nY = 0;
 		int maxCharge = (charge==2)?1:2;
-		
+
 		float [] aaMasses = AAMasses.monoisotopic_masses;
+		float [] fragTypeShifts = AAMasses.ionTypeShifts;
+
 		float cM = 0;
 		double tol;
 		int fP = 0;
 		int cLen = seq.length();
-		for(int ccharge = 1; ccharge <= maxCharge; ccharge++) {
-			double cmass = AAMasses.monoisotopic_nterm_mass;
-			fP = 0;
-			for (int i = 0; i < cLen - 1; i++) {
-				cmass += (aaMasses[seq.charAt(i) - 'A']+mods[i]) / ccharge;
-				tol = cmass * (ppmTol/1000000.0);
-				while(fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
-					fP++;
-				if(fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
-					cM = peakInt[fP];
-				} else 
-					cM = 0;
-				if(cM > 0) {
-					nB++;
-					iB += cM;
+
+		ArrayList<Character> nIonTypes = new ArrayList<>();
+		ArrayList<Character> cIonTypes = new ArrayList<>();
+		String ionTypesStr = PTMShepherd.getParam("spectra_iontypes");
+
+		for (int i = 0; i < PTMShepherd.getParam("spectra_iontypes").length(); i++) {
+			char ionType = Character.toLowerCase(ionTypesStr.charAt(i));
+			if (ionType - 'm' <= 0)
+				nIonTypes.add(ionType);
+			else
+				cIonTypes.add(ionType);
+		}
+
+		float nTermMass;
+		for (Character iType : nIonTypes) {
+			nTermMass = fragTypeShifts[iType - 'a'];
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+				//double cmass = AAMasses.monoisotopic_nterm_mass;
+				double cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
+				fP = 0;
+				for (int i = 0; i < cLen - 1; i++) {
+					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
+					tol = cmass * (ppmTol / 1000000.0);
+					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+						fP++;
+					if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+						cM = peakInt[fP];
+					} else
+						cM = 0;
+					if (cM > 0) {
+						nB++;
+						iB += cM;
+					}
 				}
 			}
 		}
-		for(int ccharge = 1; ccharge <= maxCharge; ccharge++) {
-			double cmass = (AAMasses.monoisotopic_cterm_mass + (ccharge+1)*AAMasses.monoisotopic_nterm_mass) / ccharge;
-			fP = 0;
-			for (int i = 0; i < cLen - 1; i++) {
-				cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i])/ ccharge;
-				tol = cmass * (ppmTol/1000000.0);
-				while(fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
-					fP++;
-				if(fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
-					cM = peakInt[fP];
-				} else 
-					cM = 0;
-				if(cM > 0) {
-					nY++;
-					iY += cM;
+		float cTermMass;
+		for (Character iType : cIonTypes) {
+			cTermMass = fragTypeShifts[iType - 'x' + 3];
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+				//double cmass = (AAMasses.monoisotopic_cterm_mass + (ccharge + 1) * AAMasses.monoisotopic_nterm_mass) / ccharge;
+				double cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+				fP = 0;
+				for (int i = 0; i < cLen - 1; i++) {
+					cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+					tol = cmass * (ppmTol / 1000000.0);
+					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+						fP++;
+					if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+						cM = peakInt[fP];
+					} else
+						cM = 0;
+					if (cM > 0) {
+						nY++;
+						iY += cM;
+					}
 				}
 			}
 		}
-		
 		return nB+nY;
+	}
+
+	public double findIon(double ion, double ppmTol) {
+		double ppmRange = ppmTol * (1.0 / 1000000) * ion;
+		double max = ion + ppmRange;
+		double ionIntensity = 0;
+		for (int i = 0; i < peakMZ.length; i++) {
+			if (peakMZ[i] > max)
+				break;
+			if (Math.abs(peakMZ[i] - ion) < ppmRange)
+				ionIntensity += peakInt[i];
+		}
+		return ionIntensity;
 	}
 
 	public int compareTo(Spectrum o) {

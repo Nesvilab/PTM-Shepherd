@@ -4,9 +4,11 @@ public class AAMasses {
 	
 	public static final float protMass = (float)1.00727647;
 	public static final float monoisotopic_nterm_mass = (float) 1.0078250321;
-	public static final float average_nterm_mass = (float) 1.0078250321;
+	//public static final double monoisotopic_nterm_masses = []{,1.0078250321,}
+	//public static final float average_nterm_mass = (float) 1.0078250321;
 	public static final float monoisotopic_cterm_mass = (float) 17.0027396542;
-	public static final float average_cterm_mass = (float) 17.0027396542;
+	//public static final float average_cterm_mass = (float) 17.0027396542;
+	//public static final double monisotopic_cterm_mass = []{18.03386,17.0027396542,
 
 	public static double getMonoisotopicNeutralMass(String pep) {
 		double cmass = AAMasses.monoisotopic_nterm_mass + AAMasses.monoisotopic_cterm_mass;
@@ -43,5 +45,14 @@ public class AAMasses {
 	  (float) 163.06333, //  Y
 	  (float) 0, // Z
 	  (float) 10000.00000 //[
+	};
+
+	public static final float ionTypeShifts[] = {
+		(float) -27.99591562, //a
+		(float) 0.0, //b
+		(float) 17.0265491, //c
+		(float) 43.98982924, //x
+		(float) AAMasses.monoisotopic_cterm_mass + AAMasses.monoisotopic_nterm_mass, //y
+		(float) 1.991840615 //z
 	};
 }

@@ -59,9 +59,7 @@ public class MS2Counts {
 				scans.setDataSource(source);
 				scans.loadData(LCMSDataSubset.MS2_WITH_SPECTRA);
 				TreeMap<Integer, IScan> num2scan = scans.getMapNum2scan();
-				System.out.println(num2scan.size());
 				Set<Map.Entry<Integer, IScan>> scanEntries = num2scan.entrySet();
-				System.out.println(scanEntries.size());
 				for (Map.Entry<Integer, IScan> scanEntry : scanEntries) {
 					IScan scan = scanEntry.getValue();
 					if (scan.getMsLevel() == 2)

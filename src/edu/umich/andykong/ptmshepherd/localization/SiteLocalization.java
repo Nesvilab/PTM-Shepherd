@@ -156,7 +156,6 @@ public class SiteLocalization {
 			int pos = -1;
 			if(spos.equals("N-term")) {
 				pos = 0;
-				
 //				This subtraction is necessary when the over mass is reported instead of the mass difference
 //				mass -= AAMasses.monoisotopic_nterm_mass;
 			}
