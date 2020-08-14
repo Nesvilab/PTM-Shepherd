@@ -123,12 +123,12 @@ public class PTMShepherd {
 		params.put("spectra_maxfragcharge", "2");//todo
 
 		params.put("compare_betweenRuns", "false");
-		params.put("custom_modlist", "");
+		params.put("annotation_file", "");
 
 		params.put("glyco_mode", "false");
 		params.put("cap_y_ions", "0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279");
 		params.put("diag_ions", "204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761");
-		params.put("remainder_masses", "0, 203.07937");//,406.15874,568.21156,730.26438,892.3172,349.137279");
+		params.put("remainder_masses", "203.07937");//,406.15874,568.21156,730.26438,892.3172,349.137279");
 
 		params.put("iontype_a", "0");
 		params.put("iontype_b", "1");
@@ -367,7 +367,7 @@ public class PTMShepherd {
 		File peakannotated = new File("peaksummary.annotated.tsv");
 		if(!peakannotated.exists()) {
 			PeakAnnotator pa = new PeakAnnotator();
-			pa.init(params.get("varmod_masses"), params.get("custom_modlist"));
+			pa.init(params.get("varmod_masses"), params.get("annotation_file").trim());
 			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
 			print("annotated summary table\n");
 		}
@@ -448,9 +448,10 @@ public class PTMShepherd {
 		}
 
 		//
-		boolean glycoMode = true; //TODO
+		//boolean glycoMode = true; //TODO
 		//
 		//Glyco anlyses
+		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
 			for(String ds : datasets.keySet()) {

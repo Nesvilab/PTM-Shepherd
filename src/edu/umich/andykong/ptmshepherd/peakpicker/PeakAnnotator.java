@@ -142,7 +142,7 @@ public class PeakAnnotator {
 				for (int j = 1; j < mos.length; j++) {
 					for (int k = j; k < mos.length; k++) {
 						if (Math.abs(massToCheck - (mos[j] + mos[k])) < modEqual_tol){
-							System.out.println(massToCheck + "\t" + mos[j] + "\t" + mos[k] + "***");
+							//System.out.println(massToCheck + "\t" + mos[j] + "\t" + mos[k] + "***");
 						}
 					}
 				}
@@ -246,12 +246,19 @@ public class PeakAnnotator {
 			addMod(vModNames.get(i), vModMasses.get(i));
 		}
 
+		//System.out.println("*"+modSourcePath+"*");
 		BufferedReader in;
-		if (modSourcePath.equals("")) {
+		if (modSourcePath.equals("") || modSourcePath.toLowerCase().trim().equals("unimod")) {
 			modSource = "unimod_20191002.txt";
 			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+		} else if (modSourcePath.toLowerCase().trim().equals("common")) {
+			modSource = "common_mods_20200813.txt";
+			//System.out.println(modSource);
+			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 		} else {
-			modSource = modSourcePath;
+			//System.out.println("*"+modSource+"*");
+			modSource = modSourcePath.trim();
+			//System.out.println("*"+modSource+"*");
 			in = new BufferedReader(new FileReader(new File(modSource)));
 		}
 

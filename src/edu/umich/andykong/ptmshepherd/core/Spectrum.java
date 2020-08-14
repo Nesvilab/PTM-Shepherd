@@ -154,17 +154,17 @@ public class Spectrum implements Comparable<Spectrum> {
 		ArrayList<Character> nIonTypes = new ArrayList<>();
 		ArrayList<Character> cIonTypes = new ArrayList<>();
 
-		if (PTMShepherd.getParam("iontype_a") == "1")
+		if (PTMShepherd.getParam("iontype_a").trim().equals("1"))
 			nIonTypes.add('a');
-		if (PTMShepherd.getParam("iontype_b") == "1")
+		if (PTMShepherd.getParam("iontype_b").trim().equals("1"))
 			nIonTypes.add('b');
-		if (PTMShepherd.getParam("iontype_c") == "1")
+		if (PTMShepherd.getParam("iontype_c").trim().equals("1"))
 			nIonTypes.add('c');
-		if (PTMShepherd.getParam("iontype_x") == "1")
+		if (PTMShepherd.getParam("iontype_x").trim().equals("1"))
 			cIonTypes.add('x');
-		if (PTMShepherd.getParam("iontype_y") == "1")
+		if (PTMShepherd.getParam("iontype_y").trim().equals("1"))
 			cIonTypes.add('y');
-		if (PTMShepherd.getParam("iontype_z") == "1")
+		if (PTMShepherd.getParam("iontype_z").trim().equals("1"))
 			cIonTypes.add('z');
 
 		float nTermMass;

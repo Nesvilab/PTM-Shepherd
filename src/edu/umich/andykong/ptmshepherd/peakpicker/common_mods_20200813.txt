@@ -1,0 +1,75 @@
+Acetald+26	26.0157
+Acetyl	42.0106
+Acetylation+Methionine	173.051
+ADP Ribose addition	541.06111
+Amidation	-0.984
+Aminoethylbenzenesulfonylation	183.035399
+Ammonia loss	-17.0265
+Arginine not cleaved	156.1011
+Bacillosamine	228.111
+Calcium	37.9469
+Carbamidomethyl	57.0215
+Carbamyl	43.0058
+Carbon Adduct	12
+Carboxylation	43.9898
+Carboxymethyl+Methionine	189.046
+Carboxymethylation	58.0055
+Crotonaldehyde/Butyryl	70.041865
+Crotonylation	68.026215
+Cysteinylation	119.004099
+Deamidation	0.984
+Dehydroalanine	-33.9877
+dHex	146.0579
+Didehydro	-2.0157
+Didehydrobutyrine	-18.0106
+DiMethyl	28.0313
+Dioxidation	31.9898
+Ethyl	28.0313
+Farnesylation	204.1878
+Fe[II]	53.9193
+Formylation	27.9949
+Galactosyl	178.0477
+Glucosylgalactosyl	340.1006
+Glucuronyl	176.0321
+H-2 O1 	13.9793
+H-2	-2.0157
+Half of a disulfide bridge	-1.007825
+Hex	162.0528
+Hex(1)HexNAc(1)	365.1322
+Hex(1)HexNAc(1)	365.1322
+HexNAc	203.0794
+HexNAc(1)dHex(1)	349.1373
+HexNAc(2)	406.1587
+Lysine not cleaved	128.095
+Malonylation	86.000394
+Met loss + acetaldehyde	-105.0248
+Met loss + Acetylation	-89.0299
+Methyl	14.0157
+Myristoylation	210.1984
+Nitrosylation	28.990164
+Oxidation and then loss of oxidized M side chain	-32.0085
+Oxidation of W to Kynurenine	3.9949
+Oxidation	15.9949
+Oxidation to nitro	44.985078
+Palmitoylation	238.2297
+Persulfide	31.972071
+Phospho	79.9663
+Propionamide	71.0371
+Propionamide	71.0371
+PyridoxalPhosphate	229.014009
+Pyrrolidinone	-30.0106
+Quinone	29.9742
+Replacement of 2 protons by magnesium	21.969392
+Replacement of 3 protons by aluminium	23.95806
+Replacement of proton by copper	61.921774
+Replacement of proton by potassium	37.955882
+Sodium	21.9819
+Succinylation	100.016
+Sulfonation	79.9568
+TriMethylation	42.047
+Trioxidation	47.9847
+Tryptophan oxidation to hydroxykynurenin	19.9898
+ubiquitinylation residue	114.042927
+Unidentified modification of 301.9864 found in open search	301.9865
+Water loss	-18.0106
+Zinc	61.9135

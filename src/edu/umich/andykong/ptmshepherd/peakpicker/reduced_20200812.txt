@@ -1,0 +1,195 @@
+Met loss + acetaldehyde	-105.0248
+Met loss + Acetylation	-89.0299
+Dehydroalanine from Cysteine	-33.9877
+Oxidation and then loss of oxidized M side chain	-32.0085
+Pyrrolidinone	-30.0106
+Water loss on pep term E	-18.0106
+Water loss	-18.0106
+Didehydrobutyrine on T	-18.0106
+Didehydrobutyrine on S	-18.0106
+Ammonia loss on Q	-17.0265
+Ammonia loss on C	-17.0265
+Ammonia loss	-17.0265
+H-2 on pep term M	-2.0157
+Didehydro on Y	-2.0157
+Didehydro on S	-2.0157
+Half of a disulfide bridge	-1.007825
+Amidation	-0.984
+Deamidation on N	0.984
+Deamidation on Q	0.984
+Oxidation of W to Kynurenine	3.9949
+Carbon Adduct	12
+H-2 O1  on L	13.9793
+H-2 O1  on I	13.9793
+H-2 O1  on P	13.9793
+H-2 O1  on W	13.9793
+H-2 O1  on S	13.9793
+Methyl on C	14.0157
+Methyl on H	14.0157
+Methyl on K	14.0157
+Methyl on N	14.0157
+Methyl on Q	14.0157
+Methyl on R	14.0157
+Methyl on I	14.0157
+Methyl on L	14.0157
+Methyl on D	14.0157
+Methyl on E	14.0157
+Methyl on S	14.0157
+Methyl on T	14.0157
+N-Term Methyl	14.0157
+C-Term Methyl	14.0157
+Oxidation on Y	15.9949
+Oxidation on W	15.9949
+Oxidation on P	15.9949
+Oxidation on F	15.9949
+Oxidation on D	15.9949
+Oxidation on E	15.9949
+Oxidation on V	15.9949
+Oxidation on H	15.9949
+Oxidation on K	15.9949
+Oxidation on N	15.9949
+Oxidation on R	15.9949
+Oxidation on C	15.9949
+Tryptophan oxidation to hydroxykynurenin	19.9898
+Replacement of 2 protons by magnesium	21.969392
+Sodium on D	21.9819
+Sodium on E	21.9819
+Replacement of 3 protons by aluminium	23.95806
+Acetald+26	26.0157
+Acetald+26 on H	26.0157
+Acetald+26 on K	26.0157
+Formylation	27.9949
+Formylation on K	27.9949
+Formylation on S	27.9949
+Formylation on T	27.9949
+Ethyl on K	28.0313
+Ethyl on E	28.0313
+Ethyl	28.0313
+DiMethyl on K	28.0313
+DiMethyl on R	28.0313
+DiMethyl on N	28.0313
+Nitrosylation	28.990164
+Quinone on Y	29.9742
+Quinone on W	29.9742
+persulfide	31.972071
+Dioxidation on W	31.9898
+Dioxidation on P	31.9898
+Dioxidation on R	31.9898
+Dioxidation on K	31.9898
+Dioxidation on M	31.9898
+Dioxidation on F	31.9898
+Dioxidation on Y	31.9898
+Dioxidation on C	31.9898
+Calcium on D	37.9469
+Calcium on E	37.9469
+Replacement of proton by potassium	37.955882
+Acetyl	42.0106
+Acetyl on S	42.0106
+Acetyl on K	42.0106
+Acetyl on C	42.0106
+Acetyl on T	42.0106
+TriMethylation	42.047
+Carbamyl	43.0058
+Carbamyl on K	43.0058
+Carbamyl on R	43.0058
+Carbamyl on C	43.0058
+Carbamyl on M	43.0058
+Carboxylation on K	43.9898
+Carboxylation on D	43.9898
+Carboxylation on E	43.9898
+Oxidation to nitro	44.985078
+Trioxidation of C	47.9847
+Fe[III] on D	52.9115
+Fe[III] on E	52.9115
+Fe[II] on D	53.9193
+Fe[II] on E	53.9193
+Carbamidomethyl on K	57.0215
+Carbamidomethyl on H	57.0215
+Carbamidomethyl on D	57.0215
+Carbamidomethyl on E	57.0215
+Carbamidomethyl on S	57.0215
+Carbamidomethyl on T	57.0215
+Carbamidomethyl on Y	57.0215
+Carbamidomethyl of peptide N term	57.0215
+Carboxymethylation	58.0055
+Carboxymethylation on C	58.0055
+Carboxymethylation on K	58.0055
+Carboxymethylation on W	58.0055
+Carboxymethyl of peptide n term	58.0055
+Zinc on D	61.9135
+Zinc on E	61.9135
+Replacement of proton by copper	61.921774
+Crotonylation	68.026215
+Crotonaldehyde/Butyryl	70.041865
+Propionamide on C	71.0371
+Propionamide on K	71.0371
+Propionamide	71.0371
+Sulfonation on S	79.9568
+Sulfonation on T	79.9568
+Sulfonation on Y	79.9568
+Phospho on S	79.9663
+Phospho on T	79.9663
+Phospho on Y	79.9663
+Malonylation	86.000394
+Succinylation	100.016
+Succinylation	100.016
+ubiquitinylation residue	114.042927
+Cysteinylation	119.004099
+Lysine not cleaved at C-term	128.095
+Lysine not cleaved at N-term	128.095
+dHex on Nxs	146.0579
+dHex on Nxt	146.0579
+dHex on S	146.0579
+dHex on T	146.0579
+Arginine not cleaved at N-term	156.1011
+Arginine not cleaved at C-term	156.1011
+Hex	162.0528
+Hex on K	162.0528
+Hex on Nxs	162.0528
+Hex on Nxt	162.0528
+Hex on S	162.0528
+Hex on T	162.0528
+Hex on W	162.0528
+Hex on C	162.0528
+Hex on R	162.0528
+Hex on Y	162.0528
+Acetylation+Methionine	173.051
+Glucuronyl on Nxs	176.0321
+Glucuronyl on Nxt	176.0321
+Glucuronyl on S	176.0321
+Glucuronyl on T	176.0321
+Galactosyl	178.0477
+Galactosyl on N-term	178.0477
+Aminoethylbenzenesulfonylation	183.035399
+Carboxymethyl+Methionine	189.046
+HexNAc on Nxs	203.0794
+HexNAc on Nxt	203.0794
+HexNAc on Nxc	203.0794
+HexNAc on S	203.0794
+HexNAc on T	203.0794
+Farnesylation	204.1878
+Myristoylation of G	210.1984
+Myristoylation of K	210.1984
+Myristoylation of C	210.1984
+Bacillosamine on Nxs	228.111
+Bacillosamine on Nxt	228.111
+PyridoxalPhosphate	229.014009
+Palmitoylation of C	238.2297
+Palmitoylation on K	238.2297
+Palmitoylation on S	238.2297
+Palmitoylation on T	238.2297
+Unidentified modification of 301.9864 found in open search	301.9865
+Glucosylgalactosyl	340.1006
+HexNAc(1)dHex(1) on Nxs	349.1373
+HexNAc(1)dHex(1) on Nxt	349.1373
+HexNAc(1)dHex(1) on S	349.1373
+HexNAc(1)dHex(1) on T	349.1373
+Hex(1)HexNAc(1) on Nxs	365.1322
+Hex(1)HexNAc(1) on Nxt	365.1322
+Hex(1)HexNAc(1) on S	365.1322
+Hex(1)HexNAc(1) on T	365.1322
+HexNAc(2) on Nxs	406.1587
+HexNAc(2) on Nxt	406.1587
+HexNAc(2) on S	406.1587
+HexNAc(2) on T	406.1587
+ADP Ribose addition	541.06111
