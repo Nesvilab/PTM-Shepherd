@@ -107,6 +107,15 @@ public class PSMFile {
 	public PSMFile(File f) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
 		headers = in.readLine().split("\t");
+		//find delta mass column for different philosopher versions
+		int col = getColumn("Delta Mass");
+		if (col == -1) {
+			col = getColumn("Adjusted Delta Mass");
+		}
+		if (col == -1) {
+			col = getColumn("Original Delta Mass");
+		}
+		this.dMassCol = col;
 		data = new ArrayList<>();
 		String cline;
 		while((cline = in.readLine()) != null) {

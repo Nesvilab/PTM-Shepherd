@@ -15,7 +15,7 @@ public class FastLocator {
 	
 	double peakTol;
 	
-	public FastLocator(double [] masses, double peakTol) {
+	public FastLocator(double [] masses, double peakTol) { //todo make this work with PPM tol
 		this.masses = masses;
 		this.peakTol = peakTol;
 		massOrder = new int[masses.length];
@@ -51,7 +51,7 @@ public class FastLocator {
 				hintIndex[i] = masses.length - 1;
 	}
 	
-	public int getIndex(double mass) {
+	public int getIndex(double mass) { //TODO PASS PEAK TOLERANCE HERE
 		int fV = (int)Math.floor(mass) + offset;
 		int best = -1;
 		double bV = peakTol, cV;

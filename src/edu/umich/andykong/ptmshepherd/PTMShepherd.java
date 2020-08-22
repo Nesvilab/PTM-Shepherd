@@ -190,7 +190,7 @@ public class PTMShepherd {
 
 			// delete dataset files with specific extensions
 			List<String> extsToDelete = Arrays
-					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt", ".rawlocalize", ".rawsimrt", ".modsummary.tsv");
+					.asList(".histo", ".locprofile.txt", ".glycoprofile.txt", ".ms2counts", ".simrtprofile.txt", ".rawlocalize", ".rawsimrt", ".rawglyco", ".modsummary.tsv");
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -401,7 +401,7 @@ public class PTMShepherd {
 		double [] peakCenters = PeakSummary.readPeakCenters(peaksummary);
 		LocalizationProfile loc_global = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO
 		for(String ds : datasets.keySet()) {
-			LocalizationProfile loc_current = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol")));
+			LocalizationProfile loc_current = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO
 			SiteLocalization sl = new SiteLocalization(ds);
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
 			sl.updateLocalizationProfiles(loc_targets); //this is where the localization is actually happening
@@ -447,26 +447,34 @@ public class PTMShepherd {
 			CombinedTable.writeCombinedTable(ds);
 		}
 
-		//
-		//boolean glycoMode = true; //TODO
-		//
 		//Glyco anlyses
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
-			for(String ds : datasets.keySet()) {
+			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds);
-				if(ga.isComplete())
+				if (ga.isComplete())
 					continue;
-				ArrayList<String []> dsData = datasets.get(ds);
-				for(int i = 0; i < dsData.size(); i++) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					ga.glycoPSMs(pf, mzMap.get(ds));
 				}
+				//System.exit(1); //DEBUGGING2 MISSING AT THIS POINT
 				ga.complete();
+				//System.exit(1);
 			}
-			//GlycoProfile GlyProGLobal = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-			//GlycoAnalysis GlyAnalysis = new GlycoAnalysis()
+			print("Done\n");
+			GlycoProfile glyProGLobal = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+			for (String ds : datasets.keySet()) {
+				GlycoProfile glyProCurr = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+				GlycoAnalysis ga = new GlycoAnalysis(ds);
+				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
+				ga.updateGlycoProfiles(gaTargets);
+				glyProCurr.writeProfile(ds + ".glycoprofile.txt");
+			}
+			glyProGLobal.writeProfile("global.glycoprofile.txt");
+			print("Created glyco reports\n");
 		}
 
 		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");

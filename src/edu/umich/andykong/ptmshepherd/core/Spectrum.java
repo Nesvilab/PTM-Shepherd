@@ -51,7 +51,6 @@ public class Spectrum implements Comparable<Spectrum> {
 				fact[i] = (float)(fact[i-1] + Math.log(i));
 		}
 	}
-
 	
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
@@ -241,15 +240,19 @@ public class Spectrum implements Comparable<Spectrum> {
 
 		ArrayList<Character> nIonTypes = new ArrayList<>();
 		ArrayList<Character> cIonTypes = new ArrayList<>();
-		String ionTypesStr = PTMShepherd.getParam("spectra_iontypes");
 
-		for (int i = 0; i < PTMShepherd.getParam("spectra_iontypes").length(); i++) {
-			char ionType = Character.toLowerCase(ionTypesStr.charAt(i));
-			if (ionType - 'm' <= 0)
-				nIonTypes.add(ionType);
-			else
-				cIonTypes.add(ionType);
-		}
+		if (PTMShepherd.getParam("iontype_a").trim().equals("1"))
+			nIonTypes.add('a');
+		if (PTMShepherd.getParam("iontype_b").trim().equals("1"))
+			nIonTypes.add('b');
+		if (PTMShepherd.getParam("iontype_c").trim().equals("1"))
+			nIonTypes.add('c');
+		if (PTMShepherd.getParam("iontype_x").trim().equals("1"))
+			cIonTypes.add('x');
+		if (PTMShepherd.getParam("iontype_y").trim().equals("1"))
+			cIonTypes.add('y');
+		if (PTMShepherd.getParam("iontype_z").trim().equals("1"))
+			cIonTypes.add('z');
 
 		float nTermMass;
 		for (Character iType : nIonTypes) {
@@ -309,6 +312,22 @@ public class Spectrum implements Comparable<Spectrum> {
 				break;
 			if (Math.abs(peakMZ[i] - ion) < ppmRange)
 				ionIntensity += peakInt[i];
+		}
+		return ionIntensity;
+	}
+
+	public double findIonNeutral(double neutralIonMass, double ppmTol) {
+		double ionIntensity = 0;
+		for (int z = 1; z <= charge; z++) {
+			double ion = (neutralIonMass + (1.00727 * (double) z)) / (double) z;
+			double ppmRange = ppmTol * (1.0 / 1000000) * ion;
+			double max = ion + ppmRange;
+			for (int i = 0; i < peakMZ.length; i++) {
+				if (peakMZ[i] > max)
+					break;
+				if (Math.abs(peakMZ[i] - ion) < ppmRange)
+					ionIntensity += peakInt[i];
+			}
 		}
 		return ionIntensity;
 	}

@@ -4,11 +4,9 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTProfile;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -18,9 +16,10 @@ public class GlycoAnalysis {
     File glycoFile;
     MXMLReader mr;
     HashMap<String, MXMLReader> multiMr;
-    float ppmTol, condRatio, peakTol;
+    float ppmTol, peakTol;
     int condPeaks;
     int specCol, pepCol, modpepCol, chargecol, deltaCol, rtCol, intCol, pmassCol, modCol;
+    double condRatio;
     double[] capYShifts;// = new double[]{0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
     double[]  oxoniumIons;//= new double[]{204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761};
     double[] remainderMasses;// = new double[]{203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
@@ -33,10 +32,12 @@ public class GlycoAnalysis {
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
         //open up output file
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-        PrintWriter out = new PrintWriter(new FileWriter(glycoFile, true));
+        PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
 
         //get necessary params
         ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
+        condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
+        condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
         //cap y ions
         String[] capYstrs;
         if (PTMShepherd.getParam("cap_y_ions").length() > 0)
@@ -66,7 +67,7 @@ public class GlycoAnalysis {
             remainderMasses[i] = Double.parseDouble(remainderStrs[i]);
 
         //write header
-        StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep_Mass", "Mass_Shift"));
+        StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
         for (int i = 0; i < capYShifts.length; i++)
             headbuff.append(String.format("\tY_%.4f_intensity", capYShifts[i]));
         for (int i = 0; i < oxoniumIons.length; i++)
@@ -90,29 +91,21 @@ public class GlycoAnalysis {
             String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
             if (!mappings.containsKey(bn))
                 mappings.put(bn, new ArrayList<>());
-        }
-        for (int i = 0; i < pf.data.size(); i++) {
-            for (String fraction : mappings.keySet())
-                mappings.get(fraction).add(i);
+            mappings.get(bn).add(i);
         }
 
-        for (String cf : mappings.keySet()) { //for file in relevant spectral files
+        for (String cf : mappings.keySet()) { //for file in relevant spectral files // DEBUGGING1
             long t1 = System.currentTimeMillis();
+            //System.out.println(cf);
             mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
             mr.readFully();
             ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
             for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
-                StringBuffer newline = new StringBuffer();
-                newline = processLine(pf.data.get(clines.get(i)));
-                //try {
-                //    newline = processLine(pf.data.get(clines.get(i)));
-                //} catch (Exception e) {
-                //    e.printStackTrace();
-                //    System.out.println("Error in: " + pf.data.get(clines.get(i)));
-                //}
+                StringBuffer newline = processLine(pf.data.get(clines.get(i)));
                 out.println(newline.toString());
             }
         }
+        out.close();
     }
 
     public StringBuffer processLine(String line) {
@@ -127,6 +120,7 @@ public class GlycoAnalysis {
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName,seq,sp[modCol],pepMass, dmass));
 
         Spectrum spec = mr.getSpectrum(reNormName(specName));
+        spec.condition(condPeaks, condRatio);
         //System.out.println("got spec");
         double [] capYIonIntensities;
         double [] oxoniumIonIntensities;
@@ -168,10 +162,10 @@ public class GlycoAnalysis {
         double[] capYIons = new double[capYShifts.length];
         double [] capYIonIntensities = new double[capYShifts.length];
         for (int i = 0; i < capYIons.length; i++)
-            capYIons[i] = capYShifts[i] + pepMass + 1.00727; //todo charge states
+            capYIons[i] = capYShifts[i] + pepMass; //todo charge states
         //find capital Y ion intensities
         for (int i = 0; i < capYIons.length; i++)
-            capYIonIntensities[i] = spec.findIon(capYIons[i], Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"))); //todo simplify parameter calling
+            capYIonIntensities[i] = spec.findIonNeutral(capYIons[i], Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"))); //todo simplify parameter calling
 
         return capYIonIntensities;
     }
@@ -298,6 +292,26 @@ public class GlycoAnalysis {
         out.close();
     }
 
+    public void updateGlycoProfiles(GlycoProfile[] profiles) throws Exception {
+        BufferedReader in = new BufferedReader(new FileReader(glycoFile));
+        String cline;
+        in.readLine();
+        while ((cline = in.readLine()) != null) {
+            if (cline.equals("COMPLETE"))
+                break;
+            if (cline.startsWith("Spectrum"))
+                continue;
+            String[] sp = cline.split("\\t");
+            double md = Double.parseDouble(sp[4]);
+            for (int i = 0; i < profiles.length; i++) {
+                int cind = profiles[i].locate.getIndex(md);
+                if (cind != -1) {
+                    profiles[i].records[cind].updateWithLine(sp);
+                }
+            }
+        }
+        in.close();
+    }
 
 
 }
