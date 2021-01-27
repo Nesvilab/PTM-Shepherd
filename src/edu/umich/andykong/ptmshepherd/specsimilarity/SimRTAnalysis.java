@@ -19,7 +19,7 @@ public class SimRTAnalysis {
 	MXMLReader mr;
 	HashMap<String, MXMLReader> multiMr;
 	double ppmTol, condRatio, peakTol;
-	int condPeaks;
+	int condPeaks, precursorUnits;
 	int specCol, pepCol, modpepCol, chargeCol, deltaCol, rtCol, intCol;
 	
 	static final int MAX_ZERO_COMPARE = 20;
@@ -81,6 +81,8 @@ public class SimRTAnalysis {
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
 		condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
 		peakTol = Double.parseDouble(PTMShepherd.getParam("precursor_tol")); //determines zero bin
+		double cPeakTol = peakTol;
+		precursorUnits = Integer.parseInt(PTMShepherd.getParam("precursor_mass_units"));
 
 		if (!interRunComparisons) {
 			for (int i = 0; i < pf.data.size(); i++) {
@@ -137,11 +139,13 @@ public class SimRTAnalysis {
 				avgzSim = new HashMap<>(); //{modPep.charge:avg zero sim in bin}
 				avgzRT = new HashMap<>();
 			}
-			
+
 			//get zero bin data and calculate baselines
 			for(int i = 0; i < clines.size(); i++) {
 				String [] crow = pf.data.get(clines.get(i)).split("\t");
-				boolean isZero = (Math.abs(Double.parseDouble(crow[deltaCol])) <= peakTol);
+				if(precursorUnits == 1)//ppm
+					cPeakTol = calculatePeakTol(1500, peakTol, 0.0);
+				boolean isZero = (Math.abs(Double.parseDouble(crow[deltaCol])) <= cPeakTol);
 				if(!isZero)
 					continue;
 				
@@ -210,7 +214,9 @@ public class SimRTAnalysis {
 			//calculate metrics
 			for(int i = 0; i < clines.size(); i++) {
 				String [] crow = pf.data.get(clines.get(i)).split("\t");
-				boolean isZero = (Math.abs(Double.parseDouble(crow[deltaCol])) <= peakTol);
+				if(precursorUnits == 1)//ppm
+					cPeakTol = calculatePeakTol(1500, peakTol, 0.0);
+				boolean isZero = (Math.abs(Double.parseDouble(crow[deltaCol])) <= cPeakTol);
 				
 				String key = crow[pepCol].trim();
 				if(crow[modpepCol].trim().length() != 0)
@@ -270,5 +276,10 @@ public class SimRTAnalysis {
 			}
 		}
 		in.close();
+	}
+
+	public double calculatePeakTol(double pepmass, double ppmtol, double modmass){
+		double peakTol = ((pepmass + modmass) / 1000000.0) * ppmtol;
+		return peakTol;
 	}
 }

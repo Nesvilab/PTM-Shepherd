@@ -16,7 +16,7 @@ public class PeakAnnotator {
 	ArrayList<String> vModNames; //privileged mods that can be matched with any mass in unimod
 	ArrayList<Double> vModMasses;
 
-	static final double C13delta = 1.003355;
+	static final double C13delta = 1.00235;
 	static final double modEqual_tol = 0.001;
 	//static final double mod_tol = 0.01;
 	static final double mod_tol = Double.parseDouble(PTMShepherd.getParam(("annotation_tol")));
@@ -254,6 +254,9 @@ public class PeakAnnotator {
 		} else if (modSourcePath.toLowerCase().trim().equals("common")) {
 			modSource = "common_mods_20200813.txt";
 			//System.out.println(modSource);
+			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+		} else if (modSourcePath.toLowerCase().trim().equals("glyco")) {
+			modSource = "glyco_mods_20210127.txt";
 			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 		} else {
 			//System.out.println("*"+modSource+"*");

@@ -1,13 +1,16 @@
 package edu.umich.andykong.ptmshepherd;
 
+import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.io.*;
 import java.util.concurrent.*;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
+import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.*;
@@ -19,7 +22,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.4.0";
+ 	public static final String version = "0.5.0";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -89,6 +92,17 @@ public class PTMShepherd {
 	}
 	
 	public static void init(String [] args) throws Exception {
+		if (args.length == 1) {
+			if (args[0].equals("--config")) {
+				printConfigFiles();
+				System.exit(1);
+			}
+			if (args[0].equals("--annotate")) {
+				printAnnotationFiles();
+				System.exit(1);
+			}
+		}
+
 		HashMap<String,String> overrides = new HashMap<>();
 		params = new HashMap<>();
 		datasets = new TreeMap<>();
@@ -99,14 +113,16 @@ public class PTMShepherd {
 		params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
 		params.put("histo_bindivs", "5000"); //number of divisions in histogram
 		params.put("histo_smoothbins", "2"); //smoothing factor
+		params.put("histo_normalizeTo", "psms"); //changing default normalization to "psms" instead of "scans"
 		
 		params.put("peakpicking_promRatio", "0.3"); //prominence ratio for peakpicking
 		params.put("peakpicking_mass_units", "0");
 		params.put("peakpicking_width", "0.002"); //width for peakpicking
 		//params.put("peakpicking_background", "0.005");
 		params.put("peakpicking_topN", "500"); //num peaks
-        params.put("peakpicking_minPsm", "10");//unused
+        params.put("peakpicking_minPsm", "10");
         params.put("localization_background", "4");
+        params.put("localization_allowed_res", "all"); //all or ABCDEF
 
         params.put("varmod_masses", "");
         params.put("precursor_mass_units", "0");
@@ -127,8 +143,12 @@ public class PTMShepherd {
 
 		params.put("glyco_mode", "false");
 		params.put("cap_y_ions", "0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279");
+		params.put("cap_y_ions_normalize", "0"); //0 = off, 1 = base peak
+		params.put("max_cap_y_charge", "0");
 		params.put("diag_ions", "204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761");
+		params.put("diag_ions_normalize", "1"); //0 = off, 1 = base peak
 		params.put("remainder_masses", "203.07937");//,406.15874,568.21156,730.26438,892.3172,349.137279");
+		params.put("remainder_mass_allowed_res", "all");
 
 		params.put("iontype_a", "0");
 		params.put("iontype_b", "1");
@@ -165,7 +185,17 @@ public class PTMShepherd {
 
 		executorService = Executors.newFixedThreadPool(Integer.parseInt(params.get("threads")));
 	}
-	
+
+	private static void printAnnotationFiles() throws Exception {
+		extractFile("peakpicker/glyco_mods_20210127.txt", "glyco_annotation.txt");
+		extractFile("peakpicker/common_mods_20200813.txt", "common_mods_annotation.txt");
+		extractFile("peakpicker/unimod_20191002.txt", "unimod_annotation.txt");
+	}
+
+	private static void printConfigFiles() throws Exception {
+		extractFile("utils/open_default_params.txt", "shepherd_open_params.txt");
+	}
+
 	public static void main(String [] args) throws Exception {
 		Locale.setDefault(new Locale("en","US"));
 		System.out.printf("%s version %s",name,version);
@@ -173,10 +203,19 @@ public class PTMShepherd {
 		System.out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
 		
 		if(args.length == 0) {
-			System.out.printf("Usage: %s [config.txt]\n",name);
+			System.out.printf("%s %s\n", name, version);
+			System.out.println();
+			System.out.printf("Usage:\n");
+			System.out.printf("\tTo print the parameter files:\n" +
+					"\t\tjava -jar ptmshepherd-%s-.jar --config\n", version);
+			System.out.printf("\tTo print the annotation files:\n" +
+					"\t\tjava -jar ptmshepherd-%s-.jar --annotate\n", version);
+			System.out.printf("\tTo run PTM-Shepherd:\n" +
+					"\t\tjava -jar ptmshepherd-%s-.jar config_file.txt\n", version);
+			System.out.println();
 			System.exit(1);
 		}
-		
+
 		init(args);
 
 		if(!Boolean.parseBoolean(params.get("run_from_old"))) {
@@ -258,14 +297,24 @@ public class PTMShepherd {
 			TreeMap<String,Integer> counts = new TreeMap<>();
 			if(!countsFile.exists()) {
 				print("Counting MS2 scans for dataset " + ds);
-				for(String crun : mzMap.get(ds).keySet()) {
-					File tf = mzMap.get(ds).get(crun);
-					int cnt = MS2Counts.countMS2Scans(tf, Integer.parseInt(params.get("threads")));
-					print(String.format("\t%s - %d scans", crun,cnt));
-					counts.put(crun, cnt);
+				if (params.get("histo_normalizeTo").equals("psms")) {
+					ArrayList<String []> dsData = datasets.get(ds);
+					for (int i  = 0; i < dsData.size(); i++) {
+						File tpf = new File(dsData.get(i)[0]);
+						PSMFile pf = new PSMFile(tpf);
+						counts = pf.getMS2Counts();
+					}
+				}
+				else if (params.get("histo_normalizeTo").equals("scans")) {
+					for (String crun : mzMap.get(ds).keySet()) {
+						File tf = mzMap.get(ds).get(crun);
+						int cnt = MS2Counts.countMS2Scans(tf, Integer.parseInt(params.get("threads")));
+						print(String.format("\t%s - %d scans", crun, cnt));
+						counts.put(crun, cnt);
+					}
 				}
 				PrintWriter out = new PrintWriter(new FileWriter(countsFile));
-				for(String cf : counts.keySet()) {
+				for (String cf : counts.keySet()) {
 					sumMS2 += counts.get(cf);
 					out.printf("%s\t%d\n", cf, counts.get(cf));
 				}
@@ -349,7 +398,9 @@ public class PTMShepherd {
 		//PSM assignment
 		File peaksummary = new File("peaksummary.tsv");
 		if(!peaksummary.exists()) {
-			PeakSummary ps = new PeakSummary(peaks,Integer.parseInt(params.get("precursor_mass_units")),Double.parseDouble(params.get("precursor_tol")),params.get("mass_offsets"));
+			PeakSummary ps = new PeakSummary(peaks,Integer.parseInt(params.get("precursor_mass_units")),
+					Double.parseDouble(params.get("precursor_tol")), params.get("mass_offsets"),
+					Integer.parseInt(params.get("peakpicking_minPsm")));
 			for(String ds : datasets.keySet()) {
 				ps.reset();
 				ArrayList<String []> dsData = datasets.get(ds);
@@ -398,10 +449,12 @@ public class PTMShepherd {
 		print("done\n");
 
 		//Localization summaries
+		double [][] peakBounds = PeakSummary.readPeakBounds(peaksummary);
 		double [] peakCenters = PeakSummary.readPeakCenters(peaksummary);
-		LocalizationProfile loc_global = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO
+		LocalizationProfile loc_global = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 		for(String ds : datasets.keySet()) {
-			LocalizationProfile loc_current = new LocalizationProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO
+			System.out.println();
+			LocalizationProfile loc_current = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 			SiteLocalization sl = new SiteLocalization(ds);
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
 			sl.updateLocalizationProfiles(loc_targets); //this is where the localization is actually happening
@@ -428,9 +481,9 @@ public class PTMShepherd {
 		print("Done\n");
 
 		//SimRT summaries
-		SimRTProfile simrt_global = new SimRTProfile(peakCenters, Double.parseDouble(params.get("precursor_tol"))); //TODO add units
+		SimRTProfile simrt_global = new SimRTProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO add units
 		for(String ds : datasets.keySet()) {
-			SimRTProfile simrt_current = new SimRTProfile(peakCenters, Double.parseDouble(params.get("precursor_tol")));
+			SimRTProfile simrt_current = new SimRTProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO add units
 			SimRTAnalysis sra = new SimRTAnalysis(ds);
 			SimRTProfile [] simrt_targets = {simrt_global, simrt_current};
 			sra.updateSimRTProfiles(simrt_targets);
@@ -438,6 +491,23 @@ public class PTMShepherd {
 		}
 		simrt_global.writeProfile("global.simrtprofile.txt");
 		print("Created similarity/RT reports\n");
+
+		//Diagnostic mining
+		boolean diagMineMode = Boolean.parseBoolean(params.get("mine_diag_ions"));
+		if (diagMineMode) {
+			double peakBoundaries[][] = PeakSummary.readPeakBounds(peaksummary);
+			System.out.println("Beginning mining diagnostic ions");
+			DiagnosticAnalysis da = new DiagnosticAnalysis("global");
+			da.initializeBinBoundaries(peakBoundaries);
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					da.diagIonsPSMs(pf, mzMap.get(ds));
+				}
+
+			}
+		}
 
 		//Combine tables
 		System.out.println("Combining and cleaning reports");
@@ -465,9 +535,9 @@ public class PTMShepherd {
 				//System.exit(1);
 			}
 			print("Done\n");
-			GlycoProfile glyProGLobal = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
-				GlycoProfile glyProCurr = new GlycoProfile(peakCenters, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 				GlycoAnalysis ga = new GlycoAnalysis(ds);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
@@ -530,6 +600,25 @@ public class PTMShepherd {
 	private static void deleteFile(Path p, boolean printOnDeletion) throws IOException {
 		if (Files.deleteIfExists(p) && printOnDeletion) {
 			print("Deleted file: " + p.toAbsolutePath().normalize().toString());
+		}
+	}
+
+	//peakpicker/glyco_mods_20210127.txt
+	private static void extractFile(String jarFilePath, String fout) throws Exception {
+		BufferedReader in;
+		PrintWriter out;
+		System.out.printf("Copying internal resource to %s.\n", fout);
+		try {
+			in = new BufferedReader(new InputStreamReader(PTMShepherd.class.getResourceAsStream(jarFilePath)));
+			out = new PrintWriter(new FileWriter(fout));
+			String cline;
+			while ((cline = in.readLine()) != null)
+				out.println(cline);
+			in.close();
+			out.close();
+		} catch (Exception ex) {
+			System.out.println(ex);
+			System.exit(1);
 		}
 	}
 

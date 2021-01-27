@@ -7,17 +7,23 @@ import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
 public class FastLocator {
 
 	double [] masses;
+	double [][] peaks;
 	int [] massOrder;
 	int [] hintIndex;
 	
 	static final int scale = 10000;
+	static final double pepmass = 1500.0;
+
 	int offset;
 	
 	double peakTol;
+	double precursorUnits;
 	
-	public FastLocator(double [] masses, double peakTol) { //todo make this work with PPM tol
-		this.masses = masses;
+	public FastLocator(double [][] peakVals, double peakTol, int precursorUnits) { //todo make this work with PPM tol
+		this.masses = peakVals[0];
+		this.peaks = peakVals;
 		this.peakTol = peakTol;
+		this.precursorUnits = precursorUnits;
 		massOrder = new int[masses.length];
 		
 		ArrayList<Integer> alMassOrder = new ArrayList<>();
@@ -51,10 +57,13 @@ public class FastLocator {
 				hintIndex[i] = masses.length - 1;
 	}
 	
-	public int getIndex(double mass) { //TODO PASS PEAK TOLERANCE HERE
+	public int getIndex(double mass) {
 		int fV = (int)Math.floor(mass) + offset;
 		int best = -1;
-		double bV = peakTol, cV;
+		double cPeakTol = peakTol;
+		if (this.precursorUnits == 1) //if units ppm, calculate dynamic massdiff
+			cPeakTol = calculatePeakTol(this.pepmass, this.peakTol, mass);
+		double bV = cPeakTol, cV;
 		int lb = hintIndex[Math.max(0, Math.min(hintIndex.length-1, fV-1))];
 		int ub = hintIndex[Math.max(0, Math.min(hintIndex.length-1, fV+1))];
 		for(int i = lb; i <= ub; i++) {
@@ -64,9 +73,22 @@ public class FastLocator {
 				bV = cV; 
 			}
 		}
+		if (best != -1) { //validate placement of mass within peak boundaries
+			//System.out.printf("%.5f %.5f %.5f\n", mass, peaks[1][best], peaks[2][best]);
+			if (peaks[1][best] > mass || peaks[2][best] < mass) {
+				//System.out.printf("%.5f %.5f %.5f\n", mass, peaks[1][best], peaks[2][best]);
+				//System.out.println("Fail");
+				best = -1;
+			}
+		}
 		return best;
 	}
-	
+
+	public double calculatePeakTol(double pepmass, double ppmtol, double modmass){
+		double peakTol = ((pepmass + modmass) / 1000000.0) * ppmtol;
+		return peakTol;
+	}
+
 //	public static void main(String [] args) throws Exception {
 //		int scale = 10;
 //		double [] randNums = new double[100];

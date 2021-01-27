@@ -94,7 +94,7 @@ public class GlycoAnalysis {
             mappings.get(bn).add(i);
         }
 
-        for (String cf : mappings.keySet()) { //for file in relevant spectral files // DEBUGGING1
+        for (String cf : mappings.keySet()) { //for file in relevant spectral files
             long t1 = System.currentTimeMillis();
             //System.out.println(cf);
             mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
@@ -175,11 +175,14 @@ public class GlycoAnalysis {
         //initialize capYion masses /todo
         //implement charge states //todo
         //initialize oxonium ion intensities
+        int normToBasePeak = Integer.parseInt(PTMShepherd.getParam("diag_ions_normalize"));
         double[] oxoniumIonIntensities = new double[oxoniumIons.length];
         //for ion in oxonium masses/capYions
-        for (int i = 0; i < oxoniumIons.length; i++)
+        for (int i = 0; i < oxoniumIons.length; i++) {
             oxoniumIonIntensities[i] = spec.findIon(oxoniumIons[i], Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"))); //todo simplify parameter calling
-
+            if (normToBasePeak == 1)
+                oxoniumIonIntensities[i] /= spec.findBasePeakInt();
+        }
         return oxoniumIonIntensities;
     }
 

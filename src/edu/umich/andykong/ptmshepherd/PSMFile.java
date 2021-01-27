@@ -78,10 +78,11 @@ public class PSMFile {
 	
 	public static void getMappings(File path, HashMap<String,File> mappings) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
-			datTypes.put("raw", 0);
-			datTypes.put("mzBIN", 1);
-			datTypes.put("mzXML", 2);
-			datTypes.put("mzML", 3);
+			datTypes.put("mgf", 0);
+			datTypes.put("raw", 1);
+			datTypes.put("mzBIN", 2);
+			datTypes.put("mzXML", 3);
+			datTypes.put("mzML", 4);
 
 		if(path.isDirectory()) {		
 			File [] ls = path.listFiles();
@@ -91,7 +92,9 @@ public class PSMFile {
 			}
 		} else {
 			String [] ns = splitName(path.getName());
-			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN"))) {
+			if (ns[0].contains("_calibrated"))
+				ns[0] = ns[0].substring(0, ns[0].indexOf("_calibrated"));
+			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN") || ns[1].equals("mgf"))) {
 				if (mappings.get(ns[0]) == null)
 					mappings.put(ns[0], path);
 				else {
@@ -103,7 +106,21 @@ public class PSMFile {
 			}
 		}
 	}
-	
+
+	public TreeMap<String, Integer> getMS2Counts() {
+		TreeMap<String, Integer> cnts = new TreeMap<>();
+		int col = getColumn("Spectrum");
+		for(int i = 0; i < data.size(); i++) {
+			String [] sp = data.get(i).split("\t");
+			String d = sp[col];
+			String crun = d.substring(0, d.indexOf("."));
+			if (!cnts.containsKey(crun))
+				cnts.put(crun, 0);
+			cnts.put(crun, cnts.get(crun) + 1);
+		}
+		return cnts;
+	}
+
 	public PSMFile(File f) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
 		headers = in.readLine().split("\t");

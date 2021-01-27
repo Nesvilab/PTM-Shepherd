@@ -48,35 +48,44 @@ public class MXMLReader {
 	}
 	
 	public void readFully() throws Exception {
-
 		String fn = f.toPath().getFileName().toString().toLowerCase();
 		LCMSDataSource<?> source = null;
 		MZBINFile mzbinSource = null;
-		if(fn.endsWith(".mzxml")) {
+		MSFMGFFile mgfSource = null;
+
+		if (fn.endsWith("_calibrated.mgf")) {
+			mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+		} else if (fn.endsWith(".mzxml")) {
 			source = new MZXMLFile(f.getAbsolutePath());
-		} else if(fn.endsWith(".mzml")) {
+		} else if (fn.endsWith(".mzml")) {
 			source = new MZMLFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".raw")) {
 			source = new ThermoRawFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".mzbin")) {
 			mzbinSource = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
 		}
-		if ((mzbinSource == null) && (source == null)) {
+		if ((mzbinSource == null) && (mgfSource == null) && (source == null)) {
 			System.out.println("Cannot read mzFile with unrecognized extension: " + f.getName());
 			System.exit(1);
 		}
 
 		specsByName = new HashMap<>();
 		specsByStrippedName = new HashMap<>();
-		if (mzbinSource == null) { //if filetype is not mzBin
+		if (mzbinSource == null && mgfSource == null) { //if filetype is not mzBin
 			readFully(source);
 			for(int i = 0; i < specs.length; i++) {
 				specsByName.put(specs[i].scanName, specs[i]);
 				specsByStrippedName.put(specs[i].scanName, specs[i]);
 			}
-		} else {
+		} else if (mgfSource == null) {
 			readAsMzBIN(mzbinSource);
 			for(int i = 0; i < specs.length; i++){
+				specsByName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(specs[i].scanName, specs[i]);
+			}
+		} else {
+			readAsFraggerMGF(mgfSource);
+			for(int i = 0; i < specs.length; i++) {
 				specsByName.put(specs[i].scanName, specs[i]);
 				specsByStrippedName.put(specs[i].scanName, specs[i]);
 			}
@@ -156,6 +165,16 @@ public class MXMLReader {
 		cspecs.toArray(specs);
 	}
 
+	private void readAsFraggerMGF(MSFMGFFile mf) throws Exception {
+		ArrayList cspecs = new ArrayList<Spectrum>();
+		for (Spectrum spectrum : mf.specs) {
+			if (spectrum.msLevel == 2)
+				cspecs.add(spectrum);
+		}
+		nSpecs = cspecs.size();
+		specs = new Spectrum[nSpecs];
+		cspecs.toArray(specs);
+	}
 
 	/*
 	private void readAsMzBIN(ExecutorService executorService) throws Exception {

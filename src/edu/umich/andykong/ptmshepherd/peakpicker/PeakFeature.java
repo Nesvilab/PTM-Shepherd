@@ -4,14 +4,15 @@ import java.util.*;
 
 public class PeakFeature implements Comparable<PeakFeature> {
 	
-	double peakCenter, peakLower, peakUpper;
+	double peakCenter, peakLower, peakUpper, snr;
 	
 	HashSet<String> peps;
 	int psms, order;
 
-	public PeakFeature(double peakCenter, int order) {
+	public PeakFeature(double peakCenter, double snr, int order) {
 		this.peakCenter = peakCenter;
 		this.order = order;
+		this.snr = snr;
 		peps = new HashSet<>();
 		psms = 0;
 	}

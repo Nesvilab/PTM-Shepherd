@@ -41,27 +41,32 @@ public class CombinedTable {
 
             // update
             if  (subTabIdx == 0) {
+                maxLineLen = Arrays.asList(lines.get(0).split("\t")).size();
                 for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
                     String line = lines.get(lineIdx);
                     if (line == null) {
                         continue;
                     }
-                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-                    if (split.size() > maxLineLen)
-                        maxLineLen = split.size();
-                    List<String> newLine = split.subList(0, 3);
-                    //newLine.remove(1);
-                    //String lineCut = String.join("\t", newLine);
+                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t", -1)));
+                    //if (split.size() > maxLineLen)
+                    //    maxLineLen = split.size();
+                    List<String> newLine = split.subList(0, 4); //peak values
+                    newLine.add(split.get(split.size()-3)); //total PSMs
+                    newLine.add(split.get(split.size()-4)); //total % in unmodified
+                    newLine.add(split.get(split.size()-2)); //mod 1
+                    newLine.add(split.get(split.size()-1)); //mod 2
                     records.add(newLine);
-                    List<String> newLine2 = split.subList(maxLineLen-2, split.size());
-                    int padding = 2 - newLine2.size();
-                    List<String> crec = records.get(lineIdx);
-                    crec.addAll(newLine2);
-                    for(int i = 0; i < padding; i++){
-                        crec.add("");
-                    }
-                    crec.add(split.get(maxLineLen-1));
-                    records.set(lineIdx, crec);
+                    //records.add(newLine); //add first 4 fields to new file
+                    //List<String> newLine2 = split.subList(maxLineLen-2, split.size()); //get mod annotationsm $
+
+                    //int padding = 2 - newLine2.size();
+                    //List<String> crec = records.get(lineIdx);
+                    //crec.addAll(newLine2);
+                    //for(int i = 0; i < padding; i++){
+                    //    crec.add("");
+                    //}
+                    //crec.add(split.get(maxLineLen-1));
+                    //records.set(lineIdx, crec);
                 }
             } else if (subTabIdx == 2) {
                 for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
@@ -84,7 +89,7 @@ public class CombinedTable {
                         continue;
                     }
                     List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-                    List<String> newLine = split.subList(1, split.size());
+                    List<String> newLine = split.subList(2, split.size());
                     List<String> crec = records.get(lineIdx);
                     crec.addAll(newLine);
                     records.set(lineIdx, crec);
@@ -126,7 +131,7 @@ public class CombinedTable {
                 continue;
             }
             List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-            List<String> newLine = split.subList(3, maxLineLen-3);
+            List<String> newLine = split.subList(4, maxLineLen-4);
             List<String> crec = records.get(lineIdx);
             crec.addAll(newLine);
             records.set(lineIdx, crec);

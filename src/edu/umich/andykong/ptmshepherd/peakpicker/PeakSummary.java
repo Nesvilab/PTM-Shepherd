@@ -14,20 +14,22 @@ public class PeakSummary {
 	PeakFeature topFeature;
 	TreeMap<String,int [][]> counts;
 	TreeMap<String,Integer> dsSize;
+	int minPsms;
 	
-	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets) throws Exception {
+	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets, int psmFilter) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(peakTSV));
 		features = new ArrayList<>();
 		counts = new TreeMap<>();
 		dsSize = new TreeMap<>();
 		boolean offsetMode = massOffsets.contains("/");
 		double precursorTol = pt;
+		minPsms = psmFilter;
 
 		String cline;
 		int cnt = 0;
 		while((cline = in.readLine())!= null) {
 			String [] sp = cline.split("\t");
-			features.add(new PeakFeature(Double.parseDouble(sp[0]), cnt++)); 
+			features.add(new PeakFeature(Double.parseDouble(sp[0]), Double.parseDouble(sp[3]), cnt++));
 		}
 		in.close();
 
@@ -89,8 +91,30 @@ public class PeakSummary {
 			res[i] = Double.parseDouble(vals.get(i));
 		return res;
 	}
-	
+
+	public static double [][] readPeakBounds(File f) throws Exception {
+		BufferedReader in = new BufferedReader(new FileReader(f));
+		String cline;
+		ArrayList<String[]> vals = new ArrayList<>();
+		//Skip header line
+		in.readLine();
+		while((cline = in.readLine())!= null) {
+			String [] sp = cline.split("\t");
+			vals.add(new String[]{sp[0], sp[1], sp[2]});
+		}
+		in.close();
+
+		double [][] res = new double[3][vals.size()];
+		for(int i = 0; i < res.length; i++) {
+			for (int j = 0; j < 3; j++)
+				res[j][i] = Double.parseDouble(vals.get(i)[j]);
+		}
+		return res;
+	}
+
 	public void writeTSVSummary(File f) throws Exception {
+		int nInsuffPeaks = 0;
+
 		String [] exps = new String[counts.size()];
 		int cnt = 0;
 		for(String ds : counts.keySet())
@@ -99,6 +123,7 @@ public class PeakSummary {
 		PrintWriter out = new PrintWriter(new FileWriter(f));
 		
 		out.print("PeakApex\tPeakLower\tPeakUpper");
+		out.print("\t"+"PeakSignal");
 		for(int i = 0; i < exps.length; i++)
 			out.print("\t"+exps[i] + " (PSMs)");
 		for(int i = 0; i < exps.length; i++)
@@ -106,19 +131,32 @@ public class PeakSummary {
 		for(int i = 0; i < exps.length; i++)
 			out.print("\t"+exps[i] + " (Peptides)\t" + exps[i] + " (% in unmodified)");
 		out.print("\t"+"Total % in unmodified");
+		out.print("\t"+"Total PSMs");
 		out.println();
 		
 		for(int i = 0; i < features.size(); i++) {
+			int totPsm = 0;
 			int pt = -1;
 			for(int j = 0; j < features.size() && pt == -1; j++)
 				if(features.get(j).order == i)
 					pt = j;
-			out.printf("%.5f\t%.5f\t%.5f", features.get(pt).peakCenter,features.get(pt).peakLower,features.get(pt).peakUpper);
-			for(int j = 0; j < exps.length; j++)
+			out.printf("%.5f\t%.5f\t%.5f\t%.2f", features.get(pt).peakCenter,features.get(pt).peakLower,features.get(pt).peakUpper, features.get(pt).snr);
+
+			//purge peaks with too low PSM count
+			if (minPsms > 0) {
+				for(int j = 0; j < exps.length; j++) //count PSMs
+					totPsm += counts.get(exps[j])[pt][1];
+				if (totPsm < minPsms) {
+					nInsuffPeaks += 1;
+					continue;
+				}
+			}
+
+			for(int j = 0; j < exps.length; j++) //count PSMs
 				out.printf("\t%d", counts.get(exps[j])[pt][1]);
-			for(int j = 0; j < exps.length; j++)
+			for(int j = 0; j < exps.length; j++) //count PSMs/million
 				out.printf("\t%.2f", (1000000.0*counts.get(exps[j])[pt][1])/dsSize.get(exps[j]));
-			for(int j = 0; j < exps.length; j++)
+			for(int j = 0; j < exps.length; j++) //count peps
 				out.printf("\t%d\t%.2f", counts.get(exps[j])[pt][0],100*nzr(counts.get(exps[j])[pt][2],counts.get(exps[j])[pt][0]));
 			double weightedPeps = 0;
 			double totPep = 0;
@@ -127,9 +165,13 @@ public class PeakSummary {
 				totPep += counts.get(exps[j])[pt][0];
 			}
 			out.printf("\t%.2f", 100*(weightedPeps/totPep));
+			out.printf("\t%d", totPsm);
 			out.println();
 		}
 		out.close();
+
+		if (minPsms > 0)
+			System.out.printf("\tRemoved %d peaks with insufficient PSMs\n", nInsuffPeaks);
 	}
 	
 	public void reset() {

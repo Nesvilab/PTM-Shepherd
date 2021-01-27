@@ -15,15 +15,18 @@ public class GlycoProfile {
     public GlycoRecord [] records;
     public FastLocator locate;
     double [] masses;
+    double [][] peaks;
     double peakTol;
-    int precursorMassUnits;
+    int precursorUnits;
     String[] capYStrs, diagIonStrs, remFragStrs;
 
 
-    public GlycoProfile(double[] massRanges, int precMassUnits, double peakTol) {
-        masses = Arrays.copyOf(massRanges, massRanges.length);
+    public GlycoProfile(double[][] peakVals, int precursorUnits, double peakTol) {
+        masses = Arrays.copyOf(peakVals[0], peakVals[0].length);
+        peaks = peakVals;
         this.peakTol = peakTol;
-        locate = new FastLocator(masses, peakTol);
+        this.precursorUnits = precursorUnits;
+        locate = new FastLocator(peaks, peakTol, precursorUnits);
         records = new GlycoRecord[masses.length];
         for(int i = 0; i < masses.length; i++)
             records[i] = new GlycoRecord(masses[i], i);

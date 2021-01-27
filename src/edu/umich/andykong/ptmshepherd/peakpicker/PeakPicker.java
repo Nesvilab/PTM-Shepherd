@@ -1,6 +1,9 @@
 package edu.umich.andykong.ptmshepherd.peakpicker;
 
+//import com.sun.deploy.util.ArrayUtil;
+
 import java.io.*;
+import java.sql.Array;
 import java.util.*;
 
 public class PeakPicker {
@@ -18,7 +21,7 @@ public class PeakPicker {
 	public void writeTSV(File f) throws Exception {
 		try (PrintWriter out = new PrintWriter(new FileWriter(f))) {
 			for (double[] peak : peaks) {
-				for (int j = 0; j < 3; j++) {
+				for (int j = 0; j < 4; j++) {
 					if (j != 0)
 						out.print("\t");
 					out.printf("%.8f", peak[j]);
@@ -41,7 +44,7 @@ public class PeakPicker {
 
 		boolean offsetMode = false;
 		double[] mos = new double[0];
-		if(massOffsets.contains("/")){
+		if(massOffsets.contains("/")){ //todo make this an excplicit parameter
 			offsetMode = true;
 		}
 
@@ -63,12 +66,12 @@ public class PeakPicker {
 			}
 		}
 
-
 		//inner double pair class
 		class DPair implements Comparable<DPair> {
 			double key, value;
 			int pos;
 			double sum;
+			double snr;
 			public int compareTo(DPair arg0) {
 				return -1* Double.compare(key, arg0.key);
 			}
@@ -100,7 +103,7 @@ public class PeakPicker {
 				double ncpr = 0;
 				double mh = 0;
 				double isum = sum[i], osum = 0;
-				int icount = 1, ocount = 0; //inner sum/outer sumer
+				int icount = 1, ocount = 0; //inner sum/outer sum
 				p = i-1;
 				while(p >= 0 && Math.abs(offsets[p]-offsets[i]) <= peakBackground) {
 					mh = Math.max(mh,sum[p]);
@@ -133,49 +136,85 @@ public class PeakPicker {
 				if(cpr >= (ncpr-1e3) && sum[i] >= (mh-1e-3)) {
 					DPair dp = new DPair();
 					dp.pos = i;
-					dp.key = isum / icount - osum / ocount;
+					dp.key = (isum / icount - osum / ocount) * icount; //old mode excluded icount
 					dp.value = offsets[i];
 					dp.sum = isum;
+					dp.snr = dp.key;// * icount; multiple by icount for original algorithm
 					dps.add(dp);
 				}
 			}
 		}
-		Collections.sort(dps);
 
-		//filter out peaks that don't match offset
-//
-//		if (offsetMode) {
-//			//if a peak isnt within precursor_tol range of a mass offset, prep it to be removed
-//			ArrayList<Integer> removeIs = new ArrayList<>();
-//			for (int i = 0; i < dps.size(); i++) {
-//				boolean keepDp = false;
-//				for (double mo : mos) {
-//					if ((mo - precursorTol <= dps.get(i).value) && (dps.get(i).value <= mo + precursorTol)) {
-//						keepDp = true;
-//					}
-//				}
-//				if (!keepDp) {
-//					removeIs.add(i);
-//				}
-//			}
-//			//iterate backwards over removeIs list to remove indices that don't correspond to a mass offset
-//			for (int i = removeIs.size()-1; i >= 0; i--) {
-//				int iToRemove = removeIs.get(i);
-//				dps.remove(iToRemove);
-//			}
-//		}
+		//this will merge peaks that should not be split if operating in massoffset mode
+		if (offsetMode == true) {
+			ArrayList<Integer> popDPs = new ArrayList<>();
+			Arrays.sort(mos);
+			int[] nmos = new int[mos.length]; //holds the max number of peaks that should be present near an mo
+			int[] npeaks = new int[mos.length]; //holds the number of peaks that are present near an mo
+			//cleaning of peaks is not performed in this loop in case we need to remove peaks in crowded areas at a later point
+			for (int i = 0; i < mos.length; i++) {
+				double mo = mos[i];
+				if (peakUnits == 1) //ppm
+					peakWidth = calculatePeakTol(pepmass, pw, mo);
+				else
+					peakWidth = pw;
+				for (int j = 0; j < mos.length; j++) {
+					if (Math.abs(mo - mos[j]) <= peakWidth)
+						nmos[i]++;
+				}
+				for (DPair dp : dps) {
+					if (Math.abs(mo - dp.value) <= peakWidth)
+						npeaks[i]++;
+				}
+			}
+
+			//remove peaks
+			for (int i = 0; i < mos.length; i++) {
+				if (nmos[i] == 1) { //if only one mo in the region
+					if (npeaks[i] > 1) { //if more than one peak detected
+						double mo = mos[i];
+						double maxSig = 0.0;
+						double maxVal = -10000;
+						int maxIndex = -1;
+						if (peakUnits == 1) //ppm
+							peakWidth = calculatePeakTol(pepmass, pw, mo);
+						else
+							peakWidth = pw;
+						ArrayList<Integer> popDps = new ArrayList<>();
+						for (int j = 0; j < dps.size(); j++) {
+							if (Math.abs(mo - dps.get(j).value) <= peakWidth)
+								popDPs.add(j);
+						}
+						for (int j = 0; j < popDPs.size(); j++) {
+							if (dps.get(j).sum >= maxSig) {
+								maxVal = dps.get(j).value;
+								maxSig = dps.get(j).sum;
+								maxIndex = j;
+							}
+						}
+						popDPs.remove(maxIndex);
+						Collections.sort(popDPs);
+						for (int j = popDPs.size() - 1; i >= 0; i--) {
+							dps.remove(popDPs.get(j));
+						}
+					}
+				}
+			}
+		}
+
+		Collections.sort(dps);
 
 		nBins = Math.min(dps.size(),nBins);
 
-		peaks = new double[nBins][3];
+		peaks = new double[nBins][5];
 		for(int i = 0; i < nBins; i++) {
 			peaks[i][0] = dps.get(i).value;
 			peaks[i][1] = sum[dps.get(i).pos];
 			peaks[i][2] = prom[dps.get(i).pos];
+			peaks[i][3] = dps.get(i).snr;
 			//System.out.println(dps.get(i).sum);
 		}
 
 	}
-	
 
 }

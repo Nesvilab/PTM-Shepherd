@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.*;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
+import edu.umich.andykong.ptmshepherd.core.MSFMGFFile;
 import edu.umich.andykong.ptmshepherd.core.MZBINFile;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import umich.ms.datatypes.LCMSDataSubset;
@@ -67,7 +68,7 @@ public class MS2Counts {
 				}
 				scans.reset();
 				source.close();
-			} else if (ext.equals("d")) { //TODO
+			} else if (ext.equals("d")) {
 				String tempMzbFp = f.getAbsolutePath().replaceFirst(".d$", ".mzBIN");
 				File tempMzbF = new File(tempMzbFp);
 				if (tempMzbF.exists()) {
@@ -77,7 +78,7 @@ public class MS2Counts {
 					System.out.println("Cannot read .d files without associated .mzBIN");
 					System.exit(1);
 				}
-			} else if (ext.equals("mzBIN")) { //TODO
+			} else if (ext.equals("mzBIN")) {
 				try {
 					MZBINFile source = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f.getAbsolutePath(), true);
 					for (Spectrum spec : source.specs) {
@@ -85,6 +86,13 @@ public class MS2Counts {
 							count++;
 						}
 					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			} else if (ext.equals("mgf")) {
+				try {
+					MSFMGFFile source = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f.getAbsolutePath(), false);
+					count = source.maxScan;
 				} catch (Exception e) {
 					e.printStackTrace();
 				}

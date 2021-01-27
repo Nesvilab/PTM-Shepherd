@@ -12,13 +12,16 @@ public class SimRTProfile {
 	
 	public FastLocator locate;
 	double [] masses;
+	double [][] peaks;
 	double peakTol;
+	int precursorUnits;
 	
-	public SimRTProfile(double [] massRanges, double peakTol) {
-		masses = Arrays.copyOf(massRanges, massRanges.length);
+	public SimRTProfile(double [][] peakVals, double peakTol, int precursorUnits) {
+		masses = Arrays.copyOf(peakVals[0], peakVals[0].length);
+		peaks = peakVals;
 		this.peakTol = peakTol;
-		
-		locate = new FastLocator(masses, peakTol);
+		this.precursorUnits = precursorUnits;
+		locate = new FastLocator(peaks, peakTol, precursorUnits);
 		records = new SimRTRecord[masses.length];
 		for(int i = 0; i < masses.length; i++)
 			records[i] = new SimRTRecord(masses[i], i);

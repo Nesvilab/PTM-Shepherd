@@ -1,0 +1,53 @@
+dataset = 01 /path/to/psm.tsv /path/to/mzML/dir/
+
+threads = 0 // Number of threads allocated to PTMS, 0 uses all available
+
+histo_bindivs = 5000 // Number of bins/Da used in peakpicking
+histo_smoothbins = 2 // Smoothing factor for peakpicking, distributes weight to n adjacent bins on either side
+histo_normalizeTo = psms // Takes either "psms" or "scans". Normalizes dataset size to either number of PSMs or number of MS2 scans in dataset
+
+peakpicking_promRatio = 0.3 //Prominence ratio for peakpicking
+peakpicking_mass_units = 0 // 0 = da, 1 = ppm, used for finding peaks
+peakpicking_width = 0.002 // Width for peakpicking
+peakpicking_topN = 500 // Max num peaks to report
+peakpicking_minPsm = 10 // Min number of PSMs per peak
+
+precursor_mass_units = 0 // 0 = da, 1 = ppm
+precursor_tol = 0.01 // Defines peak width
+
+varmod_masses = // Additional mass shifts when annotating. Will be prioritized. ex: mass_shift_1:1234.456,mass_shift_2:456,789
+annotation_tol = 0.01 // Annotation tolerance (in daltons) for modification matching
+annotation_file =  // Takes "glyco", "unimod", "common", or a path to a custom annotation file. Defaults to unimod if empty.
+
+mass_offsets = // Limits peakpicking to these masses. ex: 0/-105.0248/-89.0299/-33.9877/-32.0085/-30.0106/-18.0106/-17.0265
+isotope_error = 0 // Adds isotopes to mass offsets, ex 0/1/2
+
+localization_background = 4 // Background value for localization enrichment (1 = bin-wise peptides, 2 = bin-wise PSMs, 3 = all peptide, 4 = all PSMs)
+localization_allowed_res = all // all = no restrictions, individual residues may be listed as ACDEF
+
+spectra_ppmtol = 20.0 //obvious, used in localization and simrt
+spectra_condPeaks = 100 //
+spectra_condRatio = 0.01
+spectra_maxfragcharge = 2 //todo
+
+// Defines which ion types are used for localization and spectral similarity
+iontype_a = 0
+iontype_b = 1
+iontype_c = 0
+iontype_x = 0
+iontype_y = 1
+iontype_z = 0
+
+compare_betweenRuns = false // Allows spectral similarity and retention time changes to be calculated based on PSMs from other raw files
+
+
+glyco_mode = false // Turns on glyco mode
+cap_y_ions = 0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279
+cap_y_ions_normalize = 0 //0 = off, 1 = base peak
+max_cap_y_charge = 0
+diag_ions = 204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761
+diag_ions_normalize = 1 //0 = off, 1 = base peak
+remainder_masses = 203.07937//,406.15874,568.21156,730.26438,892.3172,349.137279
+remainder_mass_allowed_res = all
+
+output_extended = false // Retains intermediate and spectrum-level files

@@ -5,6 +5,7 @@ import java.util.*;
 
 import edu.umich.andykong.ptmshepherd.*;
 import edu.umich.andykong.ptmshepherd.core.*;
+import org.apache.commons.math3.linear.SparseFieldMatrix;
 
 
 public class SiteLocalization {
@@ -28,6 +29,7 @@ public class SiteLocalization {
 		//with charge state
 		//return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
 		//without charge state
+		//System.out.println("Searching for " + String.format("%s.%d.%d",sp[0],sn,sn));
 		return String.format("%s.%d.%d",sp[0],sn,sn);
 	}
 	
@@ -124,7 +126,7 @@ public class SiteLocalization {
 		int [] frags = new int[seq.length()];
 		String specName = sp[specCol];
 		String [] smods = sp[modCol].split(",");
-		
+
 		sb.append(String.format("%s\t%s\t%s\t%.4f", specName,seq,sp[modCol],dmass));
 
 		//System.out.println(mr.specs.length);
@@ -133,7 +135,9 @@ public class SiteLocalization {
 		//}
 		Spectrum spec = mr.getSpectrum(reNormName(specName));
 		//System.out.println(mr.specs.length);
-		
+
+		boolean [] allowedPoses = parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
+
 		if(spec == null) {
 			sb.append("\tMISSINGSPECTRA");
 			linesWithoutSpectra.add(specName);
@@ -168,21 +172,22 @@ public class SiteLocalization {
 				pos = Integer.parseInt(spos.substring(0,spos.length()-1)) - 1;
 			mods[pos] += mass;
 		}
-		
-		
+
 		float baseScore = spec.getHyper(seq, mods, ppmTol);
-		int baseFrags = spec.getFrags(seq,mods, ppmTol);
+		int baseFrags = spec.getFrags(seq, mods, ppmTol);
 		float maxScore = baseScore;
 		int maxFrags = baseFrags;
 		for(int i = 0; i < seq.length(); i++) {
-			mods[i] += dmass;
+			if (allowedPoses[i] == true)
+				mods[i] += dmass;
 			scores[i] = spec.getHyper(seq, mods, ppmTol);
 			frags[i] = spec.getFrags(seq,mods, ppmTol);
 			if(frags[i] > maxFrags) 
 				maxFrags = frags[i];
 			if(scores[i] > maxScore)
 				maxScore = scores[i];
-			mods[i] -= dmass;
+			if (allowedPoses[i] == true)
+				mods[i] -= dmass;
 		}
 		
 		StringBuffer annoSeq = new StringBuffer();
@@ -221,5 +226,23 @@ public class SiteLocalization {
 			}
 		}
 		in.close();
+	}
+
+	boolean [] parseAllowedPositions(String seq, String allowedReses){
+		boolean [] allowedPoses = new boolean[seq.length()];
+		if (allowedReses.equals("all"))
+			Arrays.fill(allowedPoses, true);
+		else {
+			Arrays.fill(allowedPoses, false);
+			for (int i = 0; i < seq.length(); i++) {
+				for (int j = 0; j < allowedReses.length(); j++) {
+					if (seq.charAt(i) == allowedReses.charAt(j)) {
+						allowedPoses[i] = true;
+						break;
+					}
+				}
+			}
+		}
+		return allowedPoses;
 	}
 }

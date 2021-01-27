@@ -12,18 +12,22 @@ public class LocalizationProfile {
 	
 	public FastLocator locate;
 	double [] masses;
+	double [][] peaks; //apex, left, right
 	double peakTol;
+	int precursorUnits;
 
 	static final int [] AAcnts = {3637222,0,1163038,2477586,3690290,1854622,
 			  3426107,1356881,2222643,0,2959209,5141499,
 			  1134389,1840802,0,3301694,2489112,2946921,
 			  4383423,2856550,0,3117149,647263,0,1358211,0}; //this is unnecessary now but an easy check for letters that aren't real
 
-	public LocalizationProfile(double [] massRanges, double peakTol) {
-		masses = Arrays.copyOf(massRanges, massRanges.length);
+	public LocalizationProfile(double [][] peakVals, double peakTol, int precursorUnits) {
+		masses = Arrays.copyOf(peakVals[0], peakVals[0].length);
+		peaks = peakVals;
 		this.peakTol = peakTol;
+		this.precursorUnits = precursorUnits;
 
-		locate = new FastLocator(masses, peakTol);
+		locate = new FastLocator(peaks, peakTol, precursorUnits);
 		records = new LocalizationRecord[masses.length];
 
 		for(int i = 0; i < masses.length; i++)

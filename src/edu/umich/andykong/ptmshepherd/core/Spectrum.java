@@ -33,7 +33,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		}
 	}
 
-	//this constructor parses MZBin files
+	//this constructor parses MZBin files and MGF files
 	public Spectrum(String scanname, int scannum, int z, int mslevel, double precursormass, double rettime, float[] peakmz, float[] peakint) {
 		scanName = scanname;
 		scanNum = scannum;
@@ -51,7 +51,7 @@ public class Spectrum implements Comparable<Spectrum> {
 				fact[i] = (float)(fact[i-1] + Math.log(i));
 		}
 	}
-	
+
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(scanNum+" -");
@@ -330,6 +330,15 @@ public class Spectrum implements Comparable<Spectrum> {
 			}
 		}
 		return ionIntensity;
+	}
+
+	public double findBasePeakInt() {
+		double bpInt = 0;
+		for (int i = 0; i < peakInt.length; i++) {
+			if (peakInt[i] > bpInt)
+				bpInt = peakInt[i];
+		}
+		return bpInt;
 	}
 
 	public int compareTo(Spectrum o) {
