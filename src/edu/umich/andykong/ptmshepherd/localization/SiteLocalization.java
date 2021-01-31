@@ -228,9 +228,9 @@ public class SiteLocalization {
 		in.close();
 	}
 
-	boolean [] parseAllowedPositions(String seq, String allowedReses){
+	public boolean [] parseAllowedPositions(String seq, String allowedReses){
 		boolean [] allowedPoses = new boolean[seq.length()];
-		if (allowedReses.equals("all"))
+		if (allowedReses.equals("all") || allowedReses.equals(""))
 			Arrays.fill(allowedPoses, true);
 		else {
 			Arrays.fill(allowedPoses, false);

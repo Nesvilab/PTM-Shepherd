@@ -105,7 +105,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	public void condition(int topN, double ratio) {
 		ArrayList<Peak> peaks = new ArrayList<Peak>();
 		float mv = 0;
-		for(int i = 0 ;i < peakInt.length; i++) {  
+		for(int i = 0 ; i < peakInt.length; i++) {
 			peaks.add(new Peak(peakMZ[i],peakInt[i]));
 			if(peakInt[i] > mv)
 				mv = peakInt[i];
@@ -133,6 +133,43 @@ public class Spectrum implements Comparable<Spectrum> {
 		for(int i = 0; i < peaks.size(); i++) {
 			peakMZ[i] = peaks.get(i).MZ;
 			peakInt[i] = (100*peaks.get(i).Int) / mv;
+		}
+	}
+
+	public void conditionOptNorm(int topN, double ratio, boolean normalize) {
+		ArrayList<Peak> peaks = new ArrayList<Peak>();
+		float mv = 0;
+		for(int i = 0 ;i < peakInt.length; i++) {
+			peaks.add(new Peak(peakMZ[i],peakInt[i]));
+			if(peakInt[i] > mv)
+				mv = peakInt[i];
+		}
+
+		Collections.sort(peaks, new Comparator<Peak>() {
+			public int compare(Peak o1, Peak o2) {
+				return -1*Float.valueOf(o1.Int).compareTo(o2.Int);
+			}
+		});
+
+		while(peaks.size() > topN)
+			peaks.remove(peaks.size()-1);
+		while(peaks.size() > 0 && (peaks.get(peaks.size()-1).Int < peaks.get(0).Int*ratio))
+			peaks.remove(peaks.size()-1);
+
+		Collections.sort(peaks, new Comparator<Peak>() {
+			public int compare(Peak o1, Peak o2) {
+				return Float.valueOf(o1.MZ).compareTo(o2.MZ);
+			}
+		});
+
+		peakMZ = new float[peaks.size()];
+		peakInt = new float[peaks.size()];
+		for(int i = 0; i < peaks.size(); i++) {
+			peakMZ[i] = peaks.get(i).MZ;
+			if (normalize)
+				peakInt[i] = (100*peaks.get(i).Int) / mv;
+			else
+				peakInt[i] = peaks.get(i).Int;
 		}
 	}
 	

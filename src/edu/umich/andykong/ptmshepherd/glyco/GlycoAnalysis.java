@@ -4,6 +4,7 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTProfile;
 
 import java.io.*;
@@ -21,7 +22,7 @@ public class GlycoAnalysis {
     int specCol, pepCol, modpepCol, chargecol, deltaCol, rtCol, intCol, pmassCol, modCol;
     double condRatio;
     double[] capYShifts;// = new double[]{0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
-    double[]  oxoniumIons;//= new double[]{204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761};
+    double[] oxoniumIons;//= new double[]{204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761};
     double[] remainderMasses;// = new double[]{203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
 
     public GlycoAnalysis(String dsName) {
@@ -120,13 +121,14 @@ public class GlycoAnalysis {
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName,seq,sp[modCol],pepMass, dmass));
 
         Spectrum spec = mr.getSpectrum(reNormName(specName));
-        spec.condition(condPeaks, condRatio);
+        spec.conditionOptNorm(condPeaks, condRatio, true);
         //System.out.println("got spec");
         double [] capYIonIntensities;
         double [] oxoniumIonIntensities;
         capYIonIntensities = findCapitalYIonMasses(spec, pepMass);
         //for (int i = 0; i < capYIonIntensities.length; i++)
         //    System.out.println(capYIonIntensities[i]);
+        // System.out.println(seq+"********");
         oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
         //for (int i = 0; i < oxoniumIonIntensities.length; i++)
         //    System.out.println(oxoniumIonIntensities[i]);
@@ -154,9 +156,10 @@ public class GlycoAnalysis {
     }
 
     public double[] findCapitalYIonMasses(Spectrum spec, double pepMass) {
-        //initialize oxonium masses //todo
-        //initialize capYion masses /todo
         //implement charge states //todo
+
+        int normToBasePeak = Integer.parseInt(PTMShepherd.getParam("glyco_cap_y_ions_normalize"));
+        //System.out.println(normToBasePeak);
 
         //initialize final capYion masses
         double[] capYIons = new double[capYShifts.length];
@@ -164,9 +167,20 @@ public class GlycoAnalysis {
         for (int i = 0; i < capYIons.length; i++)
             capYIons[i] = capYShifts[i] + pepMass; //todo charge states
         //find capital Y ion intensities
-        for (int i = 0; i < capYIons.length; i++)
+        for (int i = 0; i < capYIons.length; i++) {
+            //System.out.println(capYIons[i]);
             capYIonIntensities[i] = spec.findIonNeutral(capYIons[i], Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"))); //todo simplify parameter calling
-
+            if (normToBasePeak == 1) {
+                //System.out.print(capYIonIntensities[i]);
+                //System.out.println(" 1");
+                //System.out.print(spec.findBasePeakInt());
+                //System.out.println(" 2");
+                capYIonIntensities[i] /= spec.findBasePeakInt();
+                capYIonIntensities[i] *= 100.0;
+                //System.out.print(capYIonIntensities[i]);
+                //System.out.println(" 3");
+            }
+        }
         return capYIonIntensities;
     }
 
@@ -175,18 +189,28 @@ public class GlycoAnalysis {
         //initialize capYion masses /todo
         //implement charge states //todo
         //initialize oxonium ion intensities
-        int normToBasePeak = Integer.parseInt(PTMShepherd.getParam("diag_ions_normalize"));
+        int normToBasePeak = Integer.parseInt(PTMShepherd.getParam("glyco_diag_ions_normalize"));
         double[] oxoniumIonIntensities = new double[oxoniumIons.length];
         //for ion in oxonium masses/capYions
         for (int i = 0; i < oxoniumIons.length; i++) {
             oxoniumIonIntensities[i] = spec.findIon(oxoniumIons[i], Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"))); //todo simplify parameter calling
-            if (normToBasePeak == 1)
+            if (normToBasePeak == 1) {
+                //System.out.print(oxoniumIonIntensities[i]);
+                //System.out.println(" 1");
+                //System.out.print(spec.findBasePeakInt());
+                //System.out.println(" 2");
                 oxoniumIonIntensities[i] /= spec.findBasePeakInt();
+                oxoniumIonIntensities[i] *= 100.0;
+                //System.out.print(oxoniumIonIntensities[i]);
+                //System.out.println(" 3");
+            }
         }
         return oxoniumIonIntensities;
     }
 
     public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, String[] smods, float[] deltaScores) {
+        //initialize allowed positions
+        boolean [] allowedPoses = parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
         //initialize remainder delta scores
         //double[] remainderDscores = new double[remainderMasses.length];
         //add variable and fixed mods to frag masses for peptide
@@ -234,15 +258,17 @@ public class GlycoAnalysis {
             maxFrags[i] = baseFrags;
             //localize at each position
             for(int j = 0; j < seq.length(); j++) {
-                mods[j] += dmass;
+                if (allowedPoses[j] == true)
+                    mods[j] += dmass;
                 scores[j] = spec.getHyper(seq, mods, ppmTol);
                 //System.out.println(scores[j] + "score");
-                frags[j] = spec.getFrags(seq,mods, ppmTol);
+                frags[j] = spec.getFrags(seq, mods, ppmTol);
                 if(frags[j] > maxFrags[i])
                     maxFrags[i] = frags[j];
                 if(scores[j] > maxScores[i])
                     maxScores[i] = scores[j];
-                mods[j] -= dmass;
+                if (allowedPoses[j] == true)
+                    mods[j] -= dmass;
             }
             //System.out.println(maxScores[i]+"maxscore");
             //determine if localized and record max positions
@@ -262,6 +288,24 @@ public class GlycoAnalysis {
             }
         }
         return isMaxScores;
+    }
+
+    private boolean[] parseAllowedPositions(String seq, String allowedReses) {
+        boolean [] allowedPoses = new boolean[seq.length()];
+        if (allowedReses.equals("all") || allowedReses.equals(""))
+            Arrays.fill(allowedPoses, true);
+        else {
+            Arrays.fill(allowedPoses, false);
+            for (int i = 0; i < seq.length(); i++) {
+                for (int j = 0; j < allowedReses.length(); j++) {
+                    if (seq.charAt(i) == allowedReses.charAt(j)) {
+                        allowedPoses[i] = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return allowedPoses;
     }
 
     public String reNormName(String s) {

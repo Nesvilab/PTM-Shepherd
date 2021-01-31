@@ -143,12 +143,12 @@ public class PTMShepherd {
 
 		params.put("glyco_mode", "false");
 		params.put("cap_y_ions", "0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279");
-		params.put("cap_y_ions_normalize", "0"); //0 = off, 1 = base peak
+		params.put("glyco_cap_y_ions_normalize", "0"); //0 = off, 1 = base peak
 		params.put("max_cap_y_charge", "0");
 		params.put("diag_ions", "204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761");
-		params.put("diag_ions_normalize", "1"); //0 = off, 1 = base peak
+		params.put("glyco_diag_ions_normalize", "1"); //0 = off, 1 = base peak
 		params.put("remainder_masses", "203.07937");//,406.15874,568.21156,730.26438,892.3172,349.137279");
-		params.put("remainder_mass_allowed_res", "all");
+		params.put("remainder_mass_allowed_res", "all"); //unused
 
 		params.put("iontype_a", "0");
 		params.put("iontype_b", "1");
@@ -158,6 +158,7 @@ public class PTMShepherd {
 		params.put("iontype_z", "0");
 
 		params.put("output_extended", "false");
+		params.put("run_fosrom_old", "false");
 		//params.put("output_extended", "true");
 		
 		//load parameters

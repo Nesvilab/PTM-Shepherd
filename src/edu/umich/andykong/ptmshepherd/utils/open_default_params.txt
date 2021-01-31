@@ -23,12 +23,12 @@ mass_offsets = // Limits peakpicking to these masses. ex: 0/-105.0248/-89.0299/-
 isotope_error = 0 // Adds isotopes to mass offsets, ex 0/1/2
 
 localization_background = 4 // Background value for localization enrichment (1 = bin-wise peptides, 2 = bin-wise PSMs, 3 = all peptide, 4 = all PSMs)
-localization_allowed_res = all // all = no restrictions, individual residues may be listed as ACDEF
+localization_allowed_res =  // all = no restrictions, individual residues may be listed as ACDEF
 
-spectra_ppmtol = 20.0 //obvious, used in localization and simrt
-spectra_condPeaks = 100 //
-spectra_condRatio = 0.01
-spectra_maxfragcharge = 2 //todo
+spectra_ppmtol = 20.0 // Used in localization and simrt calculations
+spectra_condPeaks = 100 // Max peaks in spectra
+spectra_condRatio = 0.01 // Minimum allowed intensity, proportion of base peak
+spectra_maxfragcharge = 2 // Max fragment charge for localization
 
 // Defines which ion types are used for localization and spectral similarity
 iontype_a = 0
@@ -38,16 +38,16 @@ iontype_x = 0
 iontype_y = 1
 iontype_z = 0
 
-compare_betweenRuns = false // Allows spectral similarity and retention time changes to be calculated based on PSMs from other raw files
+compare_betweenRuns = false // Allows spectral similarity and retention time changes to be calculated based on PSMs from other spectral files
 
 
 glyco_mode = false // Turns on glyco mode
-cap_y_ions = 0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279
-cap_y_ions_normalize = 0 //0 = off, 1 = base peak
-max_cap_y_charge = 0
-diag_ions = 204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761
+cap_y_ions = 0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279 // Neutral losses from precursors
+glyco_cap_y_ions_normalize = 0 //0 = off, 1 = base peak
+max_cap_y_charge = 0 // Unimplemented
+diag_ions = 204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761 // Diagnostic ions searched for in spectra, mass must be in charge state of 1
 diag_ions_normalize = 1 //0 = off, 1 = base peak
-remainder_masses = 203.07937//,406.15874,568.21156,730.26438,892.3172,349.137279
-remainder_mass_allowed_res = all
+remainder_masses = 203.07937 // Masses to be localized to peptides. Comma-separated list
+remainder_mass_allowed_res = all // Unimplemented
 
 output_extended = false // Retains intermediate and spectrum-level files
