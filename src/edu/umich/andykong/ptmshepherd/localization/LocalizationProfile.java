@@ -22,7 +22,9 @@ public class LocalizationProfile {
 			  4383423,2856550,0,3117149,647263,0,1358211,0}; //this is unnecessary now but an easy check for letters that aren't real
 
 	public LocalizationProfile(double [][] peakVals, double peakTol, int precursorUnits) {
-		masses = Arrays.copyOf(peakVals[0], peakVals[0].length);
+		this.masses = new double[peakVals[0].length];
+		for (int i = 0; i < peakVals[0].length; i++)
+			this.masses[i] = peakVals[0][i];
 		peaks = peakVals;
 		this.peakTol = peakTol;
 		this.precursorUnits = precursorUnits;

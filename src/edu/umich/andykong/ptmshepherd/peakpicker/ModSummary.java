@@ -48,7 +48,6 @@ public class ModSummary {
                     mods.add(mod);
                     for(int k = 0; k < PeakAnnotator.mods.size(); k++){
                         if(PeakAnnotator.mods.get(k).equals(mod)){
-                            //System.out.println(PeakAnnotator.mods.get(k));
                             modsMap.put(mod, PeakAnnotator.mod_diffs.get(k));
                         }
                     }

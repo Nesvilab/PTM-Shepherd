@@ -20,7 +20,11 @@ public class FastLocator {
 	double precursorUnits;
 	
 	public FastLocator(double [][] peakVals, double peakTol, int precursorUnits) { //todo make this work with PPM tol
-		this.masses = peakVals[0];
+		this.masses = new double[peakVals[0].length];
+		for (int i = 0; i < peakVals[0].length; i++) {
+			this.masses[i] = peakVals[0][i];
+			//System.out.println(this.masses[i]);
+		}
 		this.peaks = peakVals;
 		this.peakTol = peakTol;
 		this.precursorUnits = precursorUnits;

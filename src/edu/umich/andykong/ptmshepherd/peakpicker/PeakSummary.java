@@ -105,10 +105,11 @@ public class PeakSummary {
 		in.close();
 
 		double [][] res = new double[3][vals.size()];
-		for(int i = 0; i < res.length; i++) {
-			for (int j = 0; j < 3; j++)
-				res[j][i] = Double.parseDouble(vals.get(i)[j]);
+		for(int i = 0; i < 3; i++) {
+			for (int j = 0; j < res[0].length; j++)
+				res[i][j] = Double.parseDouble(vals.get(j)[i]);
 		}
+
 		return res;
 	}
 
@@ -140,8 +141,6 @@ public class PeakSummary {
 			for(int j = 0; j < features.size() && pt == -1; j++)
 				if(features.get(j).order == i)
 					pt = j;
-			out.printf("%.5f\t%.5f\t%.5f\t%.2f", features.get(pt).peakCenter,features.get(pt).peakLower,features.get(pt).peakUpper, features.get(pt).snr);
-
 			//purge peaks with too low PSM count
 			if (minPsms > 0) {
 				for(int j = 0; j < exps.length; j++) //count PSMs
@@ -151,7 +150,7 @@ public class PeakSummary {
 					continue;
 				}
 			}
-
+			out.printf("%.5f\t%.5f\t%.5f\t%.2f", features.get(pt).peakCenter,features.get(pt).peakLower,features.get(pt).peakUpper, features.get(pt).snr);
 			for(int j = 0; j < exps.length; j++) //count PSMs
 				out.printf("\t%d", counts.get(exps[j])[pt][1]);
 			for(int j = 0; j < exps.length; j++) //count PSMs/million

@@ -17,8 +17,14 @@ public class SimRTProfile {
 	int precursorUnits;
 	
 	public SimRTProfile(double [][] peakVals, double peakTol, int precursorUnits) {
-		masses = Arrays.copyOf(peakVals[0], peakVals[0].length);
+		this.masses = new double[peakVals[0].length];
+		for (int i = 0; i < peakVals[0].length; i++) {
+			this.masses[i] = peakVals[0][i];
+			//System.out.println(this.masses[i]);
+		}
+
 		peaks = peakVals;
+
 		this.peakTol = peakTol;
 		this.precursorUnits = precursorUnits;
 		locate = new FastLocator(peaks, peakTol, precursorUnits);
