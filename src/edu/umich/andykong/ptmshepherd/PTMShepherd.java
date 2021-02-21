@@ -11,6 +11,7 @@ import java.util.concurrent.*;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
+import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.*;
@@ -44,7 +45,7 @@ public class PTMShepherd {
 	public static synchronized void print(String s) {
 		System.out.println(s);
 	}
-	
+
 	public static void parseParamFile(String fn) throws Exception {
 		Path path = null;
 		//String fn2 = fn.replaceAll("\"", "");
@@ -183,6 +184,9 @@ public class PTMShepherd {
 			die("no datasets specified!");
 		if(datasets.containsKey("combined"))
 			die("combined is a reserved keyword and cannot be a dataset name!");
+
+		if (params.get("threads").equals("0"))
+			params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
 
 		executorService = Executors.newFixedThreadPool(Integer.parseInt(params.get("threads")));
 	}
@@ -451,7 +455,6 @@ public class PTMShepherd {
 
 		//Localization summaries
 		double [][] peakBounds = PeakSummary.readPeakBounds(peaksummary);
-		double [] peakCenters = PeakSummary.readPeakCenters(peaksummary);
 		LocalizationProfile loc_global = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 		for(String ds : datasets.keySet()) {
 			System.out.println();
@@ -494,20 +497,37 @@ public class PTMShepherd {
 		print("Created similarity/RT reports\n");
 
 		//Diagnostic mining
-		boolean diagMineMode = Boolean.parseBoolean(params.get("mine_diag_ions"));
+		//boolean diagMineMode = Boolean.parseBoolean(params.get("mine_diag_ions"));
+		boolean diagMineMode = false;
 		if (diagMineMode) {
-			double peakBoundaries[][] = PeakSummary.readPeakBounds(peaksummary);
 			System.out.println("Beginning mining diagnostic ions");
-			DiagnosticAnalysis da = new DiagnosticAnalysis("global");
-			da.initializeBinBoundaries(peakBoundaries);
+			long t1 = System.currentTimeMillis();
+			double peakBoundaries[][] = PeakSummary.readPeakBounds(peaksummary);
 			for (String ds : datasets.keySet()) {
+				System.out.println("\tPreprocessing dataset " + ds);
+				DiagnosticAnalysis da = new DiagnosticAnalysis(ds);
+				if (da.isComplete()) {
+					System.out.println("\tFound existing data for dataset " + ds);
+					continue;
+				}
+				da.initializeBinBoundaries(peakBoundaries);
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					da.diagIonsPSMs(pf, mzMap.get(ds));
+					da.diagIonsPSMs(pf, mzMap.get(ds), executorService, Integer.parseInt(params.get("threads"))); //todo this is where multithreading should be done
 				}
-
+				da.complete();
+				long t2 = System.currentTimeMillis();
+				System.out.printf("\tFinished preprocessing dataset %s - %d ms total\n", ds, t2-t1);
 			}
+			float mineNoise = 0.01f; //todo cast to param
+			System.out.println("\tBuilding ion histograms");
+			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(mineNoise, peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
+					Integer.parseInt(params.get("precursor_mass_units")), "by"); //make ion types parameter
+			for (String ds : datasets.keySet())
+				dpp.addFileToIndex(ds);
+			dpp.process();
+			System.out.println("Done mining diagnostic ions");
 		}
 
 		//Combine tables
@@ -531,9 +551,7 @@ public class PTMShepherd {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					ga.glycoPSMs(pf, mzMap.get(ds));
 				}
-				//System.exit(1); //DEBUGGING2 MISSING AT THIS POINT
 				ga.complete();
-				//System.exit(1);
 			}
 			print("Done\n");
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
@@ -545,7 +563,36 @@ public class PTMShepherd {
 				glyProCurr.writeProfile(ds + ".glycoprofile.txt");
 			}
 			glyProGLobal.writeProfile("global.glycoprofile.txt");
+			for (String ds : datasets.keySet()) {
+				GlycoAnalysis ga = new GlycoAnalysis(ds);
+				if (ga.isComplete())
+					continue;
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					ga.glycoPSMs(pf, mzMap.get(ds));
+				}
+				ga.complete();
+			}
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					pf.mergeGlycoTable(new File(ds+".rawglyco"));
+				}
+			}
 			print("Created glyco reports\n");
+		}
+
+		/* Make psm table IonQuant compatible */
+		if (Boolean.parseBoolean(params.get("prep_for_ionquant"))) {
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					pf.preparePsmTableForIonQuant(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+				}
+			}
 		}
 
 		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
@@ -604,7 +651,7 @@ public class PTMShepherd {
 		}
 	}
 
-	//peakpicker/glyco_mods_20210127.txt
+	/** This method extracts compiled resources from the jar */
 	private static void extractFile(String jarFilePath, String fout) throws Exception {
 		BufferedReader in;
 		PrintWriter out;

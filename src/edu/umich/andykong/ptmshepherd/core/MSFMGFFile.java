@@ -145,55 +145,7 @@ public class MSFMGFFile {
 
             futureList.add(executorService.submit(() -> processMSFMGFSpectraBlock(fileLines, ilinestart, ilineend)));
         }
-//
-//                ArrayList<String>
-//                try {
-//                    ArrayList<String> tSpecBlock = Arrays.copyOf(specBlock);
-//                    ArrayList<Spectrum> specs = loadMSFMGFSpectra(specBlock, BLOCKSIZE);
-//                    addSpecs(specs);
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                    System.exit(1);
-//                }
-        //    }));
-        //}
 
-        //System.out.println("Time: " + Long.toString(t1 - System.currentTimeMillis()));
-        //System.exit(1);
-
-
-        //loop through file with single thread to minimize hopping around file
-//        while ((cline = br.readLine()) != null) {
-//            specBlock.add(cline);
-//            if (cline.equals("END IONS")) {
-//                nScans++;
-//                if (nScans >= BLOCKSIZE) {
-//                    System.out.println(specBlock); //exists here
-//                    futureList.add(executorService.submit(() -> {
-//                        try {
-//                            ArrayList<String> tSpecBlock = Arrays.copyOf(specBlock);
-//                            ArrayList<Spectrum> specs = loadMSFMGFSpectra(specBlock, BLOCKSIZE);
-//                            addSpecs(specs);
-//                        } catch (Exception e) {
-//                            e.printStackTrace();
-//                            System.exit(1);
-//                        }
-//                    }));
-//                    //specBlock.clear();
-//                    nScans = 0;
-//                }
-//            }
-//        }
-//        //submit remainder to executor... I should probably make a separate function for this... //todo
-//        futureList.add(executorService.submit(() -> {
-//            try {
-//                ArrayList<Spectrum> specs = loadMSFMGFSpectra(specBlock, BLOCKSIZE);
-//                addSpecs(specs);
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//                System.exit(1);
-//            }
-//        }));
         System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
         for (Future future : futureList) { //checks to make sure all threads are done
             future.get();

@@ -1,5 +1,11 @@
 package edu.umich.andykong.ptmshepherd;
+import edu.umich.andykong.ptmshepherd.core.FastLocator;
+
 import java.io.*;
+import java.lang.reflect.Array;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.zip.CRC32;
 
@@ -8,8 +14,9 @@ public class PSMFile {
 	String [] headers;
 	public ArrayList<String> data;
 	public ArrayList<String> mappedRuns;
-	public static int dMassCol;
+	public int dMassCol, precursorCol;
 	public String prefType;
+	public File fname;
 	
 	public PSMFile(String fn) throws Exception {
 		this(new File(fn));
@@ -75,7 +82,16 @@ public class PSMFile {
 		}
 		return res;
 	}
-	
+
+	public int getPrecursorCol() {
+		int col = getColumn("Calibrated Observed Mass");
+		if (col == -1)
+			col = getColumn("Observed Mass");
+		return col;
+	}
+
+
+
 	public static void getMappings(File path, HashMap<String,File> mappings) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
 			datTypes.put("mgf", 0);
@@ -94,6 +110,8 @@ public class PSMFile {
 			String [] ns = splitName(path.getName());
 			if (ns[0].contains("_calibrated"))
 				ns[0] = ns[0].substring(0, ns[0].indexOf("_calibrated"));
+			else if (ns[0].contains("_uncalibrated"))
+				ns[0] = ns[0].substring(0, ns[0].indexOf("_uncalibrated"));
 			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN") || ns[1].equals("mgf"))) {
 				if (mappings.get(ns[0]) == null)
 					mappings.put(ns[0], path);
@@ -121,24 +139,90 @@ public class PSMFile {
 		return cnts;
 	}
 
+	/* Merges the rawglyco table onto the existing psm.tsv */
+	public void mergeGlycoTable(File glyf) throws Exception {
+		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
+		String tempFoutName = this.fname + ".glyco.tmp";
+		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+		String[] glyHeaders = in.readLine().split("\t");
+
+		/* Get glyco data */
+		HashMap<String, String[]> glyLines = new HashMap<>();
+		String cgline;
+		int gSpecCol = 0; //should be dynamically calculated
+		while ((cgline = in.readLine()) != null) {
+			String[] sp = cgline.split("\t", -1);
+			glyLines.put(sp[gSpecCol], sp);
+		}
+		in.close();
+
+		/* Merge headers */
+		int mergeFromCol = 5; // todo this should be dynamically calculated
+		ArrayList<String> newHeaders = new ArrayList<>();
+		for (int i = 0; i < this.headers.length; i++)
+			newHeaders.add(this.headers[i]);
+		for (int i = mergeFromCol; i < glyHeaders.length; i++)
+			newHeaders.add(glyHeaders[i]);
+		out.println(String.join("\t", newHeaders));
+
+		/* Match glycolines on PSM spectrum keys */
+		int pSpecCol = getColumn("Spectrum");
+		for (String cpline : this.data) {
+			ArrayList<String> newLine = new ArrayList<>(Arrays.asList(cpline.split("\t")));
+			String pSpec = newLine.get(pSpecCol);
+			ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
+			newLine.addAll(glyLine.subList(mergeFromCol, glyLine.size()));
+			out.println(String.join("\t", newLine));
+		}
+		out.close();
+
+		/* Move old file onto new file */
+		Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	/* Add new column to PSM table in place to make it IonQuant compatible */
+	public void preparePsmTableForIonQuant(double[][] peakBounds, int precUnits, double precTol) throws Exception {
+		FastLocator locator = new FastLocator(peakBounds, precTol, precUnits);
+		String tempFoutName = this.fname + ".iq.tmp";
+		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+
+		/* Write the new header */
+		out.println(String.join("\t", this.headers) + "\tTheoretical Modification Mass");
+
+		/* For each line in the file, find the peak apex from the delta mass*/
+		for (int i = 0; i < this.data.size(); i++) {
+			String[] sp = this.data.get(i).split("\t");
+			double dmass = Double.parseDouble(sp[this.dMassCol]);
+			double theoreticalDmass;
+			if (locator.getIndex(dmass) == -1)
+				theoreticalDmass = dmass;
+			else
+				theoreticalDmass = peakBounds[0][locator.getIndex(dmass)];
+			out.println(this.data.get(i) + "\t" + String.format("%.4f", theoreticalDmass));
+		}
+
+		out.close();
+	}
+
 	public PSMFile(File f) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
-		headers = in.readLine().split("\t");
+		this.fname = f;
+		this.headers = in.readLine().split("\t");
 		//find delta mass column for different philosopher versions
 		int col = getColumn("Delta Mass");
-		if (col == -1) {
+		if (col == -1)
 			col = getColumn("Adjusted Delta Mass");
-		}
-		if (col == -1) {
+		if (col == -1)
 			col = getColumn("Original Delta Mass");
-		}
 		this.dMassCol = col;
-		data = new ArrayList<>();
+		this.data = new ArrayList<>();
 		String cline;
 		while((cline = in.readLine()) != null) {
-			if(cline.trim().length() > 0)
-				data.add(cline);
+			//if(cline.trim().length() > 0)
+			if (cline.length() > 0)
+				this.data.add(cline);
 		}
 		in.close();
 	}
+
 }

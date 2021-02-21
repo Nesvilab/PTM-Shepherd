@@ -127,7 +127,7 @@ public class SiteLocalization {
 		String specName = sp[specCol];
 		String [] smods = sp[modCol].split(",");
 
-		sb.append(String.format("%s\t%s\t%s\t%.4f", specName,seq,sp[modCol],dmass));
+		sb.append(String.format("%s\t%s\t%s\t%.4f", specName, seq, sp[modCol], dmass));
 
 		//System.out.println(mr.specs.length);
 		//for(int k = 0; k < mr.specs.length; k++) {

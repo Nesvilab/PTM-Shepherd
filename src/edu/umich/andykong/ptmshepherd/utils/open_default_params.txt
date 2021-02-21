@@ -42,12 +42,13 @@ compare_betweenRuns = false // Allows spectral similarity and retention time cha
 
 
 glyco_mode = false // Turns on glyco mode
-cap_y_ions = 0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279 // Neutral losses from precursors
-glyco_cap_y_ions_normalize = 0 //0 = off, 1 = base peak
-max_cap_y_charge = 0 // Unimplemented
+cap_y_ions = 0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279 // Peptide mass shift after neutral loss from precursors
+glyco_cap_y_ions_normalize = 1 //0 = off, 1 = base peak
+max_cap_y_charge = 0 // Placeholder
 diag_ions = 204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761 // Diagnostic ions searched for in spectra, mass must be in charge state of 1
 diag_ions_normalize = 1 //0 = off, 1 = base peak
 remainder_masses = 203.07937 // Masses to be localized to peptides. Comma-separated list
-remainder_mass_allowed_res = all // Unimplemented
+remainder_mass_allowed_res = all // Placeholder
 
 output_extended = false // Retains intermediate and spectrum-level files
+prep_for_ionquant = false // Prepares the PSM table for IonQuant processing

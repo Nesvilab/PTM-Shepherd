@@ -55,6 +55,8 @@ public class MXMLReader {
 
 		if (fn.endsWith("_calibrated.mgf")) {
 			mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+		}else if (fn.endsWith("_uncalibrated.mgf")) {
+			mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
 		} else if (fn.endsWith(".mzxml")) {
 			source = new MZXMLFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".mzml")) {

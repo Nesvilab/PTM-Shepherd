@@ -2,10 +2,8 @@ package edu.umich.andykong.ptmshepherd.core;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
+import java.lang.reflect.Array;
+import java.util.*;
 
 public class Spectrum implements Comparable<Spectrum> {
 
@@ -212,8 +210,6 @@ public class Spectrum implements Comparable<Spectrum> {
 				for (int i = 0; i < cLen - 1; i++) {
 					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
 					tol = cmass * (ppmTol / 1000000.0);
-					//System.out.println(Double.toString(cmass) + i);
-					//System.out.println(ccharge);
 					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
 						fP++;
 					if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
@@ -236,8 +232,6 @@ public class Spectrum implements Comparable<Spectrum> {
 				fP = 0;
 				for (int i = 0; i < cLen - 1; i++) {
 					cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
-					//System.out.println(Double.toString(cmass) + i);
-					//System.out.println(ccharge);
 					tol = cmass * (ppmTol / 1000000.0);
 					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
 						fP++;
@@ -377,6 +371,109 @@ public class Spectrum implements Comparable<Spectrum> {
 		}
 		return bpInt;
 	}
+
+	public float[][] calcImmoniumIons(int min, int max) { //todo I don't think these mins and maxes are very well informed
+		ArrayList<Peak> ps = new ArrayList<>();
+		for (int i = 0; i < peakMZ.length; i++) {
+			if (peakMZ[i] > max)
+				break;
+			if (peakMZ[i] > min)
+				ps.add(new Peak(peakMZ[i], peakInt[i]));
+		}
+		float[][] peaks =  new float[ps.size()][2];
+		for (int i = 0; i < ps.size(); i++) {
+			peaks[i][0] = ps.get(i).MZ;
+			peaks[i][1] = ps.get(i).Int;
+		}
+		return peaks;
+	}
+
+	public float[][] calcCapYIons(float precursorMass) { //todo I think this should have better mins and maxes, include tolerance
+		ArrayList<Peak> ps = new ArrayList<>();
+		float shift;
+		for (int i = 0; i < peakMZ.length; i++) {
+			shift = precursorMass - peakMZ[i];
+			ps.add(new Peak(shift, peakInt[i]));
+		}
+		float[][] peaks =  new float[ps.size()][2];
+		for (int i = 0; i < ps.size(); i++) {
+			peaks[i][0] = ps.get(i).MZ;
+			peaks[i][1] = ps.get(i).Int;
+		}
+		return peaks;
+	}
+
+	public HashMap<Character, float[][]> calcSquigglePeaks(float precursorMass, float ppmTol, String seq, float[] mods, String ionTypes, int maxCharge) { //todo max charge? //todo min max boundaries?
+		HashMap<Character, float[][]> squigglePeaks = new HashMap<>();
+
+		ArrayList<Character> nIonTypes = new ArrayList<>();
+		ArrayList<Character> cIonTypes = new ArrayList<>();
+
+		for (int i = 0; i < ionTypes.length(); i++) {
+			char curIonType = ionTypes.charAt(i);
+			if (curIonType == 'a' || curIonType == 'b' || curIonType == 'c')
+				nIonTypes.add(curIonType);
+			else if (curIonType == 'x' || curIonType == 'y' || curIonType == 'z')
+				cIonTypes.add(curIonType);
+		}
+
+		ArrayList<Peak> ps = new ArrayList<>();
+
+		//float iB = 0.0f, iY = 0.0f;
+		//int nB = 0, nY = 0;
+		//int maxCharge = (charge==2)?1:2;
+		float [] aaMasses = AAMasses.monoisotopic_masses;
+		float [] fragTypeShifts = AAMasses.ionTypeShifts;
+        //float[][] tempPeaks;
+		int cLen = seq.length();
+
+		float nTermMass;
+
+		for (Character iType : nIonTypes) {
+		    ps = new ArrayList<>();
+		    System.out.println(iType);
+		    System.out.println(seq);
+			nTermMass = fragTypeShifts[iType - 'a'];
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
+			    float cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
+				for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
+					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
+					System.out.println(cmass);
+					for (int j = 0; j < peakMZ.length; j++) { //loop through peaks in spectrum
+						System.out.printf("%.4f\t%.4f\t%.4f\n", cmass, peakMZ[j], peakMZ[j] - cmass);
+						ps.add(new Peak(peakMZ[j] - cmass, peakInt[j]));
+					}
+                }
+			}
+			squigglePeaks.put(iType, peaksToArray(ps));
+		}
+
+		float cTermMass;
+		for (Character iType : cIonTypes) {
+            ps = new ArrayList<>();
+			cTermMass = fragTypeShifts[iType - 'x' + 3];
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+                float cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+                for (int i = 0; i < cLen - 1; i++) {
+                    cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+                    for (int j = 0; j < peakMZ.length; j++) //loop through peaks in spectrum
+                        ps.add(new Peak(peakMZ[j] - cmass, peakInt[j]));
+                }
+            }
+            squigglePeaks.put(iType, peaksToArray(ps));
+		}
+		return squigglePeaks;
+	}
+
+	float[][] peaksToArray (ArrayList<Peak> peaks) {
+	    float[][] peakArr = new float[peaks.size()][2];
+	    for (int i = 0; i < peaks.size(); i ++) {
+            peakArr[i][0] = peaks.get(i).MZ;
+            peakArr[i][1] = peaks.get(i).Int;
+
+        }
+	    return  peakArr;
+    }
 
 	public int compareTo(Spectrum o) {
 		return scanNum - o.scanNum;

@@ -15,6 +15,7 @@ public class PeakSummary {
 	TreeMap<String,int [][]> counts;
 	TreeMap<String,Integer> dsSize;
 	int minPsms;
+	boolean prepForIonQuant;
 	
 	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets, int psmFilter) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(peakTSV));
@@ -23,7 +24,7 @@ public class PeakSummary {
 		dsSize = new TreeMap<>();
 		boolean offsetMode = massOffsets.contains("/");
 		double precursorTol = pt;
-		minPsms = psmFilter;
+		this.minPsms = psmFilter;
 
 		String cline;
 		int cnt = 0;
@@ -36,11 +37,12 @@ public class PeakSummary {
 		if (!features.isEmpty()) {
 			topFeature = features.get(0);
 		} else {
-			log.warn("Empty 'features' encountered");
+			log.warn("Empty peak features encountered, error in peakpicking. Exiting program.");
+			System.exit(1);
 		}
 		
 		Collections.sort(features);
-		for(int i = 0; i < features.size(); i++) {
+		for (int i = 0; i < features.size(); i++) {
 			double left = -1e10;
 			double right = 1e10;
 			if(i != 0)
@@ -134,7 +136,7 @@ public class PeakSummary {
 		out.print("\t"+"Total % in unmodified");
 		out.print("\t"+"Total PSMs");
 		out.println();
-		
+
 		for(int i = 0; i < features.size(); i++) {
 			int totPsm = 0;
 			int pt = -1;
@@ -142,14 +144,13 @@ public class PeakSummary {
 				if(features.get(j).order == i)
 					pt = j;
 			//purge peaks with too low PSM count
-			if (minPsms > 0) {
-				for(int j = 0; j < exps.length; j++) //count PSMs
-					totPsm += counts.get(exps[j])[pt][1];
-				if (totPsm < minPsms) {
-					nInsuffPeaks += 1;
-					continue;
-				}
+			for(int j = 0; j < exps.length; j++) //count PSMs
+				totPsm += counts.get(exps[j])[pt][1];
+			if (totPsm < minPsms) {
+				nInsuffPeaks += 1;
+				continue;
 			}
+			/** Get and print counts to file */
 			out.printf("%.5f\t%.5f\t%.5f\t%.2f", features.get(pt).peakCenter,features.get(pt).peakLower,features.get(pt).peakUpper, features.get(pt).snr);
 			for(int j = 0; j < exps.length; j++) //count PSMs
 				out.printf("\t%d", counts.get(exps[j])[pt][1]);
@@ -225,5 +226,5 @@ public class PeakSummary {
 		}
 //		System.out.println(pf + " " + (System.currentTimeMillis()-stime));
 	}
-	
+
 }

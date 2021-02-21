@@ -95,16 +95,20 @@ public class GlycoAnalysis {
             mappings.get(bn).add(i);
         }
 
+        /* Loop through spectral files -> indexed lines in PSM -> process each line */
         for (String cf : mappings.keySet()) { //for file in relevant spectral files
             long t1 = System.currentTimeMillis();
             //System.out.println(cf);
             mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
             mr.readFully();
+            long t2 = System.currentTimeMillis();
             ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
             for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
                 StringBuffer newline = processLine(pf.data.get(clines.get(i)));
                 out.println(newline.toString());
             }
+            long t3 = System.currentTimeMillis();
+            PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
         }
         out.close();
     }
@@ -121,7 +125,7 @@ public class GlycoAnalysis {
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName,seq,sp[modCol],pepMass, dmass));
 
         Spectrum spec = mr.getSpectrum(reNormName(specName));
-        spec.conditionOptNorm(condPeaks, condRatio, true);
+        spec.conditionOptNorm(condPeaks, condRatio, false);
         //System.out.println("got spec");
         double [] capYIonIntensities;
         double [] oxoniumIonIntensities;
@@ -147,7 +151,7 @@ public class GlycoAnalysis {
             StringBuffer locSb = new StringBuffer("\t");
             for (int j = 0; j < seq.length(); j++) {
                 if (isMaxScores[i][j] == true) {
-                    locSb.append(String.format("%d%c",j+1,seq.charAt(j))); //position (1 indexed), character
+                    locSb.append(String.format("%d%c",j+1, seq.charAt(j))); //position (1 indexed), character
                 }
             }
             sb.append(locSb.toString());
@@ -165,7 +169,7 @@ public class GlycoAnalysis {
         double[] capYIons = new double[capYShifts.length];
         double [] capYIonIntensities = new double[capYShifts.length];
         for (int i = 0; i < capYIons.length; i++)
-            capYIons[i] = capYShifts[i] + pepMass; //todo charge states
+            capYIons[i] = capYShifts[i] + pepMass;
         //find capital Y ion intensities
         for (int i = 0; i < capYIons.length; i++) {
             //System.out.println(capYIons[i]);
@@ -243,7 +247,7 @@ public class GlycoAnalysis {
         //these 3 variables store values that are constant for the PSM
 
         float baseScore = spec.getHyper(seq, mods, ppmTol);
-        int baseFrags = spec.getFrags(seq,mods, ppmTol);
+        int baseFrags = spec.getFrags(seq, mods, ppmTol);
         //these 3 variables need to be reinitialized every remainder mass
         float [] scores;
         int [] frags;
