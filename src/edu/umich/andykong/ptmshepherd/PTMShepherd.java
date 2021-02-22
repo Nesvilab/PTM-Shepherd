@@ -5,10 +5,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.io.*;
 import java.util.concurrent.*;
 
+import edu.umich.andykong.ptmshepherd.cleaner.CombinedExperimentsSummary;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
@@ -29,6 +31,7 @@ public class PTMShepherd {
 	static TreeMap<String,ArrayList<String []>> datasets;
 	static HashMap<String,HashMap<String,File>> mzMap;
 	static HashMap<String,Integer> datasetMS2;
+	private static String outputPath;
 	public static ExecutorService executorService;
 
 	public static String getParam(String key) {
@@ -136,7 +139,6 @@ public class PTMShepherd {
 		params.put("spectra_ppmtol", "20.0"); //obvious, used in localization and simrt
 		params.put("spectra_condPeaks", "100"); //
 		params.put("spectra_condRatio", "0.01");
-		//params.put("spectra_iontypes", "by");//todo
 		params.put("spectra_maxfragcharge", "2");//todo
 
 		params.put("compare_betweenRuns", "false");
@@ -159,8 +161,9 @@ public class PTMShepherd {
 		params.put("iontype_z", "0");
 
 		params.put("output_extended", "false");
+		params.put("output_path", String.format("%s_shepherd",
+				new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date())));
 		params.put("run_from_old", "false");
-		//params.put("output_extended", "true");
 		
 		//load parameters
 		for(int i = 0; i < args.length; i++) {
@@ -188,6 +191,15 @@ public class PTMShepherd {
 		if (params.get("threads").equals("0"))
 			params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
 
+		if (!params.get("output_path").endsWith("/"))
+			if (!params.get("output_path").equals(""))
+				outputPath = params.get("output_path") + "/";
+			else outputPath = "./";
+		else
+			outputPath = params.get("output_path");
+
+		makeOutputDir(outputPath);
+
 		executorService = Executors.newFixedThreadPool(Integer.parseInt(params.get("threads")));
 	}
 
@@ -203,6 +215,7 @@ public class PTMShepherd {
 
 	public static void main(String [] args) throws Exception {
 		Locale.setDefault(new Locale("en","US"));
+		System.out.println();
 		System.out.printf("%s version %s",name,version);
 		System.out.println("(c) University of Michigan\n");
 		System.out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
@@ -218,7 +231,7 @@ public class PTMShepherd {
 			System.out.printf("\tTo run PTM-Shepherd:\n" +
 					"\t\tjava -jar ptmshepherd-%s-.jar config_file.txt\n", version);
 			System.out.println();
-			System.exit(1);
+			System.exit(0);
 		}
 
 		init(args);
@@ -228,7 +241,7 @@ public class PTMShepherd {
 				"peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
 
 			for (String f : filesToDelete) {
-				Path p = Paths.get(f).toAbsolutePath().normalize();
+				Path p = Paths.get(outputPath + f).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 
@@ -239,18 +252,18 @@ public class PTMShepherd {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
 				for (String ext : extsToDelete) {
-					Path p = Paths.get(ds + ext).toAbsolutePath().normalize();
+					Path p = Paths.get(outputPath + ds + ext).toAbsolutePath().normalize();
 					deleteFile(p, true);
 				}
 			}
 			String dsTmp = "combined";
 			for (String ext : extsToDelete) {
-				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				Path p = Paths.get(outputPath + dsTmp + ext).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 			dsTmp = "global";
 			for (String ext : extsToDelete) {
-				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				Path p = Paths.get(outputPath + dsTmp + ext).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 
@@ -265,7 +278,7 @@ public class PTMShepherd {
 			for(int i = 0; i < dsData.size(); i++) {
 				File tpf = new File(dsData.get(i)[0]);
 				String crc = PSMFile.getCRC32(tpf);
-				File cacheFile = new File("cache-"+crc+".txt");
+				File cacheFile = new File(normFName("cache-"+crc+".txt"));
 				cacheFiles.add(crc);
 				HashSet<String> fNames;
 				if(!cacheFile.exists()) {
@@ -297,7 +310,7 @@ public class PTMShepherd {
 		
 		//Count MS2 scans
 		for(String ds : datasets.keySet()) {
-			File countsFile = new File(ds+".ms2counts");
+			File countsFile = new File(normFName(ds+".ms2counts"));
 			int sumMS2 = 0;
 			TreeMap<String,Integer> counts = new TreeMap<>();
 			if(!countsFile.exists()) {
@@ -344,14 +357,14 @@ public class PTMShepherd {
 		}
 
 		//Generate histograms
-		File combinedHisto = new File("combined.histo");
+		File combinedHisto = new File(normFName("combined.histo"));
 		if(!combinedHisto.exists()) {
 			print("\nCreating combined histogram");
 			int min = 1 << 30;
 			int max = -1*(1<<30);
 
 			for(String ds : datasets.keySet()) {
-				File histoFile = new File(ds+".histo");
+				File histoFile = new File(normFName(ds+".histo"));
 				if(!histoFile.exists()) {
 					ArrayList<String []> dsData = datasets.get(ds);
 					ArrayList<Float> vals = new ArrayList<>();
@@ -374,18 +387,18 @@ public class PTMShepherd {
 
 			Histogram combined = new Histogram(min,max,Integer.parseInt(params.get("histo_bindivs")));
 			for(String ds : datasets.keySet()) {
-				File histoFile = new File(ds+".histo");
+				File histoFile = new File(normFName(ds+".histo"));
 				Histogram h = Histogram.readHistogram(histoFile);
 				combined.mergeHistogram(h, ds);
 			}
 			combined.writeHistogram(combinedHisto);
-			combined.writeCombinedTSV(new File("combined.tsv"));
+			combined.writeCombinedTSV(new File(normFName("combined.tsv")));
 			print("Created combined histogram!\n");
 		} else
 			print("Combined histogram found\n");
 
 		//Perform peak detection
-		File peaks = new File("peaks.tsv");
+		File peaks = new File(normFName("peaks.tsv"));
 		if (peaks.exists()) {
 			print("Deleting old peaks.tsv file at: " + peaks.toString() + "\n");
 		}
@@ -397,11 +410,11 @@ public class PTMShepherd {
 				Integer.parseInt(params.get("peakpicking_topN")), params.get("mass_offsets"), params.get("isotope_error"),
 				Integer.parseInt(params.get("peakpicking_mass_units")), Double.parseDouble(params.get("peakpicking_width")),
 				Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-		pp.writeTSV(new File("peaks.tsv"));
+		pp.writeTSV(new File(normFName("peaks.tsv")));
 		print("Picked top " + Integer.parseInt(params.get("peakpicking_topN")) + " peaks\n");
 
 		//PSM assignment
-		File peaksummary = new File("peaksummary.tsv");
+		File peaksummary = new File(normFName("peaksummary.tsv"));
 		if(!peaksummary.exists()) {
 			PeakSummary ps = new PeakSummary(peaks,Integer.parseInt(params.get("precursor_mass_units")),
 					Double.parseDouble(params.get("precursor_tol")), params.get("mass_offsets"),
@@ -416,24 +429,24 @@ public class PTMShepherd {
 				ps.commit(ds,datasetMS2.get(ds));
 			}
 			ps.writeTSVSummary(peaksummary);
-			print("created summary table\n");
+			print("Created summary table\n");
 		}
 
 		//Assign peak IDs
-		File peakannotated = new File("peaksummary.annotated.tsv");
+		File peakannotated = new File(normFName("peaksummary.annotated.tsv"));
 		if(!peakannotated.exists()) {
 			PeakAnnotator pa = new PeakAnnotator();
 			pa.init(params.get("varmod_masses"), params.get("annotation_file").trim());
 			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
-			print("annotated summary table\n");
+			print("Annotated summary table\n");
 		}
 
 		//Mod-centric quantification
-		File modSummary = new File("global.modsummary.tsv");
+		File modSummary = new File(normFName("global.modsummary.tsv"));
 		if(!modSummary.exists()) {
 			ModSummary ms = new ModSummary(peakannotated, datasets.keySet());
 			ms.toFile(modSummary);
-			print("created modification summary");
+			print("Created modification summary");
 		}
 
 		//Localization analysis
@@ -451,7 +464,7 @@ public class PTMShepherd {
 			}
 			sl.complete();
 		}
-		print("done\n");
+		print("Done\n");
 
 		//Localization summaries
 		double [][] peakBounds = PeakSummary.readPeakBounds(peaksummary);
@@ -462,9 +475,9 @@ public class PTMShepherd {
 			SiteLocalization sl = new SiteLocalization(ds);
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
 			sl.updateLocalizationProfiles(loc_targets); //this is where the localization is actually happening
-			loc_current.writeProfile(ds+".locprofile.txt");
+			loc_current.writeProfile(normFName(ds+".locprofile.txt"));
 		}
-		loc_global.writeProfile("global.locprofile.txt");
+		loc_global.writeProfile(normFName("global.locprofile.txt"));
 		print("Created localization reports\n");
 
 		//Spectra similarity analysis with retention time analysis
@@ -491,9 +504,9 @@ public class PTMShepherd {
 			SimRTAnalysis sra = new SimRTAnalysis(ds);
 			SimRTProfile [] simrt_targets = {simrt_global, simrt_current};
 			sra.updateSimRTProfiles(simrt_targets);
-			simrt_current.writeProfile(ds+".simrtprofile.txt");
+			simrt_current.writeProfile(normFName(ds+".simrtprofile.txt"));
 		}
-		simrt_global.writeProfile("global.simrtprofile.txt");
+		simrt_global.writeProfile(normFName("global.simrtprofile.txt"));
 		print("Created similarity/RT reports\n");
 
 		//Diagnostic mining
@@ -532,10 +545,12 @@ public class PTMShepherd {
 
 		//Combine tables
 		System.out.println("Combining and cleaning reports");
-		CombinedTable.writeCombinedTable("global");
+		CombinedTable gct = new CombinedTable("global");
+		gct.writeCombinedTable();
 		for (String ds : datasets.keySet()){
 			System.out.println("Writing combined table for dataset " + ds);
-			CombinedTable.writeCombinedTable(ds);
+			CombinedTable cct = new CombinedTable(ds);
+			cct.writeCombinedTable();
 		}
 
 		//Glyco anlyses
@@ -560,9 +575,9 @@ public class PTMShepherd {
 				GlycoAnalysis ga = new GlycoAnalysis(ds);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
-				glyProCurr.writeProfile(ds + ".glycoprofile.txt");
+				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
 			}
-			glyProGLobal.writeProfile("global.glycoprofile.txt");
+			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds);
 				if (ga.isComplete())
@@ -578,7 +593,7 @@ public class PTMShepherd {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					pf.mergeGlycoTable(new File(ds+".rawglyco"));
+					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")));
 				}
 			}
 			print("Created glyco reports\n");
@@ -586,6 +601,7 @@ public class PTMShepherd {
 
 		/* Make psm table IonQuant compatible */
 		if (Boolean.parseBoolean(params.get("prep_for_ionquant"))) {
+			System.out.println("Prepping PSM tables for IonQuant");
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
@@ -593,50 +609,77 @@ public class PTMShepherd {
 					pf.preparePsmTableForIonQuant(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 				}
 			}
+			System.out.println("Done");
 		}
 
-		List<String> filesToDelete = Arrays.asList("peaks.tsv", "peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
+		/* Make experiment-level table */
+		if (Boolean.parseBoolean(params.get("output_extended"))) {
+			System.out.println("Creating experiment-level profile report");
+			CombinedExperimentsSummary cs = new CombinedExperimentsSummary(normFName("combined_experiment_profile.tsv"));
+			cs.initializeExperimentSummary(normFName("global.profile.tsv"));
+			cs.addLocalizationSummary(normFName("global.locprofile.txt"), "combined");
+			cs.addSimilarityRTSummary(normFName("global.simrtprofile.txt"), "combined");
+			for (String ds : datasets.keySet()) {
+				cs.addExperimentSummary(normFName(ds + ".profile.tsv"), ds);
+				cs.addLocalizationSummary(normFName(ds + ".locprofile.txt"), ds);
+				cs.addSimilarityRTSummary(normFName(ds+".simrtprofile.txt"), ds);
+			}
+			cs.printFile();
+		}
+
+		List<String> filesToDelete = Arrays.asList(normFName("peaks.tsv"), normFName("peaksummary.annotated.tsv"),
+				normFName("peaksummary.tsv"), normFName("combined.tsv"));
 		//delete redundant files
 		for (String f : filesToDelete) {
 			Path p = Paths.get(f).toAbsolutePath().normalize();
 			deleteFile(p, true);
 		}
-		//delete individual tsv profile
-		if(datasets.keySet().size() == 1) {
-			for (String ds : datasets.keySet()) {
-				String f = ds + ".profile.tsv";
-				Path p = Paths.get(f).toAbsolutePath().normalize();
+
+		List<String> extsToDelete = Arrays.asList(".locprofile.txt", ".simrtprofile.txt", ".profile.tsv",
+				".histo", ".ms2counts");
+		for (String ext : extsToDelete) {
+			Path p = Paths.get(normFName("global" + ext)).toAbsolutePath().normalize();
+			if (!ext.equals(".profile.tsv"))
+				deleteFile(p, true);
+		}
+		for (String ds : datasets.keySet()) {
+			for (String ext : extsToDelete) {
+				Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 		}
 
 		if(!Boolean.parseBoolean(params.get("output_extended"))) {
 			// delete dataset files with specific extensions
-			List<String> extsToDelete = Arrays
-					.asList(".histo", ".locprofile.txt", ".ms2counts", ".simrtprofile.txt", ".rawlocalize", ".rawsimrt");
+			extsToDelete = Arrays
+					.asList(".rawlocalize", ".rawsimrt", ".rawglyco", ".histo");
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
 				for (String ext : extsToDelete) {
-					Path p = Paths.get(ds + ext).toAbsolutePath().normalize();
+					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
 					deleteFile(p, true);
 				}
 			}
 			String dsTmp = "combined";
 			for (String ext : extsToDelete) {
-				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				if (ext.equals(".glycoprofile.txt"))
+					continue;
+				Path p = Paths.get(normFName(dsTmp + ext)).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 			dsTmp = "global";
 			for (String ext : extsToDelete) {
-				Path p = Paths.get(dsTmp + ext).toAbsolutePath().normalize();
+				if (ext.equals(".glycoprofile.txt"))
+					continue;
+				Path p = Paths.get(normFName(dsTmp + ext)).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 
 		}
 
 		for (String crc : cacheFiles) {
-			File crcf = new File("cache-"+crc +".txt");
+			File crcf = new File(normFName("cache-"+crc +".txt"));
 			Path crcpath = crcf.toPath().toAbsolutePath();
 			deleteFile(crcpath, true);
 		}
@@ -651,7 +694,7 @@ public class PTMShepherd {
 		}
 	}
 
-	/** This method extracts compiled resources from the jar */
+	/* This method extracts compiled resources from the jar */
 	private static void extractFile(String jarFilePath, String fout) throws Exception {
 		BufferedReader in;
 		PrintWriter out;
@@ -670,4 +713,24 @@ public class PTMShepherd {
 		}
 	}
 
+	/* This method adds the output directory path to file strings */
+	public static String normFName(String fpath) {
+		String newFPath = new String(outputPath + fpath);
+		return newFPath;
+	}
+
+	/* Makes output directory */
+	public static void makeOutputDir(String dpath) throws Exception {
+		try {
+			if (!dpath.equals("")) {
+				File dir = new File(dpath);
+				if (!dir.exists()) {
+					dir.mkdirs();
+				}
+			}
+		} catch (Exception e) {
+			System.out.println("Error creating output directory. Terminating.");
+			System.exit(1);
+		}
+	}
 }

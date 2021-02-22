@@ -100,8 +100,8 @@ public class Histogram {
 	
 	public void writeHistogram(File f) throws Exception {
 		DataOutputStream dos = new DataOutputStream(new FileOutputStream(f));
-		dos.writeInt(start);
-		dos.writeInt(end);
+		dos.writeInt(start); //tres
+		dos.writeInt(end); //quatro
 		dos.writeInt(binDivs);
 		dos.writeInt(expSize);
 		writeDouble(dos,histo);

@@ -27,21 +27,21 @@ public class SimRTRecord {
 		StringBuffer sb = new StringBuffer();
 		
 		//General stats
-		sb.append(String.format("%.4f\t%d", mass,count));
+		sb.append(String.format("%.4f\t%d", mass, count));
 		double tmean = sim.getMean();
 		double tvar = sim.getVariance();
 		if (sim.getMean() == 0.0)
 			tmean = Double.NaN;
 		if(sim.getVariance() == 0.0)
 			tvar = Double.NaN;
-		sb.append(String.format("\t%.4f\t%.4f",tmean,tvar));
+		sb.append(String.format("\t%.3f\t%.3f", tmean, tvar));
 		tmean = deltart.getMean();
 		tvar = deltart.getVariance();
 		if (deltart.getMean() == 0.0)
 			tmean = Double.NaN;
 		if(deltart.getVariance() == 0.0)
 			tvar = Double.NaN;
-		sb.append(String.format("\t%.4f\t%.4f", tmean, tvar));
+		sb.append(String.format("\t%.0f\t%.0f", tmean, tvar));
 		
 		return sb.toString();
 	}

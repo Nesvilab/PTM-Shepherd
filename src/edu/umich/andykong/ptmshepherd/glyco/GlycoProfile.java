@@ -57,19 +57,19 @@ public class GlycoProfile {
         PrintWriter out = new PrintWriter(new FileWriter(path));
         //format header
         StringBuffer sb = new StringBuffer();
-        sb.append("Peak\tMatched PSMs");
+        sb.append("Peak\tpsms");
         for (int i = 0; i < capYStrs.length; i++)
-            sb.append("\tY " + capYStrs[i] + " (PSMs)");
+            sb.append("\tY_" + capYStrs[i] + "_(psms)");
         for (int i = 0; i < diagIonStrs.length; i++)
-            sb.append("\tox " + diagIonStrs[i] + " (PSMs)");
+            sb.append("\tox_" + diagIonStrs[i] + "_(psms)");
         for (int i = 0; i < remFragStrs.length; i++)
-            sb.append("\tremainder "+remFragStrs[i] + " (PSMs)");
+            sb.append("\tremainder_"+remFragStrs[i] + "_(psms)");
         for (int i = 0; i < capYStrs.length; i++)
-            sb.append("\tY " + capYStrs[i] + " (% PSMs)");
+            sb.append("\tY_" + capYStrs[i] + "_(percent_of_psms)");
         for (int i = 0; i < diagIonStrs.length; i++)
-            sb.append("\tox " + diagIonStrs[i] + " (% PSMs)");
+            sb.append("\tox_" + diagIonStrs[i] + "_(percent_of_psms)");
         for (int i = 0; i < remFragStrs.length; i++)
-            sb.append("\tremainder "+remFragStrs[i] + " (% PSMs)");
+            sb.append("\tremainder_"+remFragStrs[i] + "_(percent_of_psms)");
         out.println(sb.toString());
         for(int i = 0; i < records.length; i++) {
             out.println(records[i].toString());

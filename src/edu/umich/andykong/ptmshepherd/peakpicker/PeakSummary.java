@@ -125,16 +125,16 @@ public class PeakSummary {
 		
 		PrintWriter out = new PrintWriter(new FileWriter(f));
 		
-		out.print("PeakApex\tPeakLower\tPeakUpper");
-		out.print("\t"+"PeakSignal");
+		out.print("peak_apex\tpeak_lower\tpeak_upper");
+		out.print("\t"+"peak_signal");
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + " (PSMs)");
+			out.print("\t"+exps[i] + "_(psms)");
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + " (PSMs/million)");
+			out.print("\t"+exps[i] + "_(percent_psms)");
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + " (Peptides)\t" + exps[i] + " (% in unmodified)");
-		out.print("\t"+"Total % in unmodified");
-		out.print("\t"+"Total PSMs");
+			out.print("\t"+exps[i] + "_(peptides)\t" + exps[i] + "_(percent_also_in_unmodified)");
+		out.print("\t"+"percent_also_in_unmodified");
+		out.print("\t"+"psms");
 		out.println();
 
 		for(int i = 0; i < features.size(); i++) {
@@ -151,11 +151,12 @@ public class PeakSummary {
 				continue;
 			}
 			/** Get and print counts to file */
-			out.printf("%.5f\t%.5f\t%.5f\t%.2f", features.get(pt).peakCenter,features.get(pt).peakLower,features.get(pt).peakUpper, features.get(pt).snr);
+			out.printf("%.5f\t%.5f\t%.5f\t%.2f", features.get(pt).peakCenter,features.get(pt).peakLower,
+					features.get(pt).peakUpper, (features.get(pt).snr / 1000000) * 100);
 			for(int j = 0; j < exps.length; j++) //count PSMs
 				out.printf("\t%d", counts.get(exps[j])[pt][1]);
-			for(int j = 0; j < exps.length; j++) //count PSMs/million
-				out.printf("\t%.2f", (1000000.0*counts.get(exps[j])[pt][1])/dsSize.get(exps[j]));
+			for(int j = 0; j < exps.length; j++) //count percent psms
+				out.printf("\t%.3f", (100.0*counts.get(exps[j])[pt][1])/dsSize.get(exps[j]));
 			for(int j = 0; j < exps.length; j++) //count peps
 				out.printf("\t%d\t%.2f", counts.get(exps[j])[pt][0],100*nzr(counts.get(exps[j])[pt][2],counts.get(exps[j])[pt][0]));
 			double weightedPeps = 0;

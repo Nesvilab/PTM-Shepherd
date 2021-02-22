@@ -27,7 +27,7 @@ public class GlycoAnalysis {
 
     public GlycoAnalysis(String dsName) {
         this.dsName = dsName;
-        glycoFile = new File(dsName+".rawglyco");
+        this.glycoFile = new File(PTMShepherd.normFName(dsName+".rawglyco"));
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {

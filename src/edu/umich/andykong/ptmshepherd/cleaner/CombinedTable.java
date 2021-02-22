@@ -2,151 +2,158 @@ package edu.umich.andykong.ptmshepherd.cleaner;
 
 import com.google.common.base.Charsets;
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CombinedTable {
+    public ArrayList<StringBuffer> data;
+    public ArrayList<String> headers;
+    public String fname;
+    public String dataset;
 
-    public static void writeCombinedTable(String dataset) throws IOException {
-        List<String> subTabs = new ArrayList<>();
-        List<List<String>> records = new ArrayList<>();
-        subTabs.add("peaksummary.annotated.tsv");
-        subTabs.add(dataset + ".simrtprofile.txt");
-        subTabs.add(dataset + ".locprofile.txt");
+    public CombinedTable(String ds) {
+        this.dataset = ds;
+        this.data = new ArrayList<>();
+        this.headers = new ArrayList<>();
+        this.fname = PTMShepherd.normFName(dataset + ".profile.tsv");
+    }
 
+    public void writeCombinedTable() throws IOException {
+        /* Process preaksummary.annotated.tsv file */
 
-        Set<Integer> observedLineCounts = new HashSet<>();
-        int maxLineLen = 0;
+        /* Get cols to add to beginning from peaksummary.annotated.tsv */
+        String[] colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "psms",
+                "percent_also_in_unmodified", "mapped_mass_1", "mapped_mass_2"};
+        ArrayList<String> colsToAddLater = new ArrayList<>(Arrays.asList("peak_signal"));
 
-        for (int subTabIdx = 0; subTabIdx < subTabs.size(); subTabIdx++) {
-            String subTab = subTabs.get(subTabIdx);
-            Path p = Paths.get(subTab);
-            System.out.println("Reading file: " + p.toString());
+        BufferedReader in = new BufferedReader(new FileReader(new File(
+                PTMShepherd.normFName("peaksummary.annotated.tsv"))));
 
-            // read the whole file
-            List<String> lines = readLines(p);
+        /* Add headers */
+        for (String col : colsToAdd)
+            this.headers.add(col);
 
-            // check for consistency, number of lines must be the same in all files
-            observedLineCounts.add(lines.size());
-            if (observedLineCounts.size() > 1) {
-                throw new IllegalStateException(String.format("The number of lines [%d] in file "
-                    + "[%s] does not match what we've seen in other files [%d]",
-                    lines.size(), subTab, observedLineCounts.iterator().next()));
-            }
+        /* Get headers that we're adding later */
+        String[] curHeaders = in.readLine().split("\t", -1);
+        ArrayList<String> experiments = new ArrayList<>();
+        for (int i = 0; i < curHeaders.length; i++) {
+            if (curHeaders[i].contains("_(psms)"))
+                experiments.add(curHeaders[i].substring(0, curHeaders[i].indexOf("_(psms)")));
+        }
+        /* Assure proper order for elements */
+        for(String exp : experiments)
+            colsToAddLater.add(exp+"_(psms)");
+        for(String exp : experiments)
+            colsToAddLater.add(exp+"_(percent_psms)");
+        for(String exp : experiments)
+            colsToAddLater.add(exp+"_(peptides)");
+        for(String exp : experiments)
+            colsToAddLater.add(exp+"_(percent_also_in_unmodified)");
 
-            // update
-            if  (subTabIdx == 0) {
-                maxLineLen = Arrays.asList(lines.get(0).split("\t")).size();
-                for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
-                    String line = lines.get(lineIdx);
-                    if (line == null) {
-                        continue;
-                    }
-                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t", -1)));
-                    //if (split.size() > maxLineLen)
-                    //    maxLineLen = split.size();
-                    List<String> newLine = split.subList(0, 4); //peak values
-                    newLine.add(split.get(split.size()-3)); //total PSMs
-                    newLine.add(split.get(split.size()-4)); //total % in unmodified
-                    newLine.add(split.get(split.size()-2)); //mod 1
-                    newLine.add(split.get(split.size()-1)); //mod 2
-                    records.add(newLine);
-                    //records.add(newLine); //add first 4 fields to new file
-                    //List<String> newLine2 = split.subList(maxLineLen-2, split.size()); //get mod annotationsm $
-
-                    //int padding = 2 - newLine2.size();
-                    //List<String> crec = records.get(lineIdx);
-                    //crec.addAll(newLine2);
-                    //for(int i = 0; i < padding; i++){
-                    //    crec.add("");
-                    //}
-                    //crec.add(split.get(maxLineLen-1));
-                    //records.set(lineIdx, crec);
-                }
-            } else if (subTabIdx == 2) {
-                for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
-                    String line = lines.get(lineIdx);
-                    if (line == null) {
-                        continue;
-                    }
-                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-                    List<String> newLine = split.subList(1, 7);
-                    newLine.remove(1);
-                    List<String> crec = records.get(lineIdx);
-                    crec.addAll(newLine);
-                    records.set(lineIdx, crec);
-                }
-            }
-            else {
-                for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
-                    String line = lines.get(lineIdx);
-                    if (line == null) {
-                        continue;
-                    }
-                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-                    List<String> newLine = split.subList(2, split.size());
-                    List<String> crec = records.get(lineIdx);
-                    crec.addAll(newLine);
-                    records.set(lineIdx, crec);
-                }
-            }
-
-//
-//            else {
-//                for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
-//                    String line = lines.get(lineIdx);
-//                    if (line == null) {
-//                        continue;
-//                    }
-//                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-//                    List<String> newLine = split.subList(1, 7);
-//                    List<String> crec = records.get(lineIdx);
-//                    crec.addAll(newLine);
-//                    records.set(lineIdx, crec);
-//
-//                    String line = lines.get(lineIdx);
-//                    if (line == null) {
-//                        continue;
-//                    }
-//                    List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-//                    List<String> newLine = split.subList(2, split.size());
-//                    String lineCut = String.join("\t", newLine);
-//                    records.set(lineIdx, String.format("%s%s%s", records.get(lineIdx), "\t", lineCut));
-//                }
-//            }
+        /* Read remaining lines and append to data */
+        String cline;
+        ArrayList<StringBuffer> linesToAddLater = new ArrayList<>();
+        while ((cline = in.readLine()) != null) {
+            String[] sp = cline.split("\t", -1);
+            StringBuffer sb = new StringBuffer();
+            StringBuffer sb2 = new StringBuffer();
+            for (String col : colsToAdd)
+                sb.append(sp[getColumn(col, curHeaders)] + "\t");
+            for (String col : colsToAddLater)
+                sb2.append(sp[getColumn(col, curHeaders)] + "\t");
+            this.data.add(sb);
+            linesToAddLater.add(sb2);
         }
 
+        in.close();
 
-        String subTab = subTabs.get(0);
-        Path p = Paths.get(subTab);
-        List<String> lines = readLines(p);
-        for (int lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
-            String line = lines.get(lineIdx);
-            if (line == null) {
-                continue;
-            }
-            List<String> split = new ArrayList<String>(Arrays.asList(line.split("\t")));
-            List<String> newLine = split.subList(4, maxLineLen-4);
-            List<String> crec = records.get(lineIdx);
-            crec.addAll(newLine);
-            records.set(lineIdx, crec);
+        /* Process *.locprofile.txt */
+
+        /* Get cols to add to beginning from *.locprofile */
+        colsToAdd = new String[]{"localized_psms", "n-term_localization_rate",
+                "AA1", "AA1_enrichment_score", "AA1_psm_count",
+                "AA2", "AA2_enrichment_score", "AA2_psm_count",
+                "AA3", "AA3_enrichment_score", "AA3_psm_count"};
+
+        in = new BufferedReader(new FileReader(new File(
+                PTMShepherd.normFName(dataset + ".locprofile.txt"))));
+
+        /* Add headers */
+        for (String col : colsToAdd)
+            this.headers.add(col);
+
+        /* Read remaining lines and append to data */
+        curHeaders = in.readLine().split("\t", -1);
+        int lineIndx = 0;
+        while ((cline = in.readLine()) != null) {
+            String[] sp = cline.split("\t", -1);
+            StringBuffer sb = new StringBuffer();
+            for (String col : colsToAdd)
+                sb.append(sp[getColumn(col, curHeaders)] + "\t");
+            this.data.get(lineIndx).append(sb);
+            lineIndx++;
         }
 
-        String fnOut = dataset + ".profile.tsv";
-        Path pOut = Paths.get(fnOut);
-        System.out.println("Writing to file: " + pOut.toString());
-        try (BufferedWriter bw = Files.newBufferedWriter(pOut)) {
-            for (List record: records) {
-                String outLine = String.join("\t", record);
-                bw.write(outLine + System.lineSeparator());
-            }
+        in.close();
+
+        /* Process *.simrtprofile.txt */
+
+        colsToAdd = new String[]{"similarity_(mean)",
+                "rt_shift_(mean)"};
+
+        in = new BufferedReader(new FileReader(new File(
+                PTMShepherd.normFName(dataset + ".simrtprofile.txt"))));
+
+        /* Add headers */
+        for (String col : colsToAdd)
+            this.headers.add(col);
+
+        /* Read remaining lines and append to data */
+        curHeaders = in.readLine().split("\t", -1);
+        lineIndx = 0;
+        while ((cline = in.readLine()) != null) {
+            String[] sp = cline.split("\t", -1);
+            StringBuffer sb = new StringBuffer();
+            for (String col : colsToAdd)
+                sb.append(sp[getColumn(col, curHeaders)] + "\t");
+            this.data.get(lineIndx).append(sb);
+            lineIndx++;
         }
-        //records.forEach(record ->{System.out.println(record);});
+
+        in.close();
+
+        /* Process remaining lines from peaksummary.annotated.tsv */
+
+        /* Add remaining headers */
+        for (String col : colsToAddLater)
+            this.headers.add(col);
+
+        /* Add remaining lines */
+        for (int i = 0; i < this.data.size(); i++)
+            this.data.get(i).append(linesToAddLater.get(i));
+
+        /* Write output file */
+        PrintWriter out = new PrintWriter(new FileWriter(this.fname));
+
+        /* Print headers, remove trailing tab */
+        StringBuffer headBuff = new StringBuffer();
+        for (String head : this.headers)
+            headBuff.append(head + "\t");
+        out.println(headBuff.toString().substring(0, headBuff.length() - 1));
+
+        /* Print all new lines */
+        for (StringBuffer newLine : this.data)
+            out.println(newLine.toString());//.substring(0, newLine.length()-1));
+
+        out.close();
     }
 
     private static List<String> readLines(Path path) throws IOException {
@@ -160,4 +167,12 @@ public class CombinedTable {
         }
         return lines;
     }
+
+    public int getColumn(String head, String[] headers) {
+        for(int i = 0; i < headers.length; i++)
+            if(headers[i].equals(head))
+                return i;
+        return -1;
+    }
+
 }

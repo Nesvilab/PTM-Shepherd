@@ -52,7 +52,7 @@ public class PeakAnnotator {
 		PrintWriter out = new PrintWriter(new FileWriter(outTSV));
 		out.print(inFile.get(0));
 		for(int i = 1; i <= maxDepth; i++)
-			out.print("\tPotential Modification "+i);
+			out.print("\tmapped_mass_"+i);
 		out.println();
 		for(int i = 0; i < masses.length; i++) {
 			out.print(inFile.get(i+1));

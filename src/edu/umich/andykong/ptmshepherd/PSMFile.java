@@ -182,6 +182,12 @@ public class PSMFile {
 
 	/* Add new column to PSM table in place to make it IonQuant compatible */
 	public void preparePsmTableForIonQuant(double[][] peakBounds, int precUnits, double precTol) throws Exception {
+		/* Check to make sure IonQuant column doesnt already exist */
+		if (!(getColumn("Theoretical Modification Mass") == -1)) { /* Already exists */
+			System.out.printf("\tPSM table at %s already IonQuant compatible\n",this.fname);
+			return;
+		}
+
 		FastLocator locator = new FastLocator(peakBounds, precTol, precUnits);
 		String tempFoutName = this.fname + ".iq.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
@@ -202,6 +208,10 @@ public class PSMFile {
 		}
 
 		out.close();
+
+		this.fname.delete();
+		File newFileName = new File(tempFoutName);
+		newFileName.renameTo(this.fname);
 	}
 
 	public PSMFile(File f) throws Exception {

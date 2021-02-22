@@ -20,7 +20,7 @@ public class SiteLocalization {
 	
 	public SiteLocalization(String dsName) {
 		this.dsName = dsName;
-		localizationFile = new File(dsName+".rawlocalize");
+		this.localizationFile = new File(PTMShepherd.normFName(dsName+".rawlocalize"));
 	}
 	
 	public String reNormName(String s) {

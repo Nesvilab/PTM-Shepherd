@@ -38,9 +38,11 @@ public class LocalizationProfile {
 	
 	public void writeProfile(String path) throws Exception {
 		PrintWriter out = new PrintWriter(new FileWriter(path));
-		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
-				"Peak","Localized PSMs","Total PSMs","N-term rate",
-				"EnrichedAA_1","EnrichedAA_2","EnrichedAA_3");
+		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+				"peak","localized_psms","psms","n-term_localization_rate",
+				"AA1","AA1_enrichment_score", "AA1_psm_count",
+				"AA2","AA2_enrichment_score", "AA2_psm_count",
+				"AA3","AA3_enrichment_score", "AA3_psm_count");
 		for(int i = 0; i < 26; i++)
 			if(LocalizationProfile.AAcnts[i] != 0)
 				out.printf("\t%c_enrichment", 'A' + i);

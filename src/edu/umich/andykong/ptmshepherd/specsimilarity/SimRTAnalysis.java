@@ -26,7 +26,7 @@ public class SimRTAnalysis {
 	
 	public SimRTAnalysis(String dsName) {
 		this.dsName = dsName;
-		simRTFile = new File(dsName+".rawsimrt");
+		this.simRTFile = new File(PTMShepherd.normFName(dsName+".rawsimrt"));
 	}
 	
 	public String reNormName(String s) {
@@ -67,7 +67,7 @@ public class SimRTAnalysis {
 
 		//Write header
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mod_Peptide","Shift","Is_Zero_Pep",
-				"DeltaRT", "nZeroSpecs_DeltaRT", "Avg_Sim", "Avg_ZeroSim", "nZeroSpecs_Sim");
+				"rt_shift", "nZeroSpecs_RT_shift", "Avg_Sim", "Avg_ZeroSim", "nZeroSpecs_Sim");
 
 		specCol = pf.getColumn("Spectrum");
 		pepCol = pf.getColumn("Peptide");

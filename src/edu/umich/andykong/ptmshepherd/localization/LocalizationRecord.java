@@ -97,9 +97,10 @@ public class LocalizationRecord {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		
-		//General stats
-		sb.append(String.format("%.4f\t%d\t%d\t%.2f", mass,improved,total,((double)100*nTerm)/((total==0)?1:total)));
-		
+		/* General stats */
+		sb.append(String.format("%.4f\t%d\t%d\t%.2f", mass , improved, total,
+				((double)100*nTerm)/((total==0)?1:total)));
+
 		//Top N
 		int outputTopN = 3;
 		
@@ -151,16 +152,16 @@ public class LocalizationRecord {
 		for(int j = 0; j < outputTopN; j++) {
 			int best = 0;
 			for(int i = 0; i < 26; i++)
-				if(aaScores[i] > aaScores[best])
+				if((aaScores[i] > aaScores[best]) && (aaScoresSafe[i] / total > 0.01))
 					best = i;
 			char b = (char)('A'+best);
 			bscore = Math.max(bscore,aaScores[best]);
+
 			if(aaScores[best] == 0.0)
-				sb.append(String.format("\t%c - NaN - NaN",b));//,b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
-			//if(Double.isNaN(aaScores[best]))
-			//	sb.append("\tERROR");
+				sb.append(String.format("\t\t\t"));//%c - NaN - NaN",b));//,b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
 			else
-				sb.append(String.format("\t%c - %.1f - %.1f",b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
+				sb.append(String.format("\t%c\t%.1f\t%.1f",b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
+
 			aaScores[best] = 0;
 		}
 		

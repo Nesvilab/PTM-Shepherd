@@ -13,8 +13,6 @@ public class ModSummary {
     Set<String> mods;
     LinkedHashMap<String, Double> modsMap;
 
-
-
     public ModSummary(File inPeaks, Set<String> dsets) throws Exception{
         datasets = dsets;
 
@@ -22,7 +20,7 @@ public class ModSummary {
         String cline;
         BufferedReader in = new BufferedReader(new FileReader(inPeaks));
         while((cline = in.readLine())!= null) {
-            inFile.add(cline.split("\t"));
+            inFile.add(cline.split("\t")); //TODO if you add the -1 tag to this you'll break the algo
         }
         in.close();
 
@@ -40,7 +38,7 @@ public class ModSummary {
 
         //get modification names and map apexes
         for(int i = 1; i <= 2; i++){
-            modi = headis.get("Potential Modification "+i);
+            modi = headis.get("mapped_mass_"+i);
             for(int j = 1; j < inFile.size(); j++) {
                 //System.out.println(inFile.get(j));
                 if(inFile.get(j).length > modi) {
@@ -57,7 +55,7 @@ public class ModSummary {
         modsMap.put("None", 0.0);
 
         // initialize empty hashmaps
-        int mod1i = headis.get("Potential Modification 1");
+        int mod1i = headis.get("mapped_mass_1");
         psmCounts = new HashMap<String, HashMap<String, Double>>();
         psmCountsNorm = new HashMap<String, HashMap<String, Double>>();
         for(String ds : datasets){
@@ -70,8 +68,8 @@ public class ModSummary {
             for(int j = 1; j < inFile.size(); j++){
                 String line [] = inFile.get(j);
                 if(line.length == mod1i){
-                    psmCounts.get(ds).put("None", Double.parseDouble(line[headis.get(ds + " (PSMs)")]));
-                    psmCountsNorm.get(ds).put("None", Double.parseDouble(line[headis.get(ds + " (PSMs/million)")]));
+                    psmCounts.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_(psms)")]));
+                    psmCountsNorm.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_(percent_psms)")]));
                 }
             }
         }
@@ -81,10 +79,10 @@ public class ModSummary {
                 String [] line = inFile.get(i);
                 if(line.length > j){
                     for(String ds : datasets) {
-                        int col = headis.get(ds + " (PSMs)");
+                        int col = headis.get(ds + "_(psms)");
                         double prevCount = psmCounts.get(ds).get(line[j]);
                         psmCounts.get(ds).put(line[j], Double.parseDouble(line[col]) + prevCount);
-                        col = headis.get(ds + " (PSMs/million)");
+                        col = headis.get(ds + "_(percent_psms)");
                         prevCount = psmCountsNorm.get(ds).get(line[j]);
                         psmCountsNorm.get(ds).put(line[j], Double.parseDouble(line[col]) + prevCount);
                     }
@@ -118,16 +116,18 @@ public class ModSummary {
         // write to file
         PrintWriter out = new PrintWriter(new FileWriter(modOut));
         out.print("Modification\tTheoretical Mass Shift");
-        for(String ds : datasets){
-            out.printf("\t%s (PSMs)\t%s (PSMs/million)", ds, ds);
-        }
+        for(String ds : datasets)
+            out.printf("\t%s_(psms)", ds);
+        for (String ds : datasets)
+            out.printf("\t%s_(percent_psms)", ds);
         out.println();
         // output sorted by sum of spectral counts
         for(String mod : sortedMap.keySet()){
             out.printf("%s\t%s", mod, modsMap.get(mod));
-            for(String ds : datasets){
-                out.printf("\t%.00f\t%.04f",psmCounts.get(ds).get(mod),psmCountsNorm.get(ds).get(mod));
-            }
+            for(String ds : datasets)
+                out.printf("\t%.00f", psmCounts.get(ds).get(mod));
+            for (String ds : datasets)
+                out.printf("\t%.04f",psmCountsNorm.get(ds).get(mod));
             out.println();
         }
         out.flush();
