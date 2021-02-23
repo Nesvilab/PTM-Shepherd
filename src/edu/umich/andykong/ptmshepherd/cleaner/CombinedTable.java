@@ -29,34 +29,35 @@ public class CombinedTable {
     public void writeCombinedTable() throws IOException {
         /* Process preaksummary.annotated.tsv file */
 
-        /* Get cols to add to beginning from peaksummary.annotated.tsv */
-        String[] colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "psms",
-                "percent_also_in_unmodified", "mapped_mass_1", "mapped_mass_2"};
-        ArrayList<String> colsToAddLater = new ArrayList<>(Arrays.asList("peak_signal"));
-
+        /* Get headers that we're adding later */
         BufferedReader in = new BufferedReader(new FileReader(new File(
                 PTMShepherd.normFName("peaksummary.annotated.tsv"))));
+        String[] curHeaders = in.readLine().split("\t", -1);
+        ArrayList<String> experiments = new ArrayList<>();
+        for (int i = 0; i < curHeaders.length; i++) {
+            if (curHeaders[i].contains("_(PSMs)"))
+                experiments.add(curHeaders[i].substring(0, curHeaders[i].indexOf("_(PSMs)")));
+        }
+
+        /* Get cols to add to beginning from peaksummary.annotated.tsv */
+        String[] colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "PSMs",
+                    "percent_also_in_unmodified", "mapped_mass_1", "mapped_mass_2"};
+
+        ArrayList<String> colsToAddLater = new ArrayList<>(Arrays.asList("peak_signal"));
 
         /* Add headers */
         for (String col : colsToAdd)
             this.headers.add(col);
 
-        /* Get headers that we're adding later */
-        String[] curHeaders = in.readLine().split("\t", -1);
-        ArrayList<String> experiments = new ArrayList<>();
-        for (int i = 0; i < curHeaders.length; i++) {
-            if (curHeaders[i].contains("_(psms)"))
-                experiments.add(curHeaders[i].substring(0, curHeaders[i].indexOf("_(psms)")));
-        }
         /* Assure proper order for elements */
-        for(String exp : experiments)
-            colsToAddLater.add(exp+"_(psms)");
-        for(String exp : experiments)
-            colsToAddLater.add(exp+"_(percent_psms)");
-        for(String exp : experiments)
-            colsToAddLater.add(exp+"_(peptides)");
-        for(String exp : experiments)
-            colsToAddLater.add(exp+"_(percent_also_in_unmodified)");
+        for (String exp : experiments)
+            colsToAddLater.add(exp + "_(PSMs)");
+        for (String exp : experiments)
+            colsToAddLater.add(exp + "_(percent_PSMs)");
+        for (String exp : experiments)
+            colsToAddLater.add(exp + "_(peptides)");
+        for (String exp : experiments)
+            colsToAddLater.add(exp + "_(percent_also_in_unmodified)");
 
         /* Read remaining lines and append to data */
         String cline;
@@ -75,21 +76,16 @@ public class CombinedTable {
 
         in.close();
 
-        /* Process *.locprofile.txt */
+        /* Process *.simrtprofile.txt */
 
-        /* Get cols to add to beginning from *.locprofile */
-        colsToAdd = new String[]{"localized_psms", "n-term_localization_rate",
-                "AA1", "AA1_enrichment_score", "AA1_psm_count",
-                "AA2", "AA2_enrichment_score", "AA2_psm_count",
-                "AA3", "AA3_enrichment_score", "AA3_psm_count"};
+        colsToAdd = new String[]{"similarity", "rt_shift"};
 
         in = new BufferedReader(new FileReader(new File(
-                PTMShepherd.normFName(dataset + ".locprofile.txt"))));
+                PTMShepherd.normFName(dataset + ".simrtprofile.txt"))));
 
         /* Add headers */
         for (String col : colsToAdd)
             this.headers.add(col);
-
         /* Read remaining lines and append to data */
         curHeaders = in.readLine().split("\t", -1);
         int lineIndx = 0;
@@ -104,13 +100,16 @@ public class CombinedTable {
 
         in.close();
 
-        /* Process *.simrtprofile.txt */
+        /* Process *.locprofile.txt */
 
-        colsToAdd = new String[]{"similarity_(mean)",
-                "rt_shift_(mean)"};
+        /* Get cols to add to beginning from *.locprofile */
+        colsToAdd = new String[]{"localized_PSMs", "n-term_localization_rate",
+                "AA1", "AA1_enrichment_score", "AA1_psm_count",
+                "AA2", "AA2_enrichment_score", "AA2_psm_count",
+                "AA3", "AA3_enrichment_score", "AA3_psm_count"};
 
         in = new BufferedReader(new FileReader(new File(
-                PTMShepherd.normFName(dataset + ".simrtprofile.txt"))));
+                PTMShepherd.normFName(dataset + ".locprofile.txt"))));
 
         /* Add headers */
         for (String col : colsToAdd)

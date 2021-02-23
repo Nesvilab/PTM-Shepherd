@@ -19,6 +19,7 @@ import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
 import edu.umich.andykong.ptmshepherd.specsimilarity.*;
+import javolution.io.Struct;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
 
@@ -161,8 +162,7 @@ public class PTMShepherd {
 		params.put("iontype_z", "0");
 
 		params.put("output_extended", "false");
-		params.put("output_path", String.format("%s_shepherd",
-				new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date())));
+		params.put("output_path", "");
 		params.put("run_from_old", "false");
 		
 		//load parameters
@@ -198,7 +198,7 @@ public class PTMShepherd {
 		else
 			outputPath = params.get("output_path");
 
-		makeOutputDir(outputPath);
+		makeOutputDir(outputPath, Boolean.parseBoolean(params.get("output_extended")));
 
 		executorService = Executors.newFixedThreadPool(Integer.parseInt(params.get("threads")));
 	}
@@ -353,7 +353,7 @@ public class PTMShepherd {
 					die("Invalid MS2 counts for run " + crun + " in dataset " + ds);
 			}
 			datasetMS2.put(ds, sumMS2);
-			print(datasetMS2.get(ds) +" MS2 scans present in dataset " + ds + "\n");
+			print("\t" + datasetMS2.get(ds) +" MS2 scans present in dataset " + ds + "\n");
 		}
 
 		//Generate histograms
@@ -627,8 +627,14 @@ public class PTMShepherd {
 			cs.printFile();
 		}
 
+		/* Move main tables out of extended subfolder */
+		if (Boolean.parseBoolean(params.get("output_extended"))) {
+			moveFileFromExtendedDir(normFName("global.profile.tsv"));
+			moveFileFromExtendedDir(normFName("global.modsummary.tsv"));
+		}
+
 		List<String> filesToDelete = Arrays.asList(normFName("peaks.tsv"), normFName("peaksummary.annotated.tsv"),
-				normFName("peaksummary.tsv"), normFName("combined.tsv"));
+				normFName("peaksummary.tsv"), normFName("combined.tsv"), normFName("combined.histo"));
 		//delete redundant files
 		for (String f : filesToDelete) {
 			Path p = Paths.get(f).toAbsolutePath().normalize();
@@ -715,17 +721,38 @@ public class PTMShepherd {
 
 	/* This method adds the output directory path to file strings */
 	public static String normFName(String fpath) {
-		String newFPath = new String(outputPath + fpath);
+		String newFPath;
+		if (Boolean.parseBoolean(params.get("output_extended")))
+			newFPath = new String(outputPath + "ptm-shepherd_extended_output/" + fpath);
+		else
+			newFPath = new String(outputPath + fpath);
 		return newFPath;
 	}
 
+	/* This method will move main files out of subdirectory and into main directory */
+	public static void moveFileFromExtendedDir(String oldFpath) {
+		String newFpath = oldFpath.replace("ptm-shepherd_extended_output/", "");
+		File oldF = new File(oldFpath);
+		File newF = new File(newFpath);
+
+		if (newF.exists()) {
+			newF.delete();
+			System.out.println("Deleting old %s");
+		}
+		oldF.renameTo(newF);
+	}
+
 	/* Makes output directory */
-	public static void makeOutputDir(String dpath) throws Exception {
+	public static void makeOutputDir(String dpath, boolean extendedOutput) throws Exception {
 		try {
 			if (!dpath.equals("")) {
 				File dir = new File(dpath);
-				if (!dir.exists()) {
+				if (!dir.exists())
 					dir.mkdirs();
+				if (extendedOutput) {
+					File eoDir = new File(dpath + "ptm-shepherd_extended_output/");
+					if (!eoDir.exists())
+						eoDir.mkdir();
 				}
 			}
 		} catch (Exception e) {

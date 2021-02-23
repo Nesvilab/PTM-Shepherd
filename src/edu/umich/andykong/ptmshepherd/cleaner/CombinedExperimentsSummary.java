@@ -25,9 +25,9 @@ public class CombinedExperimentsSummary {
     public void initializeExperimentSummary(String fn) throws IOException {
         /* Universal columns to be added */
         ArrayList<String> colsToAdd = new ArrayList<>(Arrays.asList("peak_apex", "peak_lower", "peak_upper",
-                "psms", "percent_also_in_unmodified",
+                "PSMs", "percent_also_in_unmodified",
                 "mapped_mass_1", "mapped_mass_2",
-                "localized_psms", "n-term_localization_rate",
+                "localized_PSMs", "n-term_localization_rate",
                 "AA1", "AA1_enrichment_score", "AA1_psm_count",
                 "AA2", "AA2_enrichment_score", "AA2_psm_count",
                 "AA3", "AA3_enrichment_score", "AA3_psm_count",
@@ -38,8 +38,8 @@ public class CombinedExperimentsSummary {
         /* Add exp-level values to file file */
         String[] curHeaders  = in.readLine().split("\t", -1);
         for (int i = 0; i < curHeaders.length; i++) {
-            if (curHeaders[i].contains("_(psms)") ||
-                    curHeaders[i].contains("_(percent_psms)") ||
+            if (curHeaders[i].contains("_(PSMs)") ||
+                    curHeaders[i].contains("_(percent_PSMs)") ||
                     curHeaders[i].contains("_(peptides)") ||
                     curHeaders[i].contains("_(percent_also_in_unmodified)"))
                 colsToAdd.add(curHeaders[i]);
@@ -65,7 +65,7 @@ public class CombinedExperimentsSummary {
     /* Add single experiment summary to the combined file */
     public void addExperimentSummary(String fn, String exp) throws IOException {
         /* These are the columns that will be added */
-        String[] colsToAdd = new String[]{"localized_psms", "n-term_localization_rate",
+        String[] colsToAdd = new String[]{"localized_PSMs", "n-term_localization_rate",
                 "AA1", "AA1_enrichment_score", "AA1_psm_count",
                 "AA2", "AA2_enrichment_score", "AA2_psm_count",
                 "AA3", "AA3_enrichment_score", "AA3_psm_count",
@@ -133,7 +133,7 @@ public class CombinedExperimentsSummary {
     public void addSimilarityRTSummary(String fn, String ds) throws IOException {
         BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
 
-        String[] colsToAdd = new String[]{"similarity_(mean)", "similarity_(variance)", "rt_shift_(mean)",
+        String[] colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
                 "rt_shift_(variance)"};
 
         /* Add all new headers to new file */

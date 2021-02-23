@@ -39,7 +39,7 @@ public class LocalizationProfile {
 	public void writeProfile(String path) throws Exception {
 		PrintWriter out = new PrintWriter(new FileWriter(path));
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
-				"peak","localized_psms","psms","n-term_localization_rate",
+				"peak","localized_PSMs","PSMs","n-term_localization_rate",
 				"AA1","AA1_enrichment_score", "AA1_psm_count",
 				"AA2","AA2_enrichment_score", "AA2_psm_count",
 				"AA3","AA3_enrichment_score", "AA3_psm_count");

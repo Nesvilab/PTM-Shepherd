@@ -127,14 +127,15 @@ public class PeakSummary {
 		
 		out.print("peak_apex\tpeak_lower\tpeak_upper");
 		out.print("\t"+"peak_signal");
+
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + "_(psms)");
+			out.print("\t"+exps[i] + "_(PSMs)");
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + "_(percent_psms)");
+			out.print("\t"+exps[i] + "_(percent_PSMs)");
 		for(int i = 0; i < exps.length; i++)
 			out.print("\t"+exps[i] + "_(peptides)\t" + exps[i] + "_(percent_also_in_unmodified)");
 		out.print("\t"+"percent_also_in_unmodified");
-		out.print("\t"+"psms");
+		out.print("\t"+"PSMs");
 		out.println();
 
 		for(int i = 0; i < features.size(); i++) {

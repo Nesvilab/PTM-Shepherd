@@ -57,6 +57,8 @@ public class LocalizationRecord {
 		if(backgroundEnrich > 2)
 			globalEnrich = true;
 
+		//todo implement nonlocalized psm background
+
 		//if "localized"
 		if(bestFrag > origFrag) {
 			if(globalEnrich)
@@ -150,18 +152,21 @@ public class LocalizationRecord {
 			taScores[j] = aaScores[j];
 		double bscore = 0;
 		for(int j = 0; j < outputTopN; j++) {
-			int best = 0;
-			for(int i = 0; i < 26; i++)
-				if((aaScores[i] > aaScores[best]) && (aaScoresSafe[i] / total > 0.01))
+			int best = 25;
+			for (int i = 0; i < 26; i++) {
+				if ((aaScores[i] > aaScores[best]) &&		/* 	If better */
+						(aaScoresSafe[i] / total > 0.01) &&	/* and bin > 5% localized */
+						(aaScores[i] > 1.5) && 				/* and enrichment score > 1.5 */
+						(aaScoresSafe[i] > 5)) 				/* and weighted PSMs > 5 */
 					best = i;
-			char b = (char)('A'+best);
-			bscore = Math.max(bscore,aaScores[best]);
+			}
+			char b = (char) ('A' + best);
+			bscore = Math.max(bscore, aaScores[best]);
 
-			if(aaScores[best] == 0.0)
+			if (aaScores[best] == 0.0 || (double) improved / (double) total < 0.05)
 				sb.append(String.format("\t\t\t"));//%c - NaN - NaN",b));//,b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
 			else
-				sb.append(String.format("\t%c\t%.1f\t%.1f",b,(sum == 0)?0:(aaScores[best]),(sum == 0)?0:(aaScoresSafe[best])));
-
+				sb.append(String.format("\t%c\t%.1f\t%.0f", b, (sum == 0) ? 0 : (aaScores[best]), (sum == 0) ? 0 : (aaScoresSafe[best])));
 			aaScores[best] = 0;
 		}
 		
