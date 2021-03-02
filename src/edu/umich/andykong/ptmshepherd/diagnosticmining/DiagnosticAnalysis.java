@@ -22,7 +22,7 @@ public class DiagnosticAnalysis {
     float precursorTol, spectraTol;
     int condPeaks;
     int precursorMassUnits;
-    int specCol, pepCol, modPepCol, deltaCol, rtCol, intCol, pmassCol, modCol, precCol;
+    int specCol, pepCol, modPepCol, deltaCol, rtCol, intCol, pmassCol, modCol, pepMassCol;
     double condRatio;
     int minImmon = 0;
     int maxImmon = 500;
@@ -51,6 +51,8 @@ public class DiagnosticAnalysis {
         //locate = new FastLocator(peaks, this.precursorTol, this.precursorMassUnits);
     }
 
+
+
     public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int nThread) throws Exception {
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
         PrintWriter out = new PrintWriter(diagFile);
@@ -64,7 +66,8 @@ public class DiagnosticAnalysis {
         specCol = pf.getColumn("Spectrum");
         pepCol = pf.getColumn("Peptide");
         deltaCol = pf.dMassCol;
-        precCol = pf.getPrecursorCol();
+        pepMassCol = pf.getPrecursorCol();
+        pmassCol = pf.getColumn("Calculated Peptide Mass");
         intCol = pf.getColumn("Intensity");
         modCol = pf.getColumn("Assigned Modifications");
 
@@ -145,7 +148,7 @@ public class DiagnosticAnalysis {
         String specName = sp[specCol];
         String pepSeq = sp[pepCol];
         String [] smods = sp[modCol].split(",");
-        float precMass = Float.parseFloat(sp[precCol]);
+        float pepMass = Float.parseFloat(sp[pepMassCol]);
 
         sb.append(String.format("%s\t%s\t%s\t%s", specName, pepSeq, sp[modCol], dmass));
 
@@ -162,7 +165,7 @@ public class DiagnosticAnalysis {
 
         immoniumPeaks = calcImmoniumIons(spec, minImmon, maxImmon);
         sb.append(String.format("\t%s", peaksToString(immoniumPeaks)));
-        capYPeaks = calcCapYIons(spec, precMass);
+        capYPeaks = calcCapYIons(spec, pepMass);
         sb.append(String.format("\t%s", peaksToString(capYPeaks)));
         squigglePeaks = calcSquigglePeaks(spec, 1.0f, this.spectraTol, pepSeq, smods, ionTypes, 1); //todo is pepmass needed? todo ppmtol for spectra
 
@@ -170,7 +173,6 @@ public class DiagnosticAnalysis {
             sb.append(String.format("\t%s", peaksToString(squigglePeaks.get(ionTypes.charAt(i)))));
 
         return sb;
-
     }
 
     public float[][] calcImmoniumIons(Spectrum spec, int min, int max) {
@@ -182,6 +184,8 @@ public class DiagnosticAnalysis {
         StringBuffer sb = new StringBuffer();
         for (int i = 0; i < immoniumPeaks.length; i++)
             sb.append(String.format("%.4f:%.4f,", immoniumPeaks[i][0], immoniumPeaks[i][1]));
+        if (sb.length() == 0)
+            return sb.substring(0,0);
         return sb.substring(0, sb.length()-1);
     }
 

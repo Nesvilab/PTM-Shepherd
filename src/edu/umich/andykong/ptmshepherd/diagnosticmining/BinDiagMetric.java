@@ -2,6 +2,7 @@ package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -45,7 +46,7 @@ public class BinDiagMetric { //todo figure out bounds in a smarter way
     }
 
     /* Sends the peptides to the histogram */
-    public void processPeptideMap() {
+    public void processPeptideMap() throws IOException {
 
         /* Prepopulate histo min/max for each ion type */
         for (int i = 0; i < this.binMinMax.length; i++) {
@@ -56,12 +57,18 @@ public class BinDiagMetric { //todo figure out bounds in a smarter way
         /* Find the mins and maxes of each histo */
         for (String pepKey : this.peptideMap.keySet()) {
             for (String cline : this.peptideMap.get(pepKey)) {
-                String[] sp = cline.substring(0, cline.length() - 1).split("\t");
+                String[] sp = cline.substring(0, cline.length() - 1).split("\t",-1);
                 for (int i = 4; i < sp.length; i++) { /* First 4 cols in preprocessed file are spec metadata */
-                    String[] ions = sp[i].split(",");
+                    String[] ions = sp[i].split(",", -1);
                     for (String ion : ions) {
-                        String[] peak = ion.split(":");
-                        double mz = Double.parseDouble(peak[0]);
+                        String[] peak = ion.split(":", -1);
+                        double mz;
+                        try {
+                            mz = Double.parseDouble(peak[0]);
+                        } catch (Exception e) {
+                            System.out.println(cline);
+                            continue;
+                        }
                         if (mz < this.binMinMax[i-4][0])
                             this.binMinMax[i-4][0] = mz;
                         if (mz > this.binMinMax[i-4][1])
@@ -70,10 +77,6 @@ public class BinDiagMetric { //todo figure out bounds in a smarter way
                 }
             }
         }
-
-        //for (int i = 0; i < this.binMinMax.length; i++) {
-        //    System.out.printf("%.4f\t%.4f\n",this.binMinMax[i][0], this.binMinMax[i][1]);
-        //}
 
         /* Initialize histograms */
         this.immoniumIons = new DiagnosticHisto(this.binMinMax[0][0], this.binMinMax[0][1], 0.01);
@@ -87,20 +90,26 @@ public class BinDiagMetric { //todo figure out bounds in a smarter way
         for (String pepKey : this.peptideMap.keySet()) {
             double nPsms = this.peptideMap.get(pepKey).size();
             for (String cline : this.peptideMap.get(pepKey)) {
-                String[] sp = cline.substring(0, cline.length() - 1).split("\t");
+                String[] sp = cline.substring(0, cline.length() - 1).split("\t", -1);
                 for (int i = 4; i < sp.length; i++) { /* First 4 cols in preprocessed file are spec metadata */
-                    String[] ions = sp[i].split(",");
+                    String[] ions = sp[i].split(",", -1);
                     for (String ion : ions) {
-                        String[] peak = ion.split(":");
-                        double mz = Double.parseDouble(peak[0]);
-                        double intensity = Double.parseDouble(peak[1]) / nPsms;
+                        String[] peak = ion.split(":", -1);
+                        double mz;
+                        double intensity;
+                        try {
+                            mz = Double.parseDouble(peak[0]);
+                            intensity = Double.parseDouble(peak[1]) / nPsms;
+                        } catch (Exception e) {
+                            System.out.println(cline);
+                            continue;
+                        }
                         if (i == 4)
                             this.immoniumIons.placeIon(mz, intensity);
                         else if (i == 5)
                             this.capYIons.placeIon(mz, intensity);
                         else if (i > 5) {
                             if (!(-3.5 < mz && mz < 3.5)) {
-                                //System.out.println(mz);
                                 this.tildeIons.get(i - 6).placeIon(mz, intensity); /* 6 = 4 metadata cols + immon + Y */
                             }
                         }
@@ -108,11 +117,18 @@ public class BinDiagMetric { //todo figure out bounds in a smarter way
                 }
             }
         }
-        System.out.println(peakApex);
-        System.out.println(this.tildeIons.get(0).findMax());
-        System.out.println(this.tildeIons.get(0).binToMass(this.tildeIons.get(0).findMax()));
-
-
+        try {
+            this.capYIons.printHisto(this.peakApex + "_capY.tsv");
+            System.out.println(this.peakApex + "_capY.tsv");
+            this.immoniumIons.printHisto(this.peakApex + "_imm.tsv");
+            System.out.println(this.peakApex + "_imm.tsv");
+            for (int i = 0; i < this.tildeIons.size(); i++) {
+                this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
+                System.out.println(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
+            }
+        } catch (Exception e) {
+            System.out.println(e);
+        }
 
     }
 }

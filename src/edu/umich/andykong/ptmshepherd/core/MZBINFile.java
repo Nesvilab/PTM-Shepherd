@@ -61,6 +61,7 @@ public class MZBINFile {
         Collections.sort(this.specs);
     }
 
+
     public static Spectrum loadSpectrum(String path, int scanNum) throws Exception {
         String runName = getBasenameStat(path);
 

@@ -1,5 +1,10 @@
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+
 public class DiagnosticHisto {
     double [] bins;
     double min;
@@ -10,12 +15,7 @@ public class DiagnosticHisto {
     public DiagnosticHisto (double mn, double mx, double binWidth) {
         this.min = mn - buffersize;
         this.max = mx + buffersize;
-        //System.out.println(this.max);
-        //System.out.println(this.min);
         this.binsPerDa = (int) (1.0 / binWidth);
-        //System.out.println(1.0 / binWidth);
-        //System.out.println((int) (1.0 / binWidth));
-        //System.out.println((int)(this.binsPerDa * (this.max - this.min)));
         this.bins = new double [(int)(this.binsPerDa * (max - min))]; //TODO test
     }
 
@@ -26,12 +26,7 @@ public class DiagnosticHisto {
     }
 
     public void placeIon(double mz, double intensity) {
-        try {
-            this.bins[locateBin(mz)] += intensity;
-        } catch (Exception e) { //todo purge this
-            System.out.printf("%.4f\t%.4f\t%d***\n", this.min, this.max, this.bins.length);
-            System.out.printf("%.4f\t%d\t%.4f\n", mz, locateBin(mz), intensity);
-        }
+        this.bins[locateBin(mz)] += intensity;
     }
 
     public double binToMass(int bini) {
@@ -48,5 +43,23 @@ public class DiagnosticHisto {
             }
         }
         return maxi;
+    }
+
+    public void printHisto(String fname) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(new File(fname)));
+        out.printf("mass\theight\n");
+        for (int i = 0; i < this.bins.length; i++) {
+            StringBuffer sb = new StringBuffer();
+            for (int j = 0; j < 10000; j++) {
+                if (i + j < this.bins.length) {
+                    sb.append(String.format("%.04f\t%.04f\n", binToMass(i), this.bins[i]));
+                    i++;
+                } else {
+                    continue;
+                }
+            }
+            out.printf(sb.toString());
+        }
+        out.close();
     }
 }

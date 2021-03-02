@@ -38,10 +38,10 @@ public class CombinedExperimentsSummary {
         /* Add exp-level values to file file */
         String[] curHeaders  = in.readLine().split("\t", -1);
         for (int i = 0; i < curHeaders.length; i++) {
-            if (curHeaders[i].contains("_(PSMs)") ||
-                    curHeaders[i].contains("_(percent_PSMs)") ||
-                    curHeaders[i].contains("_(peptides)") ||
-                    curHeaders[i].contains("_(percent_also_in_unmodified)"))
+            if ((curHeaders[i].contains("_PSMs") && !curHeaders[i].contains("_percent_PSMs"))||
+                    curHeaders[i].contains("_percent_PSMs") ||
+                    curHeaders[i].contains("_peptides") ||
+                    curHeaders[i].contains("_percent_also_in_unmodified"))
                 colsToAdd.add(curHeaders[i]);
         }
 

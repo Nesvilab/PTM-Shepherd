@@ -129,11 +129,11 @@ public class PeakSummary {
 		out.print("\t"+"peak_signal");
 
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + "_(PSMs)");
+			out.print("\t"+exps[i] + "_PSMs");
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + "_(percent_PSMs)");
+			out.print("\t"+exps[i] + "_percent_PSMs");
 		for(int i = 0; i < exps.length; i++)
-			out.print("\t"+exps[i] + "_(peptides)\t" + exps[i] + "_(percent_also_in_unmodified)");
+			out.print("\t"+exps[i] + "_peptides\t" + exps[i] + "_percent_also_in_unmodified");
 		out.print("\t"+"percent_also_in_unmodified");
 		out.print("\t"+"PSMs");
 		out.println();

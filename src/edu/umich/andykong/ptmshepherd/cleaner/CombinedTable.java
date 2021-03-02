@@ -35,15 +35,15 @@ public class CombinedTable {
         String[] curHeaders = in.readLine().split("\t", -1);
         ArrayList<String> experiments = new ArrayList<>();
         for (int i = 0; i < curHeaders.length; i++) {
-            if (curHeaders[i].contains("_(PSMs)"))
-                experiments.add(curHeaders[i].substring(0, curHeaders[i].indexOf("_(PSMs)")));
+            if (curHeaders[i].endsWith("_percent_PSMs"))
+                experiments.add(curHeaders[i].substring(0, curHeaders[i].indexOf("_percent_PSMs")));
         }
 
         /* Get cols to add to beginning from peaksummary.annotated.tsv */
-        String[] colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "PSMs",
+        String[] colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "PSMs", "peak_signal",
                     "percent_also_in_unmodified", "mapped_mass_1", "mapped_mass_2"};
 
-        ArrayList<String> colsToAddLater = new ArrayList<>(Arrays.asList("peak_signal"));
+        ArrayList<String> colsToAddLater = new ArrayList<>();
 
         /* Add headers */
         for (String col : colsToAdd)
@@ -51,13 +51,13 @@ public class CombinedTable {
 
         /* Assure proper order for elements */
         for (String exp : experiments)
-            colsToAddLater.add(exp + "_(PSMs)");
+            colsToAddLater.add(exp + "_PSMs");
         for (String exp : experiments)
-            colsToAddLater.add(exp + "_(percent_PSMs)");
+            colsToAddLater.add(exp + "_percent_PSMs");
         for (String exp : experiments)
-            colsToAddLater.add(exp + "_(peptides)");
+            colsToAddLater.add(exp + "_peptides");
         for (String exp : experiments)
-            colsToAddLater.add(exp + "_(percent_also_in_unmodified)");
+            colsToAddLater.add(exp + "_percent_also_in_unmodified");
 
         /* Read remaining lines and append to data */
         String cline;

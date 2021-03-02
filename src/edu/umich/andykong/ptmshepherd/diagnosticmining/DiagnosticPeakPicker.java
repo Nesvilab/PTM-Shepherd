@@ -4,10 +4,7 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.TreeMap;
@@ -21,8 +18,6 @@ public class DiagnosticPeakPicker {
     int condPeaks;
     int precursorMassUnits;
     double condRatio;
-    int minImmon = 0;
-    int maxImmon = 500;
     FastLocator locate;
     float noiseLevel;
 
@@ -42,6 +37,8 @@ public class DiagnosticPeakPicker {
     /* Construct mass shift peak -> preprocessed file -> line mapping datastructure */
     public void addFileToIndex(String dataset) {
         String fname = dataset + ".diagions";
+        long t1 = System.currentTimeMillis();
+        System.out.printf("\t\tIndexing data from %s\n", dataset);
 
         try {
             BufferedReader in = new BufferedReader(new FileReader(fname));
@@ -80,10 +77,12 @@ public class DiagnosticPeakPicker {
             System.out.println(e);
         }
 
+        long t2 = System.currentTimeMillis();
+        System.out.printf("\t\tDone indexing data from %s (%d ms)\n", dataset, t2-t1);
     }
 
     /* Send ions to BinDiagnosticMetric containers */
-    public void process() {
+    public void process() throws IOException {
         for (Integer peakIndx : this.peakToFileToLine.keySet()) {
             double[] peakVals = new double[] {this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[0][peakIndx]};
             BinDiagMetric bdMetrics  = new BinDiagMetric(peakVals, this.ionTypes);

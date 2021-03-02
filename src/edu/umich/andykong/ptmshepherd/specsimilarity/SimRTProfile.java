@@ -20,7 +20,6 @@ public class SimRTProfile {
 		this.masses = new double[peakVals[0].length];
 		for (int i = 0; i < peakVals[0].length; i++) {
 			this.masses[i] = peakVals[0][i];
-			//System.out.println(this.masses[i]);
 		}
 
 		peaks = peakVals;

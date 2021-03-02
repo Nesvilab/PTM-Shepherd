@@ -68,8 +68,8 @@ public class ModSummary {
             for(int j = 1; j < inFile.size(); j++){
                 String line [] = inFile.get(j);
                 if(line.length == mod1i){
-                    psmCounts.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_(PSMs)")]));
-                    psmCountsNorm.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_(percent_PSMs)")]));
+                    psmCounts.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_PSMs")]));
+                    psmCountsNorm.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_percent_PSMs")]));
                 }
             }
         }
@@ -79,10 +79,10 @@ public class ModSummary {
                 String [] line = inFile.get(i);
                 if(line.length > j){
                     for(String ds : datasets) {
-                        int col = headis.get(ds + "_(PSMs)");
+                        int col = headis.get(ds + "_PSMs");
                         double prevCount = psmCounts.get(ds).get(line[j]);
                         psmCounts.get(ds).put(line[j], Double.parseDouble(line[col]) + prevCount);
-                        col = headis.get(ds + "_(percent_PSMs)");
+                        col = headis.get(ds + "_percent_PSMs");
                         prevCount = psmCountsNorm.get(ds).get(line[j]);
                         psmCountsNorm.get(ds).put(line[j], Double.parseDouble(line[col]) + prevCount);
                     }
@@ -117,9 +117,9 @@ public class ModSummary {
         PrintWriter out = new PrintWriter(new FileWriter(modOut));
         out.print("Modification\tTheoretical Mass Shift");
         for(String ds : datasets)
-            out.printf("\t%s_(PSMs)", ds);
+            out.printf("\t%s_PSMs", ds);
         for (String ds : datasets)
-            out.printf("\t%s_(percent_PSMs)", ds);
+            out.printf("\t%s_percent_PSMs", ds);
         out.println();
         // output sorted by sum of spectral counts
         for(String mod : sortedMap.keySet()){

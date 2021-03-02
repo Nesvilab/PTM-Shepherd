@@ -388,11 +388,11 @@ public class Spectrum implements Comparable<Spectrum> {
 		return peaks;
 	}
 
-	public float[][] calcCapYIons(float precursorMass) { //todo I think this should have better mins and maxes, include tolerance
+	public float[][] calcCapYIons(float pepMass) { //todo include tolerance
 		ArrayList<Peak> ps = new ArrayList<>();
 		float shift;
 		for (int i = 0; i < peakMZ.length; i++) {
-			shift = precursorMass - peakMZ[i];
+			shift = peakMZ[i] - pepMass;
 			ps.add(new Peak(shift, peakInt[i]));
 		}
 		float[][] peaks =  new float[ps.size()][2];
@@ -431,16 +431,12 @@ public class Spectrum implements Comparable<Spectrum> {
 
 		for (Character iType : nIonTypes) {
 		    ps = new ArrayList<>();
-		    System.out.println(iType);
-		    System.out.println(seq);
 			nTermMass = fragTypeShifts[iType - 'a'];
 			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
 			    float cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
 				for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
 					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
-					System.out.println(cmass);
 					for (int j = 0; j < peakMZ.length; j++) { //loop through peaks in spectrum
-						System.out.printf("%.4f\t%.4f\t%.4f\n", cmass, peakMZ[j], peakMZ[j] - cmass);
 						ps.add(new Peak(peakMZ[j] - cmass, peakInt[j]));
 					}
                 }

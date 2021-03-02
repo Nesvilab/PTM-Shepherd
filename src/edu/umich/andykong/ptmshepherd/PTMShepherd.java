@@ -26,7 +26,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "0.5.0";
+ 	public static final String version = "1.0.0";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -553,7 +553,7 @@ public class PTMShepherd {
 			cct.writeCombinedTable();
 		}
 
-		//Glyco anlyses
+		//Glyco analyses
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
@@ -589,13 +589,14 @@ public class PTMShepherd {
 				}
 				ga.complete();
 			}
-			for (String ds : datasets.keySet()) {
-				ArrayList<String[]> dsData = datasets.get(ds);
-				for (int i = 0; i < dsData.size(); i++) {
-					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")));
-				}
-			}
+			/* Don't merge glyco report with psm tables */
+			//for (String ds : datasets.keySet()) {
+			//	ArrayList<String[]> dsData = datasets.get(ds);
+			//	for (int i = 0; i < dsData.size(); i++) {
+			//		PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+			//		pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")));
+			//	}
+			//}
 			print("Created glyco reports\n");
 		}
 
@@ -736,10 +737,18 @@ public class PTMShepherd {
 		File newF = new File(newFpath);
 
 		if (newF.exists()) {
-			newF.delete();
-			System.out.println("Deleting old %s");
+			try {
+				deleteFile(newF.toPath(), true);
+				System.out.printf("Moving %s\n", oldF);
+			} catch (Exception e) {
+				System.out.printf("Error moving %s\n", oldF);
+			}
 		}
-		oldF.renameTo(newF);
+		try {
+			oldF.renameTo(newF);
+		} catch (Exception e) {
+			System.out.printf("Error deleting old %s\n", oldF);
+		}
 	}
 
 	/* Makes output directory */

@@ -76,7 +76,6 @@ public class PSMFile {
 		}
 		this.dMassCol = col;
 		for(int i = 0; i < data.size(); i++) {
-			//System.out.println(data.get(i));
 			String [] sp = data.get(i).split("\t");
 			res.add(Float.parseFloat(sp[col]));
 		}
