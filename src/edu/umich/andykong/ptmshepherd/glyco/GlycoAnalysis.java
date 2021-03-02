@@ -42,7 +42,7 @@ public class GlycoAnalysis {
         //cap y ions
         String[] capYstrs;
         if (PTMShepherd.getParam("cap_y_ions").length() > 0)
-            capYstrs = PTMShepherd.getParam("cap_y_ions").split(",");
+            capYstrs = PTMShepherd.getParam("cap_y_ions").split(",| |/");
         else
             capYstrs = new String[0];
         capYShifts = new double[capYstrs.length];
@@ -51,7 +51,7 @@ public class GlycoAnalysis {
         //oxonium ions
         String[] oxStrs;
         if (PTMShepherd.getParam("diag_ions").length() > 0)
-            oxStrs = PTMShepherd.getParam("diag_ions").split(",");
+            oxStrs = PTMShepherd.getParam("diag_ions").split(",| |/");
         else
             oxStrs = new String[0];
         oxoniumIons = new double[oxStrs.length];
@@ -60,7 +60,7 @@ public class GlycoAnalysis {
         //remainder masses
         String[] remainderStrs;
         if (PTMShepherd.getParam("remainder_masses").length() > 0)
-            remainderStrs = PTMShepherd.getParam("remainder_masses").split(",");
+            remainderStrs = PTMShepherd.getParam("remainder_masses").split(",| |/");
         else
             remainderStrs = new String[0];
         remainderMasses = new double[remainderStrs.length];

@@ -38,17 +38,17 @@ public class GlycoProfile {
         //String[] capYStrs, diagIonStrs, remFragStrs;
         //cap y ions
         if (PTMShepherd.getParam("cap_y_ions").length() > 0)
-            capYStrs = PTMShepherd.getParam("cap_y_ions").split(",");
+            capYStrs = PTMShepherd.getParam("cap_y_ions").split(",| |/");
         else
             capYStrs = new String[0];
         //oxonium ions
         if (PTMShepherd.getParam("diag_ions").length() > 0)
-            diagIonStrs = PTMShepherd.getParam("diag_ions").split(",");
+            diagIonStrs = PTMShepherd.getParam("diag_ions").split(",| |/");
         else
             diagIonStrs = new String[0];
         //remainder masses
         if (PTMShepherd.getParam("remainder_masses").length() > 0)
-            remFragStrs = PTMShepherd.getParam("remainder_masses").split(",");
+            remFragStrs = PTMShepherd.getParam("remainder_masses").split(",| |/");
         else
             remFragStrs = new String[0];
     }
