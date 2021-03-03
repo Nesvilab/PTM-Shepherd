@@ -137,6 +137,8 @@ public class PTMShepherd {
         params.put("mass_offsets", "");
         params.put("isotope_error", "0");
 
+		params.put("spectra_tol", "20.0"); //unused //todo
+		params.put("spectra_mass_units", "1"); //unused //todo
 		params.put("spectra_ppmtol", "20.0"); //obvious, used in localization and simrt
 		params.put("spectra_condPeaks", "100"); //
 		params.put("spectra_condRatio", "0.01");
