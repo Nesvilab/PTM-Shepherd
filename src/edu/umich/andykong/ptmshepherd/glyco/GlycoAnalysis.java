@@ -8,6 +8,9 @@ import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTProfile;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,10 +29,12 @@ public class GlycoAnalysis {
     double[] capYShifts;// = new double[]{0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
     double[] oxoniumIons;//= new double[]{204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761};
     double[] remainderMasses;// = new double[]{203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
+    ArrayList<GlycanCandidate> glycanDatabase;
 
-    public GlycoAnalysis(String dsName) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName+".rawglyco"));
+        this.glycanDatabase = glycoDatabase;
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
@@ -178,6 +183,9 @@ public class GlycoAnalysis {
 
         int normToBasePeak = Integer.parseInt(PTMShepherd.getParam("glyco_cap_y_ions_normalize"));
         //System.out.println(normToBasePeak);
+
+        // todo: temp
+        double[] newYIons = getAllPossibleYShifts(glycanDatabase);
 
         //initialize final capYion masses
         double[] capYIons = new double[capYShifts.length];

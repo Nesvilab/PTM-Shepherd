@@ -14,8 +14,7 @@ import edu.umich.andykong.ptmshepherd.cleaner.CombinedExperimentsSummary;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
-import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
-import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
+import edu.umich.andykong.ptmshepherd.glyco.*;
 import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
 import edu.umich.andykong.ptmshepherd.specsimilarity.*;
@@ -32,6 +31,7 @@ public class PTMShepherd {
 	static TreeMap<String,ArrayList<String []>> datasets;
 	static HashMap<String,HashMap<String,File>> mzMap;
 	static HashMap<String,Integer> datasetMS2;
+	static ArrayList<GlycanCandidate> glycoDatabase;
 	private static String outputPath;
 	public static ExecutorService executorService;
 
@@ -94,6 +94,53 @@ public class PTMShepherd {
 		if (Integer.parseInt(params.get("threads")) <= 0) {
 			params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
 		}
+	}
+
+	/**
+	 * Parse input glycan database file. Formatting: 1 glycan per line, "Residue1-count_Residue2-count_...\n"
+	 * @param inputPath path to input file
+	 * @return list of glycans to consider
+	 */
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath) {
+		Path path = null;
+		try {
+			path = Paths.get(inputPath.replaceAll("['\"]", ""));
+		} catch (Exception e) {
+			System.out.println(e);
+			die(String.format("Malformed glycan path string: [%s]", inputPath));
+		}
+		if (path == null || !Files.exists(path)) {
+			die(String.format("Glycan database file does not exist: [%s]", inputPath));
+		}
+		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
+		try {
+			BufferedReader in = new BufferedReader(new FileReader(path.toFile()));
+
+			String line;
+			while ((line = in.readLine()) != null) {
+				String[] splits = line.split("_");
+				TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
+				// Read all residue counts into the composition container
+				for (String split: splits) {
+					String[] glycanSplits = split.split("-");
+					// todo: add error catching
+					GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
+					int count = Integer.parseInt(glycanSplits[1].trim());
+					glycanComp.put(residue, count);
+				}
+				// generate a new candidate from this composition and add to DB
+				GlycanCandidate candidate = new GlycanCandidate(glycanComp);
+				glycanDB.add(candidate);
+			}
+
+		} catch (FileNotFoundException e) {
+			die(String.format("Glycan database file not found: [%s]", inputPath));
+		} catch (IOException e) {
+			e.printStackTrace();
+			die("IO Exception while reading database file");
+		}
+
+		return glycanDB;
 	}
 	
 	public static void init(String [] args) throws Exception {
@@ -571,8 +618,9 @@ public class PTMShepherd {
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
+			glycoDatabase = parseGlycanDatabase(params.get("glycodatabase"));
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
@@ -586,14 +634,14 @@ public class PTMShepherd {
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
 			}
 			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
