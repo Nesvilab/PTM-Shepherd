@@ -378,5 +378,34 @@ public class GlycoAnalysis {
         in.close();
     }
 
+    /**
+     * Generate a list of all possible Y ion shifts to look for, given the list of glycan candidates
+     * being considered. Output list is the set of all Y ion shifts in all candidates without duplicates.
+     * @param glycanCandidates list of glycan candidates
+     * @return array of Y shifts
+     */
+    public double[] getAllPossibleYShifts(ArrayList<GlycanCandidate> glycanCandidates) {
+        ArrayList<Double> yShifts = new ArrayList<>();
+        for (GlycanCandidate glycan : glycanCandidates) {
+            for (double yMass : glycan.expectedYIons) {
+                if (!yShifts.contains(yMass)) {
+                    yShifts.add(yMass);
+                }
+            }
+            // need to look for disallowed Y ions in spectra as well
+            for (double yMass : glycan.disallowedYIons) {
+                if (!yShifts.contains(yMass)) {
+                    yShifts.add(yMass);
+                }
+            }
+        }
+
+        // convert to array
+        final double[] allYShifts = new double[yShifts.size()];
+        for (int i=0; i < allYShifts.length; i++) {
+            allYShifts[i] = yShifts.get(i);
+        }
+        return allYShifts;
+    }
 
 }
