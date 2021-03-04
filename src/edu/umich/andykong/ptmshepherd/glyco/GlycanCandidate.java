@@ -45,6 +45,9 @@ public class GlycanCandidate {
      *
      */
     private void initializeAllowedYs() {
+        expectedYIons = new ArrayList<>();
+        disallowedYIons = new ArrayList<>();
+
         // HexNAc, Hex: simple (composition only) rule expects up to the total number of HexNAcs in the composition and disallows more than that
         int maxHexNAc = 0;
         int maxHex = 0;
@@ -55,10 +58,11 @@ public class GlycanCandidate {
             maxHex = glycanComposition.get(GlycanResidue.Hex);
         }
         // generate all allowed combinations
-        for (int hexnac=0; hexnac < maxHexNAc; hexnac++) {
-            for (int hex=0; hex < maxHex; hex++) {
+        for (int hexnac=0; hexnac <= maxHexNAc; hexnac++) {
+            for (int hex=0; hex <= maxHex; hex++) {
                 float yMass = hexnac * GlycanMasses.hexnacMass + hex * GlycanMasses.hexMass;
-                if (yMass > 0) {
+                boolean skipHexOnly = maxHexNAc > 0 && hexnac == 0;    // skip Ys that have Hex but no HexNAc, as long as HexNAc is part of the composition
+                if (yMass > 0 && !skipHexOnly) {
                     expectedYIons.add(yMass);
                     // Fuc: allow Y ions with and without Fuc if present
                     if (containsResidueType(GlycanResidue.dHex)) {
@@ -75,8 +79,11 @@ public class GlycanCandidate {
          */
         int maxExtraHexNAc = 3;
         int maxExtraHex = 5;
-        for (int hexnac = maxHexNAc + 1; hexnac <= maxHexNAc + maxExtraHexNAc; hexnac++) {
-            for (int hex = maxHex + 1; hex <= maxHex + maxExtraHex; hex++) {
+        for (int hexnac = maxHexNAc; hexnac <= maxHexNAc + maxExtraHexNAc; hexnac++) {
+            for (int hex = maxHex; hex <= maxHex + maxExtraHex; hex++) {
+                // don't want to add an allowed combination, but do need to start loops at 0 extra to cover all possibilities - skip this case
+                if (hexnac == maxHexNAc && hex == maxHex)
+                    continue;
                 float yMass = hexnac * GlycanMasses.hexnacMass + hex * GlycanMasses.hexMass;
                 disallowedYIons.add(yMass);
             }
@@ -88,6 +95,9 @@ public class GlycanCandidate {
      * filtering rules. Expected and disallowed ions are listed as 1+ m/z.
      */
     private void initializeAllowedOxoniums() {
+        expectedOxoniumIons = new ArrayList<>();
+        disallowedOxoniumIons = new ArrayList<>();
+
         // NeuAc: expect NeuAc Oxo ions if present and vice versa
         if (containsResidueType(GlycanResidue.NeuAc)) {
             expectedOxoniumIons.addAll(Arrays.asList(GlycanMasses.NeuAcOxoniums));
