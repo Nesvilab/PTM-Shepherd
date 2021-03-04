@@ -102,7 +102,7 @@ public class LocalizationRecord {
 		/* General stats */ //TODO make this better, how to easily filter N-term enrichment form final results if it doesn't matter?
 		double nTermRate = ((double)100*nTerm)/((total==0)?1:total);
 		if (nTermRate < 5.0 || (double) improved / (double) total < 0.05)
-			sb.append(String.format("%.4f\t%d\t%d\t\t", mass , improved, total));
+			sb.append(String.format("%.4f\t%d\t%d\t", mass , improved, total));
 		else
 			sb.append(String.format("%.4f\t%d\t%d\t%.2f", mass , improved, total, nTermRate));
 
