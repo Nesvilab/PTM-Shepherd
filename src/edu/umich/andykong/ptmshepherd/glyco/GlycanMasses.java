@@ -17,7 +17,7 @@ public class GlycanMasses {
     public static TreeMap<GlycanResidue, Float> glycoMasses;
     static
     {
-        glycoMasses = new TreeMap<GlycanResidue, Float>();
+        glycoMasses = new TreeMap<>();
         glycoMasses.put(GlycanResidue.Hex, hexMass);
         glycoMasses.put(GlycanResidue.HexNAc, hexnacMass);
         glycoMasses.put(GlycanResidue.dHex, dhexMass);
@@ -32,6 +32,32 @@ public class GlycanMasses {
     public static final Float[] NeuGcOxoniums = {308.09761f};
     public static final Float[] PhosphoOxoniums = {243.026426f, 405.079246f, 485.045576f};
     public static final Float[] SulfoOxoniums = {284.044f, 446.098f, 811.212f};
+
+    // Map of names to residues for parsing database files. NOTE: assumed all lower case
+    public static TreeMap<String, GlycanResidue> glycoNames;
+    static
+    {
+        glycoNames = new TreeMap<>();
+        glycoNames.put("hex", GlycanResidue.Hex);
+        glycoNames.put("glc", GlycanResidue.Hex);
+        glycoNames.put("gal", GlycanResidue.Hex);
+        glycoNames.put("glucose", GlycanResidue.Hex);
+        glycoNames.put("galactose", GlycanResidue.Hex);
+        glycoNames.put("hexnac", GlycanResidue.HexNAc);
+        glycoNames.put("glcnac", GlycanResidue.HexNAc);
+        glycoNames.put("galnac", GlycanResidue.HexNAc);
+        glycoNames.put("fuc", GlycanResidue.dHex);
+        glycoNames.put("dhex", GlycanResidue.dHex);
+        glycoNames.put("neuac", GlycanResidue.NeuAc);
+        glycoNames.put("neugc", GlycanResidue.NeuGc);
+        glycoNames.put("phospho", GlycanResidue.Phospho);
+        glycoNames.put("phosphorylation", GlycanResidue.Phospho);
+        glycoNames.put("phosphate", GlycanResidue.Phospho);
+        glycoNames.put("sulf", GlycanResidue.Sulfo);
+        glycoNames.put("sulfo", GlycanResidue.Sulfo);
+        glycoNames.put("sulfation", GlycanResidue.Sulfo);
+        glycoNames.put("sulfate", GlycanResidue.Sulfo);
+    }
 
 }
 
