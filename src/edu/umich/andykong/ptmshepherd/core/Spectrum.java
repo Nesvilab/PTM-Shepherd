@@ -474,6 +474,10 @@ public class Spectrum implements Comparable<Spectrum> {
 	public int compareTo(Spectrum o) {
 		return scanNum - o.scanNum;
 	}
+	public double getPrecursorMass() {
+		return precursorMass;
+	}
+
 }
 
 class Peak {
