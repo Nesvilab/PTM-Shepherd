@@ -2,6 +2,7 @@ package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
+import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
@@ -178,14 +179,60 @@ public class GlycoAnalysis {
         return sb.toString();
     }
 
+    /**
+     * Main glycan assignment method at PSM level. Searches Y/Oxonium ions (and eventually exact mass/isotope) to compare
+     * to possible glycan candidates. Goal is to return best glycan candidate and score.
+     * @param spec spectrum being searched
+     * @param pepMass peptide mass (without glycan)
+     * @param allYShifts array of all Y shifts to search (may include extras, but should? be faster than recomputing smaller list each time)
+     * @param glycanDatabase possible glycan candidates
+     */
+    public void assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, double[] allYShifts, ArrayList<GlycanCandidate> glycanDatabase) {
+        // Determine possible glycan candidates from mass
+        int[] isotopesToSearch = {-1, 0, 1, 2, 3};
+        double ms1TolPPM = 20;  // todo: connect to existing param?
+        ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(deltaMass, glycanDatabase, isotopesToSearch, ms1TolPPM);
+
+        // Get Y ions possible for these candidates
+        double[] possibleYIons = getAllPossibleYShifts(searchCandidates);
+
+        // Search Y and oxonium ions in spectrum
+
+        // score candidates and save results
+
+    }
+
+    /**
+     * Get glycan candidates to consider for a given delta mass and isotope errors/mass tolerance.
+     * Might optimize for speed at some point by indexing glycan database by mass (if needed)
+     * @param deltaMass delta mass being searched
+     * @param glycanDatabase list of glycan candidates
+     * @param isotopesToSearch list of isotope errors to consider
+     * @param ms1TolerancePPM MS1 tolerance to consider around delta mass and isotope errors
+     * @return list of glycan candidates with masses within the delta mass + iso errors and tolerance
+     */
+    public ArrayList<GlycanCandidate> getMatchingGlycansByMass(double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, int[] isotopesToSearch, double ms1TolerancePPM) {
+        ArrayList<GlycanCandidate> matchingGlycans = new ArrayList<>();
+        for (int isotope : isotopesToSearch) {
+            // subtract isotope error, which is recorded as an increase relative to delta mass
+            double isotopeCorrMass = deltaMass - (isotope * AAMasses.averagineIsotopeMass);
+            double massRangeDa = isotopeCorrMass * 0.000001 * ms1TolerancePPM;
+            for (GlycanCandidate glycan : glycanDatabase) {
+                // see if mass within specified ranges
+                if (glycan.monoisotopicMass >= deltaMass - massRangeDa && glycan.monoisotopicMass <= deltaMass + massRangeDa) {
+                    // match
+                    matchingGlycans.add(glycan);
+                }
+            }
+        }
+        return matchingGlycans;
+    }
+
     public double[] findCapitalYIonMasses(Spectrum spec, double pepMass) {
         //implement charge states //todo
 
         int normToBasePeak = Integer.parseInt(PTMShepherd.getParam("glyco_cap_y_ions_normalize"));
         //System.out.println(normToBasePeak);
-
-        // todo: temp
-        double[] newYIons = getAllPossibleYShifts(glycanDatabase);
 
         //initialize final capYion masses
         double[] capYIons = new double[capYShifts.length];

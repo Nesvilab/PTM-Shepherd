@@ -9,6 +9,7 @@ public class AAMasses {
 	public static final float monoisotopic_cterm_mass = (float) 17.0027396542;
 	//public static final float average_cterm_mass = (float) 17.0027396542;
 	//public static final double monisotopic_cterm_mass = []{18.03386,17.0027396542,
+	public static final float averagineIsotopeMass = 1.00235f;
 
 	public static double getMonoisotopicNeutralMass(String pep) {
 		double cmass = AAMasses.monoisotopic_nterm_mass + AAMasses.monoisotopic_cterm_mass;
