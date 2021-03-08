@@ -7,7 +7,8 @@ import java.util.*;
 
 public class Spectrum implements Comparable<Spectrum> {
 
-	int scanNum, charge;
+	public int scanNum;
+	int charge;
 	double precursorMass, rt;
 	double monoMass, targetMass;
 	float [] peakMZ;
@@ -372,7 +373,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		return bpInt;
 	}
 
-	public float[][] calcImmoniumIons(int min, int max) { //todo I don't think these mins and maxes are very well informed
+	public float[][] calcImmoniumPeaks(int min, int max) { //todo I don't think these mins and maxes are very well informed
 		ArrayList<Peak> ps = new ArrayList<>();
 		for (int i = 0; i < peakMZ.length; i++) {
 			if (peakMZ[i] > max)
@@ -388,7 +389,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		return peaks;
 	}
 
-	public float[][] calcCapYIons(float pepMass) { //todo include tolerance
+	public float[][] calcCapYPeaks(float pepMass) { //todo include tolerance
 		ArrayList<Peak> ps = new ArrayList<>();
 		float shift;
 		for (int i = 0; i < peakMZ.length; i++) {
@@ -403,7 +404,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		return peaks;
 	}
 
-	public HashMap<Character, float[][]> calcSquigglePeaks(float precursorMass, float ppmTol, String seq, float[] mods, String ionTypes, int maxCharge) { //todo max charge? //todo min max boundaries?
+	public HashMap<Character, float[][]> calcSquigglePeaks(float ppmTol, String seq, float[] mods, String ionTypes, int maxCharge) { //todo max charge? //todo min max boundaries?
 		HashMap<Character, float[][]> squigglePeaks = new HashMap<>();
 
 		ArrayList<Character> nIonTypes = new ArrayList<>();

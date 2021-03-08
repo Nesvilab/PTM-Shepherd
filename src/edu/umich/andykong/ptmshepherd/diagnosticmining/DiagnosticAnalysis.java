@@ -4,6 +4,7 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
+import edu.umich.andykong.ptmshepherd.core.MZBINFile;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import umich.ms.fileio.filetypes.mzxml.MZXMLFile;
 
@@ -27,13 +28,13 @@ public class DiagnosticAnalysis {
     int minImmon = 0;
     int maxImmon = 500;
     FastLocator locate;
-
+    private ArrayList<DiagnosticRecord> diagnosticRecords;
     double [][] peaks; //[3][n] apex, left, right
     BinDiagMetric [] binDiagMetrics;
 
     public DiagnosticAnalysis(String ds) throws Exception {
         this.dsName = ds;
-        diagFile = new File(dsName+".diagions");
+        this.diagFile = new File(dsName+".diagions");
         //get necessary params
         this.precursorTol = Float.parseFloat(PTMShepherd.getParam("precursor_tol"));
         this.precursorMassUnits = Integer.parseInt(PTMShepherd.getParam("precursor_mass_units"));
@@ -45,33 +46,12 @@ public class DiagnosticAnalysis {
 
     public void initializeBinBoundaries(double [][] peakApexBounds) throws Exception {
         this.peaks = peakApexBounds;
-        //this.binDiagMetrics = new BinDiagMetric[this.peaks[0].length];
-        //for(int i = 0; i < this.binDiagMetrics.length; i++)
-        //    this.binDiagMetrics[i] = new BinDiagMetric(peakApexBounds[i]);
-        //locate = new FastLocator(peaks, this.precursorTol, this.precursorMassUnits);
     }
 
-
-
+    /* This function adds a PSM list file to this DiagnosticAnalysis */
     public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int nThread) throws Exception {
+        /* Map PSM lines to each fraction */
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-        PrintWriter out = new PrintWriter(diagFile);
-        StringBuffer headBuff = new StringBuffer();
-
-        headBuff.append("spectrum\tpeptide\tmodifications\tdelta_mass\timmonium_ions\tY_ions");
-        for (int i = 0; i < this.ionTypes.length(); i++)
-            headBuff.append(String.format("\t%c~_ions", this.ionTypes.charAt(i)));
-        out.println(headBuff.toString());
-
-        specCol = pf.getColumn("Spectrum");
-        pepCol = pf.getColumn("Peptide");
-        deltaCol = pf.dMassCol;
-        pepMassCol = pf.getPrecursorCol();
-        pmassCol = pf.getColumn("Calculated Peptide Mass");
-        intCol = pf.getColumn("Intensity");
-        modCol = pf.getColumn("Assigned Modifications");
-
-        //loop through psm file to assign spectra to bins
         for (int i = 0; i < pf.data.size(); i++) {
             String[] sp = pf.data.get(i).split("\t");
             String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
@@ -80,56 +60,97 @@ public class DiagnosticAnalysis {
             mappings.get(bn).add(i);
         }
 
-        for (String cf : mappings.keySet()) { //for file in relevant spectral files // DEBUGGING1
+        /* Get PSM table headers for parsing */
+        specCol = pf.getColumn("Spectrum");
+        pepCol = pf.getColumn("Peptide");
+        deltaCol = pf.dMassCol;
+        pepMassCol = pf.getPrecursorCol();
+        pmassCol = pf.getColumn("Calculated Peptide Mass");
+        intCol = pf.getColumn("Intensity");
+        modCol = pf.getColumn("Assigned Modifications");
+
+        /* Process spectral file one at a time */
+        for (String cf : mappings.keySet()) {
             long t1 = System.currentTimeMillis();
+            /* Initialize new DiagnosticRecord list */
+            this.diagnosticRecords = new ArrayList<>();
+
             mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
             mr.readFully();
             long t2 = System.currentTimeMillis();
+
             ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
 
             /* set up parallelization blocks */
-            final int BLOCKSIZE = 10; //number of scans to be parsed per thread (to cut down on thread creation overhead)
+            final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
             int nBlocks = clines.size() / (BLOCKSIZE); //number of jobs submitted to queue
             if (clines.size() % BLOCKSIZE != 0) //if there are missing scans, add one more block
                 nBlocks++;
             ArrayList<Future> futureList = new ArrayList<>(nBlocks);
 
-            /* Process PSM chunks */
+            /* Process PSM chunks and add them to diagnosticRecords*/
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size() - 1);
                 ArrayList<String> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.data.get(clines.get(j)));
-                futureList.add(executorService.submit(() -> processLinesBlock(cBlock, out)));
+                futureList.add(executorService.submit(() -> processLinesBlock(cBlock)));
             }
 
             /* Wait for all processes to finish */
             for (Future future : futureList)
                 future.get();
 
-            //for (int i = 0; i < clines.size(); i++) { //for relevant line in curr spec file
-            //    StringBuffer newLine = processLine(pf.data.get(clines.get(i)));
-            //    out.println(newLine.toString());
-            //}
+            /* Write results to DiagBINFile */
+            DiagBINFile diagBinFile = new DiagBINFile(this.diagnosticRecords, cf+".diagBIN", this.ionTypes);
+            diagBinFile.writeDiagBinFile();
+
+            DiagBINFile diagBinFileIn = new DiagBINFile(executorService,
+                    Integer.parseInt(PTMShepherd.getParam("threads")), cf+".diagBIN");
 
             long t3 = System.currentTimeMillis();
             PTMShepherd.print(String.format("\t\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));
         }
-        out.close();
+
     }
 
-    public void processLinesBlock(ArrayList<String> cBlock, PrintWriter out) {
-        StringBuffer newBlock  = new StringBuffer();
-        for (int i = 0; i < cBlock.size(); i++) {
-            processLine(cBlock.get(i));
-            newBlock.append(processLine(cBlock.get(i)) + "\n");
-        }
-        printLines(out, newBlock.toString());
+    public void processLinesBlock(ArrayList<String> cBlock) {
+        /* Temporary arrays that hold blocks of spectra to be added to shared Collections synchronously */
+        ArrayList<DiagnosticRecord> diagnosticRecords = new ArrayList<>();
+
+        for (int i = 0; i < cBlock.size(); i++)
+            diagnosticRecords.add(processLine(cBlock.get(i)));
+
+        addAllTempDiagnosticRecords(diagnosticRecords);
     }
 
-    private synchronized void printLines(PrintWriter out, String linesBlock) {
-        out.print(linesBlock);
+    /* Processes line in PSM list and turns turns it into a DiagnosticRecord of transformed spectra */
+    public DiagnosticRecord processLine(String s) {
+        /* Get metadata from PSM list line */
+        String[] sp = s.split("\t");
+        String specName = sp[specCol];
+        String pepSeq = sp[pepCol];
+        String mods = sp[modCol];
+        String [] smods = mods.split(",");
+        float dmass = Float.parseFloat(sp[deltaCol]);
+        float pepMass = Float.parseFloat(sp[pepMassCol]);
+
+        /* Prep spec and normalize to base peak */
+        Spectrum spec = mr.getSpectrum(reNormName(specName));
+        spec.conditionOptNorm(condPeaks, condRatio, true);
+
+        /* Initialize DiagnosticRecord and add relevant data */
+        DiagnosticRecord diagnosticRecord =  new DiagnosticRecord(spec, this.ionTypes, pepSeq, mods, dmass);
+        diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon));
+        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepMass));
+        diagnosticRecord.setSquigglePeaks(calcSquigglePeaks(spec, this.spectraTol, pepSeq, smods, this.ionTypes, 1));
+
+        return diagnosticRecord;
+    }
+
+    private synchronized void addAllTempDiagnosticRecords(ArrayList<DiagnosticRecord> diagnosticRecordsBlock) {
+        this.diagnosticRecords.addAll(diagnosticRecordsBlock);
     }
 
     public String reNormName(String s) {
@@ -141,42 +162,8 @@ public class DiagnosticAnalysis {
         return String.format("%s.%d.%d", sp[0], sn, sn);
     }
 
-    public StringBuffer processLine(String s) {
-        StringBuffer sb = new StringBuffer();
-        String[] sp = s.split("\t");
-        String dmass = sp[deltaCol];
-        String specName = sp[specCol];
-        String pepSeq = sp[pepCol];
-        String [] smods = sp[modCol].split(",");
-        float pepMass = Float.parseFloat(sp[pepMassCol]);
-
-        sb.append(String.format("%s\t%s\t%s\t%s", specName, pepSeq, sp[modCol], dmass));
-
-        Spectrum spec = mr.getSpectrum(reNormName(specName));
-
-        if (spec == null) {
-            System.out.println("SPECISSUE");
-            System.out.println();}
-        spec.conditionOptNorm(condPeaks, condRatio, true);
-
-        float[][] immoniumPeaks;
-        float[][] capYPeaks;
-        HashMap<Character, float[][]> squigglePeaks;
-
-        immoniumPeaks = calcImmoniumIons(spec, minImmon, maxImmon);
-        sb.append(String.format("\t%s", peaksToString(immoniumPeaks)));
-        capYPeaks = calcCapYIons(spec, pepMass);
-        sb.append(String.format("\t%s", peaksToString(capYPeaks)));
-        squigglePeaks = calcSquigglePeaks(spec, 1.0f, this.spectraTol, pepSeq, smods, ionTypes, 1); //todo is pepmass needed? todo ppmtol for spectra
-
-        for (int i = 0; i < ionTypes.length(); i++)
-            sb.append(String.format("\t%s", peaksToString(squigglePeaks.get(ionTypes.charAt(i)))));
-
-        return sb;
-    }
-
-    public float[][] calcImmoniumIons(Spectrum spec, int min, int max) {
-        float[][] peaks = spec.calcImmoniumIons(min, max);
+    public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max) {
+        float[][] peaks = spec.calcImmoniumPeaks(min, max);
         return peaks;
     }
 
@@ -189,12 +176,12 @@ public class DiagnosticAnalysis {
         return sb.substring(0, sb.length()-1);
     }
 
-    public float[][] calcCapYIons(Spectrum spec, float precursorMass) {
-        float[][] peaks = spec.calcCapYIons(precursorMass);
+    public float[][] calcCapYPeaks(Spectrum spec, float precursorMass) {
+        float[][] peaks = spec.calcCapYPeaks(precursorMass);
         return peaks;
     }
 
-    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float pepMass, float specTol, String pepSeq, String[] smods, String ionTypes, int maxCharge) { //TODO do i need pepmass?
+    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, String pepSeq, String[] smods, String ionTypes, int maxCharge) { //TODO do i need pepmass?
         //Get dem mods and put 'em on the peptide
         float [] mods = new float[pepSeq.length()];
         Arrays.fill(mods, 0f);
@@ -216,7 +203,7 @@ public class DiagnosticAnalysis {
             mods[pos] += mass;
         }
 
-        HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(pepMass, specTol, pepSeq, mods, ionTypes, maxCharge);
+        HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(specTol, pepSeq, mods, ionTypes, maxCharge);
 
         return squigglePeaks;
     }

@@ -512,8 +512,7 @@ public class PTMShepherd {
 		print("Created similarity/RT reports\n");
 
 		//Diagnostic mining
-		//boolean diagMineMode = Boolean.parseBoolean(params.get("mine_diag_ions"));
-		boolean diagMineMode = false;
+		boolean diagMineMode = Boolean.parseBoolean(params.get("mine_diag_ions"));
 		if (diagMineMode) {
 			System.out.println("Beginning mining diagnostic ions");
 			long t1 = System.currentTimeMillis();
