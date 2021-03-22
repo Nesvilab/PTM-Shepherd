@@ -21,9 +21,15 @@ public class GlycanCandidate {
 
     public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp) {
         this.glycanComposition = inputGlycanComp;
-        this.monoisotopicMass = computeMonoisotopicMass();
-        initializeAllowedOxoniums();
-        initializeAllowedYs();
+        // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
+        for (GlycanResidue residue : GlycanResidue.values()){
+            if (!this.glycanComposition.containsKey(residue)) {
+                this.glycanComposition.put(residue, 0);
+            }
+        }
+        this.monoisotopicMass = computeMonoisotopicMass(inputGlycanComp);
+//        initializeAllowedOxoniums();
+//        initializeAllowedYs();
         this.exactIsotopeCluster = computeIsotopeCluster();
     }
 
@@ -31,7 +37,7 @@ public class GlycanCandidate {
      * Compute exact mass of this composition
      * @return monoisotopic mass
      */
-    public double computeMonoisotopicMass() {
+    public static double computeMonoisotopicMass(Map<GlycanResidue, Integer> glycanComposition) {
         double mass = 0;
         for (Map.Entry<GlycanResidue, Integer> glycanEntry : glycanComposition.entrySet()) {
             // mass = residue mass * residue count

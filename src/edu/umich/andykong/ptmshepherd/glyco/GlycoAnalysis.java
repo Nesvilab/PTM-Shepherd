@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 
 public class GlycoAnalysis {
     String dsName;
@@ -461,6 +462,107 @@ public class GlycoAnalysis {
             allYShifts[i] = yShifts.get(i);
         }
         return allYShifts;
+    }
+
+    /**
+     * Initialize array of all fragment ions to search from the list of possible candidates.
+     * Determines all Y ions (all combinations up to max number of a given residue in all candidates,
+     * plus extra 'disallowed' possible number)
+     * @param glycanCandidates input glycan database
+     * @return array of GlycanFragments to search - all Y and oxonium ion
+     */
+    public GlycanFragment[] initializeYFragments(ArrayList<GlycanCandidate> glycanCandidates) {
+        // determine maximum number of each residue type in any candidate being considered
+        HashMap<GlycanResidue, Integer> maxGlycanResidues = new HashMap<>();
+        for (GlycanCandidate glycanCandidate : glycanCandidates) {
+            for (Map.Entry<GlycanResidue, Integer> residue : glycanCandidate.glycanComposition.entrySet()) {
+                if (maxGlycanResidues.containsKey(residue.getKey())) {
+                    if (maxGlycanResidues.get(residue.getKey()) < residue.getValue()) {
+                        // new max found, update
+                        maxGlycanResidues.put(residue.getKey(), residue.getValue());
+                    }
+                } else {
+                    // new glycan residue type, add to map
+                    maxGlycanResidues.put(residue.getKey(), residue.getValue());
+                }
+            }
+        }
+        // todo: add extra residues to max of Hex, HexNAc for Y ions? Maybe not needed when considering across whole glycan database...
+
+        // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
+        double[] regularYrules = {1, 1.5, 0.666666, 0.5};   // todo: read from params
+        double[] dHexYrules = {1, 2, 0.5, 0.25};            // todo: read from params
+        double[] twodHexYrules = {1, 2, 0.5, 0.1};          // todo: read from params
+        ArrayList<GlycanFragment> yFragments = new ArrayList<>();
+        for (int hexnac=0; hexnac <= maxGlycanResidues.get(GlycanResidue.HexNAc); hexnac++) {
+            for (int hex=0; hex <= maxGlycanResidues.get(GlycanResidue.Hex); hex++) {
+                if (hexnac == 0 && hex == 0) {
+                    continue;
+                }
+                // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
+                Map<GlycanResidue, Integer> composition = new HashMap<>();
+                composition.put(GlycanResidue.HexNAc, hexnac);
+                composition.put(GlycanResidue.Hex, hex);
+                GlycanFragment fragment = new GlycanFragment(composition, regularYrules);
+                yFragments.add(fragment);
+                // add dHex fragments (1 and 2 allowed)
+                Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
+                dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
+                dHexcomposition.put(GlycanResidue.Hex, hex);
+                dHexcomposition.put(GlycanResidue.dHex, 1);
+                GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, dHexYrules);
+                yFragments.add(dHexfragment);
+                Map<GlycanResidue, Integer> twodHexcomposition = new HashMap<>();
+                twodHexcomposition.put(GlycanResidue.HexNAc, hexnac);
+                twodHexcomposition.put(GlycanResidue.Hex, hex);
+                twodHexcomposition.put(GlycanResidue.dHex, 2);
+                GlycanFragment twodHexfragment = new GlycanFragment(twodHexcomposition, twodHexYrules);
+                yFragments.add(twodHexfragment);
+            }
+        }
+
+        return yFragments.toArray(new GlycanFragment[0]);
+    }
+
+    /**
+     * Helper method to initialize hard-coded oxonium fragment rules.
+     * @return list of GlycanFragments for oxonium ions
+     */
+    public GlycanFragment[] initializeOxoniumFragments(){
+        ArrayList<GlycanFragment> oxoniumList = new ArrayList<>();
+        // HexNAc, Hex oxoniums
+
+        // NeuAc
+        double[] neuacRules = {1, 5, 0.2, 0.2};
+        Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
+        neuacComposition.put(GlycanResidue.NeuAc, 1);
+        oxoniumList.add(new GlycanFragment(neuacComposition, neuacRules, 273.0848565));     // NeuAc - H20
+        oxoniumList.add(new GlycanFragment(neuacComposition, neuacRules, 291.0954165));     // NeuAc
+        Map<GlycanResidue, Integer> neuacHexComposition = new HashMap<>();
+        neuacHexComposition.put(GlycanResidue.NeuAc, 1);
+        neuacHexComposition.put(GlycanResidue.Hex, 1);
+        neuacHexComposition.put(GlycanResidue.HexNAc, 1);
+        oxoniumList.add(new GlycanFragment(neuacHexComposition, neuacRules, 656.227624));     // NeuAc + HexNAc + Hex
+
+        // NeuGc
+        double[] neugcRules = {1, 5, 0.2, 0.2};
+        Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
+        neugcComposition.put(GlycanResidue.NeuGc, 1);
+        oxoniumList.add(new GlycanFragment(neugcComposition, neugcRules, 291.0954165));     // NeuGc - H20
+        oxoniumList.add(new GlycanFragment(neugcComposition, neugcRules, 307.090334));     // NeuGc
+        Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
+        neugcHexComposition.put(GlycanResidue.NeuGc, 1);
+        neugcHexComposition.put(GlycanResidue.Hex, 1);
+        neugcHexComposition.put(GlycanResidue.HexNAc, 1);
+        oxoniumList.add(new GlycanFragment(neugcHexComposition, neugcRules, 672.222524));     // NeuGc + HexNAc + Hex
+
+        // Phospho
+
+        // Sulfo
+
+        // dHex
+
+        return oxoniumList.toArray(new GlycanFragment[0]);
     }
 
 }
