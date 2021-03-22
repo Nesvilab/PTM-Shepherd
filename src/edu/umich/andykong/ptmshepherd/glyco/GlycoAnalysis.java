@@ -185,22 +185,126 @@ public class GlycoAnalysis {
      * to possible glycan candidates. Goal is to return best glycan candidate and score.
      * @param spec spectrum being searched
      * @param pepMass peptide mass (without glycan)
-     * @param allYShifts array of all Y shifts to search (may include extras, but should? be faster than recomputing smaller list each time)
      * @param glycanDatabase possible glycan candidates
      */
-    public void assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, double[] allYShifts, ArrayList<GlycanCandidate> glycanDatabase) {
+    public void assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase) {
         // Determine possible glycan candidates from mass
         int[] isotopesToSearch = {-1, 0, 1, 2, 3};
         double ms1TolPPM = 20;  // todo: connect to existing param?
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(deltaMass, glycanDatabase, isotopesToSearch, ms1TolPPM);
 
         // Get Y ions possible for these candidates
-        double[] possibleYIons = getAllPossibleYShifts(searchCandidates);
+        // todo: move these out to use same ions for all? Or keep in here to search specific peaks for each candidate set?
+        GlycanFragment[] possibleYIons = initializeYFragments(searchCandidates);
+        GlycanFragment[] possibleOxoniums = initializeOxoniumFragments();
+        double[] yMasses = new double[possibleYIons.length];
+        for (int i=0; i < possibleYIons.length; i++) {
+            yMasses[i] = possibleYIons[i].neutralMass + pepMass;
+        }
+        double[] oxoMasses = new double[possibleOxoniums.length];
+        for (int i=0; i < possibleOxoniums.length; i++){
+            oxoMasses[i] = possibleOxoniums[i].neutralMass;
+        }
 
         // Search Y and oxonium ions in spectrum
+        float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
+        for (int i=0; i < possibleYIons.length; i++) {
+            possibleYIons[i].foundIntensity = spec.findIonNeutral(yMasses[i], ppmTol);  // sum of charge state intensities if >1 found
+        }
+        for (int i=0; i < possibleOxoniums.length; i++) {
+            // only search 1+ oxonium ions, not all possible charge states
+            possibleOxoniums[i].foundIntensity = spec.findIon(oxoMasses[i] + AAMasses.protMass, ppmTol);
+        }
 
         // score candidates and save results
+        int bestCandidateIndex = 0;
+        double[] scoresVsBestCandidate = new double[searchCandidates.size()];
+        // todo: need to do something if only 1 candidate
+        for (int i=0; i < searchCandidates.size(); i++) {
+            if (i == bestCandidateIndex) {
+                continue;
+            }
+            double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), possibleYIons, possibleOxoniums, pepMass, deltaMass);
+            if (comparisonScore > 0) {
+                // best candidate obtained better score and remains unchanged. Put -1 * comparison score at position i to indicate the score of this candidate relative to current best candidate
+                scoresVsBestCandidate[i] = -1 * comparisonScore;
+            } else {
+                // new best candidate - reset best candidate position and update scores at all other positions
+                for (int j=0; j < i; j++) {
+                    scoresVsBestCandidate[j] -= comparisonScore;    // subtract score vs previous best candidate from existing scores to update them
+                }
+                bestCandidateIndex = i;
+                scoresVsBestCandidate[i] = 0;
+            }
+        }
 
+        // output - best glycan, scores, etc back to PSM table
+
+    }
+
+    /**
+     * Perform pairwise comparison of two glycans. Uses sum of log probability ratios between candidates for
+     * each category (mass/iso error and fragment ion) being considered. Returns a single score of combined
+     * probability of first glycan candidate over second.
+     * @param glycan1 candidate 1
+     * @param glycan2 candidate 2
+     * @param yFragments array of Y fragments with spectrum intensities already matched
+     * @param oxoFragments array of oxonium fragments with spectrum intensities already matched
+     * @param pepMass peptide neutral mass
+     * @param deltaMass observed delta mass
+     * @return output probability score (sum of log ratios)
+     */
+    public double pairwiseCompareGlycans(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] yFragments, double[] oxoFragments, double pepMass, double deltaMass) {
+        double sumLogRatio = 0;
+        // Y ions
+        for (GlycanFragment yFragment : yFragments) {
+            if (yFragment.foundIntensity > 0) {
+                double probRatio = determineProbRatio(yFragment, glycan1, glycan2);
+                sumLogRatio += Math.log(probRatio);
+            }
+        }
+        // oxonium ions
+        for (GlycanFragment oxoFragment : yFragments) {
+            if (oxoFragment.foundIntensity > 0) {
+                double probRatio = determineProbRatio(oxoFragment, glycan1, glycan2);
+                sumLogRatio += Math.log(probRatio);
+            }
+        }
+        // mass error
+
+        // isotope error
+
+        return sumLogRatio;
+    }
+
+    /**
+     * Given a fragment matched in the spectrum, determine the ratio of probabilities for a pair of glycan candidates
+     * by whether that fragment is allowed in both, 1 but not 2, 2 but not 1, or neither.
+     * @param matchedFragment fragment of interest
+     * @param glycan1 candidate 1
+     * @param glycan2 candidate 2
+     * @return probability ratio
+     */
+    public double determineProbRatio(GlycanFragment matchedFragment, GlycanCandidate glycan1, GlycanCandidate glycan2) {
+        double probRatio;
+        if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
+            if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                // allowed in both. Rule probability is position 0 in rules array
+                probRatio = matchedFragment.ruleProbabilities[0];
+            } else {
+                // allowed in glycan 1, but NOT glycan 2. Position 1 in rules array
+                probRatio = matchedFragment.ruleProbabilities[1];
+            }
+        } else {
+            if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                // allowed in 2 but not 1. Rule probability is position 2 in rules array
+                probRatio = matchedFragment.ruleProbabilities[2];
+            } else {
+                // allowed in neither candidate. Position 3 in rules array
+                probRatio = matchedFragment.ruleProbabilities[3];
+            }
+        }
+        return probRatio;
     }
 
     /**

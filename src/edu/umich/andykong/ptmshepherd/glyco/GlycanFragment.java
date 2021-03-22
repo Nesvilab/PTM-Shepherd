@@ -10,6 +10,7 @@ public class GlycanFragment {
     double neutralMass;
     Map<GlycanResidue, Integer> requiredComposition;
     double[] ruleProbabilities;
+    double foundIntensity;
 
     /**
      * Constructor for case that neutral mass is the mass of requiredComposition exactly
@@ -20,6 +21,7 @@ public class GlycanFragment {
         this.requiredComposition = requiredComposition;
         this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         this.ruleProbabilities = ruleProbabilities;
+        this.foundIntensity = 0;
     }
 
     /**
@@ -32,6 +34,7 @@ public class GlycanFragment {
         this.requiredComposition = requiredComposition;
         this.neutralMass = neutralMass;
         this.ruleProbabilities = ruleProbabilities;
+        this.foundIntensity = 0;
     }
 
     /**
