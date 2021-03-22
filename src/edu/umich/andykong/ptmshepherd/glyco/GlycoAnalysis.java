@@ -192,7 +192,7 @@ public class GlycoAnalysis {
     public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase) {
         // skip non-delta mass PSMs
         if (deltaMass < 3.5 && deltaMass > -1.5) {
-            return "\t\t";
+            return "\t\t\t";
         }
 
         // Determine possible glycan candidates from mass
@@ -225,18 +225,18 @@ public class GlycoAnalysis {
 
         // score candidates and save results
         int bestCandidateIndex = 0;
-        int nextBestCandidateIndex = 0;
+        int nextBestCandidateIndex = 1;
         double[] scoresVsBestCandidate = new double[searchCandidates.size()];
         // todo: need to do something if only 1 candidate
 
-        for (int i = 0; i < searchCandidates.size(); i++) {
+        for (int i = 1; i < searchCandidates.size(); i++) {
             if (i == bestCandidateIndex) {
                 continue;
             }
             double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), possibleYIons, possibleOxoniums, pepMass, deltaMass);
             if (comparisonScore > 0) {
-                // best candidate obtained better score and remains unchanged. Put -1 * comparison score at position i to indicate the score of this candidate relative to current best candidate
-                scoresVsBestCandidate[i] = -1 * comparisonScore;
+                // best candidate obtained better score and remains unchanged. Put comparison score at position i to indicate the score of this candidate relative to current best candidate
+                scoresVsBestCandidate[i] = comparisonScore;
             } else {
                 // new best candidate - reset best candidate position and update scores at all other positions
                 for (int j=0; j < i; j++) {
@@ -250,7 +250,9 @@ public class GlycoAnalysis {
 
         // output - best glycan, scores, etc back to PSM table
         String output;
-        if (searchCandidates.size() == 1) {
+        if (searchCandidates.size() == 0) {
+            output = "\tNo Matches\t\t";
+        } else if (searchCandidates.size() == 1) {
             output = String.format("\t%s\t\t", searchCandidates.get(bestCandidateIndex).getString());
         } else {
             output = String.format("\t%s\t%.2f\t%s", searchCandidates.get(bestCandidateIndex).getString(), scoresVsBestCandidate[nextBestCandidateIndex], searchCandidates.get(nextBestCandidateIndex).getString());
@@ -592,27 +594,27 @@ public class GlycoAnalysis {
      * @return array of GlycanFragments to search - all Y and oxonium ion
      */
     public GlycanFragment[] initializeYFragments(ArrayList<GlycanCandidate> glycanCandidates) {
-        // determine maximum number of each residue type in any candidate being considered
+        // init hashmap with all types of glycans
         HashMap<GlycanResidue, Integer> maxGlycanResidues = new HashMap<>();
+        for (GlycanResidue residue : GlycanResidue.values()){
+            maxGlycanResidues.put(residue, 0);
+        }
+
+        // determine maximum number of each residue type in any candidate being considered
         for (GlycanCandidate glycanCandidate : glycanCandidates) {
             for (Map.Entry<GlycanResidue, Integer> residue : glycanCandidate.glycanComposition.entrySet()) {
-                if (maxGlycanResidues.containsKey(residue.getKey())) {
-                    if (maxGlycanResidues.get(residue.getKey()) < residue.getValue()) {
-                        // new max found, update
-                        maxGlycanResidues.put(residue.getKey(), residue.getValue());
-                    }
-                } else {
-                    // new glycan residue type, add to map
+                if (maxGlycanResidues.get(residue.getKey()) < residue.getValue()) {
+                    // new max found, update
                     maxGlycanResidues.put(residue.getKey(), residue.getValue());
                 }
             }
         }
-        // todo: add extra residues to max of Hex, HexNAc for Y ions? Maybe not needed when considering across whole glycan database...
+        // todo: add extra residues to max of Hex, HexNAc for Y ions?
 
         // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
         double[] regularYrules = {1, 1.5, 0.666666, 0.5};   // todo: read from params
-        double[] dHexYrules = {1, 2, 0.5, 0.25};            // todo: read from params
-        double[] twodHexYrules = {1, 2, 0.5, 0.1};          // todo: read from params
+        double[] dHexYrules = {1, 2, 0.5, 0.75};            // todo: read from params
+        double[] twodHexYrules = {1, 2, 0.5, 0.9};          // todo: read from params
         ArrayList<GlycanFragment> yFragments = new ArrayList<>();
         for (int hexnac=0; hexnac <= maxGlycanResidues.get(GlycanResidue.HexNAc); hexnac++) {
             for (int hex=0; hex <= maxGlycanResidues.get(GlycanResidue.Hex); hex++) {
