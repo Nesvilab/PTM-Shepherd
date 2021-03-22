@@ -159,6 +159,26 @@ public class GlycanCandidate {
         return yMZs;
     }
 
+    /**
+     * Return string representation of this glycan for writing to output tables
+     * @return string
+     */
+    public String getString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        int i=0;
+        for (Map.Entry<GlycanResidue, Integer> residue : glycanComposition.entrySet()) {
+            if (residue.getValue() == 0) {
+                continue;
+            }
+            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
+            if (i < glycanComposition.size() - 1) {
+                stringBuilder.append("_");
+            }
+            i++;
+        }
+        return stringBuilder.toString();
+    }
+
     public boolean containsResidueType(GlycanResidue residue) {
         return glycanComposition.containsKey(residue);
     }

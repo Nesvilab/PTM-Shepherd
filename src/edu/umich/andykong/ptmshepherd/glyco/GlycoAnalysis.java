@@ -79,6 +79,7 @@ public class GlycoAnalysis {
 
         //write header
         StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
+        headbuff.append("\tBest Glycan\tLog Delta Score\t2nd Best Glycan");
         for (int i = 0; i < capYShifts.length; i++)
             headbuff.append(String.format("\tY_%.4f_intensity", capYShifts[i]));
         for (int i = 0; i < oxoniumIons.length; i++)
@@ -153,6 +154,7 @@ public class GlycoAnalysis {
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
+        sb.append(assignGlycanToPSM(spec, pepMass, dmass, glycanDatabase));
         double [] capYIonIntensities;
         double [] oxoniumIonIntensities;
 
@@ -187,7 +189,12 @@ public class GlycoAnalysis {
      * @param pepMass peptide mass (without glycan)
      * @param glycanDatabase possible glycan candidates
      */
-    public void assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase) {
+    public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase) {
+        // skip non-delta mass PSMs
+        if (deltaMass < 3.5 && deltaMass > -1.5) {
+            return "\t\t";
+        }
+
         // Determine possible glycan candidates from mass
         int[] isotopesToSearch = {-1, 0, 1, 2, 3};
         double ms1TolPPM = 20;  // todo: connect to existing param?
@@ -218,9 +225,11 @@ public class GlycoAnalysis {
 
         // score candidates and save results
         int bestCandidateIndex = 0;
+        int nextBestCandidateIndex = 0;
         double[] scoresVsBestCandidate = new double[searchCandidates.size()];
         // todo: need to do something if only 1 candidate
-        for (int i=0; i < searchCandidates.size(); i++) {
+
+        for (int i = 0; i < searchCandidates.size(); i++) {
             if (i == bestCandidateIndex) {
                 continue;
             }
@@ -233,13 +242,20 @@ public class GlycoAnalysis {
                 for (int j=0; j < i; j++) {
                     scoresVsBestCandidate[j] -= comparisonScore;    // subtract score vs previous best candidate from existing scores to update them
                 }
+                nextBestCandidateIndex = bestCandidateIndex;
                 bestCandidateIndex = i;
                 scoresVsBestCandidate[i] = 0;
             }
         }
 
         // output - best glycan, scores, etc back to PSM table
-
+        String output;
+        if (searchCandidates.size() == 1) {
+            output = String.format("\t%s\t\t", searchCandidates.get(bestCandidateIndex).getString());
+        } else {
+            output = String.format("\t%s\t%.2f\t%s", searchCandidates.get(bestCandidateIndex).getString(), scoresVsBestCandidate[nextBestCandidateIndex], searchCandidates.get(nextBestCandidateIndex).getString());
+        }
+        return output;
     }
 
     /**
@@ -254,7 +270,7 @@ public class GlycoAnalysis {
      * @param deltaMass observed delta mass
      * @return output probability score (sum of log ratios)
      */
-    public double pairwiseCompareGlycans(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] yFragments, double[] oxoFragments, double pepMass, double deltaMass) {
+    public double pairwiseCompareGlycans(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments, double pepMass, double deltaMass) {
         double sumLogRatio = 0;
         // Y ions
         for (GlycanFragment yFragment : yFragments) {
@@ -264,7 +280,7 @@ public class GlycoAnalysis {
             }
         }
         // oxonium ions
-        for (GlycanFragment oxoFragment : yFragments) {
+        for (GlycanFragment oxoFragment : oxoFragments) {
             if (oxoFragment.foundIntensity > 0) {
                 double probRatio = determineProbRatio(oxoFragment, glycan1, glycan2);
                 sumLogRatio += Math.log(probRatio);
@@ -319,13 +335,13 @@ public class GlycoAnalysis {
     public ArrayList<GlycanCandidate> getMatchingGlycansByMass(double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, int[] isotopesToSearch, double ms1TolerancePPM) {
         ArrayList<GlycanCandidate> matchingGlycans = new ArrayList<>();
         for (int isotope : isotopesToSearch) {
-            // subtract isotope error, which is recorded as an increase relative to delta mass
-            double isotopeCorrMass = deltaMass - (isotope * AAMasses.averagineIsotopeMass);
+            // add isotope error, which is recorded as an increase relative to delta mass
+            double isotopeCorrMass = deltaMass + (isotope * AAMasses.averagineIsotopeMass);
             double massRangeDa = isotopeCorrMass * 0.000001 * ms1TolerancePPM;
             for (GlycanCandidate glycan : glycanDatabase) {
                 // see if mass within specified ranges
-                if (glycan.monoisotopicMass >= deltaMass - massRangeDa && glycan.monoisotopicMass <= deltaMass + massRangeDa) {
-                    // match
+                if (glycan.monoisotopicMass >= isotopeCorrMass - massRangeDa && glycan.monoisotopicMass <= isotopeCorrMass + massRangeDa) {
+                    // match. todo: check duplicates (could be if user inputs them)
                     matchingGlycans.add(glycan);
                 }
             }
@@ -609,22 +625,25 @@ public class GlycoAnalysis {
                 composition.put(GlycanResidue.Hex, hex);
                 GlycanFragment fragment = new GlycanFragment(composition, regularYrules);
                 yFragments.add(fragment);
-                // add dHex fragments (1 and 2 allowed)
-                Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
-                dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
-                dHexcomposition.put(GlycanResidue.Hex, hex);
-                dHexcomposition.put(GlycanResidue.dHex, 1);
-                GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, dHexYrules);
-                yFragments.add(dHexfragment);
-                Map<GlycanResidue, Integer> twodHexcomposition = new HashMap<>();
-                twodHexcomposition.put(GlycanResidue.HexNAc, hexnac);
-                twodHexcomposition.put(GlycanResidue.Hex, hex);
-                twodHexcomposition.put(GlycanResidue.dHex, 2);
-                GlycanFragment twodHexfragment = new GlycanFragment(twodHexcomposition, twodHexYrules);
-                yFragments.add(twodHexfragment);
+                if (maxGlycanResidues.get(GlycanResidue.dHex) > 0) {
+                    // add dHex fragments (up to 2 allowed if present in composition)
+                    Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
+                    dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
+                    dHexcomposition.put(GlycanResidue.Hex, hex);
+                    dHexcomposition.put(GlycanResidue.dHex, 1);
+                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, dHexYrules);
+                    yFragments.add(dHexfragment);
+                    if (maxGlycanResidues.get(GlycanResidue.dHex) > 1) {
+                        Map<GlycanResidue, Integer> twodHexcomposition = new HashMap<>();
+                        twodHexcomposition.put(GlycanResidue.HexNAc, hexnac);
+                        twodHexcomposition.put(GlycanResidue.Hex, hex);
+                        twodHexcomposition.put(GlycanResidue.dHex, 2);
+                        GlycanFragment twodHexfragment = new GlycanFragment(twodHexcomposition, twodHexYrules);
+                        yFragments.add(twodHexfragment);
+                    }
+                }
             }
         }
-
         return yFragments.toArray(new GlycanFragment[0]);
     }
 

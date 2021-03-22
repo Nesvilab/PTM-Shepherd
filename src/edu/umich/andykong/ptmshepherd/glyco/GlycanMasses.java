@@ -1,5 +1,6 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import java.util.HashMap;
 import java.util.TreeMap;
 
 public class GlycanMasses {
@@ -58,6 +59,18 @@ public class GlycanMasses {
         glycoNames.put("sulfo", GlycanResidue.Sulfo);
         glycoNames.put("sulfation", GlycanResidue.Sulfo);
         glycoNames.put("sulfate", GlycanResidue.Sulfo);
+    }
+    public static HashMap<GlycanResidue, String> outputGlycoNames;
+    static
+    {
+        outputGlycoNames = new HashMap<>();
+        outputGlycoNames.put(GlycanResidue.Hex, "Hex");
+        outputGlycoNames.put(GlycanResidue.HexNAc, "HexNAc");
+        outputGlycoNames.put(GlycanResidue.dHex, "Fuc");
+        outputGlycoNames.put(GlycanResidue.NeuAc, "NeuAc");
+        outputGlycoNames.put(GlycanResidue.NeuGc, "NeuGc");
+        outputGlycoNames.put(GlycanResidue.Phospho, "Phospho");
+        outputGlycoNames.put(GlycanResidue.Sulfo, "Sulfo");
     }
 
 }
