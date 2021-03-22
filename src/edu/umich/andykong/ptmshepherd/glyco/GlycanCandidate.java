@@ -1,5 +1,7 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.core.Spectrum;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
@@ -125,6 +127,30 @@ public class GlycanCandidate {
         } else {
             disallowedOxoniumIons.addAll(Arrays.asList(GlycanMasses.SulfoOxoniums));
         }
+    }
+
+    /**
+     * Generate an array of all m/z values expected for the Y ions of this candidate given the max
+     * charge (typically precursor charge - 1). Boolean "expected" means return expected Ys if true,
+     * disallowed Ys if false.
+     * @param maxCharge max Y ion charge
+     * @param expected expected or disallowed ions
+     * @return float[] of m/z values to search
+     */
+    public float[] generateYmzs(int maxCharge, boolean expected) {
+        ArrayList<Float> ionsToUse;
+        if (expected) {
+            ionsToUse = expectedYIons;
+        } else {
+            ionsToUse = disallowedYIons;
+        }
+        float[] yMZs = new float[ionsToUse.size() * maxCharge];
+        for (int i=0; i < ionsToUse.size(); i++) {
+            for (int z=1; z <= maxCharge; z++) {
+                yMZs[i+z] = Spectrum.neutralMassToMZ(ionsToUse.get(i), z);
+            }
+        }
+        return yMZs;
     }
 
     public boolean containsResidueType(GlycanResidue residue) {
