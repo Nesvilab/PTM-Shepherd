@@ -631,8 +631,8 @@ public class GlycoAnalysis {
 
         // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
         double[] regularYrules = {1, 1.5, 0.666666, 1, 1, 0.8, 1.25, 1};   // todo: read from params
-        double[] dHexYrules = {1, 2, 0.5, 1, 1, 0.8, 1.25, 1};            // todo: read from params
-        double[] twodHexYrules = {1, 2, 0.5, 1, 1, 0.8, 1.25, 1};          // todo: read from params
+        double[] dHexYrules = {1, 2, 0.5, 1, 1, 1, 1, 1};            // todo: read from params
+        double[] twodHexYrules = {1, 2, 0.5, 1, 1, 1, 1, 1};          // todo: read from params
         ArrayList<GlycanFragment> yFragments = new ArrayList<>();
         for (int hexnac=0; hexnac <= maxGlycanResidues.get(GlycanResidue.HexNAc); hexnac++) {
             for (int hex=0; hex <= maxGlycanResidues.get(GlycanResidue.Hex); hex++) {
