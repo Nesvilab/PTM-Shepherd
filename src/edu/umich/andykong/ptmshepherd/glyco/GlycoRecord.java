@@ -45,7 +45,7 @@ public class GlycoRecord {
         count++;
         double cInt;
         //get instances of Y ion identified
-        int startCol = 5; //5 columns always padding left side
+        int startCol = 8;   // 8 columns always padding left side
         int endCol = startCol + capYCounts.length;
         for(int i = startCol; i < endCol; i++) {
             cInt = Double.parseDouble(sp[i]);
