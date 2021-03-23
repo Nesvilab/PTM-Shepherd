@@ -11,5 +11,11 @@ public enum GlycanResidue {
     NeuAc,      // N-acetyl Neuraminic acid (sialic acid)
     NeuGc,      // N-Glycolyl Neuraminic acid (sialic acid)
     Phospho,    // Phosphate
-    Sulfo       // Sulfate
+    Sulfo,      // Sulfate
+    NH3,        // ammonia adduct
+    Na,         // sodium adduct
+    Fe3,        // iron-3 adduct
+    Fe2,        // iron-2 adduct
+    Ca,         // calcium adduct
+    Al          // aluminum adduct
 }
