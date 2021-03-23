@@ -276,17 +276,15 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
         // Y ions
         for (GlycanFragment yFragment : yFragments) {
-            if (yFragment.foundIntensity > 0) {
-                double probRatio = determineProbRatio(yFragment, glycan1, glycan2);
-                sumLogRatio += Math.log(probRatio);
-            }
+            boolean foundInSpectrum = yFragment.foundIntensity > 0;
+            double probRatio = determineProbRatio(yFragment, glycan1, glycan2, foundInSpectrum);
+            sumLogRatio += Math.log(probRatio);
         }
         // oxonium ions
         for (GlycanFragment oxoFragment : oxoFragments) {
-            if (oxoFragment.foundIntensity > 0) {
-                double probRatio = determineProbRatio(oxoFragment, glycan1, glycan2);
-                sumLogRatio += Math.log(probRatio);
-            }
+            boolean foundInSpectrum = oxoFragment.foundIntensity > 0;
+            double probRatio = determineProbRatio(oxoFragment, glycan1, glycan2, foundInSpectrum);
+            sumLogRatio += Math.log(probRatio);
         }
         // mass error
 
@@ -303,23 +301,43 @@ public class GlycoAnalysis {
      * @param glycan2 candidate 2
      * @return probability ratio
      */
-    public double determineProbRatio(GlycanFragment matchedFragment, GlycanCandidate glycan1, GlycanCandidate glycan2) {
+    public double determineProbRatio(GlycanFragment matchedFragment, GlycanCandidate glycan1, GlycanCandidate glycan2, boolean foundInSpectrum) {
         double probRatio;
-        if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
-            if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
-                // allowed in both. Rule probability is position 0 in rules array
-                probRatio = matchedFragment.ruleProbabilities[0];
+        if (foundInSpectrum){
+            if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
+                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                    // allowed in both. Rule probability is position 0 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[0];
+                } else {
+                    // allowed in glycan 1, but NOT glycan 2. Position 1 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[1];
+                }
             } else {
-                // allowed in glycan 1, but NOT glycan 2. Position 1 in rules array
-                probRatio = matchedFragment.ruleProbabilities[1];
+                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                    // allowed in 2 but not 1. Rule probability is position 2 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[2];
+                } else {
+                    // allowed in neither candidate. Position 3 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[3];
+                }
             }
         } else {
-            if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
-                // allowed in 2 but not 1. Rule probability is position 2 in rules array
-                probRatio = matchedFragment.ruleProbabilities[2];
+            if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
+                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                    // allowed in both, but not found in spectrum. Rule probability is position 4 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[4];
+                } else {
+                    // allowed in glycan 1, but NOT glycan 2. Not found in spectrum. Position 5 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[5];
+                }
             } else {
-                // allowed in neither candidate. Position 3 in rules array
-                probRatio = matchedFragment.ruleProbabilities[3];
+                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                    // allowed in 2 but not 1. Not found in spectrum. Position 6 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[6];
+                } else {
+                    // allowed in neither candidate. Not found in spectrum. Position 7 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[7];
+                }
             }
         }
         return probRatio;
@@ -612,9 +630,9 @@ public class GlycoAnalysis {
         // todo: add extra residues to max of Hex, HexNAc for Y ions?
 
         // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
-        double[] regularYrules = {1, 1.5, 0.666666, 0.5};   // todo: read from params
-        double[] dHexYrules = {1, 2, 0.5, 0.75};            // todo: read from params
-        double[] twodHexYrules = {1, 2, 0.5, 0.9};          // todo: read from params
+        double[] regularYrules = {1, 1.5, 0.666666, 1, 1, 0.8, 1.25, 1};   // todo: read from params
+        double[] dHexYrules = {1, 2, 0.5, 1, 1, 0.8, 1.25, 1};            // todo: read from params
+        double[] twodHexYrules = {1, 2, 0.5, 1, 1, 0.8, 1.25, 1};          // todo: read from params
         ArrayList<GlycanFragment> yFragments = new ArrayList<>();
         for (int hexnac=0; hexnac <= maxGlycanResidues.get(GlycanResidue.HexNAc); hexnac++) {
             for (int hex=0; hex <= maxGlycanResidues.get(GlycanResidue.Hex); hex++) {
@@ -658,7 +676,7 @@ public class GlycoAnalysis {
         // HexNAc, Hex oxoniums
 
         // NeuAc
-        double[] neuacRules = {1, 5, 0.2, 0.2};
+        double[] neuacRules = {1, 5, 0.2, 1, 1, 0.25, 4, 1};
         Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
         neuacComposition.put(GlycanResidue.NeuAc, 1);
         oxoniumList.add(new GlycanFragment(neuacComposition, neuacRules, 273.0848565));     // NeuAc - H20
@@ -670,7 +688,7 @@ public class GlycoAnalysis {
         oxoniumList.add(new GlycanFragment(neuacHexComposition, neuacRules, 656.227624));     // NeuAc + HexNAc + Hex
 
         // NeuGc
-        double[] neugcRules = {1, 5, 0.2, 0.2};
+        double[] neugcRules = {1, 5, 0.2, 1, 1, 0.25, 4, 1};
         Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
         neugcComposition.put(GlycanResidue.NeuGc, 1);
         oxoniumList.add(new GlycanFragment(neugcComposition, neugcRules, 291.0954165));     // NeuGc - H20
