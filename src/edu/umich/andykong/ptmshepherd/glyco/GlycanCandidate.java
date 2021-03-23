@@ -163,7 +163,7 @@ public class GlycanCandidate {
      * Return string representation of this glycan for writing to output tables
      * @return string
      */
-    public String getString() {
+    public String toString() {
         StringBuilder stringBuilder = new StringBuilder();
         int i=0;
         for (Map.Entry<GlycanResidue, Integer> residue : glycanComposition.entrySet()) {
