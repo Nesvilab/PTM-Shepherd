@@ -101,7 +101,7 @@ public class PTMShepherd {
 	 * @param inputPath path to input file
 	 * @return list of glycans to consider
 	 */
-	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath) {
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList) {
 		Path path = null;
 		try {
 			path = Paths.get(inputPath.replaceAll("['\"]", ""));
@@ -137,6 +137,23 @@ public class PTMShepherd {
 					glycanDB.add(candidate);
 					glycansInDB.put(compositionHash, Boolean.TRUE);
 				}
+
+				// add adducts from adduct list to each composition
+				for (GlycanResidue adduct : adductList) {
+					// deep copy the original composition and add the adduct to it
+					TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
+					for (Map.Entry<GlycanResidue, Integer> previousResidue : glycanComp.entrySet()) {
+						adductComp.put(previousResidue.getKey(), previousResidue.getValue());
+					}
+					adductComp.put(adduct, 1);
+
+					GlycanCandidate adductCandidate = new GlycanCandidate(adductComp);
+					String adductCompositionHash = adductCandidate.toHashString();
+					if (!glycansInDB.containsKey(adductCompositionHash)) {
+						glycanDB.add(adductCandidate);
+						glycansInDB.put(adductCompositionHash, Boolean.TRUE);
+					}
+				}
 			}
 
 		} catch (FileNotFoundException e) {
@@ -148,6 +165,36 @@ public class PTMShepherd {
 
 		return glycanDB;
 	}
+
+	/**
+	 * Read the desired adducts from the parameters file.
+	 * Parameter key: glyco_adducts
+	 * Parameter values: must match GlycanResidue adduct types (case insensitive), comma separated
+	 * @return list of adduct GlycanResidues to add to compositions in glycan database
+	 */
+	public static ArrayList<GlycanResidue> getGlycoAdductParam() {
+		ArrayList<GlycanResidue> adducts = new ArrayList<>();
+		String adductParamValue = params.get("glyco_adducts");
+		String[] adductStrs;
+		if (adductParamValue.length() > 0)
+			adductStrs = adductParamValue.split(",| |/");
+		else
+			adductStrs = new String[0];
+
+		for (String adductStr : adductStrs) {
+			if (adductStr.equals("")) {
+				continue;
+			}
+			if (GlycanMasses.glycoNames.containsKey(adductStr.trim())) {
+				GlycanResidue adduct = GlycanMasses.glycoNames.get(adductStr.trim());
+				adducts.add(adduct);
+			} else {
+				System.out.printf("Invalid glyco adduct %s, ignored\n", adductStr);
+			}
+		}
+		return adducts;
+	}
+
 	
 	public static void init(String [] args) throws Exception {
 		if (args.length == 1) {
@@ -624,7 +671,8 @@ public class PTMShepherd {
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
-			glycoDatabase = parseGlycanDatabase(params.get("glycodatabase"));
+			ArrayList<GlycanResidue> adductList = getGlycoAdductParam();
+			glycoDatabase = parseGlycanDatabase(params.get("glycodatabase"), adductList);
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase);
 				if (ga.isComplete())
