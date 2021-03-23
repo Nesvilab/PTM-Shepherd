@@ -113,6 +113,7 @@ public class PTMShepherd {
 			die(String.format("Glycan database file does not exist: [%s]", inputPath));
 		}
 		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
+		HashMap<String, Boolean> glycansInDB = new HashMap<>();
 		try {
 			BufferedReader in = new BufferedReader(new FileReader(path.toFile()));
 
@@ -130,7 +131,12 @@ public class PTMShepherd {
 				}
 				// generate a new candidate from this composition and add to DB
 				GlycanCandidate candidate = new GlycanCandidate(glycanComp);
-				glycanDB.add(candidate);
+				String compositionHash = candidate.toHashString();
+				// prevent addition of duplicates if user has them in database
+				if (!glycansInDB.containsKey(compositionHash)) {
+					glycanDB.add(candidate);
+					glycansInDB.put(compositionHash, Boolean.TRUE);
+				}
 			}
 
 		} catch (FileNotFoundException e) {

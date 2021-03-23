@@ -179,6 +179,19 @@ public class GlycanCandidate {
         return stringBuilder.toString();
     }
 
+    /**
+     * Generate a string representation of this composition in guaranteed order. Uses declaration
+     * order of Residue types in the GlycanResidue enum as the output order
+     * @return string
+     */
+    public String toHashString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (GlycanResidue residueKey : GlycanResidue.values()) {
+            stringBuilder.append(String.format("%s-%d-", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
+        }
+        return stringBuilder.toString();
+    }
+
     public boolean containsResidueType(GlycanResidue residue) {
         return glycanComposition.containsKey(residue);
     }
