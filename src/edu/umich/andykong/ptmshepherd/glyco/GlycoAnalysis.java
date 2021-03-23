@@ -7,6 +7,10 @@ import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTProfile;
+import org.apache.commons.math3.fitting.GaussianCurveFitter;
+import org.apache.commons.math3.fitting.WeightedObservedPoint;
+import org.apache.commons.math3.fitting.WeightedObservedPoints;
+import org.checkerframework.checker.units.qual.A;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -32,6 +36,8 @@ public class GlycoAnalysis {
     double[] oxoniumIons;//= new double[]{204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761};
     double[] remainderMasses;// = new double[]{203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
     ArrayList<GlycanCandidate> glycanDatabase;
+    double meanMassError;
+    double massErrorWidth;
 
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase) {
         this.dsName = dsName;
@@ -114,6 +120,8 @@ public class GlycoAnalysis {
             mr.readFully();
             long t2 = System.currentTimeMillis();
             ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
+
+            getMassErrorWidth(pf, clines);
             for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
                 String newline = processLine(pf.data.get(clines.get(i)));
                 this.totalLines++;
@@ -136,6 +144,67 @@ public class GlycoAnalysis {
         }
     }
 
+    /**
+     * Determine the width of mass errors in PSMs without delta mass to use for mass error probability
+     * estimation. Returns the sigma of a Gaussian distribution fit to the mass errors of all PSMs without
+     * delta masses (isotope corrected)
+     * @param psmFile PSM file to analyze
+     * @param clines line numbers in the PSM file?
+     */
+    public void getMassErrorWidth(PSMFile psmFile, ArrayList<Integer> clines) {
+        ArrayList<Double> massErrors = new ArrayList<>();
+
+        // Get mass errors for PSMs with delta mass in exclusion range (-1.5 to 3.5)
+        double minError = 10;
+        double maxError = -10;
+        for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
+            String line = psmFile.data.get(clines.get(i));
+            String [] sp = line.split("\\t");
+            float deltaMass = Float.parseFloat(sp[deltaCol]);
+//            float pepMass = Float.parseFloat(sp[pmassCol]);
+
+            if (deltaMass > -1.5 && deltaMass < 3.5) {
+                int isotopeError = Math.round(deltaMass);
+                double massError = deltaMass - (isotopeError * AAMasses.averagineIsotopeMass);
+                if (massError > maxError) {
+                    maxError = massError;
+                }
+                if (massError < minError) {
+                    minError = massError;
+                }
+                massErrors.add(massError);
+            }
+        }
+
+        // Bin error values into a histogram
+        final int numBins = 200;
+        final int[] binCounts = new int[numBins];
+        final double binSize = (maxError - minError) / numBins;
+        for (double massError : massErrors) {
+            int bin = (int) ((massError - minError) / binSize);
+            // catch overflow from rounding errors
+            if (bin > binCounts.length - 1)
+                bin = binCounts.length - 1;
+            if (bin < 0)
+                bin = 0;
+            binCounts[bin] += 1;
+        }
+
+        // Fit Gaussian and save center and width
+        GaussianCurveFitter fitter = GaussianCurveFitter.create();
+        WeightedObservedPoints massErrorObservations = new WeightedObservedPoints();
+        for (int i=0; i < binCounts.length; i++) {
+            // x-value is minError + binSize*i + binSize/2 (middle of the bin), y-value is counts
+            double xval = minError + i*binSize + binSize / 2.0;
+            massErrorObservations.add(xval, binCounts[i]);
+        }
+        double[] fitParameters = fitter.fit(massErrorObservations.toList());
+        meanMassError = fitParameters[1];   // output is amplitude, mean, sigma of fitted curve
+        massErrorWidth = fitParameters[2];
+    }
+
+
+    public StringBuffer processLine(String line) {
     public String processLine(String line) {
         StringBuffer sb = new StringBuffer();
         String [] sp = line.split("\\t");
@@ -154,7 +223,9 @@ public class GlycoAnalysis {
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
-        sb.append(assignGlycanToPSM(spec, pepMass, dmass, glycanDatabase));
+        sb.append(assignGlycanToPSM(spec, pepMass, dmass, glycanDatabase, massErrorWidth, meanMassError));
+
+        //System.out.println("got spec");
         double [] capYIonIntensities;
         double [] oxoniumIonIntensities;
 
@@ -188,8 +259,10 @@ public class GlycoAnalysis {
      * @param spec spectrum being searched
      * @param pepMass peptide mass (without glycan)
      * @param glycanDatabase possible glycan candidates
+     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
+     * @param deltaMass observed delta mass from PSM
      */
-    public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase) {
+    public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, double massErrorWidth, double meanMassError) {
         // skip non-delta mass PSMs
         if (deltaMass < 3.5 && deltaMass > -1.5) {
             return "\t\t\t";
@@ -233,7 +306,7 @@ public class GlycoAnalysis {
             if (i == bestCandidateIndex) {
                 continue;
             }
-            double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), possibleYIons, possibleOxoniums, pepMass, deltaMass);
+            double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), possibleYIons, possibleOxoniums, pepMass, deltaMass, massErrorWidth, meanMassError);
             if (comparisonScore > 0) {
                 // best candidate obtained better score and remains unchanged. Put comparison score at position i to indicate the score of this candidate relative to current best candidate
                 scoresVsBestCandidate[i] = comparisonScore;
@@ -270,9 +343,10 @@ public class GlycoAnalysis {
      * @param oxoFragments array of oxonium fragments with spectrum intensities already matched
      * @param pepMass peptide neutral mass
      * @param deltaMass observed delta mass
+     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
      * @return output probability score (sum of log ratios)
      */
-    public double pairwiseCompareGlycans(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments, double pepMass, double deltaMass) {
+    public double pairwiseCompareGlycans(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments, double pepMass, double deltaMass, double massErrorWidth, double meanMassError) {
         double sumLogRatio = 0;
         // Y ions
         for (GlycanFragment yFragment : yFragments) {
@@ -286,10 +360,9 @@ public class GlycoAnalysis {
             double probRatio = determineProbRatio(oxoFragment, glycan1, glycan2, foundInSpectrum);
             sumLogRatio += Math.log(probRatio);
         }
-        // mass error
 
-        // isotope error
-        sumLogRatio += Math.log(determineIsotopeProbRatio(glycan1, glycan2, deltaMass));
+        // isotope and mass errors
+        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, massErrorWidth, meanMassError);
 
         return sumLogRatio;
     }
@@ -300,26 +373,26 @@ public class GlycoAnalysis {
      * @param glycan1 glycan 1
      * @param glycan2 glycan 2
      * @param deltaMass observed delta mass
+     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
      * @return probability ratio (glycan 1 over 2)
      */
-    public double determineIsotopeProbRatio(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
+    public double determineIsotopeAndMassErrorProbs(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double massErrorWidth, double meanMassError) {
         // Determine isotopes
         float iso1 = (float) (deltaMass - glycan1.monoisotopicMass);
         int roundedIso1 = Math.round(iso1);
         float iso2 = (float) (deltaMass - glycan2.monoisotopicMass);
         int roundedIso2 = Math.round(iso2);
 
-        // probability table
-        HashMap<Integer, Double> probabilityTable = new HashMap<>();
-        probabilityTable.put(-2, 0.125);
-        probabilityTable.put(-1, 0.25);
-        probabilityTable.put(0, 1.0);
-        probabilityTable.put(1, 0.95);
-        probabilityTable.put(2, 0.5);
-        probabilityTable.put(3, 0.25);
-        probabilityTable.put(4, 0.125);
+        double isotopeProbRatio = ProbabilityTables.isotopeProbTable.get(roundedIso1) / ProbabilityTables.isotopeProbTable.get(roundedIso2);
 
-        return probabilityTable.get(roundedIso1) / probabilityTable.get(roundedIso2);
+        // mass error calc
+        double massError1 = deltaMass - glycan1.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
+        double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
+        double massError2 = deltaMass - glycan2.monoisotopicMass - (roundedIso2 * AAMasses.averagineIsotopeMass);
+        double massStDevs2 = (massError2 - meanMassError) / massErrorWidth;
+        double massProbRatio = massProbLookup(massStDevs1, massStDevs2);
+
+        return Math.log(isotopeProbRatio) + Math.log(massProbRatio);
     }
 
     /**
@@ -370,6 +443,43 @@ public class GlycoAnalysis {
             }
         }
         return probRatio;
+    }
+
+    /**
+     * Helper method to get probability ratio for a pair of glycans given their mass errors. Input is
+     * already transformed to std deviations away from the mean and just needs to be compared to the lookup table.
+     * Lookup table records likelihoods for masses to be within 1, 2, 3, or more standard deviations from mean error
+     * @param stDevsFromMean1 (massError - meanMassError) / stDev for glycan 1
+     * @param stDevsFromMean2 (massError - meanMassError) / stDev for glycan 2
+     * @return probability ratio
+     */
+    public double massProbLookup(double stDevsFromMean1, double stDevsFromMean2) {
+        // bounds for number of sigma's from mean a value can be before reducing probability
+        int bound1 = 2;
+        int bound2 = 5;
+        int bound3 = 10;
+
+        double prob1;
+        if (stDevsFromMean1 >= -bound1 && stDevsFromMean1 <= bound1) {
+            prob1 = ProbabilityTables.massProbTable.get(0);
+        } else if (stDevsFromMean1 >= -bound2 && stDevsFromMean1 <= bound2) {
+            prob1 = ProbabilityTables.massProbTable.get(1);
+        } else if (stDevsFromMean1 >= -bound3 && stDevsFromMean1 <= bound3) {
+            prob1 = ProbabilityTables.massProbTable.get(2);
+        } else {
+            prob1 = ProbabilityTables.massProbTable.get(3);
+        }
+        double prob2;
+        if (stDevsFromMean2 >= -bound1 && stDevsFromMean2 <= bound1) {
+            prob2 = ProbabilityTables.massProbTable.get(0);
+        } else if (stDevsFromMean2 >= -bound2 && stDevsFromMean2 <= bound2) {
+            prob2 = ProbabilityTables.massProbTable.get(1);
+        } else if (stDevsFromMean2 >= -bound3 && stDevsFromMean2 <= bound3) {
+            prob2 = ProbabilityTables.massProbTable.get(2);
+        } else {
+            prob2 = ProbabilityTables.massProbTable.get(3);
+        }
+        return prob1 / prob2;
     }
 
     /**
