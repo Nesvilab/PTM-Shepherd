@@ -170,11 +170,11 @@ public class GlycanCandidate {
             if (residue.getValue() == 0) {
                 continue;
             }
-            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
-            if (i < glycanComposition.size() - 1) {
+            if (i > 0) {
                 stringBuilder.append("_");
             }
             i++;
+            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
         }
         return stringBuilder.toString();
     }
