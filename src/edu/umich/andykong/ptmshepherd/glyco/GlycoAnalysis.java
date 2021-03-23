@@ -197,7 +197,7 @@ public class GlycoAnalysis {
 
         // Determine possible glycan candidates from mass
         int[] isotopesToSearch = {-1, 0, 1, 2, 3};
-        double ms1TolPPM = 20;  // todo: connect to existing param?
+        double ms1TolPPM = 50;  // todo: connect to existing param?
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(deltaMass, glycanDatabase, isotopesToSearch, ms1TolPPM);
 
         // Get Y ions possible for these candidates
@@ -253,9 +253,9 @@ public class GlycoAnalysis {
         if (searchCandidates.size() == 0) {
             output = "\tNo Matches\t\t";
         } else if (searchCandidates.size() == 1) {
-            output = String.format("\t%s\t\t", searchCandidates.get(bestCandidateIndex).getString());
+            output = String.format("\t%s\t\t", searchCandidates.get(bestCandidateIndex).toString());
         } else {
-            output = String.format("\t%s\t%.2f\t%s", searchCandidates.get(bestCandidateIndex).getString(), scoresVsBestCandidate[nextBestCandidateIndex], searchCandidates.get(nextBestCandidateIndex).getString());
+            output = String.format("\t%s\t%.2f\t%s", searchCandidates.get(bestCandidateIndex).toString(), scoresVsBestCandidate[nextBestCandidateIndex], searchCandidates.get(nextBestCandidateIndex).toString());
         }
         return output;
     }

@@ -64,14 +64,33 @@ public class GlycanFragment {
         }
 
         // special cases
-        if (this.requiredComposition.containsKey(GlycanResidue.Hex) && !this.requiredComposition.containsKey(GlycanResidue.HexNAc)){
-            // Hex required but NOT HexNAc. Return false if candidate contains HexNAc
-            if (candidateComposition.get(GlycanResidue.HexNAc) > 0){
-                return false;
+        if (this.requiredComposition.containsKey(GlycanResidue.Hex) && this.requiredComposition.containsKey(GlycanResidue.HexNAc)) {
+            if (this.requiredComposition.get(GlycanResidue.Hex) > 0 && !(this.requiredComposition.get(GlycanResidue.HexNAc) > 0)) {
+                // Hex required but NOT HexNAc. Return false if candidate contains HexNAc
+                if (candidateComposition.get(GlycanResidue.HexNAc) > 0) {
+                    return false;
+                }
             }
         }
         // all checks pass - return true
         return true;
+    }
+
+    public String toString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        int i=0;
+        for (Map.Entry<GlycanResidue, Integer> residue : requiredComposition.entrySet()) {
+            if (residue.getValue() == 0) {
+                continue;
+            }
+            if (i > 0) {
+                stringBuilder.append("_");
+            }
+            i++;
+            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
+        }
+        stringBuilder.append(String.format("_%.0f", foundIntensity));
+        return stringBuilder.toString();
     }
 
 }
