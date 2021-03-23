@@ -356,7 +356,7 @@ public class GlycoAnalysis {
         ArrayList<GlycanCandidate> matchingGlycans = new ArrayList<>();
         for (int isotope : isotopesToSearch) {
             // add isotope error, which is recorded as an increase relative to delta mass
-            double isotopeCorrMass = deltaMass + (isotope * AAMasses.averagineIsotopeMass);
+            double isotopeCorrMass = deltaMass - (isotope * AAMasses.averagineIsotopeMass);
             double massRangeDa = isotopeCorrMass * 0.000001 * ms1TolerancePPM;
             for (GlycanCandidate glycan : glycanDatabase) {
                 // see if mass within specified ranges
