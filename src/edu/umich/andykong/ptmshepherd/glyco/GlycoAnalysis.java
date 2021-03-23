@@ -289,8 +289,37 @@ public class GlycoAnalysis {
         // mass error
 
         // isotope error
+        sumLogRatio += Math.log(determineIsotopeProbRatio(glycan1, glycan2, deltaMass));
 
         return sumLogRatio;
+    }
+
+    /**
+     * Determine the probability ratio for this pairwise comparison based on isotope error. Currently
+     * uses hard-coded isotope probabilities, but could be updated to get rate from dataset
+     * @param glycan1 glycan 1
+     * @param glycan2 glycan 2
+     * @param deltaMass observed delta mass
+     * @return probability ratio (glycan 1 over 2)
+     */
+    public double determineIsotopeProbRatio(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
+        // Determine isotopes
+        float iso1 = (float) (deltaMass - glycan1.monoisotopicMass);
+        int roundedIso1 = Math.round(iso1);
+        float iso2 = (float) (deltaMass - glycan2.monoisotopicMass);
+        int roundedIso2 = Math.round(iso2);
+
+        // probability table
+        HashMap<Integer, Double> probabilityTable = new HashMap<>();
+        probabilityTable.put(-2, 0.125);
+        probabilityTable.put(-1, 0.25);
+        probabilityTable.put(0, 1.0);
+        probabilityTable.put(1, 0.95);
+        probabilityTable.put(2, 0.5);
+        probabilityTable.put(3, 0.25);
+        probabilityTable.put(4, 0.125);
+
+        return probabilityTable.get(roundedIso1) / probabilityTable.get(roundedIso2);
     }
 
     /**
