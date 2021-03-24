@@ -149,8 +149,12 @@ public class PSMFile {
 		return cnts;
 	}
 
-	/* Merges the rawglyco table onto the existing psm.tsv */
-	public void mergeGlycoTable(File glyf) throws Exception {
+	/* Merges the rawglyco table onto the existing psm.tsv
+	*  Update: only writes 3 columns (best glycan and score, 2nd best glycan) rather than full table
+	*  numColsToUse gives the number of columns to take (intended to be 3)
+	*  todo: NOTE - if glyco information has been written to this table already, it will get doubled
+	*/
+	public void mergeGlycoTable(File glyf, int numColsToUse) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
 		String tempFoutName = this.fname + ".glyco.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
@@ -168,11 +172,12 @@ public class PSMFile {
 
 		/* Merge headers */
 		int mergeFromCol = 5; // todo this should be dynamically calculated
+		int observedModCol = 23; 	// todo this should be dynamically detected?
 		ArrayList<String> newHeaders = new ArrayList<>();
 		for (int i = 0; i < this.headers.length; i++)
 			newHeaders.add(this.headers[i]);
-		for (int i = mergeFromCol; i < glyHeaders.length; i++)
-			newHeaders.add(glyHeaders[i]);
+		// add after observed mod column
+		newHeaders.addAll(observedModCol, Arrays.asList(glyHeaders).subList(mergeFromCol, mergeFromCol + numColsToUse));
 		out.println(String.join("\t", newHeaders));
 
 		/* Match glycolines on PSM spectrum keys */
@@ -181,7 +186,8 @@ public class PSMFile {
 			ArrayList<String> newLine = new ArrayList<>(Arrays.asList(cpline.split("\t")));
 			String pSpec = newLine.get(pSpecCol);
 			ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
-			newLine.addAll(glyLine.subList(mergeFromCol, glyLine.size()));
+			// insert after Observed Modifications column
+			newLine.addAll(observedModCol, glyLine.subList(mergeFromCol, mergeFromCol + numColsToUse));
 			out.println(String.join("\t", newLine));
 		}
 		out.close();
