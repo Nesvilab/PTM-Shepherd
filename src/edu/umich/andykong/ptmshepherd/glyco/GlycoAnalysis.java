@@ -778,22 +778,14 @@ public class GlycoAnalysis {
                 composition.put(GlycanResidue.Hex, hex);
                 GlycanFragment fragment = new GlycanFragment(composition, ProbabilityTables.regularYrules);
                 yFragments.add(fragment);
-                if (maxGlycanResidues.get(GlycanResidue.dHex) > 0) {
-                    // add dHex fragments (up to 2 allowed if present in composition)
+                for (int dHex=1; dHex <= maxGlycanResidues.get(GlycanResidue.dHex); dHex++) {
+                    // add dHex fragments (if allowed)
                     Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
                     dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
                     dHexcomposition.put(GlycanResidue.Hex, hex);
-                    dHexcomposition.put(GlycanResidue.dHex, 1);
+                    dHexcomposition.put(GlycanResidue.dHex, dHex);
                     GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, ProbabilityTables.dHexYrules);
                     yFragments.add(dHexfragment);
-                    if (maxGlycanResidues.get(GlycanResidue.dHex) > 1) {
-                        Map<GlycanResidue, Integer> twodHexcomposition = new HashMap<>();
-                        twodHexcomposition.put(GlycanResidue.HexNAc, hexnac);
-                        twodHexcomposition.put(GlycanResidue.Hex, hex);
-                        twodHexcomposition.put(GlycanResidue.dHex, 2);
-                        GlycanFragment twodHexfragment = new GlycanFragment(twodHexcomposition, ProbabilityTables.twodHexYrules);
-                        yFragments.add(twodHexfragment);
-                    }
                 }
             }
         }

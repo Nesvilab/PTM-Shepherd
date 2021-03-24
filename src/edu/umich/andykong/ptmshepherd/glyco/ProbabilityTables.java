@@ -39,7 +39,6 @@ public class ProbabilityTables {
      */
     static double[] regularYrules = {1, 1.5, 0.666666, 1, 1, 0.8, 1.25, 1};   // todo: read from params
     static double[] dHexYrules = {1, 2, 0.5, 1, 1, 1, 1, 1};            // todo: read from params
-    static double[] twodHexYrules = {1, 2, 0.5, 1, 1, 1, 1, 1};          // todo: read from params
 
     // Oxonium ion probs. Same format as Y ion probabilities
     static double[] neuacRules = {1, 5, 0.2, 1, 1, 0.25, 4, 1};
