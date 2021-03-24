@@ -812,14 +812,14 @@ public class PTMShepherd {
 				}
 				ga.complete();
 			}
-			/* Don't merge glyco report with psm tables */
-			//for (String ds : datasets.keySet()) {
-			//	ArrayList<String[]> dsData = datasets.get(ds);
-			//	for (int i = 0; i < dsData.size(); i++) {
-			//		PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-			//		pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")));
-			//	}
-			//}
+			/* Save best glycan information (3 columns) from glyco report to psm tables */
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")), 3);
+				}
+			}
 			print("Created glyco reports\n");
 		}
 
