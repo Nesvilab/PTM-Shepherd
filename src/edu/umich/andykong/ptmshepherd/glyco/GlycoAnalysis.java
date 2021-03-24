@@ -36,11 +36,13 @@ public class GlycoAnalysis {
     ArrayList<GlycanCandidate> glycanDatabase;
     double meanMassError;
     double massErrorWidth;
+    ProbabilityTables probabilityTable;
 
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName+".rawglyco"));
         this.glycanDatabase = glycoDatabase;
+        this.probabilityTable = inputProbabilityTable;    // init with default values, can be changed by params
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
@@ -381,7 +383,7 @@ public class GlycoAnalysis {
         float iso2 = (float) (deltaMass - glycan2.monoisotopicMass);
         int roundedIso2 = Math.round(iso2);
 
-        double isotopeProbRatio = ProbabilityTables.isotopeProbTable.get(roundedIso1) / ProbabilityTables.isotopeProbTable.get(roundedIso2);
+        double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(roundedIso2);
 
         // mass error calc
         double massError1 = deltaMass - glycan1.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
@@ -459,23 +461,23 @@ public class GlycoAnalysis {
 
         double prob1;
         if (stDevsFromMean1 >= -bound1 && stDevsFromMean1 <= bound1) {
-            prob1 = ProbabilityTables.massProbTable.get(0);
+            prob1 = probabilityTable.massProbTable.get(0);
         } else if (stDevsFromMean1 >= -bound2 && stDevsFromMean1 <= bound2) {
-            prob1 = ProbabilityTables.massProbTable.get(1);
+            prob1 = probabilityTable.massProbTable.get(1);
         } else if (stDevsFromMean1 >= -bound3 && stDevsFromMean1 <= bound3) {
-            prob1 = ProbabilityTables.massProbTable.get(2);
+            prob1 = probabilityTable.massProbTable.get(2);
         } else {
-            prob1 = ProbabilityTables.massProbTable.get(3);
+            prob1 = probabilityTable.massProbTable.get(3);
         }
         double prob2;
         if (stDevsFromMean2 >= -bound1 && stDevsFromMean2 <= bound1) {
-            prob2 = ProbabilityTables.massProbTable.get(0);
+            prob2 = probabilityTable.massProbTable.get(0);
         } else if (stDevsFromMean2 >= -bound2 && stDevsFromMean2 <= bound2) {
-            prob2 = ProbabilityTables.massProbTable.get(1);
+            prob2 = probabilityTable.massProbTable.get(1);
         } else if (stDevsFromMean2 >= -bound3 && stDevsFromMean2 <= bound3) {
-            prob2 = ProbabilityTables.massProbTable.get(2);
+            prob2 = probabilityTable.massProbTable.get(2);
         } else {
-            prob2 = ProbabilityTables.massProbTable.get(3);
+            prob2 = probabilityTable.massProbTable.get(3);
         }
         return prob1 / prob2;
     }
@@ -776,7 +778,7 @@ public class GlycoAnalysis {
                 Map<GlycanResidue, Integer> composition = new HashMap<>();
                 composition.put(GlycanResidue.HexNAc, hexnac);
                 composition.put(GlycanResidue.Hex, hex);
-                GlycanFragment fragment = new GlycanFragment(composition, ProbabilityTables.regularYrules);
+                GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules);
                 yFragments.add(fragment);
                 for (int dHex=1; dHex <= maxGlycanResidues.get(GlycanResidue.dHex); dHex++) {
                     // add dHex fragments (if allowed)
@@ -784,7 +786,7 @@ public class GlycoAnalysis {
                     dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
                     dHexcomposition.put(GlycanResidue.Hex, hex);
                     dHexcomposition.put(GlycanResidue.dHex, dHex);
-                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, ProbabilityTables.dHexYrules);
+                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules);
                     yFragments.add(dHexfragment);
                 }
             }
@@ -803,54 +805,54 @@ public class GlycoAnalysis {
         // NeuAc
         Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
         neuacComposition.put(GlycanResidue.NeuAc, 1);
-        oxoniumList.add(new GlycanFragment(neuacComposition, ProbabilityTables.neuacRules, 273.0848565));     // NeuAc - H20
-        oxoniumList.add(new GlycanFragment(neuacComposition, ProbabilityTables.neuacRules, 291.0954165));     // NeuAc
+        oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565));     // NeuAc - H20
+        oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165));     // NeuAc
         Map<GlycanResidue, Integer> neuacHexComposition = new HashMap<>();
         neuacHexComposition.put(GlycanResidue.NeuAc, 1);
         neuacHexComposition.put(GlycanResidue.Hex, 1);
         neuacHexComposition.put(GlycanResidue.HexNAc, 1);
-        oxoniumList.add(new GlycanFragment(neuacHexComposition, ProbabilityTables.neuacRules, 656.227624));     // NeuAc + HexNAc + Hex
+        oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624));     // NeuAc + HexNAc + Hex
 
         // NeuGc
         Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
         neugcComposition.put(GlycanResidue.NeuGc, 1);
-        oxoniumList.add(new GlycanFragment(neugcComposition, ProbabilityTables.neugcRules, 291.0954165));     // NeuGc - H20
-        oxoniumList.add(new GlycanFragment(neugcComposition, ProbabilityTables.neugcRules, 307.090334));     // NeuGc
+        oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165));     // NeuGc - H20
+        oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334));     // NeuGc
         Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
         neugcHexComposition.put(GlycanResidue.NeuGc, 1);
         neugcHexComposition.put(GlycanResidue.Hex, 1);
         neugcHexComposition.put(GlycanResidue.HexNAc, 1);
-        oxoniumList.add(new GlycanFragment(neugcHexComposition, ProbabilityTables.neugcRules, 672.222524));     // NeuGc + HexNAc + Hex
+        oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524));     // NeuGc + HexNAc + Hex
 
         // Phospho-Hex
         Map<GlycanResidue, Integer> phosphoHexComposition = new HashMap<>();
         phosphoHexComposition.put(GlycanResidue.Hex, 1);
         phosphoHexComposition.put(GlycanResidue.Phospho, 1);
-        oxoniumList.add(new GlycanFragment(phosphoHexComposition, ProbabilityTables.phosphoRules, 242.01915));
+        oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915));
         Map<GlycanResidue, Integer> phospho2HexComposition = new HashMap<>();
         phospho2HexComposition.put(GlycanResidue.Hex, 2);
         phospho2HexComposition.put(GlycanResidue.Phospho, 1);
-        oxoniumList.add(new GlycanFragment(phospho2HexComposition, ProbabilityTables.phosphoRules, 404.07197));
+        oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197));
         Map<GlycanResidue, Integer> twoPhosphoHexComposition = new HashMap<>();
         twoPhosphoHexComposition.put(GlycanResidue.Hex, 2);
         twoPhosphoHexComposition.put(GlycanResidue.Phospho, 2);
-        oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, ProbabilityTables.phosphoRules, 484.0383));
+        oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383));
 
         // Sulfo
         Map<GlycanResidue, Integer> sulfoComposition = new HashMap<>();
         sulfoComposition.put(GlycanResidue.HexNAc, 1);
         sulfoComposition.put(GlycanResidue.Sulfo, 1);
-        oxoniumList.add(new GlycanFragment(sulfoComposition, ProbabilityTables.sulfoRules, 283.036724));
+        oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724));
         Map<GlycanResidue, Integer> sulfoHexNAcHexComposition = new HashMap<>();
         sulfoHexNAcHexComposition.put(GlycanResidue.HexNAc, 1);
         sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 1);
         sulfoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-        oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, ProbabilityTables.sulfoRules, 445.090724));
+        oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724));
         Map<GlycanResidue, Integer> sulfoTwoHexNAcHexComposition = new HashMap<>();
         sulfoTwoHexNAcHexComposition.put(GlycanResidue.HexNAc, 2);
         sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 2);
         sulfoTwoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-        oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, ProbabilityTables.sulfoRules, 810.204724));
+        oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724));
 
         // dHex
 

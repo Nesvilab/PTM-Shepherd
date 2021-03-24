@@ -1,11 +1,8 @@
 package edu.umich.andykong.ptmshepherd;
 
-import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.io.*;
 import java.util.concurrent.*;
@@ -18,7 +15,6 @@ import edu.umich.andykong.ptmshepherd.glyco.*;
 import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
 import edu.umich.andykong.ptmshepherd.specsimilarity.*;
-import javolution.io.Struct;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
 
@@ -172,9 +168,9 @@ public class PTMShepherd {
 	 * Parameter values: must match GlycanResidue adduct types (case insensitive), comma separated
 	 * @return list of adduct GlycanResidues to add to compositions in glycan database
 	 */
-	public static ArrayList<GlycanResidue> getGlycoAdductParam() {
+	public static ArrayList<GlycanResidue> parseGlycoAdductParam() {
 		ArrayList<GlycanResidue> adducts = new ArrayList<>();
-		String adductParamValue = params.get("glyco_adducts");
+		String adductParamValue = getParam("glyco_adducts");
 		String[] adductStrs;
 		if (adductParamValue.length() > 0)
 			adductStrs = adductParamValue.split(",| |/");
@@ -195,6 +191,116 @@ public class PTMShepherd {
 		return adducts;
 	}
 
+	/**
+	 * Initialize a default glyco probability table and update it with probabilities from
+	 * parameters, if any are present.
+	 * Param formats:
+	 * -Fragments (Y/Oxo): 8 values, comma separated
+	 * -mass/isotope: key1:value1,key2:value2,etc
+	 * @return ProbabilityTable to use
+	 */
+	public static ProbabilityTables initGlycoProbTable() {
+		ProbabilityTables probabilityTable = new ProbabilityTables();
+
+		// Read params for probabilities if present, otherwise use default values (already init'd in the constructor)
+		for (String paramName : ProbabilityTables.probabilityParams) {
+			String paramStr = getParam(paramName);
+			if (paramStr.length() > 0) {
+				// parameter provided, read probability
+				double[] values;
+				switch (paramName) {
+					case "prob_neuacOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.neuacRules = values;
+						break;
+					case "prob_neugcOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.neugcRules = values;
+						break;
+					case "prob_phosphoOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.phosphoRules = values;
+						break;
+					case "prob_sulfoOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.sulfoRules = values;
+						break;
+					case "prob_regY":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.regularYrules = values;
+						break;
+					case "prob_dhexY":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.dHexYrules = values;
+						break;
+					case "prob_mass":
+						String[] splits = paramStr.split(",");
+						HashMap<Integer, Double> massProbRules = new HashMap<>();
+						for (String split: splits) {
+							String[] keyValue = split.trim().split(":");
+							try {
+								massProbRules.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
+							} catch (NumberFormatException ex) {
+								System.out.printf("Illegal character %s in parameter %s, must pairs of numbers like '0:1.5,1:0.75'", split, paramName);
+							}
+						}
+						if (massProbRules.size() > 0) {
+							probabilityTable.massProbTable = massProbRules;
+						}
+						break;
+					case "prob_isotope":
+						String[] isoSplits = paramStr.split(",");
+						HashMap<Integer, Double> isoProbRules = new HashMap<>();
+						for (String split: isoSplits) {
+							String[] keyValue = split.trim().split(":");
+							try {
+								isoProbRules.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
+							} catch (NumberFormatException ex) {
+								System.out.printf("Illegal character %s in parameter %s, must pairs of numbers like '0:1.5,1:0.75'", split, paramName);
+							}
+						}
+						if (isoProbRules.size() > 0) {
+							probabilityTable.isotopeProbTable = isoProbRules;
+						}
+						break;
+				}
+			}
+		}
+
+
+		return probabilityTable;
+	}
+
+	/**
+	 * Helper method to parse probability arrays from provided parameters with error checking. Returns
+	 * double[] of length 8 if successful or empty array if failed.
+	 * @param paramStr param to parse
+	 * @return double[] of length 8 if successful or empty array if failed.
+	 */
+	public static double[] parseProbParam(String paramStr, String paramName) {
+		String[] splits = paramStr.split(",");
+		if (splits.length == 8) {
+			double[] values = new double[8];
+			for (int i = 0; i < splits.length; i++) {
+				try {
+					values[i] = Double.parseDouble(splits[i]);
+				} catch (NumberFormatException ex) {
+					System.out.printf("Invalid character in value %s, must be a number", splits[i]);
+					return new double[0];
+				}
+			}
+			return values;
+		} else {
+			System.out.printf("Invalid format for parameter %s, must have 8 comma-separated values. Param was: %s\n", paramName, paramStr);
+			return new double[0];
+		}
+	}
 	
 	public static void init(String [] args) throws Exception {
 		if (args.length == 1) {
@@ -671,10 +777,11 @@ public class PTMShepherd {
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
-			ArrayList<GlycanResidue> adductList = getGlycoAdductParam();
-			glycoDatabase = parseGlycanDatabase(params.get("glycodatabase"), adductList);
+			ArrayList<GlycanResidue> adductList = parseGlycoAdductParam();
+			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList);
+			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
@@ -688,14 +795,14 @@ public class PTMShepherd {
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
 			}
 			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
