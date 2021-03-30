@@ -177,7 +177,11 @@ public class PSMFile {
 		for (int i = 0; i < this.headers.length; i++)
 			newHeaders.add(this.headers[i]);
 		// add after observed mod column
-		newHeaders.addAll(observedModCol, Arrays.asList(glyHeaders).subList(mergeFromCol, mergeFromCol + numColsToUse));
+		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
+		if (!hasPreviousGlycoInfo) {
+			// do not add glyco headers if the PSM table already has them
+			newHeaders.addAll(observedModCol, Arrays.asList(glyHeaders).subList(mergeFromCol, mergeFromCol + numColsToUse));
+		}
 		out.println(String.join("\t", newHeaders));
 
 		/* Match glycolines on PSM spectrum keys */
@@ -187,13 +191,34 @@ public class PSMFile {
 			String pSpec = newLine.get(pSpecCol);
 			ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
 			// insert after Observed Modifications column
-			newLine.addAll(observedModCol, glyLine.subList(mergeFromCol, mergeFromCol + numColsToUse));
+			if (hasPreviousGlycoInfo) {
+				// replace old glyco info with the new
+				for (int i=0; i < numColsToUse; i++) {
+					newLine.set(observedModCol + i, glyLine.get(mergeFromCol + i));		// existing info is at obs mod column, new info is in glyline at mergeFromCol
+				}
+			} else {
+				newLine.addAll(observedModCol, glyLine.subList(mergeFromCol, mergeFromCol + numColsToUse));
+			}
 			out.println(String.join("\t", newLine));
 		}
 		out.close();
 
 		/* Move old file onto new file */
 		Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	/**
+	 * Determine if this PSM file has already had glycan assignment info written to it.
+	 * Checks for the glycan header column name
+	 * @return true if glycan info present
+	 */
+	public boolean hasGlycanAssignmentsWritten() {
+		for (String header : headers) {
+			if (header.contains("Best Glycan")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/* Add new column to PSM table in place to make it IonQuant compatible */
