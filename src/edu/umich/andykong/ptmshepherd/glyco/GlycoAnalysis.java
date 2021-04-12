@@ -390,7 +390,7 @@ public class GlycoAnalysis {
         double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
         double massError2 = deltaMass - glycan2.monoisotopicMass - (roundedIso2 * AAMasses.averagineIsotopeMass);
         double massStDevs2 = (massError2 - meanMassError) / massErrorWidth;
-        double massProbRatio = massProbLookup(massStDevs1, massStDevs2);
+        double massProbRatio = Math.abs(massStDevs2 / massStDevs1) * probabilityTable.massProbScaling;     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
 
         return Math.log(isotopeProbRatio) + Math.log(massProbRatio);
     }
@@ -443,43 +443,6 @@ public class GlycoAnalysis {
             }
         }
         return probRatio;
-    }
-
-    /**
-     * Helper method to get probability ratio for a pair of glycans given their mass errors. Input is
-     * already transformed to std deviations away from the mean and just needs to be compared to the lookup table.
-     * Lookup table records likelihoods for masses to be within 1, 2, 3, or more standard deviations from mean error
-     * @param stDevsFromMean1 (massError - meanMassError) / stDev for glycan 1
-     * @param stDevsFromMean2 (massError - meanMassError) / stDev for glycan 2
-     * @return probability ratio
-     */
-    public double massProbLookup(double stDevsFromMean1, double stDevsFromMean2) {
-        // bounds for number of sigma's from mean a value can be before reducing probability
-        int bound1 = 2;
-        int bound2 = 5;
-        int bound3 = 10;
-
-        double prob1;
-        if (stDevsFromMean1 >= -bound1 && stDevsFromMean1 <= bound1) {
-            prob1 = probabilityTable.massProbTable.get(0);
-        } else if (stDevsFromMean1 >= -bound2 && stDevsFromMean1 <= bound2) {
-            prob1 = probabilityTable.massProbTable.get(1);
-        } else if (stDevsFromMean1 >= -bound3 && stDevsFromMean1 <= bound3) {
-            prob1 = probabilityTable.massProbTable.get(2);
-        } else {
-            prob1 = probabilityTable.massProbTable.get(3);
-        }
-        double prob2;
-        if (stDevsFromMean2 >= -bound1 && stDevsFromMean2 <= bound1) {
-            prob2 = probabilityTable.massProbTable.get(0);
-        } else if (stDevsFromMean2 >= -bound2 && stDevsFromMean2 <= bound2) {
-            prob2 = probabilityTable.massProbTable.get(1);
-        } else if (stDevsFromMean2 >= -bound3 && stDevsFromMean2 <= bound3) {
-            prob2 = probabilityTable.massProbTable.get(2);
-        } else {
-            prob2 = probabilityTable.massProbTable.get(3);
-        }
-        return prob1 / prob2;
     }
 
     /**

@@ -8,7 +8,7 @@ import java.util.HashMap;
  */
 public class ProbabilityTables {
     public HashMap<Integer, Double> isotopeProbTable;
-    public HashMap<Integer, Double> massProbTable;
+    public double massProbScaling;
 
     /* Y ion scores to generate probability ratios
      * Entries 0-3 are if ion is found in spectrum, 4-7 are if ion is not found. In both sets of 4, probs are
@@ -49,12 +49,7 @@ public class ProbabilityTables {
         isotopeProbTable.put(3, 0.25);
         isotopeProbTable.put(4, 0.125);
 
-        // mass error probability table
-        massProbTable = new HashMap<>();
-        massProbTable.put(0, 1.0);
-        massProbTable.put(1, 0.9);
-        massProbTable.put(2, 0.75);
-        massProbTable.put(3, 0.5);
+        massProbScaling = 1.0;
 
         /* Y ion scores to generate probability ratios
          * Entries 0-3 are if ion is found in spectrum, 4-7 are if ion is not found. In both sets of 4, probs are

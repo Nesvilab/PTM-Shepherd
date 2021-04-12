@@ -240,19 +240,7 @@ public class PTMShepherd {
 							probabilityTable.dHexYrules = values;
 						break;
 					case "prob_mass":
-						String[] splits = paramStr.split(",");
-						HashMap<Integer, Double> massProbRules = new HashMap<>();
-						for (String split: splits) {
-							String[] keyValue = split.trim().split(":");
-							try {
-								massProbRules.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
-							} catch (NumberFormatException ex) {
-								System.out.printf("Illegal character %s in parameter %s, must pairs of numbers like '0:1.5,1:0.75'", split, paramName);
-							}
-						}
-						if (massProbRules.size() > 0) {
-							probabilityTable.massProbTable = massProbRules;
-						}
+						probabilityTable.massProbScaling = Double.parseDouble(paramStr);
 						break;
 					case "prob_isotope":
 						String[] isoSplits = paramStr.split(",");
