@@ -25,7 +25,6 @@ public class ProbabilityTables {
     public double[] neugcRules;
     public double[] phosphoRules;
     public double[] sulfoRules;
-
     // parameter names
     public static String[] probabilityParams = {"prob_neuacOx",
             "prob_neugcOx",
@@ -52,20 +51,16 @@ public class ProbabilityTables {
         massProbScaling = 1.0;
 
         /* Y ion scores to generate probability ratios
-         * Entries 0-3 are if ion is found in spectrum, 4-7 are if ion is not found. In both sets of 4, probs are
-         * 0=allowed in both candidates
-         * 1=allowed in candidate 1, not in candidate 2
-         * 2=allowed in candidate 2, not in candidate 1
-         * 3=allowed in neither candidate
+         * Entries 0 is for
          */
-        regularYrules = new double[]{1, 1.5, 0.666666, 1, 1, 0.8, 1.25, 1};
-        dHexYrules = new double[]{1, 2, 0.5, 1, 1, 1, 1, 1};
+        regularYrules = new double[]{2, 0.8};
+        dHexYrules = new double[]{2, 0.8};
 
         // Oxonium ion probs. Same format as Y ion probabilities
-        neuacRules = new double[]{1, 5, 0.2, 1, 1, 0.25, 4, 1};
-        neugcRules = new double[]{1, 5, 0.2, 1, 1, 0.25, 4, 1};
-        phosphoRules = new double[]{1, 2, 0.5, 1, 1, 0.5, 2, 1};
-        sulfoRules = new double[]{1, 2, 0.5, 1, 1, 0.5, 2, 1};
+        neuacRules = new double[]{5, 0.25};
+        neugcRules = new double[]{5, 0.25};
+        phosphoRules = new double[]{5, 0.25};
+        sulfoRules = new double[]{5, 0.25};
     }
 
 

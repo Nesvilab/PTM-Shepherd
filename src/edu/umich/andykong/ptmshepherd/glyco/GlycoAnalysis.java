@@ -408,37 +408,37 @@ public class GlycoAnalysis {
         if (foundInSpectrum){
             if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
                 if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
-                    // allowed in both. Rule probability is position 0 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[0];
+                    // allowed in both - not distinguishing
+                    probRatio = 1.0;
                 } else {
-                    // allowed in glycan 1, but NOT glycan 2. Position 1 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[1];
+                    // allowed in glycan 1, but NOT glycan 2. Found in spectrum. Position 0 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[0];
                 }
             } else {
                 if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
-                    // allowed in 2 but not 1. Rule probability is position 2 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[2];
+                    // allowed in 2 but not 1. Found in spectrum. Prob is 1/found probability
+                    probRatio = 1.0 / matchedFragment.ruleProbabilities[0];
                 } else {
-                    // allowed in neither candidate. Position 3 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[3];
+                    // allowed in neither candidate - not distinguishing
+                    probRatio = 1.0;
                 }
             }
         } else {
             if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
                 if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
-                    // allowed in both, but not found in spectrum. Rule probability is position 4 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[4];
+                    // allowed in both, but not found in spectrum - not distinguishing
+                    probRatio = 1.0;
                 } else {
-                    // allowed in glycan 1, but NOT glycan 2. Not found in spectrum. Position 5 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[5];
+                    // allowed in glycan 1, but NOT glycan 2. Not found in spectrum. Position 1 in rules array
+                    probRatio = matchedFragment.ruleProbabilities[1];
                 }
             } else {
                 if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
-                    // allowed in 2 but not 1. Not found in spectrum. Position 6 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[6];
+                    // allowed in 2 but not 1. Not found in spectrum. Prob is 1/not-found probability
+                    probRatio = 1.0 / matchedFragment.ruleProbabilities[1];
                 } else {
-                    // allowed in neither candidate. Not found in spectrum. Position 7 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[7];
+                    // allowed in neither candidate. Not found in spectrum. Not distinguishing
+                    probRatio = 1.0;
                 }
             }
         }
