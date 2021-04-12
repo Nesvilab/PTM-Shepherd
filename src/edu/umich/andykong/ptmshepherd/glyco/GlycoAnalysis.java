@@ -378,9 +378,9 @@ public class GlycoAnalysis {
      */
     public double determineIsotopeAndMassErrorProbs(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double massErrorWidth, double meanMassError) {
         // Determine isotopes
-        float iso1 = (float) (glycan1.monoisotopicMass - deltaMass);
+        float iso1 = (float) (deltaMass - glycan1.monoisotopicMass);
         int roundedIso1 = Math.round(iso1);
-        float iso2 = (float) (glycan2.monoisotopicMass - deltaMass);
+        float iso2 = (float) (deltaMass - glycan2.monoisotopicMass);
         int roundedIso2 = Math.round(iso2);
 
         double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(roundedIso2);
@@ -458,7 +458,7 @@ public class GlycoAnalysis {
         ArrayList<GlycanCandidate> matchingGlycans = new ArrayList<>();
         for (int isotope : isotopesToSearch) {
             // add isotope error, which is recorded as an increase relative to delta mass
-            double isotopeCorrMass = deltaMass + (isotope * AAMasses.averagineIsotopeMass);
+            double isotopeCorrMass = deltaMass - (isotope * AAMasses.averagineIsotopeMass);
             double massRangeDa = isotopeCorrMass * 0.000001 * ms1TolerancePPM;
             for (GlycanCandidate glycan : glycanDatabase) {
                 // see if mass within specified ranges
