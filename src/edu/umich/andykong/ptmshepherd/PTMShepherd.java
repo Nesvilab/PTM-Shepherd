@@ -267,14 +267,14 @@ public class PTMShepherd {
 
 	/**
 	 * Helper method to parse probability arrays from provided parameters with error checking. Returns
-	 * double[] of length 8 if successful or empty array if failed.
+	 * double[] of length 2 if successful or empty array if failed.
 	 * @param paramStr param to parse
-	 * @return double[] of length 8 if successful or empty array if failed.
+	 * @return double[] of length 2 if successful or empty array if failed.
 	 */
 	public static double[] parseProbParam(String paramStr, String paramName) {
 		String[] splits = paramStr.split(",");
-		if (splits.length == 8) {
-			double[] values = new double[8];
+		if (splits.length == 2) {
+			double[] values = new double[2];
 			for (int i = 0; i < splits.length; i++) {
 				try {
 					values[i] = Double.parseDouble(splits[i]);
@@ -285,7 +285,7 @@ public class PTMShepherd {
 			}
 			return values;
 		} else {
-			System.out.printf("Invalid format for parameter %s, must have 8 comma-separated values. Param was: %s\n", paramName, paramStr);
+			System.out.printf("Invalid format for parameter %s, must have 2 comma-separated values. Param was: %s\n", paramName, paramStr);
 			return new double[0];
 		}
 	}
