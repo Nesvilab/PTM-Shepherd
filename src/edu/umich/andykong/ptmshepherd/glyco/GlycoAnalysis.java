@@ -85,7 +85,7 @@ public class GlycoAnalysis {
 
         //write header
         StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
-        headbuff.append("\tBest Glycan\tLog Delta Score\t2nd Best Glycan");
+        headbuff.append("\tBest Glycan\tLog Delta Score\t2nd Best Glycan\tAbs Score\tPerf Score\tRatio");
         for (int i = 0; i < capYShifts.length; i++)
             headbuff.append(String.format("\tY_%.4f_intensity", capYShifts[i]));
         for (int i = 0; i < oxoniumIons.length; i++)
@@ -265,7 +265,7 @@ public class GlycoAnalysis {
     public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, double massErrorWidth, double meanMassError) {
         // skip non-delta mass PSMs
         if (deltaMass < 3.5 && deltaMass > -1.5) {
-            return "\t\t\t";
+            return "\t\t\t\t\t\t";
         }
 
         // Determine possible glycan candidates from mass
@@ -321,14 +321,21 @@ public class GlycoAnalysis {
             }
         }
 
+        // compute absolute and perfect scores for best glycan
+        double absoluteScore = 0;
+        double perfectScore = 0;
+        if (searchCandidates.size() > 0) {
+            absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), possibleYIons, possibleOxoniums, deltaMass, massErrorWidth, meanMassError);
+            perfectScore = computePerfectScore(searchCandidates.get(bestCandidateIndex), possibleYIons, possibleOxoniums);
+        }
         // output - best glycan, scores, etc back to PSM table
         String output;
         if (searchCandidates.size() == 0) {
-            output = "\tNo Matches\t\t";
+            output = "\tNo Matches\t\t\t\t\t";
         } else if (searchCandidates.size() == 1) {
-            output = String.format("\t%s\t\t", searchCandidates.get(bestCandidateIndex).toString());
+            output = String.format("\t%s\t\t\t%.1f\t%.1f\t%.2f", searchCandidates.get(bestCandidateIndex).toString(), absoluteScore, perfectScore, absoluteScore/perfectScore);
         } else {
-            output = String.format("\t%s\t%.2f\t%s", searchCandidates.get(bestCandidateIndex).toString(), scoresVsBestCandidate[nextBestCandidateIndex], searchCandidates.get(nextBestCandidateIndex).toString());
+            output = String.format("\t%s\t%.2f\t%s\t%.1f\t%.1f\t%.2f", searchCandidates.get(bestCandidateIndex).toString(), scoresVsBestCandidate[nextBestCandidateIndex], searchCandidates.get(nextBestCandidateIndex).toString(), absoluteScore, perfectScore, absoluteScore/perfectScore);
         }
         return output;
     }
@@ -374,6 +381,7 @@ public class GlycoAnalysis {
      * @param glycan2 glycan 2
      * @param deltaMass observed delta mass
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
+     * @param meanMassError mean mass error of non-delta mass peptides
      * @return probability ratio (glycan 1 over 2)
      */
     public double determineIsotopeAndMassErrorProbs(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double massErrorWidth, double meanMassError) {
@@ -443,6 +451,82 @@ public class GlycoAnalysis {
             }
         }
         return probRatio;
+    }
+
+    /**
+     * Compute the "absolute" score of this glycan for the given spectrum, meaning the score if all ions are distinguishing
+     * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
+     * @param bestGlycan glycan candidate to calculate score for
+     * @param yFragments array of possible Y fragments
+     * @param oxoFragments array of possible oxonium fragments
+     * @param deltaMass spectrum delta mass
+     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
+     * @param meanMassError mean mass error of non-delta mass peptides
+     * @return absolute score
+     */
+    public double computeAbsoluteScore(GlycanCandidate bestGlycan, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments, double deltaMass, double massErrorWidth, double meanMassError) {
+        double sumLogRatio = 0;
+        // Y ions - check if allowed for this composition and score if so (ignore if not)
+        for (GlycanFragment yFragment : yFragments) {
+            if (yFragment.isAllowedFragment(bestGlycan.glycanComposition)) {
+                boolean foundInSpectrum = yFragment.foundIntensity > 0;
+                double probRatio;
+                if (foundInSpectrum) {
+                    probRatio = yFragment.ruleProbabilities[0];     // found in spectrum - ion supports this glycan
+                } else {
+                    probRatio = yFragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
+                }
+                sumLogRatio += Math.log(probRatio);
+            }
+        }
+        // oxonium ions
+        for (GlycanFragment oxoFragment : oxoFragments) {
+            // oxonium ions - check if allowed for this composition and score if so (ignore if not)
+            if (oxoFragment.isAllowedFragment(bestGlycan.glycanComposition)) {
+                boolean foundInSpectrum = oxoFragment.foundIntensity > 0;
+                double probRatio;
+                if (foundInSpectrum) {
+                    probRatio = oxoFragment.ruleProbabilities[0];     // found in spectrum - ion supports this glycan
+                } else {
+                    probRatio = oxoFragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
+                }
+                sumLogRatio += Math.log(probRatio);
+            }
+        }
+
+        // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
+        float iso1 = (float) (deltaMass - bestGlycan.monoisotopicMass);
+        int roundedIso1 = Math.round(iso1);
+        double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(0);
+        sumLogRatio += Math.log(isotopeProbRatio);
+        // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
+        double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
+        double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
+        double massDist = Math.abs(massStDevs1) * probabilityTable.massProbScaling;
+        sumLogRatio -= Math.log(massDist);  // subtract log of # std devs from mean - less than 1 will increase score, more than 1 will decrease
+
+        return sumLogRatio;
+    }
+
+    /**
+     * Compute the score this glycan would achieve if every possible fragment ion was found in the spectrum.
+     * Does not include any mass/isotope error (prob ratio of 1)
+     * @param bestGlycan glycan candidate to score
+     * @param yFragments possible Y ions for this candidate only
+     * @param oxoFragments possible oxo ions (not prefiltered for this candidate)
+     * @return perfect score
+     */
+    public double computePerfectScore(GlycanCandidate bestGlycan, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments) {
+        double sumLogRatio = 0;
+        for (GlycanFragment yFragment : yFragments) {
+            sumLogRatio += Math.log(yFragment.ruleProbabilities[0]);
+        }
+        for (GlycanFragment oxoFragment : oxoFragments) {
+            if (oxoFragment.isAllowedFragment(bestGlycan.glycanComposition)) {
+                sumLogRatio += Math.log(oxoFragment.ruleProbabilities[0]);
+            }
+        }
+        return sumLogRatio;
     }
 
     /**
