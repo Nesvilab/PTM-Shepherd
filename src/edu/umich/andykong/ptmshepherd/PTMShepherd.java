@@ -97,7 +97,7 @@ public class PTMShepherd {
 	 * @param inputPath path to input file
 	 * @return list of glycans to consider
 	 */
-	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList) {
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts) {
 		Path path = null;
 		try {
 			path = Paths.get(inputPath.replaceAll("['\"]", ""));
@@ -132,22 +132,25 @@ public class PTMShepherd {
 				if (!glycansInDB.containsKey(compositionHash)) {
 					glycanDB.add(candidate);
 					glycansInDB.put(compositionHash, Boolean.TRUE);
-				}
 
-				// add adducts from adduct list to each composition
-				for (GlycanResidue adduct : adductList) {
-					// deep copy the original composition and add the adduct to it
-					TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
-					for (Map.Entry<GlycanResidue, Integer> previousResidue : glycanComp.entrySet()) {
-						adductComp.put(previousResidue.getKey(), previousResidue.getValue());
-					}
-					adductComp.put(adduct, 1);
+					// add adducts from adduct list to each composition
+					for (GlycanResidue adduct : adductList) {
+						for (int numAdducts = 1; numAdducts <= maxAdducts; numAdducts++) {
+							// deep copy the original composition and add the adduct to it
+							TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
 
-					GlycanCandidate adductCandidate = new GlycanCandidate(adductComp);
-					String adductCompositionHash = adductCandidate.toHashString();
-					if (!glycansInDB.containsKey(adductCompositionHash)) {
-						glycanDB.add(adductCandidate);
-						glycansInDB.put(adductCompositionHash, Boolean.TRUE);
+							for (Map.Entry<GlycanResidue, Integer> previousResidue : glycanComp.entrySet()) {
+								adductComp.put(previousResidue.getKey(), previousResidue.getValue());
+							}
+							adductComp.put(adduct, numAdducts);
+
+							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp);
+							String adductCompositionHash = adductCandidate.toHashString();
+							if (!glycansInDB.containsKey(adductCompositionHash)) {
+								glycanDB.add(adductCandidate);
+								glycansInDB.put(adductCompositionHash, Boolean.TRUE);
+							}
+						}
 					}
 				}
 			}
@@ -360,6 +363,7 @@ public class PTMShepherd {
 		params.put("output_extended", "false");
 		params.put("output_path", "");
 		params.put("run_from_old", "false");
+		params.put("max_adducts", "1");
 		
 		//load parameters
 		for(int i = 0; i < args.length; i++) {
@@ -766,7 +770,8 @@ public class PTMShepherd {
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
 			ArrayList<GlycanResidue> adductList = parseGlycoAdductParam();
-			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList);
+			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
+			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts);
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
