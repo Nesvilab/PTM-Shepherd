@@ -805,7 +805,7 @@ public class PTMShepherd {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")), 3);
+					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")), 6);
 				}
 			}
 			print("Created glyco reports\n");
