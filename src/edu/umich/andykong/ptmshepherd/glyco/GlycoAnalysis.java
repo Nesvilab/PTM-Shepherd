@@ -467,30 +467,55 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
         // Y ions - check if allowed for this composition and score if so (ignore if not)
         for (GlycanFragment yFragment : yFragments) {
+            boolean foundInSpectrum = yFragment.foundIntensity > 0;
+            double probRatio;
             if (yFragment.isAllowedFragment(bestGlycan)) {
-                boolean foundInSpectrum = yFragment.foundIntensity > 0;
-                double probRatio;
                 if (foundInSpectrum) {
                     probRatio = yFragment.ruleProbabilities[0];     // found in spectrum - ion supports this glycan
                 } else {
                     probRatio = yFragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
                 }
-                sumLogRatio += Math.log(probRatio);
+            } else {
+                // fragment not allowed for this glycan, but if found in spectrum is still evidence against this composition
+                if (foundInSpectrum) {
+                    // only allow target-target and decoy-decoy matches to affect absolute score
+                    if ((bestGlycan.isDecoy && yFragment.isDecoy) || (!bestGlycan.isDecoy && !yFragment.isDecoy)) {
+                        probRatio = 1 / yFragment.ruleProbabilities[0];
+                    } else {
+                        probRatio = 1.0;
+                    }
+                } else {
+                    // not allowed, and not found in spectrum - ignore
+                    probRatio = 1.0;
+                }
             }
+            sumLogRatio += Math.log(probRatio);
         }
         // oxonium ions
         for (GlycanFragment oxoFragment : oxoFragments) {
             // oxonium ions - check if allowed for this composition and score if so (ignore if not)
+            boolean foundInSpectrum = oxoFragment.foundIntensity > 0;
+            double probRatio;
             if (oxoFragment.isAllowedFragment(bestGlycan)) {
-                boolean foundInSpectrum = oxoFragment.foundIntensity > 0;
-                double probRatio;
                 if (foundInSpectrum) {
                     probRatio = oxoFragment.ruleProbabilities[0];     // found in spectrum - ion supports this glycan
                 } else {
                     probRatio = oxoFragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
                 }
-                sumLogRatio += Math.log(probRatio);
+            } else {
+                // oxonium ion not expected, but if found is evidence against this composition
+                if (foundInSpectrum) {
+                    // only allow target-target and decoy-decoy matches to affect absolute score
+                    if ((bestGlycan.isDecoy && oxoFragment.isDecoy) || (!bestGlycan.isDecoy && !oxoFragment.isDecoy)) {
+                        probRatio = 1 / oxoFragment.ruleProbabilities[0];
+                    } else {
+                        probRatio = 1.0;
+                    }
+                } else {
+                    probRatio = 1.0;
+                }
             }
+            sumLogRatio += Math.log(probRatio);
         }
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
