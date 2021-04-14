@@ -126,12 +126,15 @@ public class PTMShepherd {
 					glycanComp.put(residue, count);
 				}
 				// generate a new candidate from this composition and add to DB
-				GlycanCandidate candidate = new GlycanCandidate(glycanComp);
+				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false);
 				String compositionHash = candidate.toHashString();
 				// prevent addition of duplicates if user has them in database
 				if (!glycansInDB.containsKey(compositionHash)) {
 					glycanDB.add(candidate);
 					glycansInDB.put(compositionHash, Boolean.TRUE);
+					// also add a decoy for this composition
+					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true);
+					glycanDB.add(decoy);
 
 					// add adducts from adduct list to each composition
 					for (GlycanResidue adduct : adductList) {
@@ -144,11 +147,14 @@ public class PTMShepherd {
 							}
 							adductComp.put(adduct, numAdducts);
 
-							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp);
+							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false);
 							String adductCompositionHash = adductCandidate.toHashString();
 							if (!glycansInDB.containsKey(adductCompositionHash)) {
 								glycanDB.add(adductCandidate);
 								glycansInDB.put(adductCompositionHash, Boolean.TRUE);
+								// also add a decoy for this composition
+								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true);
+								glycanDB.add(adductDecoy);
 							}
 						}
 					}

@@ -273,10 +273,9 @@ public class GlycoAnalysis {
         double ms1TolPPM = 50;  // todo: connect to existing param?
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(deltaMass, glycanDatabase, isotopesToSearch, ms1TolPPM);
 
-        // Get Y ions possible for these candidates
-        // todo: move these out to use same ions for all? Or keep in here to search specific peaks for each candidate set?
+        // Get Y/oxo ions possible for these candidates (and decoy ions)
         GlycanFragment[] possibleYIons = initializeYFragments(searchCandidates);
-        GlycanFragment[] possibleOxoniums = initializeOxoniumFragments();
+        GlycanFragment[] possibleOxoniums = initializeOxoniumFragments(searchCandidates);
         double[] yMasses = new double[possibleYIons.length];
         for (int i=0; i < possibleYIons.length; i++) {
             yMasses[i] = possibleYIons[i].neutralMass + pepMass;
@@ -414,8 +413,8 @@ public class GlycoAnalysis {
     public double determineProbRatio(GlycanFragment matchedFragment, GlycanCandidate glycan1, GlycanCandidate glycan2, boolean foundInSpectrum) {
         double probRatio;
         if (foundInSpectrum){
-            if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
-                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+            if (matchedFragment.isAllowedFragment(glycan1)) {
+                if (matchedFragment.isAllowedFragment(glycan2)) {
                     // allowed in both - not distinguishing
                     probRatio = 1.0;
                 } else {
@@ -423,7 +422,7 @@ public class GlycoAnalysis {
                     probRatio = matchedFragment.ruleProbabilities[0];
                 }
             } else {
-                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                if (matchedFragment.isAllowedFragment(glycan2)) {
                     // allowed in 2 but not 1. Found in spectrum. Prob is 1/found probability
                     probRatio = 1.0 / matchedFragment.ruleProbabilities[0];
                 } else {
@@ -432,8 +431,8 @@ public class GlycoAnalysis {
                 }
             }
         } else {
-            if (matchedFragment.isAllowedFragment(glycan1.glycanComposition)) {
-                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+            if (matchedFragment.isAllowedFragment(glycan1)) {
+                if (matchedFragment.isAllowedFragment(glycan2)) {
                     // allowed in both, but not found in spectrum - not distinguishing
                     probRatio = 1.0;
                 } else {
@@ -441,7 +440,7 @@ public class GlycoAnalysis {
                     probRatio = matchedFragment.ruleProbabilities[1];
                 }
             } else {
-                if (matchedFragment.isAllowedFragment(glycan2.glycanComposition)) {
+                if (matchedFragment.isAllowedFragment(glycan2)) {
                     // allowed in 2 but not 1. Not found in spectrum. Prob is 1/not-found probability
                     probRatio = 1.0 / matchedFragment.ruleProbabilities[1];
                 } else {
@@ -468,7 +467,7 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
         // Y ions - check if allowed for this composition and score if so (ignore if not)
         for (GlycanFragment yFragment : yFragments) {
-            if (yFragment.isAllowedFragment(bestGlycan.glycanComposition)) {
+            if (yFragment.isAllowedFragment(bestGlycan)) {
                 boolean foundInSpectrum = yFragment.foundIntensity > 0;
                 double probRatio;
                 if (foundInSpectrum) {
@@ -482,7 +481,7 @@ public class GlycoAnalysis {
         // oxonium ions
         for (GlycanFragment oxoFragment : oxoFragments) {
             // oxonium ions - check if allowed for this composition and score if so (ignore if not)
-            if (oxoFragment.isAllowedFragment(bestGlycan.glycanComposition)) {
+            if (oxoFragment.isAllowedFragment(bestGlycan)) {
                 boolean foundInSpectrum = oxoFragment.foundIntensity > 0;
                 double probRatio;
                 if (foundInSpectrum) {
@@ -522,7 +521,7 @@ public class GlycoAnalysis {
             sumLogRatio += Math.log(yFragment.ruleProbabilities[0]);
         }
         for (GlycanFragment oxoFragment : oxoFragments) {
-            if (oxoFragment.isAllowedFragment(bestGlycan.glycanComposition)) {
+            if (oxoFragment.isAllowedFragment(bestGlycan)) {
                 sumLogRatio += Math.log(oxoFragment.ruleProbabilities[0]);
             }
         }
@@ -761,50 +760,44 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Initialize array of all fragment ions to search from the list of possible candidates.
-     * Determines all Y ions (all combinations up to max number of a given residue in all candidates,
-     * plus extra 'disallowed' possible number)
+     * Initialize array of all fragment ions to search from the list of possible candidates. Each candidate has
+     * fragment Ys up to the max HexNAc, Hex, and dHex present in the candidate. Duplicates are ignored (only 1
+     * instance of a fragment in the list). Decoy fragments are generated for decoy candidates.
      * @param glycanCandidates input glycan database
      * @return array of GlycanFragments to search - all Y and oxonium ion
      */
     public GlycanFragment[] initializeYFragments(ArrayList<GlycanCandidate> glycanCandidates) {
-        // init hashmap with all types of glycans
-        HashMap<GlycanResidue, Integer> maxGlycanResidues = new HashMap<>();
-        for (GlycanResidue residue : GlycanResidue.values()){
-            maxGlycanResidues.put(residue, 0);
-        }
-
-        // determine maximum number of each residue type in any candidate being considered
-        for (GlycanCandidate glycanCandidate : glycanCandidates) {
-            for (Map.Entry<GlycanResidue, Integer> residue : glycanCandidate.glycanComposition.entrySet()) {
-                if (maxGlycanResidues.get(residue.getKey()) < residue.getValue()) {
-                    // new max found, update
-                    maxGlycanResidues.put(residue.getKey(), residue.getValue());
-                }
-            }
-        }
-
         // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
         ArrayList<GlycanFragment> yFragments = new ArrayList<>();
-        for (int hexnac=0; hexnac <= maxGlycanResidues.get(GlycanResidue.HexNAc); hexnac++) {
-            for (int hex=0; hex <= maxGlycanResidues.get(GlycanResidue.Hex); hex++) {
-                if (hexnac == 0 && hex == 0) {
-                    continue;
-                }
-                // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
-                Map<GlycanResidue, Integer> composition = new HashMap<>();
-                composition.put(GlycanResidue.HexNAc, hexnac);
-                composition.put(GlycanResidue.Hex, hex);
-                GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules);
-                yFragments.add(fragment);
-                for (int dHex=1; dHex <= maxGlycanResidues.get(GlycanResidue.dHex); dHex++) {
-                    // add dHex fragments (if allowed)
-                    Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
-                    dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
-                    dHexcomposition.put(GlycanResidue.Hex, hex);
-                    dHexcomposition.put(GlycanResidue.dHex, dHex);
-                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules);
-                    yFragments.add(dHexfragment);
+        HashMap<String, Boolean> fragmentsInList = new HashMap<>();     // record generated fragments to prevent adding duplicates
+        for (GlycanCandidate candidate : glycanCandidates) {
+            for (int hexnac = 0; hexnac <= candidate.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
+                for (int hex = 0; hex <= candidate.glycanComposition.get(GlycanResidue.Hex); hex++) {
+                    if (hexnac == 0 && hex == 0) {
+                        continue;
+                    }
+                    // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
+                    Map<GlycanResidue, Integer> composition = new HashMap<>();
+                    composition.put(GlycanResidue.HexNAc, hexnac);
+                    composition.put(GlycanResidue.Hex, hex);
+                    GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, candidate.isDecoy);
+                    // only add if not already in list (prevent duplicates)
+                    if (!fragmentsInList.containsKey(fragment.toHashString())) {
+                        yFragments.add(fragment);
+                        fragmentsInList.put(fragment.toHashString(), true);
+                    }
+                    for (int dHex = 1; dHex <= candidate.glycanComposition.get(GlycanResidue.dHex); dHex++) {
+                        // add dHex fragments (if allowed)
+                        Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
+                        dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
+                        dHexcomposition.put(GlycanResidue.Hex, hex);
+                        dHexcomposition.put(GlycanResidue.dHex, dHex);
+                        GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, candidate.isDecoy);
+                        if (!fragmentsInList.containsKey(dHexfragment.toHashString())) {
+                            yFragments.add(dHexfragment);
+                            fragmentsInList.put(dHexfragment.toHashString(), true);
+                        }
+                    }
                 }
             }
         }
@@ -812,65 +805,162 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Helper method to initialize hard-coded oxonium fragment rules.
+     * Helper method to initialize hard-coded oxonium fragment rules. Only initializes fragments for a
+     * residue type if at least one candidate contains that residue type (no need to consider if not).
+     * Decoys generated for all residue types that have at least one decoy candidate containing that type.
      * @return list of GlycanFragments for oxonium ions
      */
-    public GlycanFragment[] initializeOxoniumFragments(){
+    public GlycanFragment[] initializeOxoniumFragments(ArrayList<GlycanCandidate> searchCandidates){
+        boolean targetNeuAc = false;
+        boolean decoyNeuAc = false;
+        boolean targetNeuGc = false;
+        boolean decoyNeuGc = false;
+        boolean targetPhospho = false;
+        boolean decoyPhospho = false;
+        boolean targetSulfo = false;
+        boolean decoySulfo = false;
+
+        for (GlycanCandidate candidate : searchCandidates) {
+            if (candidate.isDecoy) {
+                if (candidate.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
+                    decoyNeuAc = true;
+                }
+                if (candidate.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
+                    decoyNeuGc = true;
+                }
+                if (candidate.glycanComposition.get(GlycanResidue.Phospho) > 0) {
+                    decoyPhospho = true;
+                }
+                if (candidate.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
+                    decoySulfo = true;
+                }
+            } else {
+                if (candidate.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
+                    targetNeuAc = true;
+                }
+                if (candidate.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
+                    targetNeuGc = true;
+                }
+                if (candidate.glycanComposition.get(GlycanResidue.Phospho) > 0) {
+                    targetPhospho = true;
+                }
+                if (candidate.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
+                    targetSulfo = true;
+                }
+            }
+        }
+
         ArrayList<GlycanFragment> oxoniumList = new ArrayList<>();
         // HexNAc, Hex oxoniums
 
         // NeuAc
-        Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
-        neuacComposition.put(GlycanResidue.NeuAc, 1);
-        oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565));     // NeuAc - H20
-        oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165));     // NeuAc
-        Map<GlycanResidue, Integer> neuacHexComposition = new HashMap<>();
-        neuacHexComposition.put(GlycanResidue.NeuAc, 1);
-        neuacHexComposition.put(GlycanResidue.Hex, 1);
-        neuacHexComposition.put(GlycanResidue.HexNAc, 1);
-        oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624));     // NeuAc + HexNAc + Hex
-
+        if (targetNeuAc) {
+            Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
+            neuacComposition.put(GlycanResidue.NeuAc, 1);
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565, false));     // NeuAc - H20
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165, false));     // NeuAc
+            Map<GlycanResidue, Integer> neuacHexComposition = new HashMap<>();
+            neuacHexComposition.put(GlycanResidue.NeuAc, 1);
+            neuacHexComposition.put(GlycanResidue.Hex, 1);
+            neuacHexComposition.put(GlycanResidue.HexNAc, 1);
+            oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624, false));     // NeuAc + HexNAc + Hex
+        }
+        if (decoyNeuAc) {
+            Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
+            neuacComposition.put(GlycanResidue.NeuAc, 1);
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565, true));     // NeuAc - H20
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165, true));     // NeuAc
+            Map<GlycanResidue, Integer> neuacHexComposition = new HashMap<>();
+            neuacHexComposition.put(GlycanResidue.NeuAc, 1);
+            neuacHexComposition.put(GlycanResidue.Hex, 1);
+            neuacHexComposition.put(GlycanResidue.HexNAc, 1);
+            oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624, true));     // NeuAc + HexNAc + Hex
+        }
         // NeuGc
-        Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
-        neugcComposition.put(GlycanResidue.NeuGc, 1);
-        oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165));     // NeuGc - H20
-        oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334));     // NeuGc
-        Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
-        neugcHexComposition.put(GlycanResidue.NeuGc, 1);
-        neugcHexComposition.put(GlycanResidue.Hex, 1);
-        neugcHexComposition.put(GlycanResidue.HexNAc, 1);
-        oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524));     // NeuGc + HexNAc + Hex
-
+        if (targetNeuGc) {
+            Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
+            neugcComposition.put(GlycanResidue.NeuGc, 1);
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, false));     // NeuGc - H20
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, false));     // NeuGc
+            Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
+            neugcHexComposition.put(GlycanResidue.NeuGc, 1);
+            neugcHexComposition.put(GlycanResidue.Hex, 1);
+            neugcHexComposition.put(GlycanResidue.HexNAc, 1);
+            oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524, false));     // NeuGc + HexNAc + Hex
+        }
+        if (decoyNeuGc) {
+            Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
+            neugcComposition.put(GlycanResidue.NeuGc, 1);
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, true));     // NeuGc - H20
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, true));     // NeuGc
+            Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
+            neugcHexComposition.put(GlycanResidue.NeuGc, 1);
+            neugcHexComposition.put(GlycanResidue.Hex, 1);
+            neugcHexComposition.put(GlycanResidue.HexNAc, 1);
+            oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524, true));     // NeuGc + HexNAc + Hex
+        }
         // Phospho-Hex
-        Map<GlycanResidue, Integer> phosphoHexComposition = new HashMap<>();
-        phosphoHexComposition.put(GlycanResidue.Hex, 1);
-        phosphoHexComposition.put(GlycanResidue.Phospho, 1);
-        oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915));
-        Map<GlycanResidue, Integer> phospho2HexComposition = new HashMap<>();
-        phospho2HexComposition.put(GlycanResidue.Hex, 2);
-        phospho2HexComposition.put(GlycanResidue.Phospho, 1);
-        oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197));
-        Map<GlycanResidue, Integer> twoPhosphoHexComposition = new HashMap<>();
-        twoPhosphoHexComposition.put(GlycanResidue.Hex, 2);
-        twoPhosphoHexComposition.put(GlycanResidue.Phospho, 2);
-        oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383));
-
+        if (targetPhospho) {
+            Map<GlycanResidue, Integer> phosphoHexComposition = new HashMap<>();
+            phosphoHexComposition.put(GlycanResidue.Hex, 1);
+            phosphoHexComposition.put(GlycanResidue.Phospho, 1);
+            oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915, false));
+            Map<GlycanResidue, Integer> phospho2HexComposition = new HashMap<>();
+            phospho2HexComposition.put(GlycanResidue.Hex, 2);
+            phospho2HexComposition.put(GlycanResidue.Phospho, 1);
+            oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197, false));
+            Map<GlycanResidue, Integer> twoPhosphoHexComposition = new HashMap<>();
+            twoPhosphoHexComposition.put(GlycanResidue.Hex, 2);
+            twoPhosphoHexComposition.put(GlycanResidue.Phospho, 2);
+            oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383, false));
+        }
+        if (decoyPhospho) {
+            Map<GlycanResidue, Integer> phosphoHexComposition = new HashMap<>();
+            phosphoHexComposition.put(GlycanResidue.Hex, 1);
+            phosphoHexComposition.put(GlycanResidue.Phospho, 1);
+            oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915, true));
+            Map<GlycanResidue, Integer> phospho2HexComposition = new HashMap<>();
+            phospho2HexComposition.put(GlycanResidue.Hex, 2);
+            phospho2HexComposition.put(GlycanResidue.Phospho, 1);
+            oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197, true));
+            Map<GlycanResidue, Integer> twoPhosphoHexComposition = new HashMap<>();
+            twoPhosphoHexComposition.put(GlycanResidue.Hex, 2);
+            twoPhosphoHexComposition.put(GlycanResidue.Phospho, 2);
+            oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383, true));
+        }
         // Sulfo
-        Map<GlycanResidue, Integer> sulfoComposition = new HashMap<>();
-        sulfoComposition.put(GlycanResidue.HexNAc, 1);
-        sulfoComposition.put(GlycanResidue.Sulfo, 1);
-        oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724));
-        Map<GlycanResidue, Integer> sulfoHexNAcHexComposition = new HashMap<>();
-        sulfoHexNAcHexComposition.put(GlycanResidue.HexNAc, 1);
-        sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 1);
-        sulfoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-        oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724));
-        Map<GlycanResidue, Integer> sulfoTwoHexNAcHexComposition = new HashMap<>();
-        sulfoTwoHexNAcHexComposition.put(GlycanResidue.HexNAc, 2);
-        sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 2);
-        sulfoTwoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-        oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724));
-
+        if (targetSulfo) {
+            Map<GlycanResidue, Integer> sulfoComposition = new HashMap<>();
+            sulfoComposition.put(GlycanResidue.HexNAc, 1);
+            sulfoComposition.put(GlycanResidue.Sulfo, 1);
+            oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724, false));
+            Map<GlycanResidue, Integer> sulfoHexNAcHexComposition = new HashMap<>();
+            sulfoHexNAcHexComposition.put(GlycanResidue.HexNAc, 1);
+            sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 1);
+            sulfoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
+            oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724, false));
+            Map<GlycanResidue, Integer> sulfoTwoHexNAcHexComposition = new HashMap<>();
+            sulfoTwoHexNAcHexComposition.put(GlycanResidue.HexNAc, 2);
+            sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 2);
+            sulfoTwoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
+            oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724, false));
+        }
+        if (decoySulfo) {
+            Map<GlycanResidue, Integer> sulfoComposition = new HashMap<>();
+            sulfoComposition.put(GlycanResidue.HexNAc, 1);
+            sulfoComposition.put(GlycanResidue.Sulfo, 1);
+            oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724, true));
+            Map<GlycanResidue, Integer> sulfoHexNAcHexComposition = new HashMap<>();
+            sulfoHexNAcHexComposition.put(GlycanResidue.HexNAc, 1);
+            sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 1);
+            sulfoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
+            oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724, true));
+            Map<GlycanResidue, Integer> sulfoTwoHexNAcHexComposition = new HashMap<>();
+            sulfoTwoHexNAcHexComposition.put(GlycanResidue.HexNAc, 2);
+            sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 2);
+            sulfoTwoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
+            oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724, true));
+        }
         // dHex
 
         return oxoniumList.toArray(new GlycanFragment[0]);
