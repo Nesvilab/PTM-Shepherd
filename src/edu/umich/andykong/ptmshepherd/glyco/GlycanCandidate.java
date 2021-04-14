@@ -13,25 +13,34 @@ import java.util.Map;
 public class GlycanCandidate {
     double monoisotopicMass;
     Map<GlycanResidue, Integer> glycanComposition;     // map of residue type: count of residue to describe the composition
-    double[][] exactIsotopeCluster;
     ArrayList<Float> expectedOxoniumIons;
     ArrayList<Float> disallowedOxoniumIons;
     ArrayList<Float> expectedYIons;
     ArrayList<Float> disallowedYIons;
+    boolean isDecoy;
+    public static final double MAX_CANDIDATE_DECOY_SHIFT_DA = 3;
 
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp) {
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy) {
         this.glycanComposition = inputGlycanComp;
+        this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
         for (GlycanResidue residue : GlycanResidue.values()){
             if (!this.glycanComposition.containsKey(residue)) {
                 this.glycanComposition.put(residue, 0);
             }
         }
-        this.monoisotopicMass = computeMonoisotopicMass(inputGlycanComp);
+        // set mass
+        if (! isDecoy) {
+            this.monoisotopicMass = computeMonoisotopicMass(inputGlycanComp);
+        } else {
+            // randomly shift monoisotopic mass within range +/- 20 Da
+            double randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA);
+            this.monoisotopicMass = computeMonoisotopicMass(inputGlycanComp) + randomShift;
+        }
     }
 
     /**
-     * Compute exact mass of this composition
+     * Compute exact mass of a given composition
      * @return monoisotopic mass
      */
     public static double computeMonoisotopicMass(Map<GlycanResidue, Integer> glycanComposition) {
@@ -50,6 +59,9 @@ public class GlycanCandidate {
     public String toString() {
         StringBuilder stringBuilder = new StringBuilder();
         int i=0;
+        if (isDecoy) {
+            stringBuilder.append("Decoy_");
+        }
         for (Map.Entry<GlycanResidue, Integer> residue : glycanComposition.entrySet()) {
             if (residue.getValue() == 0) {
                 continue;

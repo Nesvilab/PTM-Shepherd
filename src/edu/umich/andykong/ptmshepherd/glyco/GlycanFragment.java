@@ -1,6 +1,7 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Container for glycan fragment ion information. Holds composition requirements, mass, and
@@ -11,17 +12,24 @@ public class GlycanFragment {
     Map<GlycanResidue, Integer> requiredComposition;
     double[] ruleProbabilities;
     double foundIntensity;
+    boolean isDecoy;
+    public static final double MAX_DECOY_FRAGMENT_SHIFT_DA = 20;
 
     /**
      * Constructor for case that neutral mass is the mass of requiredComposition exactly
      * @param ruleProbabilities probabilities to use
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy) {
         this.requiredComposition = requiredComposition;
-        this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         this.ruleProbabilities = ruleProbabilities;
         this.foundIntensity = 0;
+        this.isDecoy = isDecoy;
+        if (isDecoy) {
+            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA);
+        } else {
+            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
+        }
     }
 
     /**
@@ -30,11 +38,16 @@ public class GlycanFragment {
      * @param ruleProbabilities probabilities to use
      * @param neutralMass neutral mass of the fragment
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMass) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMass, boolean isDecoy) {
         this.requiredComposition = requiredComposition;
-        this.neutralMass = neutralMass;
         this.ruleProbabilities = ruleProbabilities;
         this.foundIntensity = 0;
+        this.isDecoy = isDecoy;
+        if (isDecoy) {
+            this.neutralMass = neutralMass + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA);
+        } else {
+            this.neutralMass = neutralMass;
+        }
     }
 
     /**
@@ -43,6 +56,8 @@ public class GlycanFragment {
      * fragment is allowed/expected in both candidates, candidate 1 only, 2 only, or neither. This method
      * determines if the fragment is allowed for a single candidate, and thus should be run twice for each comparison
      * to figure out which of the 4 probabilities is applicable.
+     * Note: only target fragments are allowed to match target candidates, and same for decoys
+     *
      * Standard logic: if there are at least the required number of each required residue type in the candidate,
      * this is allowed.
      *
@@ -51,13 +66,24 @@ public class GlycanFragment {
      *      is to distinguish glycation (Hex linkage) from glycosylation (HexNAc linkage)
      *
      *
-     * @param candidateComposition glycan candidate's composition to consider
+     * @param candidate glycan candidate to consider
      * @return true if allowed/expected for this candidate, false if not
      */
-    public boolean isAllowedFragment(Map<GlycanResidue, Integer> candidateComposition){
+    public boolean isAllowedFragment(GlycanCandidate candidate){
+        // target fragments can only match target candidates and decoy fragments can only match decoy candidates
+        if (this.isDecoy) {
+            if (!candidate.isDecoy) {
+                return false;
+            }
+        } else {
+            if (candidate.isDecoy) {
+                return false;
+            }
+        }
+
         // standard logic
         for (Map.Entry<GlycanResidue, Integer> requirementEntry : this.requiredComposition.entrySet()) {
-            if (requirementEntry.getValue() > candidateComposition.get(requirementEntry.getKey())) {
+            if (requirementEntry.getValue() > candidate.glycanComposition.get(requirementEntry.getKey())) {
                 // more residues of this type required than found, return false
                 return false;
             }
@@ -67,7 +93,7 @@ public class GlycanFragment {
         if (this.requiredComposition.containsKey(GlycanResidue.Hex) && this.requiredComposition.containsKey(GlycanResidue.HexNAc)) {
             if (this.requiredComposition.get(GlycanResidue.Hex) > 0 && !(this.requiredComposition.get(GlycanResidue.HexNAc) > 0)) {
                 // Hex required but NOT HexNAc. Return false if candidate contains HexNAc
-                if (candidateComposition.get(GlycanResidue.HexNAc) > 0) {
+                if (candidate.glycanComposition.get(GlycanResidue.HexNAc) > 0) {
                     return false;
                 }
             }
@@ -79,6 +105,9 @@ public class GlycanFragment {
     public String toString() {
         StringBuilder stringBuilder = new StringBuilder();
         int i=0;
+        if (isDecoy) {
+            stringBuilder.append("Decoy_");
+        }
         for (Map.Entry<GlycanResidue, Integer> residue : requiredComposition.entrySet()) {
             if (residue.getValue() == 0) {
                 continue;
@@ -91,6 +120,39 @@ public class GlycanFragment {
         }
         stringBuilder.append(String.format("_%.0f", foundIntensity));
         return stringBuilder.toString();
+    }
+
+    /**
+     * Generate a string suitable for detecting duplicate fragments (same required composition and decoy status).
+     * Basically same as toString, but without intensity.
+     * @return string of composition + decoy
+     */
+    public String toHashString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        int i=0;
+        if (isDecoy) {
+            stringBuilder.append("Decoy_");
+        }
+        for (Map.Entry<GlycanResidue, Integer> residue : requiredComposition.entrySet()) {
+            if (residue.getValue() == 0) {
+                continue;
+            }
+            if (i > 0) {
+                stringBuilder.append("_");
+            }
+            i++;
+            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
+        }
+        return stringBuilder.toString();
+    }
+
+    /**
+     * Generate a random shift in mass, used for shifting decoy fragment ion masses and intact mass.
+     * @param maxShift maximum size of shift (+/-) in Da
+     * @return random shift
+     */
+    public static double randomMassShift(double maxShift) {
+        return ThreadLocalRandom.current().nextDouble(-maxShift, maxShift);
     }
 
 }
