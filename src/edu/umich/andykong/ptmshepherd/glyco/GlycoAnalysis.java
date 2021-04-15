@@ -299,7 +299,6 @@ public class GlycoAnalysis {
         int bestCandidateIndex = 0;
         int nextBestCandidateIndex = 1;
         double[] scoresVsBestCandidate = new double[searchCandidates.size()];
-        // todo: need to do something if only 1 candidate
 
         for (int i = 1; i < searchCandidates.size(); i++) {
             if (i == bestCandidateIndex) {
@@ -317,6 +316,15 @@ public class GlycoAnalysis {
                 nextBestCandidateIndex = bestCandidateIndex;
                 bestCandidateIndex = i;
                 scoresVsBestCandidate[i] = 0;
+            }
+        }
+        // it's possible for the 2nd best score to be worse than those for candidates searched AFTER the last change to best candidate. Compare those against 2nd best score to get correct result
+        for (int i = bestCandidateIndex + 1; i < searchCandidates.size(); i++) {
+            double comparisonScore2 = pairwiseCompareGlycans(searchCandidates.get(nextBestCandidateIndex), searchCandidates.get(i), possibleYIons, possibleOxoniums, pepMass, deltaMass, massErrorWidth, meanMassError);
+            if (comparisonScore2 < 0) {
+                // currently listed 2nd best glycan had worse score than this one: change index to this glycan
+                nextBestCandidateIndex = i;
+                // don't need to recalculate comparison score because we still have it relative to the best glycan from before
             }
         }
 
