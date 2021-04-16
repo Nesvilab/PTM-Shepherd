@@ -800,17 +800,14 @@ public class PTMShepherd {
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
 			}
 			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
+
+			// second pass: calculate glycan FDR and update results
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
-				if (ga.isComplete())
-					continue;
-				ArrayList<String[]> dsData = datasets.get(ds);
-				for (int i = 0; i < dsData.size(); i++) {
-					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					ga.glycoPSMs(pf, mzMap.get(ds));
-				}
+				ga.computeGlycanFDR(0.01);
 				ga.complete();
 			}
+
 			/* Save best glycan information from glyco report to psm tables */
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
