@@ -811,12 +811,12 @@ public class PTMShepherd {
 				}
 				ga.complete();
 			}
-			/* Save best glycan information (3 columns) from glyco report to psm tables */
+			/* Save best glycan information from glyco report to psm tables */
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")), 6);
+					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS);
 				}
 			}
 			print("Created glyco reports\n");

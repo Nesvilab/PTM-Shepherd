@@ -45,7 +45,7 @@ public class GlycoRecord {
         count++;
         double cInt;
         //get instances of Y ion identified
-        int startCol = 5 + 6;   // 5 columns always padding left side, plus 6 from glyco additions
+        int startCol = 5 + GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS;   // 5 columns always padding left side, plus some from glyco additions
         int endCol = startCol + capYCounts.length;
         for(int i = startCol; i < endCol; i++) {
             cInt = Double.parseDouble(sp[i]);
