@@ -14,10 +14,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class GlycoAnalysis {
     String dsName;
@@ -143,6 +140,122 @@ public class GlycoAnalysis {
             System.out.printf("Showing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
                     String.join("\n\t", linesWithoutSpectra.subList(0, previewSize)));
         }
+    }
+
+    /**
+     * Read rawglyco file during 2nd pass to compute FDR across whole dataset and write updated
+     * information back to rawglyco file. Requires that first pass has already been done and
+     * Glycans assigned to PSMs.
+     * @param desiredRatio: desired FDR (typically 0.01 = 1%)
+     */
+    public void computeGlycanFDR(double desiredRatio) throws IOException{
+        BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
+
+        // read rawglyco file into map of spectrum index: full line (string)
+        LinkedHashMap<String, String[]> glyLines = new LinkedHashMap<>();   // linkedHashMap to preserve spectrum order
+        String cgline;
+
+        // detect headers
+        String[] headerSplits = in.readLine().split("\t");
+        int gSpecCol = 0;
+        int absScoreCol = 0;
+        int bestGlycanCol = 0;
+        int fdrCol = 0;
+        for (int i=0; i < headerSplits.length; i++) {
+            switch (headerSplits[i].trim()) {
+                case "Spectrum":
+                    gSpecCol = i;
+                    break;
+                case "Abs Score":
+                    absScoreCol = i;
+                    break;
+                case "Best Glycan":
+                    bestGlycanCol = i;
+                    break;
+                case "Pass FDR?":
+                    fdrCol = i;
+                    break;
+            }
+        }
+        if (absScoreCol == 0 || bestGlycanCol == 0 || fdrCol == 0) {
+            System.out.printf("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile);
+        }
+
+        // read file, accumulating scores
+        HashMap<String, Double> scoreMap = new HashMap<>();
+        int targets = 0;
+        int decoys = 0;
+        int numLines = 0;
+        while ((cgline = in.readLine()) != null) {
+            numLines++;
+            if(cgline.equals("COMPLETE")) {
+                break;
+            }
+            String[] splits = cgline.split("\t", -1);
+            String spectrumID = splits[gSpecCol];
+            glyLines.put(spectrumID, splits);     // save full line for later editing/writing
+            // only consider columns with actual glycan info
+            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].toLowerCase(Locale.ROOT).matches("no matches")) {
+                // detect if target or decoy and save score
+                if (splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                    decoys++;
+                } else {
+                    targets++;
+                }
+                scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
+            }
+        }
+        in.close();
+
+        // sort scoreMap in order of ascending score
+        List<Map.Entry<String, Double>> entries = new ArrayList<>(scoreMap.entrySet());
+        entries.sort(Map.Entry.comparingByValue());
+        Map<String, Double> sortedScoreMap = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> entry : entries) {
+            sortedScoreMap.put(entry.getKey(), entry.getValue());
+        }
+        double targetDecoyRatio = decoys / (double) targets;
+        if (targetDecoyRatio < desiredRatio) {
+            // not enough decoys to compute FDR - already above desired ratio. Do not update table
+            System.out.printf("Not enough decoys to compute FDR at %.1f pct, initial pct %.2f\n", desiredRatio * 100, targetDecoyRatio * 100);
+            return;
+        }
+
+        // find threshold at which target/decoy ratio hits desired value and update rawglyco lines
+        boolean foundThreshold = false;
+        for (Map.Entry<String, Double> scoreEntry : sortedScoreMap.entrySet()) {
+            String[] rawGlycoLine = glyLines.get(scoreEntry.getKey());
+            if (!foundThreshold) {
+                // still below the threshold: continue checking decoys/targets and updating counts
+                if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                    decoys--;
+                } else {
+                    targets--;
+                }
+                targetDecoyRatio = decoys / (double) targets;
+                if (targetDecoyRatio <= desiredRatio) {
+                    // stop here, found cutoff
+                    foundThreshold = true;
+                    System.out.printf("Converged to %.1f pct FDR with %d targets and %d decoys\n", targetDecoyRatio * 100, targets, decoys);
+                }
+                rawGlycoLine[fdrCol] = "fail";
+                rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
+            } else {
+                // passed FDR threshold - all entries above this point pass. Update rawglyco lines accordingly
+                rawGlycoLine[fdrCol] = "pass";
+            }
+            // update the output text with the new info
+            glyLines.put(scoreEntry.getKey(), rawGlycoLine);
+        }
+
+        // write output back to rawglyco file
+        PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
+        out.println(String.join("\t", Arrays.asList(headerSplits)));
+        for (String[] glyLine : glyLines.values()) {
+            out.println(String.join("\t", Arrays.asList(glyLine)));
+        }
+        out.flush();
+        out.close();
     }
 
     /**
