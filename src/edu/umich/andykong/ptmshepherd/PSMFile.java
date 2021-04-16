@@ -152,7 +152,6 @@ public class PSMFile {
 	/* Merges the rawglyco table onto the existing psm.tsv
 	*  Update: only writes 3 columns (best glycan and score, 2nd best glycan) rather than full table
 	*  numColsToUse gives the number of columns to take (intended to be 3)
-	*  todo: NOTE - if glyco information has been written to this table already, it will get doubled
 	*/
 	public void mergeGlycoTable(File glyf, int numColsToUse) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
