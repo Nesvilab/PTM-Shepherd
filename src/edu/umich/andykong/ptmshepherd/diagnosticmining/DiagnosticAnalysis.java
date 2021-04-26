@@ -17,7 +17,6 @@ import java.util.concurrent.Future;
 
 public class DiagnosticAnalysis {
     String dsName;
-    File diagFile;
     MXMLReader mr;
     String ionTypes;
     float precursorTol, spectraTol;
@@ -34,7 +33,6 @@ public class DiagnosticAnalysis {
 
     public DiagnosticAnalysis(String ds) throws Exception {
         this.dsName = ds;
-        this.diagFile = new File(dsName+".diagions");
         //get necessary params
         this.precursorTol = Float.parseFloat(PTMShepherd.getParam("precursor_tol"));
         this.precursorMassUnits = Integer.parseInt(PTMShepherd.getParam("precursor_mass_units"));
@@ -106,9 +104,6 @@ public class DiagnosticAnalysis {
             DiagBINFile diagBinFile = new DiagBINFile(this.diagnosticRecords, cf+".diagBIN", this.ionTypes);
             diagBinFile.writeDiagBinFile();
 
-            DiagBINFile diagBinFileIn = new DiagBINFile(executorService,
-                    Integer.parseInt(PTMShepherd.getParam("threads")), cf+".diagBIN");
-
             long t3 = System.currentTimeMillis();
             PTMShepherd.print(String.format("\t\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));
         }
@@ -130,21 +125,22 @@ public class DiagnosticAnalysis {
         /* Get metadata from PSM list line */
         String[] sp = s.split("\t");
         String specName = sp[specCol];
+        int charge = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 1]);
         String pepSeq = sp[pepCol];
         String mods = sp[modCol];
         String [] smods = mods.split(",");
         float dmass = Float.parseFloat(sp[deltaCol]);
-        float pepMass = Float.parseFloat(sp[pepMassCol]);
+        float pepMass = Float.parseFloat(sp[pmassCol]);
 
         /* Prep spec and normalize to base peak */
         Spectrum spec = mr.getSpectrum(reNormName(specName));
         spec.conditionOptNorm(condPeaks, condRatio, true);
 
         /* Initialize DiagnosticRecord and add relevant data */
-        DiagnosticRecord diagnosticRecord =  new DiagnosticRecord(spec, this.ionTypes, pepSeq, mods, dmass);
-        diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon));
-        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepMass));
-        diagnosticRecord.setSquigglePeaks(calcSquigglePeaks(spec, this.spectraTol, pepSeq, smods, this.ionTypes, 1));
+        DiagnosticRecord diagnosticRecord =  new DiagnosticRecord(spec, this.ionTypes, pepSeq, parseModifications(smods, pepSeq), dmass, charge);
+        diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon, pepSeq, parseModifications(smods, pepSeq), this.ionTypes, 1, dmass)); //todo max charge
+        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepSeq, parseModifications(smods, pepSeq), this.ionTypes, 1, pepMass));
+        diagnosticRecord.setSquigglePeaks(calcSquigglePeaks(spec, this.spectraTol, dmass, pepSeq, smods, this.ionTypes, 1)); //todo max charge
 
         return diagnosticRecord;
     }
@@ -162,8 +158,8 @@ public class DiagnosticAnalysis {
         return String.format("%s.%d.%d", sp[0], sn, sn);
     }
 
-    public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max) {
-        float[][] peaks = spec.calcImmoniumPeaks(min, max);
+    public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max, String seq, float[] mods, String ionTypes, int maxCharge, float dmass) {
+        float[][] peaks = spec.calcImmoniumPeaks(min, max, seq, mods, ionTypes, maxCharge, dmass);
         return peaks;
     }
 
@@ -176,13 +172,19 @@ public class DiagnosticAnalysis {
         return sb.substring(0, sb.length()-1);
     }
 
-    public float[][] calcCapYPeaks(Spectrum spec, float precursorMass) {
-        float[][] peaks = spec.calcCapYPeaks(precursorMass);
+    public float[][] calcCapYPeaks(Spectrum spec, String seq, float[] mods, String ionTypes, int maxCharge, float pepMass) {
+        float[][] peaks = spec.calcCapYPeaks(seq, mods, ionTypes, maxCharge, pepMass);
         return peaks;
     }
 
-    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, String pepSeq, String[] smods, String ionTypes, int maxCharge) { //TODO do i need pepmass?
+    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, float dmass, String pepSeq, String[] smods, String ionTypes, int maxCharge) {
         //Get dem mods and put 'em on the peptide
+        float [] mods = parseModifications(smods, pepSeq);
+        HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(specTol, dmass, pepSeq, mods, ionTypes, maxCharge);
+        return squigglePeaks;
+    }
+
+    public float[] parseModifications(String[] smods, String pepSeq) {
         float [] mods = new float[pepSeq.length()];
         Arrays.fill(mods, 0f);
         for(int i = 0; i < smods.length; i++) {
@@ -202,12 +204,10 @@ public class DiagnosticAnalysis {
                 pos = Integer.parseInt(spos.substring(0,spos.length()-1)) - 1;
             mods[pos] += mass;
         }
-
-        HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(specTol, pepSeq, mods, ionTypes, maxCharge);
-
-        return squigglePeaks;
+        return mods;
     }
 
+    /* todo make iscomplete function for diagBIN files
     public void complete() throws Exception {
         PrintWriter out = new PrintWriter(new FileWriter(diagFile,true));
         out.println("COMPLETE");
@@ -229,4 +229,5 @@ public class DiagnosticAnalysis {
         }
         return false;
     }
+     */
 }

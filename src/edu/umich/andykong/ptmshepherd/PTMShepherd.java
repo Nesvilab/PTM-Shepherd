@@ -444,12 +444,16 @@ public class PTMShepherd {
 		}
 
 		//Mod-centric quantification
+
+		/* todo fix modsummary table, include in same block as peakannotated file
 		File modSummary = new File(normFName("global.modsummary.tsv"));
 		if(!modSummary.exists()) {
 			ModSummary ms = new ModSummary(peakannotated, datasets.keySet());
 			ms.toFile(modSummary);
 			print("Created modification summary");
 		}
+		*/
+
 
 		//Localization analysis
 
@@ -520,17 +524,17 @@ public class PTMShepherd {
 			for (String ds : datasets.keySet()) {
 				System.out.println("\tPreprocessing dataset " + ds);
 				DiagnosticAnalysis da = new DiagnosticAnalysis(ds);
-				if (da.isComplete()) {
-					System.out.println("\tFound existing data for dataset " + ds);
-					continue;
-				}
+				//if (da.isComplete()) {
+				//	System.out.println("\tFound existing data for dataset " + ds);
+				//	continue;
+				//}
 				da.initializeBinBoundaries(peakBoundaries);
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					da.diagIonsPSMs(pf, mzMap.get(ds), executorService, Integer.parseInt(params.get("threads"))); //todo this is where multithreading should be done
 				}
-				da.complete();
+				//da.complete();
 				long t2 = System.currentTimeMillis();
 				System.out.printf("\tFinished preprocessing dataset %s - %d ms total\n", ds, t2-t1);
 			}
@@ -538,9 +542,14 @@ public class PTMShepherd {
 			System.out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(mineNoise, peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), "by"); //make ion types parameter
-			for (String ds : datasets.keySet())
-				dpp.addFileToIndex(ds);
-			dpp.process();
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					dpp.addFilesToIndex(ds, mzMap.get(ds), executorService, Integer.parseInt(getParam("threads")));
+				}
+			}
+			dpp.process(executorService, Integer.parseInt(getParam("threads")));
 			System.out.println("Done mining diagnostic ions");
 		}
 

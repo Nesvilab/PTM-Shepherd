@@ -98,6 +98,9 @@ public class ModSummary {
         for (String mod : mods) { //sum PSMs across DSs
             int nPsms = 0;
             for (String ds : datasets){
+                System.out.println(psmCounts);
+                System.out.println(psmCounts.get(ds));
+                System.out.println(psmCounts.get(ds).get(mod));
                 nPsms += psmCounts.get(ds).get(mod);
             }
             modsCount.put(mod, nPsms);
