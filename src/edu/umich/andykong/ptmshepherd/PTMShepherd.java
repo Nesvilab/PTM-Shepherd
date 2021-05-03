@@ -779,8 +779,10 @@ public class PTMShepherd {
 			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
 			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts);
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
+			boolean glycoYnorm = Boolean.parseBoolean(getParam("norm_Ys"));
+			boolean glycoSqrtNorm = Boolean.parseBoolean(getParam("sqrt_norm"));
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, glycoSqrtNorm);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
@@ -794,7 +796,7 @@ public class PTMShepherd {
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, glycoSqrtNorm);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
@@ -803,7 +805,7 @@ public class PTMShepherd {
 
 			// second pass: calculate glycan FDR and update results
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, glycoSqrtNorm);
 				ga.computeGlycanFDR(0.01);
 				ga.complete();
 			}
