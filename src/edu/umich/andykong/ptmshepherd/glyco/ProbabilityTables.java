@@ -53,14 +53,14 @@ public class ProbabilityTables {
         /* Y ion scores to generate probability ratios
          * Entries 0 is for
          */
-        regularYrules = new double[]{2, 0.8};
-        dHexYrules = new double[]{2, 0.8};
+        regularYrules = new double[]{5, 0.8};
+        dHexYrules = new double[]{5, 0.8};
 
         // Oxonium ion probs. Same format as Y ion probabilities
-        neuacRules = new double[]{5, 0.25};
-        neugcRules = new double[]{5, 0.25};
-        phosphoRules = new double[]{5, 0.25};
-        sulfoRules = new double[]{5, 0.25};
+        neuacRules = new double[]{10, 0.05};
+        neugcRules = new double[]{10, 0.05};
+        phosphoRules = new double[]{5, 0.1};
+        sulfoRules = new double[]{5, 0.1};
     }
 
 
