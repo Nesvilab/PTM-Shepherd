@@ -38,7 +38,7 @@ public class GlycoAnalysis {
 
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable) {
         this.dsName = dsName;
-        this.glycoFile = new File(PTMShepherd.normFName(dsName+".rawglyco"));
+        this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
         this.glycanDatabase = glycoDatabase;
         this.probabilityTable = inputProbabilityTable;    // init with default values, can be changed by params
     }
@@ -60,7 +60,7 @@ public class GlycoAnalysis {
         else
             capYstrs = new String[0];
         capYShifts = new double[capYstrs.length];
-        for(int i = 0; i < capYstrs.length; i++)
+        for (int i = 0; i < capYstrs.length; i++)
             capYShifts[i] = Double.parseDouble(capYstrs[i]);
         //oxonium ions
         String[] oxStrs;
@@ -69,7 +69,7 @@ public class GlycoAnalysis {
         else
             oxStrs = new String[0];
         oxoniumIons = new double[oxStrs.length];
-        for(int i = 0; i < oxStrs.length; i++)
+        for (int i = 0; i < oxStrs.length; i++)
             oxoniumIons[i] = Double.parseDouble(oxStrs[i]);
         //remainder masses
         String[] remainderStrs;
@@ -78,7 +78,7 @@ public class GlycoAnalysis {
         else
             remainderStrs = new String[0];
         remainderMasses = new double[remainderStrs.length];
-        for(int i = 0; i < remainderStrs.length; i++)
+        for (int i = 0; i < remainderStrs.length; i++)
             remainderMasses[i] = Double.parseDouble(remainderStrs[i]);
 
         //write header
@@ -129,7 +129,7 @@ public class GlycoAnalysis {
                     out.println(newline);
             }
             long t3 = System.currentTimeMillis();
-            PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
+            PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2 - t1, t3 - t2));
         }
         out.close();
 
@@ -146,9 +146,10 @@ public class GlycoAnalysis {
      * Read rawglyco file during 2nd pass to compute FDR across whole dataset and write updated
      * information back to rawglyco file. Requires that first pass has already been done and
      * Glycans assigned to PSMs.
+     *
      * @param desiredRatio: desired FDR (typically 0.01 = 1%)
      */
-    public void computeGlycanFDR(double desiredRatio) throws IOException{
+    public void computeGlycanFDR(double desiredRatio) throws IOException {
         BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
 
         // read rawglyco file into map of spectrum index: full line (string)
@@ -161,7 +162,7 @@ public class GlycoAnalysis {
         int absScoreCol = 0;
         int bestGlycanCol = 0;
         int fdrCol = 0;
-        for (int i=0; i < headerSplits.length; i++) {
+        for (int i = 0; i < headerSplits.length; i++) {
             switch (headerSplits[i].trim()) {
                 case "Spectrum":
                     gSpecCol = i;
@@ -188,7 +189,7 @@ public class GlycoAnalysis {
         int numLines = 0;
         while ((cgline = in.readLine()) != null) {
             numLines++;
-            if(cgline.equals("COMPLETE")) {
+            if (cgline.equals("COMPLETE")) {
                 break;
             }
             String[] splits = cgline.split("\t", -1);
@@ -273,7 +274,7 @@ public class GlycoAnalysis {
         double maxError = -10;
         for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
             String line = psmFile.data.get(clines.get(i));
-            String [] sp = line.split("\\t");
+            String[] sp = line.split("\\t");
             float deltaMass = Float.parseFloat(sp[deltaCol]);
 //            float pepMass = Float.parseFloat(sp[pmassCol]);
 
@@ -307,9 +308,9 @@ public class GlycoAnalysis {
         // Fit Gaussian and save center and width
         GaussianCurveFitter fitter = GaussianCurveFitter.create();
         WeightedObservedPoints massErrorObservations = new WeightedObservedPoints();
-        for (int i=0; i < binCounts.length; i++) {
+        for (int i = 0; i < binCounts.length; i++) {
             // x-value is minError + binSize*i + binSize/2 (middle of the bin), y-value is counts
-            double xval = minError + i*binSize + binSize / 2.0;
+            double xval = minError + i * binSize + binSize / 2.0;
             massErrorObservations.add(xval, binCounts[i]);
         }
         double[] fitParameters = fitter.fit(massErrorObservations.toList());
@@ -321,14 +322,14 @@ public class GlycoAnalysis {
     public StringBuffer processLine(String line) {
     public String processLine(String line) {
         StringBuffer sb = new StringBuffer();
-        String [] sp = line.split("\\t");
+        String[] sp = line.split("\\t");
         String seq = sp[pepCol];
         float dmass = Float.parseFloat(sp[deltaCol]);
         float pepMass = Float.parseFloat(sp[pmassCol]);
         String[] smods = sp[modCol].split(",");
         String specName = sp[specCol];
 
-        sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName,seq,sp[modCol],pepMass, dmass));
+        sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, seq, sp[modCol], pepMass, dmass));
 
         Spectrum spec = mr.getSpectrum(reNormName(specName));
         if (spec == null) {
@@ -340,9 +341,8 @@ public class GlycoAnalysis {
         sb.append(assignGlycanToPSM(spec, pepMass, dmass, glycanDatabase, massErrorWidth, meanMassError));
 
         //System.out.println("got spec");
-        double [] capYIonIntensities;
-        double [] oxoniumIonIntensities;
-
+        double[] capYIonIntensities;
+        double[] oxoniumIonIntensities;
         capYIonIntensities = findCapitalYIonMasses(spec, pepMass);
         oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
 
@@ -350,16 +350,15 @@ public class GlycoAnalysis {
             sb.append(String.format("\t%.2f", capYIonIntensities[i]));
         for (int i = 0; i < oxoniumIonIntensities.length; i++)
             sb.append(String.format("\t%.2f", oxoniumIonIntensities[i]));
-
-        float [] deltaScores = new float[remainderMasses.length];
-        boolean [][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores);
+        float[] deltaScores = new float[remainderMasses.length];
+        boolean[][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores);
 
         for (int i = 0; i < remainderMasses.length; i++) {
             sb.append(String.format("\t%.1f", deltaScores[i]));
             StringBuffer locSb = new StringBuffer("\t");
             for (int j = 0; j < seq.length(); j++) {
                 if (isMaxScores[i][j] == true) {
-                    locSb.append(String.format("%d%c",j+1, seq.charAt(j))); //position (1 indexed), character
+                    locSb.append(String.format("%d%c", j + 1, seq.charAt(j))); //position (1 indexed), character
                 }
             }
             sb.append(locSb.toString());
@@ -370,11 +369,12 @@ public class GlycoAnalysis {
     /**
      * Main glycan assignment method at PSM level. Searches Y/Oxonium ions (and eventually exact mass/isotope) to compare
      * to possible glycan candidates. Goal is to return best glycan candidate and score.
-     * @param spec spectrum being searched
-     * @param pepMass peptide mass (without glycan)
+     *
+     * @param spec           spectrum being searched
+     * @param pepMass        peptide mass (without glycan)
      * @param glycanDatabase possible glycan candidates
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
-     * @param deltaMass observed delta mass from PSM
+     * @param deltaMass      observed delta mass from PSM
      */
     public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, double massErrorWidth, double meanMassError) {
         // skip non-delta mass PSMs
@@ -391,20 +391,20 @@ public class GlycoAnalysis {
         GlycanFragment[] possibleYIons = initializeYFragments(searchCandidates);
         GlycanFragment[] possibleOxoniums = initializeOxoniumFragments(searchCandidates);
         double[] yMasses = new double[possibleYIons.length];
-        for (int i=0; i < possibleYIons.length; i++) {
+        for (int i = 0; i < possibleYIons.length; i++) {
             yMasses[i] = possibleYIons[i].neutralMass + pepMass;
         }
         double[] oxoMasses = new double[possibleOxoniums.length];
-        for (int i=0; i < possibleOxoniums.length; i++){
+        for (int i = 0; i < possibleOxoniums.length; i++) {
             oxoMasses[i] = possibleOxoniums[i].neutralMass;
         }
 
         // Search Y and oxonium ions in spectrum
         float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
-        for (int i=0; i < possibleYIons.length; i++) {
+        for (int i = 0; i < possibleYIons.length; i++) {
             possibleYIons[i].foundIntensity = spec.findIonNeutral(yMasses[i], ppmTol);  // sum of charge state intensities if >1 found
         }
-        for (int i=0; i < possibleOxoniums.length; i++) {
+        for (int i = 0; i < possibleOxoniums.length; i++) {
             // only search 1+ oxonium ions, not all possible charge states
             possibleOxoniums[i].foundIntensity = spec.findIon(oxoMasses[i] + AAMasses.protMass, ppmTol);
         }
@@ -424,7 +424,7 @@ public class GlycoAnalysis {
                 scoresVsBestCandidate[i] = comparisonScore;
             } else {
                 // new best candidate - reset best candidate position and update scores at all other positions
-                for (int j=0; j < i; j++) {
+                for (int j = 0; j < i; j++) {
                     scoresVsBestCandidate[j] -= comparisonScore;    // subtract score vs previous best candidate from existing scores to update them
                 }
                 nextBestCandidateIndex = bestCandidateIndex;
@@ -463,12 +463,13 @@ public class GlycoAnalysis {
      * Perform pairwise comparison of two glycans. Uses sum of log probability ratios between candidates for
      * each category (mass/iso error and fragment ion) being considered. Returns a single score of combined
      * probability of first glycan candidate over second.
-     * @param glycan1 candidate 1
-     * @param glycan2 candidate 2
-     * @param yFragments array of Y fragments with spectrum intensities already matched
-     * @param oxoFragments array of oxonium fragments with spectrum intensities already matched
-     * @param pepMass peptide neutral mass
-     * @param deltaMass observed delta mass
+     *
+     * @param glycan1        candidate 1
+     * @param glycan2        candidate 2
+     * @param yFragments     array of Y fragments with spectrum intensities already matched
+     * @param oxoFragments   array of oxonium fragments with spectrum intensities already matched
+     * @param pepMass        peptide neutral mass
+     * @param deltaMass      observed delta mass
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
      * @return output probability score (sum of log ratios)
      */
@@ -496,11 +497,12 @@ public class GlycoAnalysis {
     /**
      * Determine the probability ratio for this pairwise comparison based on isotope error. Currently
      * uses hard-coded isotope probabilities, but could be updated to get rate from dataset
-     * @param glycan1 glycan 1
-     * @param glycan2 glycan 2
-     * @param deltaMass observed delta mass
+     *
+     * @param glycan1        glycan 1
+     * @param glycan2        glycan 2
+     * @param deltaMass      observed delta mass
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
-     * @param meanMassError mean mass error of non-delta mass peptides
+     * @param meanMassError  mean mass error of non-delta mass peptides
      * @return probability ratio (glycan 1 over 2)
      */
     public double determineIsotopeAndMassErrorProbs(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double massErrorWidth, double meanMassError) {
@@ -525,14 +527,15 @@ public class GlycoAnalysis {
     /**
      * Given a fragment matched in the spectrum, determine the ratio of probabilities for a pair of glycan candidates
      * by whether that fragment is allowed in both, 1 but not 2, 2 but not 1, or neither.
+     *
      * @param matchedFragment fragment of interest
-     * @param glycan1 candidate 1
-     * @param glycan2 candidate 2
+     * @param glycan1         candidate 1
+     * @param glycan2         candidate 2
      * @return probability ratio
      */
     public double determineProbRatio(GlycanFragment matchedFragment, GlycanCandidate glycan1, GlycanCandidate glycan2, boolean foundInSpectrum) {
         double probRatio;
-        if (foundInSpectrum){
+        if (foundInSpectrum) {
             if (matchedFragment.isAllowedFragment(glycan1)) {
                 if (matchedFragment.isAllowedFragment(glycan2)) {
                     // allowed in both - not distinguishing
