@@ -482,21 +482,140 @@ public class GlycoAnalysis {
     public double pairwiseCompareGlycans(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments, double pepMass, double deltaMass, double massErrorWidth, double meanMassError) {
         double sumLogRatio = 0;
         // Y ions
-        for (GlycanFragment yFragment : yFragments) {
-            boolean foundInSpectrum = yFragment.foundIntensity > 0;
-            double probRatio = determineProbRatio(yFragment, glycan1, glycan2, foundInSpectrum);
-            sumLogRatio += Math.log(probRatio);
+        if (normYions) {
+            sumLogRatio += pairwiseCompareFragmentsNorm(glycan1, glycan2, yFragments);
+        } else {
+            sumLogRatio += pairwiseCompareFragments(glycan1, glycan2, yFragments);
         }
+
         // oxonium ions
-        for (GlycanFragment oxoFragment : oxoFragments) {
-            boolean foundInSpectrum = oxoFragment.foundIntensity > 0;
-            double probRatio = determineProbRatio(oxoFragment, glycan1, glycan2, foundInSpectrum);
-            sumLogRatio += Math.log(probRatio);
-        }
+        sumLogRatio += pairwiseCompareFragments(glycan1, glycan2, oxoFragments);
 
         // isotope and mass errors
         sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, massErrorWidth, meanMassError);
 
+        return sumLogRatio;
+    }
+
+    /**
+     * Compute sum log probability ratios for the compared glycans for a particular fragment type with normalization
+     * of misses.
+     * NOTE: does NOT allow fragment specific probabilities (for missed ions)
+     *
+     * @param glycan1       candidate 1
+     * @param glycan2       candidate 2
+     * @param fragments     array of fragments with spectrum intensities already matched
+     * @return sum log probability with normalization included
+     */
+    public double pairwiseCompareFragmentsNorm(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] fragments) {
+        // probabilities calculated as in non-normed method, except for misses, which are normalized
+        int cand1Misses = 0;
+        int cand2Misses = 0;
+        double sumLogRatio = 0;
+        for (GlycanFragment matchedFragment : fragments) {
+            double probRatio;
+            boolean foundInSpectrum = matchedFragment.foundIntensity > 0;
+            if (foundInSpectrum) {
+                if (matchedFragment.isAllowedFragment(glycan1)) {
+                    if (matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in both - not distinguishing
+                        probRatio = 1.0;
+                    } else {
+                        // allowed in glycan 1, but NOT glycan 2. Found in spectrum. Position 0 in rules array
+                        probRatio = matchedFragment.ruleProbabilities[0];
+                    }
+                } else {
+                    if (matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in 2 but not 1. Found in spectrum. Prob is 1/found probability
+                        probRatio = 1.0 / matchedFragment.ruleProbabilities[0];
+                    } else {
+                        // allowed in neither candidate - not distinguishing
+                        probRatio = 1.0;
+                    }
+                }
+            } else {
+                if (matchedFragment.isAllowedFragment(glycan1)) {
+                    if (!matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in glycan 1, but NOT glycan 2. Unique miss for glycan 1
+                        cand1Misses++;
+                    }
+                } else {
+                    if (matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in 2 but not 1. Not found in spectrum. Unique miss for glycan 2
+                        cand2Misses++;
+                    }
+                }
+                // actual change in prob added later for misses (not found in spectrum)
+                probRatio = 1.0;
+            }
+            sumLogRatio += Math.log(probRatio);
+        }
+
+        // add prob normalized for number of misses for each candidate
+        double cand1MissProb = fragments[0].ruleProbabilities[1];
+        double cand2MissProb = 1 / cand1MissProb;
+        if (sqrtNormYions) {
+            sumLogRatio += Math.sqrt(cand1Misses) * Math.log(cand1MissProb);    // candidate 1 misses
+            sumLogRatio += Math.sqrt(cand2Misses) * Math.log(cand2MissProb);    // candidate 2 misses
+        } else {
+            sumLogRatio += Math.log(cand1Misses) * Math.log(cand1MissProb);    // candidate 1 misses
+            sumLogRatio += Math.log(cand2Misses) * Math.log(cand2MissProb);    // candidate 2 misses
+        }
+        return sumLogRatio;
+    }
+
+    /**
+     * Compute sum log probability ratios for the compared glycans for a particular fragment type. Does NOT
+     * normalize fragment miss rate. Allows fragment specific probabilities.
+     *
+     * @param glycan1       candidate 1
+     * @param glycan2       candidate 2
+     * @param fragments     array of fragments with spectrum intensities already matched
+     * @return sum log probability with normalization included
+     */
+    public double pairwiseCompareFragments(GlycanCandidate glycan1, GlycanCandidate glycan2, GlycanFragment[] fragments) {
+        double sumLogRatio = 0;
+        for (GlycanFragment matchedFragment : fragments) {
+            double probRatio;
+            if (matchedFragment.foundIntensity > 0) {
+                if (matchedFragment.isAllowedFragment(glycan1)) {
+                    if (matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in both - not distinguishing
+                        probRatio = 1.0;
+                    } else {
+                        // allowed in glycan 1, but NOT glycan 2. Found in spectrum. Position 0 in rules array
+                        probRatio = matchedFragment.ruleProbabilities[0];
+                    }
+                } else {
+                    if (matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in 2 but not 1. Found in spectrum. Prob is 1/found probability
+                        probRatio = 1.0 / matchedFragment.ruleProbabilities[0];
+                    } else {
+                        // allowed in neither candidate - not distinguishing
+                        probRatio = 1.0;
+                    }
+                }
+            } else {
+                if (matchedFragment.isAllowedFragment(glycan1)) {
+                    if (matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in both, but not found in spectrum - not distinguishing
+                        probRatio = 1.0;
+                    } else {
+                        // allowed in glycan 1, but NOT glycan 2. Not found in spectrum. Position 1 in rules array
+                        probRatio = matchedFragment.ruleProbabilities[1];
+                    }
+                } else {
+                    if (matchedFragment.isAllowedFragment(glycan2)) {
+                        // allowed in 2 but not 1. Not found in spectrum. Prob is 1/not-found probability
+                        probRatio = 1.0 / matchedFragment.ruleProbabilities[1];
+                    } else {
+                        // allowed in neither candidate. Not found in spectrum. Not distinguishing
+                        probRatio = 1.0;
+                    }
+                }
+            }
+            sumLogRatio += Math.log(probRatio);
+        }
         return sumLogRatio;
     }
 
@@ -528,57 +647,6 @@ public class GlycoAnalysis {
         double massProbRatio = Math.abs(massStDevs2 / massStDevs1) * probabilityTable.massProbScaling;     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
 
         return Math.log(isotopeProbRatio) + Math.log(massProbRatio);
-    }
-
-    /**
-     * Given a fragment matched in the spectrum, determine the ratio of probabilities for a pair of glycan candidates
-     * by whether that fragment is allowed in both, 1 but not 2, 2 but not 1, or neither.
-     *
-     * @param matchedFragment fragment of interest
-     * @param glycan1         candidate 1
-     * @param glycan2         candidate 2
-     * @return probability ratio
-     */
-    public double determineProbRatio(GlycanFragment matchedFragment, GlycanCandidate glycan1, GlycanCandidate glycan2, boolean foundInSpectrum) {
-        double probRatio;
-        if (foundInSpectrum) {
-            if (matchedFragment.isAllowedFragment(glycan1)) {
-                if (matchedFragment.isAllowedFragment(glycan2)) {
-                    // allowed in both - not distinguishing
-                    probRatio = 1.0;
-                } else {
-                    // allowed in glycan 1, but NOT glycan 2. Found in spectrum. Position 0 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[0];
-                }
-            } else {
-                if (matchedFragment.isAllowedFragment(glycan2)) {
-                    // allowed in 2 but not 1. Found in spectrum. Prob is 1/found probability
-                    probRatio = 1.0 / matchedFragment.ruleProbabilities[0];
-                } else {
-                    // allowed in neither candidate - not distinguishing
-                    probRatio = 1.0;
-                }
-            }
-        } else {
-            if (matchedFragment.isAllowedFragment(glycan1)) {
-                if (matchedFragment.isAllowedFragment(glycan2)) {
-                    // allowed in both, but not found in spectrum - not distinguishing
-                    probRatio = 1.0;
-                } else {
-                    // allowed in glycan 1, but NOT glycan 2. Not found in spectrum. Position 1 in rules array
-                    probRatio = matchedFragment.ruleProbabilities[1];
-                }
-            } else {
-                if (matchedFragment.isAllowedFragment(glycan2)) {
-                    // allowed in 2 but not 1. Not found in spectrum. Prob is 1/not-found probability
-                    probRatio = 1.0 / matchedFragment.ruleProbabilities[1];
-                } else {
-                    // allowed in neither candidate. Not found in spectrum. Not distinguishing
-                    probRatio = 1.0;
-                }
-            }
-        }
-        return probRatio;
     }
 
     /**
