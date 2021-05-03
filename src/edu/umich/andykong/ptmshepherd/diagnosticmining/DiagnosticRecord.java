@@ -86,7 +86,8 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         return sb.toString();
     }
 
-    public void filterIons(ArrayList<Double> immMasses, ArrayList<Double> capYMasses, HashMap<Character, ArrayList<Double>> squigglePeaksMasses, int minPepLen, double tol) {
+    //todo the name of this should be changed, no longer filtering here
+    public void filterIons(ArrayList<Double> immMasses, ArrayList<Double> capYMasses, HashMap<Character, ArrayList<Double>> squigglePeaksMasses, double tol) {
         /* Initialize variables that hold data for Mann-Whitney-U */
         this.selectedImmoniumPeaks = new HashMap<>();
         this.selectedCapYPeaks = new HashMap<>();
@@ -123,6 +124,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
                     if (cDist < tol)
                         cInt += this.squigglePeaks.get(c)[i][1];
                 }
+                cInt /= this.pepSeq.length();
                 this.selectedSquigglePeaks.get(c).put(peak, cInt);
             }
         }
@@ -234,4 +236,75 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         */
         return matchedIons;
     }
+
+    public double calcAvgFragTol(char iType, int maxCharge) {
+        double avgFragTol = 0;
+        if (iType == 'a' || iType == 'b' || iType =='c') {
+            double[] fragTols = calcNMasses(iType, maxCharge, this.pepSeq.length());
+            for (int i = 0; i < fragTols.length; i++) {
+                //System.out.printf("%.4f\t", fragTols[i]);
+                avgFragTol += fragTols[i] / this.pepSeq.length();
+            }
+            //System.out.println();
+        } else if (iType == 'x' || iType == 'y' || iType =='z') {
+            double[] fragTols = calcCMasses(iType, maxCharge, this.pepSeq.length());
+            for (int i = 0; i < fragTols.length; i++) {
+                //System.out.printf("%.4f\t", fragTols[i]);
+                avgFragTol += fragTols[i] / this.pepSeq.length();
+            }
+            //System.out.println();
+        }
+        //System.out.println(iType + "\t" + avgFragTol);
+        return avgFragTol;
+    }
+
+    public double calcAvgCapYTol(int minCharge, int maxCharge) {
+        maxCharge = Math.min(maxCharge, this.charge);
+        float [] aaMasses = AAMasses.monoisotopic_masses;
+        double nTermMass = AAMasses.monoisotopic_nterm_mass;
+        double averagePrecursorMass = 0;
+        for (int ccharge = minCharge; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
+            double cmass = (nTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+            for (int i = 0; i < this.pepSeq.length() - 1; i++)
+                cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + this.modificationsArray[i]) / ccharge;
+            averagePrecursorMass += cmass / (maxCharge - minCharge + 1);
+        }
+
+        return averagePrecursorMass;
+    }
+
+    public double[] calcNMasses(char iType, int maxCharge, int cLen) {
+        /* calculate the Da tolerances for each position on the peptide */
+        float [] aaMasses = AAMasses.monoisotopic_masses;
+        float [] fragTypeShifts = AAMasses.ionTypeShifts;
+        double[] nmasses = new double[cLen];
+        double nTermMass;
+        nTermMass = fragTypeShifts[iType - 'a'];
+        for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
+            double cmass = (nTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+            for (int i = 0; i < cLen - 1; i++) {
+                cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + this.modificationsArray[i]) / ccharge;
+                nmasses[i] = cmass;
+            }
+        }
+        return nmasses;
+    }
+
+    public double[] calcCMasses(char iType, int maxCharge, int cLen) {
+        /* calculate the Da tolerances for each position on the peptide */
+        float [] aaMasses = AAMasses.monoisotopic_masses;
+        float [] fragTypeShifts = AAMasses.ionTypeShifts;
+        double[] cmasses = new double[cLen];
+        double cTermMass;
+        cTermMass = fragTypeShifts[iType - 'x' + 3];
+        for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
+            double cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+            for (int i = 0; i < cLen - 1; i++) {
+                cmass += (aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + this.modificationsArray[cLen - 1 - i]) / ccharge;
+                cmasses[cLen - 1 - i] = cmass;
+            }
+        }
+        return cmasses;
+    }
+
 }

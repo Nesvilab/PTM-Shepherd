@@ -215,7 +215,20 @@ public class DiagBINFile {
         loadDiagBinSpectra(executorService, nThread, scanNums);
     }
 
-    private void loadDiagBinSpectra(ExecutorService executorService, int nThread, ArrayList<Integer> scanNums) throws Exception {
+    private void loadDiagBinSpectra(ExecutorService executorService, int nThread, double lower, double upper) throws Exception {
+        ArrayList<Integer> scanNums = new ArrayList<>();
+        int maxScans = this.diagBinIndex.length / this.indexWidth - 1;
+        for (int i = 0; i <= maxScans; i++) {
+            if (ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().get((this.indexWidth / 4) * i + 3) > 0) {
+                float dmass = ByteBuffer.wrap(this.diagBinIndex).asFloatBuffer().get((this.indexWidth / 4) * i + 2);
+                if (dmass >= lower && dmass <= upper)
+                    scanNums.add(i);
+            }
+        }
+        loadDiagBinSpectra(executorService, nThread, scanNums);
+    }
+
+    public void loadDiagBinSpectra(ExecutorService executorService, int nThread, ArrayList<Integer> scanNums) throws Exception {
         FileChannel fc = FileChannel.open(f.toPath(), StandardOpenOption.READ);
         int factor = Math.max(4, 64 / nThread);
         List<Future> futureList = new ArrayList<>(factor * nThread);

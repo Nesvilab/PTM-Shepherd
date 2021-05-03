@@ -209,8 +209,8 @@ public class PeakCompareTester {
             double uStat = mwu.mannWhitneyU(this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.immoniumY.get(peak).stream().mapToDouble(i -> i).toArray());
             double rankBiserCorr = (2.0 * uStat / (this.immoniumX.get(peak).size() * this.immoniumY.get(peak).size())) - 1;
-            //if (p * this.immoniumY.get(peak).size() < 0.05 && rankBiserCorr > 0.5)
-            //    System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
+            if (p * this.immoniumY.get(peak).size() < 0.05 && rankBiserCorr > 0.5)
+                System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
             this.immoniumTests.add(new Test(peak, p, rankBiserCorr));
         }
 
@@ -347,7 +347,7 @@ public class PeakCompareTester {
                             }
                         }
                     }
-                    //System.out.printf("Shifted apexes: %f\t%c\t%s\t%f\t%f%n", this.peakApex, c, t.mass, newRemainderMass, t.rbc);
+                    System.out.printf("Shifted apexes: %f\t%c\t%s\t%f\t%f%n", this.peakApex, c, t.mass, newRemainderMass, t.rbc);
                     t.adjustedMass = newRemainderMass;
                 }
             }

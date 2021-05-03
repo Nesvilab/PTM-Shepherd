@@ -19,16 +19,18 @@ public class BinDiagMetric {
     public ArrayList<DiagnosticHisto> tildeIons;
     public String ionTypes;
     public double binMinMax[][]; /* [n][2], iontype -> {min, max} */
+    public double ppmTol;
     public HashMap<String, ArrayList<DiagnosticRecord>> peptideMap;
     public PeakCompareTester testResults;
 
-    public BinDiagMetric(double[] peakBounds, String ions) {
+    public BinDiagMetric(double[] peakBounds, String ions, double ppmTol) {
         this.peakApex = peakBounds[0];
         this.leftBound = peakBounds[1];
         this.rightBound = peakBounds[2];
         this.ionTypes = ions;
         this.binMinMax = new double[2+ions.length()][2];
         this.peptideMap = new HashMap<>();
+        this.ppmTol = ppmTol;
     }
 
     /* Build map of peptides so that each peptide (not PSM) can be weighted equally */
@@ -49,12 +51,19 @@ public class BinDiagMetric {
             this.binMinMax[i][1] = -1000000.0; // Small maximum
         }
 
+        double avgImm = 150;
+        double avgPepPrec = 0;
+        double avgFrag[] = new double[this.ionTypes.length()];
+
         /* Find the mins and maxes of each histo */
+        int nPepKeys = this.peptideMap.keySet().size();
         for (String pepKey : this.peptideMap.keySet()) {
+            int nDrs = this.peptideMap.get(pepKey).size();
             for (DiagnosticRecord dr : this.peptideMap.get(pepKey)) {
                 int binMinMaxIndx = 0;
                 for (int i = 0; i < dr.immoniumPeaks.length; i++) {
                     float mz = dr.immoniumPeaks[i][0]; // Cycle through mz vals
+                    //avgImm += (mz / nDrs) / nPepKeys;
                     if (mz < this.binMinMax[binMinMaxIndx][0])
                         this.binMinMax[binMinMaxIndx][0] = mz;
                     if (mz > this.binMinMax[binMinMaxIndx][1])
@@ -68,6 +77,7 @@ public class BinDiagMetric {
                     if (mz > this.binMinMax[binMinMaxIndx][1])
                         this.binMinMax[binMinMaxIndx][1] = mz;
                 }
+                avgPepPrec += (dr.calcAvgCapYTol(1, 4) / nDrs) / nPepKeys; //todo charge states
                 for (int h = 0; h < dr.ionTypes.length(); h++) {
                     binMinMaxIndx++;
                     char ionType = dr.ionTypes.charAt(h);
@@ -78,16 +88,21 @@ public class BinDiagMetric {
                         if (mz > this.binMinMax[binMinMaxIndx][1])
                             this.binMinMax[binMinMaxIndx][1] = mz;
                     }
+                    //System.out.println(dr.calcAvgFragTol(ionType, 1, this.ppmTol));
+                    avgFrag[h] += (dr.calcAvgFragTol(ionType, 1) / nDrs) / nPepKeys; //todo charge states
+                    //System.out.println(avgFrag[h]);
                 }
             }
         }
 
+        //System.out.println("Avgs:"+avgImm + "\t" + avgPepPrec + "\t" + avgFrag[0] + "\t"+ avgFrag[1]); todo these can be calculated in the initial pass to save time
+
         /* Initialize histograms */
-        this.immoniumIons = new DiagnosticHisto(this.binMinMax[0][0], this.binMinMax[0][1], 0.001, 0.001);
-        this.capYIons = new DiagnosticHisto(this.binMinMax[1][0], this.binMinMax[1][1], 0.001, 0.01);
+        this.immoniumIons = new DiagnosticHisto(this.binMinMax[0][0], this.binMinMax[0][1], 0.001, 0.0001, this.ppmTol, avgImm);
+        this.capYIons = new DiagnosticHisto(this.binMinMax[1][0], this.binMinMax[1][1], 0.001, 0.0001, this.ppmTol, avgPepPrec);
         this.tildeIons = new ArrayList<>();
         for (int i = 0; i < this.ionTypes.length(); i++) { /* +2 because of immonium and Y ions in first 2 i's */
-            tildeIons.add(new DiagnosticHisto(this.binMinMax[i+2][0], this.binMinMax[i+2][1], 0.001, 0.001));
+            tildeIons.add(new DiagnosticHisto(this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.001, 0.0001, this.ppmTol, avgFrag[i]));
         }
 
         /* Assign data to histograms */
@@ -106,9 +121,9 @@ public class BinDiagMetric {
                         char ionType = this.ionTypes.charAt(h);
                         //this.tildeIons.get(h).placeIons(dr.squigglePeaks.get(ionType));
                         for (int i = 0; i < dr.squigglePeaks.get(ionType).length; i++) {
-                            float mz = dr.squigglePeaks.get(ionType)[i][0];
+                            double mz = dr.squigglePeaks.get(ionType)[i][0];
                             if (!(-3.5 < mz && mz < 3.5)) // Filter out small mzs here //todo should be a histo param
-                                this.tildeIons.get(h).placeIon(mz, dr.squigglePeaks.get(ionType)[i][1] / (double) dr.pepSeq.length());/// nPsms);
+                                this.tildeIons.get(h).placeIon(mz, ((dr.squigglePeaks.get(ionType)[i][1] / (double) dr.pepSeq.length()) / nPsms));
                         }
                     }
                 }
@@ -124,19 +139,20 @@ public class BinDiagMetric {
 
         System.out.println("\nPeakApex:"+peakApex);
 
-        this.immoniumIons.smoothify();
-        this.capYIons.smoothify();
+        this.immoniumIons.smoothify(executorService, nThreads);
+        this.capYIons.smoothify(executorService, nThreads);
         this.immoniumIons.findPeaks();
         //if (this.peakApex >= -0.1 && this.peakApex <= 0.1) {
         //    this.immoniumIons.printHisto(this.peakApex + "_imm" + ".tsv");
         //}
         this.capYIons.findPeaks();
 
-        try {
-            this.capYIons.printHisto(this.peakApex + "_capY.tsv");
-        } catch (Exception e) {
-            System.out.println(e);
-        }
+        //try {
+        //    this.capYIons.printHisto(this.peakApex + "_capY.tsv");
+        //    this.immoniumIons.printHisto(this.peakApex + "_imm.tsv");
+        //} catch (Exception e) {
+        //    System.out.println(e);
+        //}
 
         this.immoniumIons.clearMemory();
         this.capYIons.clearMemory();
@@ -144,7 +160,7 @@ public class BinDiagMetric {
         for (int i = 0; i < this.tildeIons.size(); i++) {
             long t1 = System.currentTimeMillis();
             //System.out.println("IonType:"+ionTypes.charAt(i));
-            this.tildeIons.get(i).smoothify();
+            this.tildeIons.get(i).smoothify(executorService, nThreads);
             long t2 = System.currentTimeMillis();
             this.tildeIons.get(i).findPeaks();
             long t3 = System.currentTimeMillis();

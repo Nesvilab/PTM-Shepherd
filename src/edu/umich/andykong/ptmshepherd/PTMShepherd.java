@@ -148,10 +148,10 @@ public class PTMShepherd {
 		params.put("annotation_file", "");
 
 		params.put("glyco_mode", "false");
-		params.put("cap_y_ions", "0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279");
+		params.put("cap_y_ions", "0,203.07937,349.137279,406.15874,568.21156,730.26438,892.3172");
 		params.put("glyco_cap_y_ions_normalize", "1"); //0 = off, 1 = base peak
 		params.put("max_cap_y_charge", "0");
-		params.put("diag_ions", "204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761");
+		params.put("diag_ions", "144.0656,138.055,168.065526,186.076086,204.086646,243.026426,274.0921325,292.1026925,308.09761,366.139466,405.079246,485.045576,512.197375,657.2349");
 		params.put("glyco_diag_ions_normalize", "1"); //0 = off, 1 = base peak
 		params.put("remainder_masses", "203.07937");//,406.15874,568.21156,730.26438,892.3172,349.137279");
 		params.put("remainder_mass_allowed_res", "all"); //unused
@@ -541,7 +541,7 @@ public class PTMShepherd {
 			float mineNoise = 0.01f; //todo cast to param
 			System.out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(mineNoise, peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
-					Integer.parseInt(params.get("precursor_mass_units")), "by"); //make ion types parameter
+					Integer.parseInt(params.get("precursor_mass_units")), "by", Float.parseFloat(params.get("spectra_tol"))); //make ion types parameter
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
