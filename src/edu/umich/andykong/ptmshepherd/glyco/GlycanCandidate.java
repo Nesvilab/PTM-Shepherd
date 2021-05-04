@@ -1,10 +1,11 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
-import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  Container for theoretical glycan compositions (supplied by user or database) to be
@@ -18,9 +19,12 @@ public class GlycanCandidate {
     ArrayList<Float> expectedYIons;
     ArrayList<Float> disallowedYIons;
     boolean isDecoy;
+    int decoyType;      // parameter for testing - will remove once best method determined
     public static final double MAX_CANDIDATE_DECOY_SHIFT_DA = 3;
+    public static final int[] DECOY_ISOTOPES = {-1, 0, 1, 2, 3};
+    public static final double MAX_DECOY_SHIFT_FROM_ISOTOPE_DA = 0.2;
 
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy) {
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType) {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
@@ -33,9 +37,22 @@ public class GlycanCandidate {
         if (! isDecoy) {
             this.monoisotopicMass = computeMonoisotopicMass(inputGlycanComp);
         } else {
-            // randomly shift monoisotopic mass within range +/- 20 Da
-            double randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA);
-            this.monoisotopicMass = computeMonoisotopicMass(inputGlycanComp) + randomShift;
+            double baseMonoistopicMass = computeMonoisotopicMass(inputGlycanComp);
+            double randomShift = 0;
+            switch (decoyType) {
+                case 0:
+                    // simple mass window
+                    randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA);
+                    break;
+                case 1:
+                    // random isotope and mass error
+                    randomShift = getRandomShiftIsotopes(DECOY_ISOTOPES, MAX_DECOY_SHIFT_FROM_ISOTOPE_DA);
+                    break;
+                case 2:
+                    // exact target mass - random shift left at 0
+                    break;
+            }
+            this.monoisotopicMass = baseMonoistopicMass + randomShift;
         }
     }
 
@@ -50,6 +67,24 @@ public class GlycanCandidate {
             mass += (GlycanMasses.glycoMasses.get(glycanEntry.getKey()) * glycanEntry.getValue());
         }
         return mass;
+    }
+
+    /**
+     * Generate a random mass shift within tolerancePPM about a randomly selected isotope peak in the
+     * provided isotopes list.
+     * @param isotopes list of isotopes
+     * @param toleranceDa Da tolerance
+     * @return random mass shift within specified ranges
+     */
+    public static double getRandomShiftIsotopes(int[] isotopes, double toleranceDa) {
+        // randomly select isotope.
+        int minIso = Arrays.stream(isotopes).min().getAsInt();
+        int maxIso = Arrays.stream(isotopes).max().getAsInt();
+        int isotope = ThreadLocalRandom.current().nextInt(minIso, maxIso + 1);  // upper bound is not inclusive, need to add 1 to get to max isotope
+
+        // randomly generate mass shift within tolerance and add to chosen isotope
+        double randomShift = ThreadLocalRandom.current().nextDouble(-toleranceDa, toleranceDa);
+        return isotope * AAMasses.averagineIsotopeMass + randomShift;
     }
 
     /**
