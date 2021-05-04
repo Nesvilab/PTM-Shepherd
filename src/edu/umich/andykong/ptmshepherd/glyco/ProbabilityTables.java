@@ -53,8 +53,8 @@ public class ProbabilityTables {
         /* Y ion scores to generate probability ratios
          * Entries 0 is for
          */
-        regularYrules = new double[]{5, 0.8};
-        dHexYrules = new double[]{5, 0.8};
+        regularYrules = new double[]{5, 0.5};
+        dHexYrules = new double[]{5, 0.5};
 
         // Oxonium ion probs. Same format as Y ion probabilities
         neuacRules = new double[]{10, 0.05};
