@@ -514,6 +514,9 @@ public class GlycoAnalysis {
         int cand1Hits = 0;
         int cand2Hits = 0;
         double sumLogRatio = 0;
+        if (fragments.length == 0){
+            return sumLogRatio;
+        }
         for (GlycanFragment matchedFragment : fragments) {
 //            double probRatio;
             boolean foundInSpectrum = matchedFragment.foundIntensity > 0;
@@ -670,6 +673,9 @@ public class GlycoAnalysis {
      */
     public double computeYAbsoluteScoreNormed(GlycanCandidate bestGlycan, GlycanFragment[] yFragments) {
         double sumLogRatio = 0;
+        if (yFragments.length == 0){
+            return sumLogRatio;
+        }
         // Y ions - check if allowed for this composition and score if so (ignore if not)
         int hitCount = 0;
         int missCount = 0;
