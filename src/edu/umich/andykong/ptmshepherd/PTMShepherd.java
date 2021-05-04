@@ -110,6 +110,10 @@ public class PTMShepherd {
 		}
 		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
 		HashMap<String, Boolean> glycansInDB = new HashMap<>();
+		// parse decoy param
+		String decoyParam = getParam("decoy_type");
+		int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
+
 		try {
 			BufferedReader in = new BufferedReader(new FileReader(path.toFile()));
 
@@ -126,14 +130,14 @@ public class PTMShepherd {
 					glycanComp.put(residue, count);
 				}
 				// generate a new candidate from this composition and add to DB
-				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false);
+				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType);
 				String compositionHash = candidate.toHashString();
 				// prevent addition of duplicates if user has them in database
 				if (!glycansInDB.containsKey(compositionHash)) {
 					glycanDB.add(candidate);
 					glycansInDB.put(compositionHash, Boolean.TRUE);
 					// also add a decoy for this composition
-					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true);
+					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType);
 					glycanDB.add(decoy);
 
 					// add adducts from adduct list to each composition
@@ -147,13 +151,13 @@ public class PTMShepherd {
 							}
 							adductComp.put(adduct, numAdducts);
 
-							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false);
+							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType);
 							String adductCompositionHash = adductCandidate.toHashString();
 							if (!glycansInDB.containsKey(adductCompositionHash)) {
 								glycanDB.add(adductCandidate);
 								glycansInDB.put(adductCompositionHash, Boolean.TRUE);
 								// also add a decoy for this composition
-								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true);
+								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType);
 								glycanDB.add(adductDecoy);
 							}
 						}
