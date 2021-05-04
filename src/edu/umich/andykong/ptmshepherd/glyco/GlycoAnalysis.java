@@ -36,9 +36,8 @@ public class GlycoAnalysis {
     ProbabilityTables probabilityTable;
     public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 5;
     boolean normYions;
-    boolean sqrtNormYions;
 
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, boolean sqrtNorm) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
         this.glycanDatabase = glycoDatabase;
@@ -46,7 +45,6 @@ public class GlycoAnalysis {
         // init with default values, can be changed by params
         this.probabilityTable = inputProbabilityTable;
         this.normYions = normYs;
-        this.sqrtNormYions = sqrtNorm;
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
@@ -518,26 +516,16 @@ public class GlycoAnalysis {
             return sumLogRatio;
         }
         for (GlycanFragment matchedFragment : fragments) {
-//            double probRatio;
             boolean foundInSpectrum = matchedFragment.foundIntensity > 0;
             if (foundInSpectrum) {
                 if (matchedFragment.isAllowedFragment(glycan1)) {
-                    if (matchedFragment.isAllowedFragment(glycan2)) {
-                        // allowed in both - not distinguishing
-//                        probRatio = 1.0;
-                    } else {
-                        // allowed in glycan 1, but NOT glycan 2. Found in spectrum. Position 0 in rules array
+                    if (!matchedFragment.isAllowedFragment(glycan2)) {
                         cand1Hits++;
-//                        probRatio = matchedFragment.ruleProbabilities[0];
                     }
                 } else {
                     if (matchedFragment.isAllowedFragment(glycan2)) {
                         // allowed in 2 but not 1. Found in spectrum. Prob is 1/found probability
                         cand2Hits++;
-//                        probRatio = 1.0 / matchedFragment.ruleProbabilities[0];
-                    } else {
-                        // allowed in neither candidate - not distinguishing
-//                        probRatio = 1.0;
                     }
                 }
             } else {
@@ -552,10 +540,7 @@ public class GlycoAnalysis {
                         cand2Misses++;
                     }
                 }
-                // actual change in prob added later for misses (not found in spectrum)
-//                probRatio = 1.0;
             }
-//            sumLogRatio += Math.log(probRatio);
         }
 
         // add prob normalized for number of misses for each candidate
@@ -563,17 +548,11 @@ public class GlycoAnalysis {
         double cand2MissProb = 1 / cand1MissProb;
         double cand1HitProb = fragments[0].ruleProbabilities[0];
         double cand2HitProb = 1 / cand1HitProb;
-        if (sqrtNormYions) {
-            sumLogRatio += Math.sqrt(cand1Misses) * Math.log(cand1MissProb);    // candidate 1 misses
-            sumLogRatio += Math.sqrt(cand2Misses) * Math.log(cand2MissProb);    // candidate 2 misses
-            sumLogRatio += Math.sqrt(cand1Hits) * Math.log(cand1HitProb);    // candidate 1 hits
-            sumLogRatio += Math.sqrt(cand2Hits) * Math.log(cand2HitProb);    // candidate 2 hits
-        } else {
-            sumLogRatio += Math.log(cand1Misses) * Math.log(cand1MissProb);    // candidate 1 misses
-            sumLogRatio += Math.log(cand2Misses) * Math.log(cand2MissProb);    // candidate 2 misses
-            sumLogRatio += Math.log(cand1Hits) * Math.log(cand1HitProb);    // candidate 1 hits
-            sumLogRatio += Math.log(cand2Hits) * Math.log(cand2HitProb);    // candidate 2 hits
-        }
+        sumLogRatio += Math.sqrt(cand1Misses) * Math.log(cand1MissProb);    // candidate 1 misses
+        sumLogRatio += Math.sqrt(cand2Misses) * Math.log(cand2MissProb);    // candidate 2 misses
+        sumLogRatio += Math.sqrt(cand1Hits) * Math.log(cand1HitProb);    // candidate 1 hits
+        sumLogRatio += Math.sqrt(cand2Hits) * Math.log(cand2HitProb);    // candidate 2 hits
+
         return sumLogRatio;
     }
 
@@ -702,14 +681,8 @@ public class GlycoAnalysis {
                 }
             }
         }
-        // normalize miss count and return final probability
-        if (sqrtNormYions) {
-//            sumLogRatio = hitCount * Math.log(hitProb) + Math.sqrt(missCount) * Math.log(missProb) + disallowedHitCount * Math.log(1 / hitProb);
-            sumLogRatio = Math.sqrt(hitCount) * Math.log(hitProb) + Math.sqrt(missCount) * Math.log(missProb) + disallowedHitCount * Math.log(1 / hitProb);
-        } else {
-//            sumLogRatio = hitCount * Math.log(hitProb) + Math.log(missCount) * Math.log(missProb) + disallowedHitCount * Math.log(1 / hitProb);
-            sumLogRatio = Math.log(hitCount) * Math.log(hitProb) + Math.log(missCount) * Math.log(missProb) + disallowedHitCount * Math.log(1 / hitProb);
-        }
+        // normalize hit/miss counts and return final probability
+        sumLogRatio = Math.sqrt(hitCount) * Math.log(hitProb) + Math.sqrt(missCount) * Math.log(missProb) + disallowedHitCount * Math.log(1 / hitProb);
         return sumLogRatio;
     }
 
