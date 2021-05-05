@@ -632,12 +632,17 @@ public class GlycoAnalysis {
         double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(roundedIso2);
 
         // mass error calc
-        double massError1 = deltaMass - glycan1.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
-        double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
-        double massError2 = deltaMass - glycan2.monoisotopicMass - (roundedIso2 * AAMasses.averagineIsotopeMass);
-        double massStDevs2 = (massError2 - meanMassError) / massErrorWidth;
-        double massProbRatio = Math.abs(massStDevs2 / massStDevs1) * probabilityTable.massProbScaling;     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
-
+        double massProbRatio;
+        if (probabilityTable.massProbScaling == 0) {
+            // enable skipping mass error calc for testing
+            massProbRatio = 1.0;
+        } else {
+            double massError1 = deltaMass - glycan1.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
+            double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
+            double massError2 = deltaMass - glycan2.monoisotopicMass - (roundedIso2 * AAMasses.averagineIsotopeMass);
+            double massStDevs2 = (massError2 - meanMassError) / massErrorWidth;
+            massProbRatio = Math.abs(massStDevs2 / massStDevs1) * probabilityTable.massProbScaling;     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
+        }
         return Math.log(isotopeProbRatio) + Math.log(massProbRatio);
     }
 
@@ -747,12 +752,13 @@ public class GlycoAnalysis {
         int roundedIso1 = Math.round(iso1);
         double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(0);
         sumLogRatio += Math.log(isotopeProbRatio);
-        // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
-        double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
-        double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
-        double massDist = Math.abs(massStDevs1) * probabilityTable.massProbScaling;
-        sumLogRatio -= Math.log(massDist);  // subtract log of # std devs from mean - less than 1 will increase score, more than 1 will decrease
-
+        if (! (probabilityTable.massProbScaling == 0)) {
+            // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
+            double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
+            double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
+            double massDist = Math.abs(massStDevs1) * probabilityTable.massProbScaling;
+            sumLogRatio -= Math.log(massDist);  // subtract log of # std devs from mean - less than 1 will increase score, more than 1 will decrease
+        }
         return sumLogRatio;
     }
 
