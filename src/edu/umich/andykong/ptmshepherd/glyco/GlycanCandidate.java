@@ -2,7 +2,6 @@ package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -14,12 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class GlycanCandidate {
     double monoisotopicMass;
     Map<GlycanResidue, Integer> glycanComposition;     // map of residue type: count of residue to describe the composition
-    ArrayList<Float> expectedOxoniumIons;
-    ArrayList<Float> disallowedOxoniumIons;
-    ArrayList<Float> expectedYIons;
-    ArrayList<Float> disallowedYIons;
     boolean isDecoy;
-    int decoyType;      // parameter for testing - will remove once best method determined
     public static final double MAX_CANDIDATE_DECOY_SHIFT_DA = 3;
     public static final int[] DECOY_ISOTOPES = {-1, 0, 1, 2, 3};
     public static final double MAX_DECOY_SHIFT_FROM_ISOTOPE_DA = 0.2;

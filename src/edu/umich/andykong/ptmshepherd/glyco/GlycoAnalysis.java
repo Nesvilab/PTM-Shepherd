@@ -763,27 +763,6 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Compute the score this glycan would achieve if every possible fragment ion was found in the spectrum.
-     * Does not include any mass/isotope error (prob ratio of 1)
-     * @param bestGlycan glycan candidate to score
-     * @param yFragments possible Y ions for this candidate only
-     * @param oxoFragments possible oxo ions (not prefiltered for this candidate)
-     * @return perfect score
-     */
-    public double computePerfectScore(GlycanCandidate bestGlycan, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments) {
-        double sumLogRatio = 0;
-        for (GlycanFragment yFragment : yFragments) {
-            sumLogRatio += Math.log(yFragment.ruleProbabilities[0]);
-        }
-        for (GlycanFragment oxoFragment : oxoFragments) {
-            if (oxoFragment.isAllowedFragment(bestGlycan)) {
-                sumLogRatio += Math.log(oxoFragment.ruleProbabilities[0]);
-            }
-        }
-        return sumLogRatio;
-    }
-
-    /**
      * Get glycan candidates to consider for a given delta mass and isotope errors/mass tolerance.
      * Might optimize for speed at some point by indexing glycan database by mass (if needed)
      * @param deltaMass delta mass being searched
