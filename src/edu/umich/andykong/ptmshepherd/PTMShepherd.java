@@ -98,28 +98,43 @@ public class PTMShepherd {
 	 * @return list of glycans to consider
 	 */
 	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts) {
-		Path path = null;
-		try {
-			path = Paths.get(inputPath.replaceAll("['\"]", ""));
-		} catch (Exception e) {
-			System.out.println(e);
-			die(String.format("Malformed glycan path string: [%s]", inputPath));
-		}
-		if (path == null || !Files.exists(path)) {
-			die(String.format("Glycan database file does not exist: [%s]", inputPath));
-		}
+		// read input glycan database or default database if none provided
 		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
-		HashMap<String, Boolean> glycansInDB = new HashMap<>();
-		// parse decoy param
-		String decoyParam = getParam("decoy_type");
-		int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
-
 		try {
-			BufferedReader in = new BufferedReader(new FileReader(path.toFile()));
+			BufferedReader in;
+			if (inputPath.equals("")) {
+				// no glycan database provided - fall back to default glycan list in PeakAnnotator
+				String defaultDB = "glyco_mods_20210127.txt";
+				in = new BufferedReader(new InputStreamReader(PeakAnnotator.class.getResourceAsStream(defaultDB)));
+			} else {
+				Path path = null;
+				try {
+					path = Paths.get(inputPath.replaceAll("['\"]", ""));
+				} catch (Exception e) {
+					System.out.println(e);
+					die(String.format("Malformed glycan path string: [%s]", inputPath));
+				}
+				if (path == null || !Files.exists(path)) {
+					die(String.format("Glycan database file does not exist: [%s]", inputPath));
+				}
+				in = new BufferedReader(new FileReader(path.toFile()));
+			}
+
+			HashMap<String, Boolean> glycansInDB = new HashMap<>();
+			// parse decoy param
+			String decoyParam = getParam("decoy_type");
+			int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
 
 			String line;
 			while ((line = in.readLine()) != null) {
-				String[] splits = line.split("_");
+				String glycanName;
+				if (line.contains("\t")) {
+					// default database includes mass in addition to glycan name - ignore mass and only take name
+					glycanName = line.split("\t")[0];
+				} else {
+					glycanName = line;
+				}
+				String[] splits = glycanName.split("_");
 				TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
 				// Read all residue counts into the composition container
 				for (String split: splits) {
@@ -171,7 +186,6 @@ public class PTMShepherd {
 			e.printStackTrace();
 			die("IO Exception while reading database file");
 		}
-
 		return glycanDB;
 	}
 
