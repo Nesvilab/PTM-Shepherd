@@ -821,9 +821,12 @@ public class PTMShepherd {
 			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
 
 			// second pass: calculate glycan FDR and update results
+			String glycoFDRParam = getParam("glyco_fdr");
+			// default 0.01 if param not provided, otherwise read provided value
+			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam);
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm);
-				ga.computeGlycanFDR(0.01);
+				ga.computeGlycanFDR(glycoFDR);
 				ga.complete();
 			}
 
