@@ -123,7 +123,7 @@ public class PTMShepherd {
 			HashMap<String, Boolean> glycansInDB = new HashMap<>();
 			// parse decoy param
 			String decoyParam = getParam("decoy_type");
-			int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
+			int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 1;
 
 			String line;
 			while ((line = in.readLine()) != null) {
