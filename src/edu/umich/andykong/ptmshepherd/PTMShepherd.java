@@ -798,8 +798,9 @@ public class PTMShepherd {
 			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts);
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
 			boolean glycoYnorm = Boolean.parseBoolean(getParam("norm_Ys"));
+			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
@@ -813,7 +814,7 @@ public class PTMShepherd {
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
@@ -825,7 +826,7 @@ public class PTMShepherd {
 			// default 0.01 if param not provided, otherwise read provided value
 			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam);
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam);
 				ga.computeGlycanFDR(glycoFDR);
 				ga.complete();
 			}
