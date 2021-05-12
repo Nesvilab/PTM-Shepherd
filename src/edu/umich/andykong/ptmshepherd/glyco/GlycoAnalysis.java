@@ -225,7 +225,14 @@ public class GlycoAnalysis {
         if (targetDecoyRatio < desiredRatio) {
             // not enough decoys to compute FDR - already above desired ratio. Do not update table
             System.out.printf("Not enough decoys to compute FDR at %.1f pct, initial pct %.2f\n", desiredRatio * 100, targetDecoyRatio * 100);
-            return;
+            if (desiredRatio < targetDecoyRatio * 0.1) {
+                System.out.print("Not enough decoys to compute FDR at 0.1 * initial ratio. Check data and parameters. No FDR calculation performed!\n");
+                return;
+            } else {
+                // only missed by a little, try reducing desired FDR to accomodate
+                desiredRatio = targetDecoyRatio - (targetDecoyRatio * 0.1);
+                System.out.printf("FDR reduced to %.1f pct due to limited decoys\n", desiredRatio * 100);
+            }
         }
 
         // find threshold at which target/decoy ratio hits desired value and update rawglyco lines
