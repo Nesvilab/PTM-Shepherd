@@ -36,8 +36,9 @@ public class GlycoAnalysis {
     ProbabilityTables probabilityTable;
     public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 5;
     boolean normYions;
+    double defaultMassErrorAbsScore;
 
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
         this.glycanDatabase = glycoDatabase;
@@ -45,6 +46,7 @@ public class GlycoAnalysis {
         // init with default values, can be changed by params
         this.probabilityTable = inputProbabilityTable;
         this.normYions = normYs;
+        this.defaultMassErrorAbsScore = absMassErrorDefault;
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
@@ -757,7 +759,7 @@ public class GlycoAnalysis {
             double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
             double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
             double massDist = Math.abs(massStDevs1) * probabilityTable.massProbScaling;
-            sumLogRatio -= Math.log(massDist);  // subtract log of # std devs from mean - less than 1 will increase score, more than 1 will decrease
+            sumLogRatio += Math.log(defaultMassErrorAbsScore / massDist);      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
         }
         return sumLogRatio;
     }
