@@ -86,8 +86,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         return sb.toString();
     }
 
-    //todo the name of this should be changed, no longer filtering here
-    public void filterIons(ArrayList<Double> immMasses, ArrayList<Double> capYMasses, HashMap<Character, ArrayList<Double>> squigglePeaksMasses, double tol) {
+    public void filterIons_old(ArrayList<Double> immMasses, ArrayList<Double> capYMasses, HashMap<Character, ArrayList<Double>> squigglePeaksMasses, double tol) {
         /* Initialize variables that hold data for Mann-Whitney-U */
         this.selectedImmoniumPeaks = new HashMap<>();
         this.selectedCapYPeaks = new HashMap<>();
@@ -128,6 +127,209 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
                 this.selectedSquigglePeaks.get(c).put(peak, cInt);
             }
         }
+    }
+
+    public void filterIons(ArrayList<Double> immMasses, ArrayList<Double> capYMasses, HashMap<Character, ArrayList<Double>> squigglePeaksMasses, double tol) {
+        /* Initialize variables that hold data for Mann-Whitney-U */
+        this.selectedImmoniumPeaks = new HashMap<>();
+        this.selectedCapYPeaks = new HashMap<>();
+        this.selectedSquigglePeaks = new HashMap<>();
+
+        double[][] selectImmoniumPeaks = collectImmIonIntsensities(immMasses, this.immoniumPeaks, tol);
+        for (double[] peak : selectImmoniumPeaks)
+            this.selectedImmoniumPeaks.put(peak[0], peak[1]);
+
+        double[][] selectCapYPeaks = collectIonIntsensities(capYMasses, this.capYPeaks, tol);
+        for (double[] peak : selectCapYPeaks)
+            this.selectedCapYPeaks.put(peak[0], peak[1]);
+
+        for (Character c : squigglePeaksMasses.keySet()) {
+            this.selectedSquigglePeaks.put(c, new HashMap<>());
+            double[][] selectSquigglePeaks = collectIonIntsensities(squigglePeaksMasses.get(c), this.squigglePeaks.get(c), tol);
+            for (int i = 0 ; i < selectSquigglePeaks.length; i++)
+                selectSquigglePeaks[i][1] /= this.pepSeq.length();
+            for (double[] peak : selectSquigglePeaks)
+                this.selectedSquigglePeaks.get(c).put(peak[0], peak[1]);
+        }
+    }
+
+    private double[][] collectImmIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] expPeakList, double tol) {
+
+        double[][] selectedPeaks = new double[searchKeyIonList.size()][2];
+        for (int i = 0; i < searchKeyIonList.size(); i++)
+            selectedPeaks[i][0] = searchKeyIonList.get(i);
+        Arrays.sort(selectedPeaks, new Comparator<double[]>() {
+            @Override
+            public int compare(double[] o1, double[] o2) {
+                return -1*Double.compare(o2[0], o1[0]);
+            }
+        });
+
+        Arrays.sort(expPeakList, new Comparator<float[]>() {
+            @Override
+            public int compare(float[] o1, float[] o2) {
+                return -1*Double.compare(o2[0], o1[0]);
+            }
+        });
+
+        int expPeaksIndx = 0;
+        int maxExpPeaksIndx = expPeakList.length;
+        //System.out.println("***");
+        for (int i = 0; i < selectedPeaks.length; i++) {
+            //System.out.println("SelectPeak\t"+i + "\t" + selectedPeaks[i][0]);
+            double minVal = selectedPeaks[i][0] - selectedPeaks[i][0] * tol / 1000000;
+            double maxVal = selectedPeaks[i][0] + selectedPeaks[i][0] * tol / 1000000;
+
+            while (expPeaksIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakPass\t"+expPeaksIndx + "\t" + expPeakList[expPeaksIndx][0]);
+                if (expPeakList[expPeaksIndx][0] < minVal)
+                    expPeaksIndx++;
+                else
+                    break;
+            }
+            int cIndx = expPeaksIndx;
+            while (cIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakAdd\t"+cIndx + "\t" + expPeakList[cIndx][0]);
+                if (expPeakList[cIndx][0] <= maxVal) {
+                    selectedPeaks[i][1] += expPeakList[cIndx][1];
+                    cIndx++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        /*
+        for(int i = 0; i < expPeakList.length; i++)
+            System.out.print(expPeakList[i][0] + " " + expPeakList[i][1]);
+        System.out.println("exp");
+        for(int i = 0; i < selectedPeaks.length; i++)
+            System.out.print(selectedPeaks[i][0] + " " + selectedPeaks[i][1] + " ");
+        System.out.println("sel");
+        */
+
+        return selectedPeaks;
+
+    }
+
+    private double[][] collectCapYIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] expPeakList, double tol) {
+
+        double[][] selectedPeaks = new double[searchKeyIonList.size()][2];
+        for (int i = 0; i < searchKeyIonList.size(); i++)
+            selectedPeaks[i][0] = searchKeyIonList.get(i);
+        Arrays.sort(selectedPeaks, new Comparator<double[]>() {
+            @Override
+            public int compare(double[] o1, double[] o2) {
+                return -1*Double.compare(o2[0], o1[0]);
+            }
+        });
+
+        Arrays.sort(expPeakList, new Comparator<float[]>() {
+            @Override
+            public int compare(float[] o1, float[] o2) {
+                return -1*Double.compare(o2[0], o1[0]);
+            }
+        });
+
+        int expPeaksIndx = 0;
+        int maxExpPeaksIndx = expPeakList.length;
+        //System.out.println("***"); //todo tol over multiple charge states
+        for (int i = 0; i < selectedPeaks.length; i++) {
+            //System.out.println("SelectPeak\t"+i + "\t" + selectedPeaks[i][0]);
+            double precMass = calcPrecursorMass(1) + selectedPeaks[i][0]; //todo charge states
+            double minVal = precMass - precMass * tol / 1000000;
+            double maxVal = precMass + precMass * tol / 1000000;
+
+            while (expPeaksIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakPass\t"+expPeaksIndx + "\t" + expPeakList[expPeaksIndx][0]);
+                if (expPeakList[expPeaksIndx][0] < minVal)
+                    expPeaksIndx++;
+                else
+                    break;
+            }
+            int cIndx = expPeaksIndx;
+            while (cIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakAdd\t"+cIndx + "\t" + expPeakList[cIndx][0]);
+                if (expPeakList[cIndx][0] <= maxVal) {
+                    selectedPeaks[i][1] += expPeakList[cIndx][1];
+                    cIndx++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        /*
+        for(int i = 0; i < expPeakList.length; i++)
+            System.out.print(expPeakList[i][0] + " " + expPeakList[i][1]);
+        System.out.println("exp");
+        for(int i = 0; i < selectedPeaks.length; i++)
+            System.out.print(selectedPeaks[i][0] + " " + selectedPeaks[i][1] + " ");
+        System.out.println("sel");
+        */
+
+        return selectedPeaks;
+
+    }
+
+    private double[][] collectIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] expPeakList, double tol) {
+
+        double[][] selectedPeaks = new double[searchKeyIonList.size()][2];
+        for (int i = 0; i < searchKeyIonList.size(); i++)
+            selectedPeaks[i][0] = searchKeyIonList.get(i);
+        Arrays.sort(selectedPeaks, new Comparator<double[]>() {
+            @Override
+            public int compare(double[] o1, double[] o2) {
+                return -1*Double.compare(o2[0], o1[0]);
+            }
+        });
+
+        Arrays.sort(expPeakList, new Comparator<float[]>() {
+            @Override
+            public int compare(float[] o1, float[] o2) {
+                return -1*Double.compare(o2[0], o1[0]);
+            }
+        });
+
+        int expPeaksIndx = 0;
+        int maxExpPeaksIndx = expPeakList.length;
+        //System.out.println("***");
+        for (int i = 0; i < selectedPeaks.length; i++) {
+            //System.out.println("SelectPeak\t"+i + "\t" + selectedPeaks[i][0]);
+            //todo calculate tol
+            double minVal = selectedPeaks[i][0] - tol;
+            double maxVal = selectedPeaks[i][0] + tol;
+
+            while (expPeaksIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakPass\t"+expPeaksIndx + "\t" + expPeakList[expPeaksIndx][0]);
+                if (expPeakList[expPeaksIndx][0] < minVal)
+                    expPeaksIndx++;
+                else
+                    break;
+            }
+            int cIndx = expPeaksIndx;
+            while (cIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakAdd\t"+cIndx + "\t" + expPeakList[cIndx][0]);
+                if (expPeakList[cIndx][0] <= maxVal) {
+                    selectedPeaks[i][1] += expPeakList[cIndx][1];
+                    cIndx++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        /*
+        for(int i = 0; i < expPeakList.length; i++)
+            System.out.print(expPeakList[i][0] + " " + expPeakList[i][1]);
+        System.out.println("exp");
+        for(int i = 0; i < selectedPeaks.length; i++)
+            System.out.print(selectedPeaks[i][0] + " " + selectedPeaks[i][1] + " ");
+        System.out.println("sel");
+        */
+
+        return selectedPeaks;
+
     }
 
     //public double[] localizeRemainderMass(float dmass, char ionType) {
@@ -263,14 +465,28 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         float [] aaMasses = AAMasses.monoisotopic_masses;
         double nTermMass = AAMasses.monoisotopic_nterm_mass;
         double averagePrecursorMass = 0;
-        for (int ccharge = minCharge; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
+        for (int ccharge = minCharge; ccharge <= maxCharge; ccharge++) {
             double cmass = (nTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
-            for (int i = 0; i < this.pepSeq.length() - 1; i++)
+            for (int i = 0; i < this.pepSeq.length() - 1; i++) {
+                cmass += this.modificationsArray[i] / ccharge;
                 cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + this.modificationsArray[i]) / ccharge;
+            }
             averagePrecursorMass += cmass / (maxCharge - minCharge + 1);
         }
 
         return averagePrecursorMass;
+    }
+
+    private double calcPrecursorMass(int charge) {
+        float [] aaMasses = AAMasses.monoisotopic_masses;
+        double nTermMass = AAMasses.monoisotopic_nterm_mass;
+        double cmass = (nTermMass + charge * AAMasses.monoisotopic_nterm_mass) / charge;
+        for (int i = 0; i < this.pepSeq.length() - 1; i++) {
+            cmass += this.modificationsArray[i] / charge;
+            cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + this.modificationsArray[i]) / charge;
+        }
+
+        return cmass;
     }
 
     public double[] calcNMasses(char iType, int maxCharge, int cLen) {

@@ -432,7 +432,6 @@ public class DiagBINFile {
         return scanToDmass;
     }
 
-    //todo if this is slow, only load relevant scans
     public DiagnosticRecord getScan(int scanNum) {
         for (DiagnosticRecord dr : this.spectra) {
             if (dr.scanNum == scanNum) {

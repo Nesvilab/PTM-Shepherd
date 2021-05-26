@@ -19,6 +19,7 @@ public class DiagnosticAnalysis {
     String dsName;
     MXMLReader mr;
     String ionTypes;
+    String filterIonTypes;
     float precursorTol, spectraTol;
     int condPeaks;
     int precursorMassUnits;
@@ -39,7 +40,9 @@ public class DiagnosticAnalysis {
         this.spectraTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
         this.condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
         this.condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
-        this.ionTypes = "by"; //todo
+        this.filterIonTypes = PTMShepherd.getParam("diagmine_filterIonTypes");
+        this.ionTypes = PTMShepherd.getParam("diagmine_ionTypes");
+
     }
 
     public void initializeBinBoundaries(double [][] peakApexBounds) throws Exception {
@@ -138,9 +141,9 @@ public class DiagnosticAnalysis {
 
         /* Initialize DiagnosticRecord and add relevant data */
         DiagnosticRecord diagnosticRecord =  new DiagnosticRecord(spec, this.ionTypes, pepSeq, parseModifications(smods, pepSeq), dmass, charge);
-        diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon, pepSeq, parseModifications(smods, pepSeq), this.ionTypes, 1, dmass)); //todo max charge
-        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepSeq, parseModifications(smods, pepSeq), this.ionTypes, 1, pepMass));
-        diagnosticRecord.setSquigglePeaks(calcSquigglePeaks(spec, this.spectraTol, dmass, pepSeq, smods, this.ionTypes, 1)); //todo max charge
+        diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, dmass)); //todo max charge
+        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, pepMass)); //todo max charge
+        diagnosticRecord.setSquigglePeaks(calcSquigglePeaks(spec, this.spectraTol, pepSeq, smods, this.ionTypes, this.filterIonTypes, 1)); //todo max charge
 
         return diagnosticRecord;
     }
@@ -158,8 +161,8 @@ public class DiagnosticAnalysis {
         return String.format("%s.%d.%d", sp[0], sn, sn);
     }
 
-    public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max, String seq, float[] mods, String ionTypes, int maxCharge, float dmass) {
-        float[][] peaks = spec.calcImmoniumPeaks(min, max, seq, mods, ionTypes, maxCharge, dmass);
+    public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass) {
+        float[][] peaks = spec.calcImmoniumPeaks(min, max, seq, mods, filterIonTypes, maxCharge, dmass);
         return peaks;
     }
 
@@ -172,15 +175,15 @@ public class DiagnosticAnalysis {
         return sb.substring(0, sb.length()-1);
     }
 
-    public float[][] calcCapYPeaks(Spectrum spec, String seq, float[] mods, String ionTypes, int maxCharge, float pepMass) {
-        float[][] peaks = spec.calcCapYPeaks(seq, mods, ionTypes, maxCharge, pepMass);
+    public float[][] calcCapYPeaks(Spectrum spec, String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass) {
+        float[][] peaks = spec.calcCapYPeaks(seq, mods, filterIonTypes, maxCharge, pepMass);
         return peaks;
     }
 
-    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, float dmass, String pepSeq, String[] smods, String ionTypes, int maxCharge) {
+    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, String pepSeq, String[] smods, String ionTypes, String filterIonTypes, int maxCharge) {
         //Get dem mods and put 'em on the peptide
         float [] mods = parseModifications(smods, pepSeq);
-        HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(specTol, dmass, pepSeq, mods, ionTypes, maxCharge);
+        HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(specTol, pepSeq, mods, ionTypes, filterIonTypes, maxCharge);
         return squigglePeaks;
     }
 

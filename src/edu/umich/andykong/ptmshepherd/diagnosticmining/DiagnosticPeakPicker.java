@@ -6,6 +6,7 @@ import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import umich.ms.datatypes.lcmsrun.Hash;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -23,22 +24,32 @@ public class DiagnosticPeakPicker {
     int precursorMassUnits;
     double condRatio;
     FastLocator locate;
-    float noiseLevel;
+    double minSignal;
+    int maxPrecursorCharge;
+
+    double maxP;
+    double minRbc;
+    boolean twoTailedTests;
 
     TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan;
 
-    double [][] peaks; //[3][n] apex, left, right
-    BinDiagMetric [] binDiagMetrics;
+    double[][] peaks; //[3][n] apex, left, right
+    BinDiagMetric[] binDiagMetrics;
 
-    public DiagnosticPeakPicker(float noiseLevel, double [][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol) {
+    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, int twoTailedTests) {
         this.peaks = peakApexBounds;
-        this.noiseLevel = noiseLevel;
+        this.minSignal = minSignal;
         this.peakToFileToScan = new TreeMap<>();
         this.ionTypes = ions; //redundant
         Arrays.sort(this.cIonTypes = ions.toCharArray());
         this.binDiagMetrics = new BinDiagMetric[this.peaks[0].length];
         this.locate = new FastLocator(peakApexBounds, peakTol, precursorMassUnits);
         this.spectraTol = specTol;
+        this.maxPrecursorCharge = maxPrecursorCharge;
+
+        this.maxP = maxP;
+        this.minRbc = minRbc;
+        this.twoTailedTests = twoTailedTests == 1 ? true : false;
     }
 
     /* Construct mass shift peak -> preprocessed file -> scan nums datastructure */
@@ -79,116 +90,7 @@ public class DiagnosticPeakPicker {
         }
 
         long t2 = System.currentTimeMillis();
-        System.out.printf("\t\tDone indexing data from %s (%d ms)\n", dataset, t2-t1);
-    }
-
-    /* Send ions to BinDiagnosticMetric containers */
-    public void process_safe(ExecutorService executorService, int nThreads) throws Exception {
-        /* Finds the peaks for each BinDiagnosticMetric container */
-        int peakCount = 0;
-        for (Integer peakIndx : this.peakToFileToScan.keySet()) {
-            if (peakCount++ > 25)
-                break;
-            //System.out.println("**" + peakIndx + "**" + this.peaks.length);
-            double[] peakVals = new double[] {this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[2][peakIndx]};
-            BinDiagMetric bdMetrics  = new BinDiagMetric(peakVals, this.ionTypes, this.spectraTol);
-
-            for (String fname : this.peakToFileToScan.get(peakIndx).keySet()) {
-                try {
-                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, true);
-                    for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname)) {
-                        DiagnosticRecord dr = dgBin.getScan(scan); //todo if this is slow, only load some scans
-                        if (dr != null)
-                            bdMetrics.addPSMToPeptideMap(dr);
-                        else
-                            System.out.printf("%d not found in %s\n", scan, fname);
-                        }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.exit(1);
-                }
-            }
-            bdMetrics.processPeptideMap(executorService, nThreads);
-            this.binDiagMetrics[peakIndx] = bdMetrics;
-        }
-
-        /* Tests the peaks in each BinDiagnosticMetric container against zero bin */
-        int zeroBin = this.locate.getIndex(0.0); //todo, better define zero bin index
-        //todo this should be functions
-        peakCount = 0;
-        for (Integer peakIndx : this.peakToFileToScan.keySet()) {
-            if (peakCount++ > 25) //todo remove this when done
-                break;
-            /* Construct unified peaklists that will be used in downstream processes */
-            System.out.println("\nApex\t" + this.peaks[0][peakIndx]);
-            ArrayList<Double> unifiedImmPeakList = new ArrayList<>(binDiagMetrics[peakIndx].immoniumIons.filteredPeaks);
-            ArrayList<Double> unifiedCapYPeakList = new ArrayList<>(binDiagMetrics[peakIndx].capYIons.filteredPeaks);
-            HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists = new HashMap<>();
-            for (Character it : this.cIonTypes)
-                unifiedSquiggleIonPeakLists.put(it, new ArrayList<>(binDiagMetrics[peakIndx].tildeIons.get(this.ionTypes.indexOf(it)).filteredPeaks));
-            //todo check if including zero-bin peaks is useful
-            unifiedImmPeakList.addAll(binDiagMetrics[zeroBin].immoniumIons.filteredPeaks);
-            /*
-            unifiedCapYPeakList.addAll(binDiagMetrics[zeroBin].capYIons.filteredPeaks);
-            for (Character it : this.cIonTypes)
-                unifiedSquiggleIonPeakLists.get(it).addAll(binDiagMetrics[zeroBin].tildeIons.get(this.ionTypes.indexOf(it)).filteredPeaks);
-             */
-
-            /* Remove duplicate peaks */
-            Collections.sort(unifiedImmPeakList);
-            for (int i = unifiedImmPeakList.size()-1; i > 0; i--) {
-                if (Math.abs(unifiedImmPeakList.get(i) - unifiedImmPeakList.get(i - 1)) < 0.001)
-                    unifiedImmPeakList.remove(i);
-            }
-            Collections.sort(unifiedCapYPeakList);
-            for (int i = unifiedCapYPeakList.size()-1; i > 0; i--) {
-                if (Math.abs(unifiedCapYPeakList.get(i) - unifiedCapYPeakList.get(i - 1)) < 0.001)
-                    unifiedCapYPeakList.remove(i);
-            }
-            for (Character it : this.cIonTypes) {
-                Collections.sort(unifiedSquiggleIonPeakLists.get(it));
-                for (int i = unifiedSquiggleIonPeakLists.get(it).size() - 1; i > 0; i--) {
-                    if (Math.abs(unifiedSquiggleIonPeakLists.get(it).get(i) - unifiedSquiggleIonPeakLists.get(it).get(i - 1)) < 0.001)
-                        unifiedSquiggleIonPeakLists.get(it).remove(i);
-                }
-            }
-
-            /* Initialize peak testers */
-            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists); // x is baseline, y is deltamasses
-            /* Add peaks to peak testers */
-            Set<String> unifiedFileList = new HashSet();
-            for (String fname : this.peakToFileToScan.get(peakIndx).keySet())
-                unifiedFileList.add(fname);
-            for (String fname : this.peakToFileToScan.get(zeroBin).keySet())
-                unifiedFileList.add(fname);
-
-            /* Add all bin-wise values to PeakCompareTester, then test */
-            for (String fname : unifiedFileList) {
-                try {
-                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, true);
-                    if (this.peakToFileToScan.get(zeroBin).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(zeroBin).get(fname)) {
-                            DiagnosticRecord dr = dgBin.getScan(scan); //todo if this is slow, only load some scans
-                            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists,0.01); //todo cast last param to min pep size and other param to tolerance
-                            pct.addVals(dr, true);
-                        }
-                    }
-                    if (this.peakToFileToScan.get(peakIndx).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname)) {
-                            DiagnosticRecord dr = dgBin.getScan(scan); //todo if this is slow, only load some scans
-                            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists,0.01); //todo cast last param to min pep size and other param to tolerance
-                            pct.addVals(dr, false);
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.exit(1);
-                }
-            }
-            pct.performTests();
-            this.binDiagMetrics[peakIndx].setTestResults(pct);
-        }
-
+        System.out.printf("\t\tDone indexing data from %s (%d ms)\n", dataset, t2 - t1);
     }
 
     /* Send ions to BinDiagnosticMetric containers */
@@ -196,11 +98,12 @@ public class DiagnosticPeakPicker {
         /* Finds the peaks for each BinDiagnosticMetric container */
         int peakCount = 0;
         for (Integer peakIndx : this.peakToFileToScan.keySet()) {
-            if (peakCount++ > 25)
+            if (peakCount++ > 50)
                 break;
             //System.out.println("**" + peakIndx + "**" + this.peaks.length);
-            double[] peakVals = new double[] {this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[2][peakIndx]};
-            BinDiagMetric bdMetrics  = new BinDiagMetric(peakVals, this.ionTypes, this.spectraTol);
+            double[] peakVals = new double[]{this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[2][peakIndx]};
+            System.out.println(this.ionTypes + "\t" + "1");
+            BinDiagMetric bdMetrics = new BinDiagMetric(peakVals, this.ionTypes, this.spectraTol);
 
             for (String fname : this.peakToFileToScan.get(peakIndx).keySet()) {
                 try {
@@ -210,7 +113,7 @@ public class DiagnosticPeakPicker {
                     DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, false);
                     dgBin.loadDiagBinSpectra(executorService, nThreads, scanNums);
                     for (Integer scan : scanNums) {
-                        DiagnosticRecord dr = dgBin.getScan(scan); //todo if this is slow, only load some scans
+                        DiagnosticRecord dr = dgBin.getScan(scan);
                         if (dr != null)
                             bdMetrics.addPSMToPeptideMap(dr);
                         else
@@ -221,40 +124,41 @@ public class DiagnosticPeakPicker {
                     System.exit(1);
                 }
             }
-            bdMetrics.processPeptideMap(executorService, nThreads);
+            bdMetrics.processPeptideMap(executorService, nThreads, this.minSignal, this.maxPrecursorCharge);
             this.binDiagMetrics[peakIndx] = bdMetrics;
         }
 
         /* Tests the peaks in each BinDiagnosticMetric container against zero bin */
-        int zeroBin = this.locate.getIndex(0.0); //todo, better define zero bin index
+        int zeroBin = this.locate.getIndex(0.0);
         //todo this should be functions
         peakCount = 0;
         for (Integer peakIndx : this.peakToFileToScan.keySet()) {
-            if (peakCount++ > 25) //todo remove this when done
+            if (peakCount++ > 50) //todo remove this when done
                 break;
             /* Construct unified peaklists that will be used in downstream processes */
             System.out.println("\nApex\t" + this.peaks[0][peakIndx]);
+
             ArrayList<Double> unifiedImmPeakList = new ArrayList<>(binDiagMetrics[peakIndx].immoniumIons.filteredPeaks);
             ArrayList<Double> unifiedCapYPeakList = new ArrayList<>(binDiagMetrics[peakIndx].capYIons.filteredPeaks);
             HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists = new HashMap<>();
             for (Character it : this.cIonTypes)
                 unifiedSquiggleIonPeakLists.put(it, new ArrayList<>(binDiagMetrics[peakIndx].tildeIons.get(this.ionTypes.indexOf(it)).filteredPeaks));
-            //todo check if including zero-bin peaks is useful
-            unifiedImmPeakList.addAll(binDiagMetrics[zeroBin].immoniumIons.filteredPeaks);
-            /*
-            unifiedCapYPeakList.addAll(binDiagMetrics[zeroBin].capYIons.filteredPeaks);
-            for (Character it : this.cIonTypes)
-                unifiedSquiggleIonPeakLists.get(it).addAll(binDiagMetrics[zeroBin].tildeIons.get(this.ionTypes.indexOf(it)).filteredPeaks);
-             */
+
+            if (this.twoTailedTests == true) {//todo check if including zero-bin peaks is useful
+                unifiedImmPeakList.addAll(binDiagMetrics[zeroBin].immoniumIons.filteredPeaks);
+                unifiedCapYPeakList.addAll(binDiagMetrics[zeroBin].capYIons.filteredPeaks);
+                for (Character it : this.cIonTypes)
+                    unifiedSquiggleIonPeakLists.get(it).addAll(binDiagMetrics[zeroBin].tildeIons.get(this.ionTypes.indexOf(it)).filteredPeaks);
+            }
 
             /* Remove duplicate peaks */
             Collections.sort(unifiedImmPeakList);
-            for (int i = unifiedImmPeakList.size()-1; i > 0; i--) {
+            for (int i = unifiedImmPeakList.size() - 1; i > 0; i--) {
                 if (Math.abs(unifiedImmPeakList.get(i) - unifiedImmPeakList.get(i - 1)) <= 0.005)
                     unifiedImmPeakList.remove(i);
             }
             Collections.sort(unifiedCapYPeakList);
-            for (int i = unifiedCapYPeakList.size()-1; i > 0; i--) {
+            for (int i = unifiedCapYPeakList.size() - 1; i > 0; i--) {
                 if (Math.abs(unifiedCapYPeakList.get(i) - unifiedCapYPeakList.get(i - 1)) <= 0.005)
                     unifiedCapYPeakList.remove(i);
             }
@@ -267,7 +171,7 @@ public class DiagnosticPeakPicker {
             }
 
             /* Initialize peak testers */
-            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists); // x is baseline, y is deltamasses
+            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.twoTailedTests); // x is baseline, y is deltamasses
             /* Add peaks to peak testers */
             Set<String> unifiedFileList = new HashSet();
             for (String fname : this.peakToFileToScan.get(peakIndx).keySet())
@@ -278,36 +182,58 @@ public class DiagnosticPeakPicker {
             /* Add all bin-wise values to PeakCompareTester, then test */
             for (String fname : unifiedFileList) {
                 try {
-                    /* Set up multithreading structures */
-                    ArrayList<Future> futureList = new ArrayList<>();
                     /* Collect scan nums to parse */
                     ArrayList<Integer> scanNums = new ArrayList<>();
+                    ArrayList<Integer> peakScanNums = new ArrayList<>();
+                    ArrayList<Integer> zeroScanNums = new ArrayList<>();
                     if (this.peakToFileToScan.get(peakIndx).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname))
+                        for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname)) {
                             scanNums.add(scan);
+                            peakScanNums.add(scan);
+                        }
                     }
                     if (this.peakToFileToScan.get(zeroBin).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(zeroBin).get(fname))
+                        for (Integer scan : this.peakToFileToScan.get(zeroBin).get(fname)) {
                             scanNums.add(scan);
+                            zeroScanNums.add(scan);
+                        }
                     }
                     DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, false);
                     dgBin.loadDiagBinSpectra(executorService, nThreads, scanNums);
 
-                    /* Build arraylists of drs to be processed by each thread */
-                    if (this.peakToFileToScan.get(zeroBin).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(zeroBin).get(fname)) {
-                            DiagnosticRecord dr = dgBin.getScan(scan);
-                            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, 0.01); //todo tol
-                            pct.addVals(dr, true);
-                        }
+                    /* Set up multithreading structures for peak bin, get diagnosticRecords, send to threads */
+                    int factor = Math.max(4, 64 / nThreads);
+                    ArrayList<Future> futureList = new ArrayList<>(factor * nThreads);
+                    for (int i = 0; i < factor * nThreads; i++) {
+                        ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
+                        int start = (peakScanNums.size() * i) / (factor * nThreads);
+                        int end = (peakScanNums.size() * (i + 1)) / (factor * nThreads);
+                        for (int j = start; j < end; j++)
+                            localDrs.add(dgBin.getScan(peakScanNums.get(j)));
+                        futureList.add(executorService.submit(() ->
+                                filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
+                                        unifiedSquiggleIonPeakLists, 0.01, pct, false)));  //todo tol
                     }
-                    if (this.peakToFileToScan.get(peakIndx).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname)) {
-                            DiagnosticRecord dr = dgBin.getScan(scan);
-                            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, 0.01); //todo tol
-                            pct.addVals(dr, false);
-                        }
+                    /* Get results */
+                    for (Future future : futureList)
+                        future.get();
+
+                    /* Set up multithreading structures for zero bin, get diagnosticRecords, send to threads */
+                    futureList = new ArrayList<>(factor * nThreads);
+                    for (int i = 0; i < factor * nThreads; i++) {
+                        ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
+                        int start = (zeroScanNums.size() * i) / (factor * nThreads);
+                        int end = (zeroScanNums.size() * (i + 1)) / (factor * nThreads);
+                        for (int j = start; j < end; j++)
+                            localDrs.add(dgBin.getScan(zeroScanNums.get(j)));
+                        futureList.add(executorService.submit(() ->
+                                filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
+                                        unifiedSquiggleIonPeakLists, 0.01, pct, true)));  //todo tol
                     }
+                    /* Get results */
+                    for (Future future : futureList)
+                        future.get();
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     System.exit(1);
@@ -330,4 +256,10 @@ public class DiagnosticPeakPicker {
         return baseName;
     }
 
+    private void filterSpecBlock(ArrayList<DiagnosticRecord> localDrs, ArrayList<Double> unifiedImmPeakList, ArrayList<Double> unifiedCapYPeakList,
+                                 HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists, double tol, PeakCompareTester pct, boolean isControl) {
+        for (DiagnosticRecord dr : localDrs)
+            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, 0.01); //todo tol
+        pct.addDrs(localDrs, isControl);
+    }
 }

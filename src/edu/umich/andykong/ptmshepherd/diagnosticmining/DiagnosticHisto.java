@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 public class DiagnosticHisto {
+    double peakApex;
     Bin [] bins;
     Bin [] smoothBins;
     double min;
@@ -25,7 +26,8 @@ public class DiagnosticHisto {
     double normMass;
     public ArrayList<Double> filteredPeaks;
 
-    public DiagnosticHisto (double mn, double mx, double binWidth, double minSignal, double ppmTol, double normMass) {
+    public DiagnosticHisto (double peakApex, double mn, double mx, double binWidth, double minSignal, double ppmTol, double normMass) {
+        this.peakApex = peakApex;
         this.min = (int) mn - buffersize;
         this.max = (int) mx + buffersize;
         this.total = 0;
@@ -79,7 +81,6 @@ public class DiagnosticHisto {
             sf = 1;
         if (sf % 2 == 0 && sf > 1)
             sf--;
-        System.out.println("Smoothing:"+sf);
         return sf;
     }
 
@@ -217,13 +218,13 @@ public class DiagnosticHisto {
     }
 
     private void smoothifyBlock(int istart, int iend) {
-        int cBins = this.smoothFactor;
+        int cBins = this.smoothFactor; //todo
         int cBinsPerSide = calculateCBinsSide(cBins);
 
         /* Initialize vals */
         double [] cVals = getCVals(istart, cBinsPerSide);
         int cEldestIndx = 0; // Stores oldest value in cVals
-        double cMean = 0;
+        double cMean;
         double locTotal = 0;
 
         /* Iterate through bins and place new vals in smoothBins */
@@ -232,7 +233,6 @@ public class DiagnosticHisto {
             //cMean = calculateCMean(cVals);
             //double q = cVals[cEldestIndx];
             //double t = this.bins[i+cBinsPerSide].val;
-            double newVal = this.bins[i+cBinsPerSide].val;
             cVals[cEldestIndx] = this.bins[i+cBinsPerSide].val;
             cMean = calculateCMean(cVals);
 
@@ -326,7 +326,7 @@ public class DiagnosticHisto {
         double minEntryVal = minVal * 0.01;
         double prominence = 0.8;
 
-        System.out.println("Minimum:" + minVal);
+        //System.out.println("Minimum:" + minVal);
         ArrayList<Peak> peaks = new ArrayList<>();
         for (int i = 0; i < this.smoothBins.length; i++) {
             /* Skip bins not worth looking at */
@@ -363,8 +363,10 @@ public class DiagnosticHisto {
         /* Select top peaks */
         int maxPeaks = Math.min(100, peaks.size());
         Collections.sort(peaks);
-        for (int i = 0; i < maxPeaks; i++)
+        for (int i = 0; i < maxPeaks; i++) {
             this.filteredPeaks.add(peaks.get(i).MZ);
+            System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
+        }
     }
 
     private int calculateCBinsSide(int cBins) {

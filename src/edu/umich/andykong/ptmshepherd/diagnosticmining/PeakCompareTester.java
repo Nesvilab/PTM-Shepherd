@@ -10,10 +10,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 
 public class PeakCompareTester {
@@ -35,12 +32,16 @@ public class PeakCompareTester {
     public ArrayList<Test> capYTests;
     public HashMap<Character, ArrayList<Test>> squigglesTests;
 
+    double maxP;
+    double minRbc;
+    boolean twoTailedTests;
+
     public PeakCompareTester(ArrayList<Double> xVals, ArrayList<Double> yVals) {
         this.x = xVals.stream().mapToDouble(i -> i).toArray();
         this.y = yVals.stream().mapToDouble(i -> i).toArray();
     }
 
-    public PeakCompareTester(double peakApex, ArrayList<Double> unifImm, ArrayList<Double> unifCapY, HashMap<Character, ArrayList<Double>> unifSquig) {
+    public PeakCompareTester(double peakApex, ArrayList<Double> unifImm, ArrayList<Double> unifCapY, HashMap<Character, ArrayList<Double>> unifSquig, double maxP, double minRbc, boolean twoTailedTests) {
         this.peakApex = peakApex;
         this.immoniumX = new HashMap<>();
         this.immoniumY = new HashMap<>();
@@ -66,6 +67,15 @@ public class PeakCompareTester {
         }
         this.contPeptideMap = new HashMap<>();
         this.treatPeptideMap = new HashMap<>();
+
+        this.maxP = maxP;
+        this.minRbc = minRbc;
+        this.twoTailedTests = twoTailedTests;
+    }
+
+    public synchronized void addDrs(ArrayList<DiagnosticRecord> drs, boolean isControl) {
+        for (DiagnosticRecord dr : drs)
+            addVals(dr, isControl);
     }
 
     public void addVals(DiagnosticRecord dr, boolean isControl) {
@@ -209,9 +219,9 @@ public class PeakCompareTester {
             double uStat = mwu.mannWhitneyU(this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.immoniumY.get(peak).stream().mapToDouble(i -> i).toArray());
             double rankBiserCorr = (2.0 * uStat / (this.immoniumX.get(peak).size() * this.immoniumY.get(peak).size())) - 1;
-            if (p * this.immoniumY.get(peak).size() < 0.05 && rankBiserCorr > 0.5)
-                System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
-            this.immoniumTests.add(new Test(peak, p, rankBiserCorr));
+            if (p < this.maxP / this.immoniumY.get(peak).size() && rankBiserCorr > this.minRbc)
+                this.immoniumTests.add(new Test(peak, p, rankBiserCorr));
+            //    System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
 
         this.capYTests = new ArrayList<>();
@@ -221,9 +231,9 @@ public class PeakCompareTester {
             double uStat = mwu.mannWhitneyU(this.capYX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.capYY.get(peak).stream().mapToDouble(i -> i).toArray());
             double rankBiserCorr = (2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1;
-            if (p * this.capYY.get(peak).size() < 0.05 && rankBiserCorr > 0.5)
-                System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
-            this.capYTests.add(new Test(peak, p, rankBiserCorr));
+            if (p < this.maxP / this.capYY.get(peak).size() && rankBiserCorr > this.minRbc)
+                this.capYTests.add(new Test(peak, p, rankBiserCorr));
+            //    System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
 
         this.squigglesTests = new HashMap<>();
@@ -240,125 +250,148 @@ public class PeakCompareTester {
                         this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).toArray());
                 double rankBiserCorr = (2.0 * uStat / (this.squigglesX.get(c).get(peak).size() * this.squigglesY.get(c).get(peak).size())) - 1;
                 //out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
-                if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
-                    this.squigglesTests.get(c).add(new Test(peak, p * this.squigglesX.get(c).get(peak).size(), rankBiserCorr));
+                if (p < this.maxP / this.squigglesX.get(c).get(peak).size() && rankBiserCorr > this.minRbc)
+                    this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr));
                 //if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
                 //    System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
             }
             //out.close();
         }
-        relocalizeDeltas(0.05, 0.5, 1, 20);
+
+        relocalizeDeltas(1, 20.0); //todo tol and nAdjacentAAs??
+        System.out.println("immonium");
+        collapseTests(this.immoniumTests, 0.01, false); //todo tol
+        System.out.println("capY");
+        collapseTests(this.capYTests, 0.01, false); //todo tol
+        System.out.println("squiggle");
+        for (Character c : this.squigglesTests.keySet())
+            collapseTests(this.squigglesTests.get(c), 0.01, true); //todo tol
+
+
         this.contPeptideMap = null;
         this.treatPeptideMap = null;
+
+        //Print all tests
+        Collections.sort(this.immoniumTests);
+        for (Test t : this.immoniumTests)
+            System.out.printf("Immonium %.04f\t%e\t%f\n", t.mass, t.q, t.rbc);
+        Collections.sort(this.capYTests);
+        for (Test t : this.capYTests)
+            System.out.printf("CapY %.04f\t%e\t%f\n", t.mass, t.q, t.rbc);
+        for (Character c : this.squigglesTests.keySet()) {
+            Collections.sort(this.squigglesTests.get(c));
+            for (Test t : this.squigglesTests.get(c))
+                System.out.printf("Squiggle %.04f\t%e\t%f\n", t.mass, t.q, t.rbc);
+        }
     }
 
-    private void relocalizeDeltas(double minP, double minRoc, int nAdjacentAas, double tol) {
+    private void collapseTests(ArrayList<Test> tests, double tol, boolean adjustedMass) {
+        /* Collapse immonium tests */
+        int group = 1;
+        Collections.sort(tests, new Comparator<Test>() {
+            @Override
+            public int compare(Test o1, Test o2) {
+                return -1*Double.compare(o1.rbc, o2.rbc);
+            }
+        });
+        for (int i = 0; i < tests.size(); i++) {
+            if (tests.get(i).group > 0)
+                continue;
+            tests.get(i).group = group;
+            System.out.println(tests.get(i).mass);
+            for (int j = 0; j < tests.size(); j++) {
+                if (i == j)
+                    continue;
+                if (tests.get(j).group > 0)
+                    continue;
+                for (int c = -1; c < 4; c++) {
+                    if (c == 0)
+                        continue;
+                    double c13 = 1.003355;
+                    double shiftMass = c13 * c;
+                    if (Math.abs(tests.get(i).mass - (tests.get(j).mass - shiftMass)) < tol) {
+                        tests.get(j).group = group;
+                        System.out.println("* " + tests.get(j).mass);
+                    }
+                }
+            }
+            group++;
+        }
+    }
+
+    /* Checks for enrichment of adjacent AAs for each squiggle peak, then adjusts mass appropriately */
+    private void relocalizeDeltas(int nAdjacentAas, double tol) {
         for (Character c : this.squigglesTests.keySet()) {
             int[][] shiftedCounts = new int[nAdjacentAas * 2 + 1][26];
             for (Test t : this.squigglesTests.get(c)) {
-                //ArrayList<double[][]> allResCounts = new ArrayList<>();
-                if (t.q < minP) {
-                    int[][] resCounts = new int[nAdjacentAas * 2 + 1][26]; //todo tmp
-                    int[][] bgResCounts = new int[nAdjacentAas * 2 + 1][26];
-                    int[] totalChances = new int[nAdjacentAas*2+1];
-                    int totalMatchedIons = 0;
-                    //System.out.println("***************"+t.mass + "\t"+c);
-                    for (String pepKey : this.treatPeptideMap.keySet()) {
-                        //double[][] resCounts = new double[nAdjacentAas * 2 + 1][26];
-                        double nPsms = this.treatPeptideMap.keySet().size();
-                        //todo currently collapsing on pepKeys
-                        ArrayList<int[]> ionCounts = new ArrayList<>();
-                        String pepSeq = "";
-                        for (DiagnosticRecord dr : this.treatPeptideMap.get(pepKey)) {
-                            /* Get and normalize scores */
-                            int[] scores = dr.localizeRemainderMass((float) t.mass, c);
-                            pepSeq = dr.pepSeq;
-                            ionCounts.add(scores);
-                        }
-                        /* Add pepKey's modal ion counts to total */
-                        int[] ionModes = calculateIonModes(ionCounts);
-                        for (int i = 0; i < ionModes.length; i++) {
-                            for (int cRelPos = -1 * nAdjacentAas; cRelPos <= nAdjacentAas; cRelPos++) {
-                                int cAbsPos = i + cRelPos;
-                                if (cAbsPos < 0 || cAbsPos > ionModes.length - 1)
-                                    continue;
-                                char cres = Character.toLowerCase(pepSeq.charAt(cAbsPos));
-                                resCounts[cRelPos+nAdjacentAas][cres - 'a'] += ionModes[i];
-                            }
-                            totalMatchedIons += ionModes[i];
-                        }
-                        /* Add background counts to total */
-                        int[][] backgroundCounts = calculateResidueBackground(pepSeq, c, nAdjacentAas);
-                        for (int i = 0; i < backgroundCounts.length; i++) {
-                            for (int j = 0; j < backgroundCounts[i].length; j++) {
-                                bgResCounts[i][j] += backgroundCounts[i][j];
-                                totalChances[i] += backgroundCounts[i][j];
-                            }
-                        }
-                        //System.out.println(pepSeq);
-                        //for (int i = 0; i < ionModes.length; i++)
-                        //    System.out.print(ionModes[i]);
-                        //System.out.println();
-                        //allResCounts.add(resCounts); todo reinstall, tmp comment
+                int[][] resCounts = new int[nAdjacentAas * 2 + 1][26]; //todo tmp
+                int[][] bgResCounts = new int[nAdjacentAas * 2 + 1][26];
+                int[] totalChances = new int[nAdjacentAas*2+1];
+                int totalMatchedIons = 0;
+                for (String pepKey : this.treatPeptideMap.keySet()) {
+                    //todo currently collapsing on pepKeys
+                    ArrayList<int[]> ionCounts = new ArrayList<>();
+                    String pepSeq = "";
+                    for (DiagnosticRecord dr : this.treatPeptideMap.get(pepKey)) {
+                        /* Get and normalize scores */
+                        int[] scores = dr.localizeRemainderMass((float) t.mass, c);
+                        pepSeq = dr.pepSeq;
+                        ionCounts.add(scores);
                     }
-                    double newRemainderMass = t.mass;
-                    double bestResP = -1;
-                    /* Merge leucine and isoleucine onto leucine*/
-                    for (int i = 0; i < resCounts.length; i++) {
-                        resCounts[i]['l' - 'a'] += resCounts[i]['i' - 'a'];
-                        resCounts[i]['i' - 'a'] = 0;
+                    /* Add pepKey's modal ion counts to total */
+                    int[] ionModes = calculateIonModes(ionCounts);
+                    for (int i = 0; i < ionModes.length; i++) {
+                        for (int cRelPos = -1 * nAdjacentAas; cRelPos <= nAdjacentAas; cRelPos++) {
+                            int cAbsPos = i + cRelPos;
+                            if (cAbsPos < 0 || cAbsPos > ionModes.length - 1)
+                                continue;
+                            char cres = Character.toLowerCase(pepSeq.charAt(cAbsPos));
+                            resCounts[cRelPos+nAdjacentAas][cres - 'a'] += ionModes[i];
+                        }
+                        totalMatchedIons += ionModes[i];
                     }
-                    for (int i = 0; i < resCounts.length; i++) {
-                        //double maxOddsR = -1;
-                        //int maxIndx = -1;
-                        //if (i - nAdjacentAas == 0) // Skip relative position of 0
-                        //    continue;
-                        for (int j = 0; j < resCounts[i].length; j++) {
-                            if (resCounts[i][j] > 0.0) {
-                                char cRes = (char) (j + 'a');
-                                int cResLoc = resCounts[i][j];
-                                int cResBg = bgResCounts[i][j];
-                                int cResNotLoc = cResBg - cResLoc;
-
-                                int notCResLoc = totalMatchedIons - cResLoc;
-                                int notCResBg = totalChances[i] - cResBg;
-                                int notCResNotLoc = notCResBg - notCResLoc;
-
-                                double resP = (double) resCounts[i][j] / (double) totalMatchedIons;
-
-                                if (resP > 0.75 && resP > bestResP) {
-                                    newRemainderMass = calcNewRemainderMass(t.mass, c, i-nAdjacentAas, j);
-                                    bestResP = resP;
-                                    shiftedCounts[i][j]++;
-                                }
-
-                                /*
-                                double bgP = (double) bgResCounts[i][j] / (double) totalChances[i];
-                                double oddsRatio = resP / bgP;
-                                */
-                                //System.out.println(cRes + "\t" + i + "\t" + cResLoc + "\t" + totalMatchedIons + "\t" + resP);
-                                /*
-                                System.out.println(cRes + "\t" + cResBg + "\t" + totalChances[i] + "\t" + bgP +  "\t" + 0);
-                                System.out.println(i+"\t"+j+"\t"+(double)resCounts[i][j]/(double)bgResCounts[i][j]);
-                                FisherExact fe = new FisherExact(cResLoc + notCResLoc + cResNotLoc + notCResNotLoc);
-                                double p = fe.getRightTailedP(cResLoc , notCResLoc, cResNotLoc, notCResNotLoc);
-                                System.out.println(cRes + "\t" + i + "\t" + j + "\t" + oddsRatio + "\t" + p);
-                                */
-                            }
+                    /* Add background counts to total */
+                    int[][] backgroundCounts = calculateResidueBackground(pepSeq, c, nAdjacentAas);
+                    for (int i = 0; i < backgroundCounts.length; i++) {
+                        for (int j = 0; j < backgroundCounts[i].length; j++) {
+                            bgResCounts[i][j] += backgroundCounts[i][j];
+                            totalChances[i] += backgroundCounts[i][j];
                         }
                     }
-                    System.out.printf("Shifted apexes: %f\t%c\t%s\t%f\t%f%n", this.peakApex, c, t.mass, newRemainderMass, t.rbc);
-                    t.adjustedMass = newRemainderMass;
                 }
+                double newRemainderMass = t.mass;
+                double bestResP = -1;
+                /* Merge leucine and isoleucine onto leucine*/
+                for (int i = 0; i < resCounts.length; i++) {
+                    resCounts[i]['l' - 'a'] += resCounts[i]['i' - 'a'];
+                    resCounts[i]['i' - 'a'] = 0;
+                }
+                for (int i = 0; i < resCounts.length; i++) {
+                    for (int j = 0; j < resCounts[i].length; j++) {
+                        if (resCounts[i][j] > 0.0) {
+                            char cRes = (char) (j + 'a');
+                            int cResLoc = resCounts[i][j];
+                            int cResBg = bgResCounts[i][j];
+                            int cResNotLoc = cResBg - cResLoc;
+                            int notCResLoc = totalMatchedIons - cResLoc;
+                            int notCResBg = totalChances[i] - cResBg;
+                            int notCResNotLoc = notCResBg - notCResLoc;
+                            double resP = (double) resCounts[i][j] / (double) totalMatchedIons;
+
+                            if (resP > 0.75 && resP > bestResP) {
+                                newRemainderMass = calcNewRemainderMass(t.mass, c, i-nAdjacentAas, j);
+                                bestResP = resP;
+                                shiftedCounts[i][j]++;
+                            }
+                        }
+                    }
+                }
+                t.adjustedMass = newRemainderMass;
             }
-            //for(int i = 0; i < shiftedCounts.length; i++) {
-            //    System.out.println(i);
-            //    for(int j = 0; j < shiftedCounts[i].length; j++)
-            //        System.out.print((char)(j+'a')+" "+shiftedCounts[i][j]+" ");
-             //   System.out.println();
-            //}
         }
     }
+
+
 
     private int[] calculateIonModes(ArrayList<int[]> ionCounters) {
         int pepLen = ionCounters.get(0).length;
@@ -441,15 +474,25 @@ public class PeakCompareTester {
     }
 }
 
-class Test {
+//todo override MWU with one tailed test
+
+class Test implements Comparable<Test> {
     public double mass;
     public double adjustedMass;
     public double q;
     public double rbc;
+    public int group;
 
     Test(double mass, double q, double rbc) {
         this.mass = mass;
         this.q = q;
         this.rbc = rbc;
+        this.group = 0;
     }
+
+    @Override
+    public int compareTo(Test arg0) {
+        return Double.compare(this.mass, arg0.mass);
+    }
+
 }

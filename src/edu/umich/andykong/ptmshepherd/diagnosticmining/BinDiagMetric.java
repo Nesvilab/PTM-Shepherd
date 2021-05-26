@@ -43,7 +43,7 @@ public class BinDiagMetric {
     }
 
     /* Sends the peptides to the histogram */
-    public void processPeptideMap(ExecutorService executorService, int nThreads) throws Exception {
+    public void processPeptideMap(ExecutorService executorService, int nThreads, double minSignal, int maxCharge) throws Exception {
 
         /* Prepopulate histo min/max for each ion type */
         for (int i = 0; i < this.binMinMax.length; i++) {
@@ -77,7 +77,7 @@ public class BinDiagMetric {
                     if (mz > this.binMinMax[binMinMaxIndx][1])
                         this.binMinMax[binMinMaxIndx][1] = mz;
                 }
-                avgPepPrec += (dr.calcAvgCapYTol(1, 4) / nDrs) / nPepKeys; //todo charge states
+                avgPepPrec += (dr.calcAvgCapYTol(1, maxCharge) / nDrs) / nPepKeys;
                 for (int h = 0; h < dr.ionTypes.length(); h++) {
                     binMinMaxIndx++;
                     char ionType = dr.ionTypes.charAt(h);
@@ -95,22 +95,19 @@ public class BinDiagMetric {
             }
         }
 
-        //System.out.println("Avgs:"+avgImm + "\t" + avgPepPrec + "\t" + avgFrag[0] + "\t"+ avgFrag[1]); todo these can be calculated in the initial pass to save time
-
         /* Initialize histograms */
-        this.immoniumIons = new DiagnosticHisto(this.binMinMax[0][0], this.binMinMax[0][1], 0.001, 0.0001, this.ppmTol, avgImm);
-        this.capYIons = new DiagnosticHisto(this.binMinMax[1][0], this.binMinMax[1][1], 0.001, 0.0001, this.ppmTol, avgPepPrec);
+        this.immoniumIons = new DiagnosticHisto(this.peakApex, this.binMinMax[0][0], this.binMinMax[0][1], 0.001, minSignal, this.ppmTol, avgImm);
+        this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.001, minSignal, this.ppmTol, avgPepPrec);
         this.tildeIons = new ArrayList<>();
         for (int i = 0; i < this.ionTypes.length(); i++) { /* +2 because of immonium and Y ions in first 2 i's */
-            tildeIons.add(new DiagnosticHisto(this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.001, 0.0001, this.ppmTol, avgFrag[i]));
+            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.001, minSignal, this.ppmTol, avgFrag[i]));
         }
 
         /* Assign data to histograms */
         List<Future> futureList = new ArrayList<>(this.peptideMap.size());
         for (String pepKey : this.peptideMap.keySet()) {
             futureList.add(executorService.submit(() -> {
-                double nPsms = this.peptideMap.get(pepKey).size(); //todo this should be applied to peak intensities
-                //double nPsms = 1; //todo
+                double nPsms = this.peptideMap.get(pepKey).size();
                 for (DiagnosticRecord dr : this.peptideMap.get(pepKey)) {
                     this.nSpecs++;
                     for (int i = 0; i < dr.immoniumPeaks.length; i++)
@@ -141,10 +138,12 @@ public class BinDiagMetric {
 
         this.immoniumIons.smoothify(executorService, nThreads);
         this.capYIons.smoothify(executorService, nThreads);
+        System.out.println("ImmoniumAbund");
         this.immoniumIons.findPeaks();
         //if (this.peakApex >= -0.1 && this.peakApex <= 0.1) {
         //    this.immoniumIons.printHisto(this.peakApex + "_imm" + ".tsv");
         //}
+        System.out.println("CapYAbund");
         this.capYIons.findPeaks();
 
         //try {
@@ -162,12 +161,13 @@ public class BinDiagMetric {
             //System.out.println("IonType:"+ionTypes.charAt(i));
             this.tildeIons.get(i).smoothify(executorService, nThreads);
             long t2 = System.currentTimeMillis();
+            System.out.println("SquiggleAbund");
             this.tildeIons.get(i).findPeaks();
             long t3 = System.currentTimeMillis();
             //if (this.peakApex >= 0)
             //    this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
             this.tildeIons.get(i).clearMemory();
-            System.out.printf("Processing time (%d ms smoothing - %d ms peakpicking)\n", t2-t1, t3-t2);
+            //System.out.printf("Processing time (%d ms smoothing - %d ms peakpicking)\n", t2-t1, t3-t2);
         }
 
 
