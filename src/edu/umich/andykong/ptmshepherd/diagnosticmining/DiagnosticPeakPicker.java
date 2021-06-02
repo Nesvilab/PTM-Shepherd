@@ -174,7 +174,7 @@ public class DiagnosticPeakPicker {
             }
 
             /* Initialize peak testers */
-            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.twoTailedTests); // x is baseline, y is deltamasses
+            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.twoTailedTests, this.spectraTol); // x is baseline, y is deltamasses
             /* Add peaks to peak testers */
             Set<String> unifiedFileList = new HashSet();
             for (String fname : peakToFileToScan.get(peakIndx).keySet())

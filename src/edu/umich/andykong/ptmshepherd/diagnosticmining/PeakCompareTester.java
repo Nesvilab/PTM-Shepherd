@@ -36,12 +36,14 @@ public class PeakCompareTester {
     double minRbc;
     boolean twoTailedTests;
 
+    double specTol;
+
     public PeakCompareTester(ArrayList<Double> xVals, ArrayList<Double> yVals) {
         this.x = xVals.stream().mapToDouble(i -> i).toArray();
         this.y = yVals.stream().mapToDouble(i -> i).toArray();
     }
 
-    public PeakCompareTester(double peakApex, ArrayList<Double> unifImm, ArrayList<Double> unifCapY, HashMap<Character, ArrayList<Double>> unifSquig, double maxP, double minRbc, boolean twoTailedTests) {
+    public PeakCompareTester(double peakApex, ArrayList<Double> unifImm, ArrayList<Double> unifCapY, HashMap<Character, ArrayList<Double>> unifSquig, double maxP, double minRbc, boolean twoTailedTests, double specTol) {
         this.peakApex = peakApex;
         this.immoniumX = new HashMap<>();
         this.immoniumY = new HashMap<>();
@@ -71,6 +73,8 @@ public class PeakCompareTester {
         this.maxP = maxP;
         this.minRbc = minRbc;
         this.twoTailedTests = twoTailedTests;
+
+        this.specTol = specTol;
     }
 
     public synchronized void addDrs(ArrayList<DiagnosticRecord> drs, boolean isControl) {
@@ -276,7 +280,7 @@ public class PeakCompareTester {
             //out.close();
         }
 
-        relocalizeDeltas(1, 20.0); //todo tol and nAdjacentAAs??
+        relocalizeDeltas(1, this.specTol); //todo tol and nAdjacentAAs??
         System.out.println("immonium");
         collapseTests(this.immoniumTests, 0.01, false); //todo tol
         System.out.println("capY");
