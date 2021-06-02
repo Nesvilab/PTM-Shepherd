@@ -88,9 +88,7 @@ public class BinDiagMetric {
                         if (mz > this.binMinMax[binMinMaxIndx][1])
                             this.binMinMax[binMinMaxIndx][1] = mz;
                     }
-                    //System.out.println(dr.calcAvgFragTol(ionType, 1, this.ppmTol));
                     avgFrag[h] += (dr.calcAvgFragTol(ionType, 1) / nDrs) / nPepKeys; //todo charge states
-                    //System.out.println(avgFrag[h]);
                 }
             }
         }
@@ -116,7 +114,6 @@ public class BinDiagMetric {
                         this.capYIons.placeIon(dr.capYPeaks[i][0], (double) dr.capYPeaks[i][1] / nPsms);
                     for (int h = 0; h < this.ionTypes.length(); h++) {
                         char ionType = this.ionTypes.charAt(h);
-                        //this.tildeIons.get(h).placeIons(dr.squigglePeaks.get(ionType));
                         for (int i = 0; i < dr.squigglePeaks.get(ionType).length; i++) {
                             double mz = dr.squigglePeaks.get(ionType)[i][0];
                             if (!(-3.5 < mz && mz < 3.5)) // Filter out small mzs here //todo should be a histo param
@@ -140,18 +137,9 @@ public class BinDiagMetric {
         this.capYIons.smoothify(executorService, nThreads);
         System.out.println("ImmoniumAbund");
         this.immoniumIons.findPeaks();
-        //if (this.peakApex >= -0.1 && this.peakApex <= 0.1) {
-        //    this.immoniumIons.printHisto(this.peakApex + "_imm" + ".tsv");
-        //}
         System.out.println("CapYAbund");
         this.capYIons.findPeaks();
 
-        //try {
-        //    this.capYIons.printHisto(this.peakApex + "_capY.tsv");
-        //    this.immoniumIons.printHisto(this.peakApex + "_imm.tsv");
-        //} catch (Exception e) {
-        //    System.out.println(e);
-        //}
 
         this.immoniumIons.clearMemory();
         this.capYIons.clearMemory();
@@ -162,30 +150,13 @@ public class BinDiagMetric {
             this.tildeIons.get(i).smoothify(executorService, nThreads);
             long t2 = System.currentTimeMillis();
             System.out.println("SquiggleAbund");
-            this.tildeIons.get(i).findPeaks();
-            long t3 = System.currentTimeMillis();
             //if (this.peakApex >= 0)
             //    this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
+            this.tildeIons.get(i).findPeaks();
+            long t3 = System.currentTimeMillis();
             this.tildeIons.get(i).clearMemory();
             //System.out.printf("Processing time (%d ms smoothing - %d ms peakpicking)\n", t2-t1, t3-t2);
         }
-
-
-        /*
-        try {
-            this.capYIons.printHisto(this.peakApex + "_capY.tsv");
-            System.out.println(this.peakApex + "_capY.tsv");
-            this.immoniumIons.printHisto(this.peakApex + "_imm.tsv");
-            System.out.println(this.peakApex + "_imm.tsv");
-            for (int i = 0; i < this.tildeIons.size(); i++) {
-                this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
-                System.out.println(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
-            }
-        } catch (Exception e) {
-            System.out.println(e);
-        }
-        */
-
     }
 
     public void setTestResults(PeakCompareTester pct) {

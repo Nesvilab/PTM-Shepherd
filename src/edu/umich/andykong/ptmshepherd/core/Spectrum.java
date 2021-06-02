@@ -375,7 +375,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		return bpInt;
 	}
 
-	public float[][] calcImmoniumPeaks(int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass) { //todo I don't think these mins and maxes are very well informed
+	public float[][] calcImmoniumPeaks(int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass, float tol) { //todo I don't think these mins and maxes are very well informed
 		ArrayList<Float> knownPeaks = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, dmass);
 		//ArrayList<Float> shiftedPeaks = new ArrayList<>();
 		//for (Float peak : knownPeaks) //todo test?
@@ -386,12 +386,13 @@ public class Spectrum implements Comparable<Spectrum> {
 
 		ArrayList<Peak> ps = new ArrayList<>();
 		for (int i = 0; i < peakMZ.length; i++) {
-			if (peakMZ[i] > max)
+			if (peakMZ[i] > max) //todo remove min max
 				break;
-			if (peakMZ[i] > min) {
+			if (peakMZ[i] > min) { //todo remove min max
+				double absTol = peakMZ[i] * tol / 1000000;
 				boolean skipFlag = false;
 				for (Float peak : knownPeaks) {
-					if (Math.abs(peak - peakMZ[i]) < 0.01) { //todo ppm tol
+					if (Math.abs(peak - peakMZ[i]) < absTol) { //todo ppm tol
 						skipFlag = true;
 						break;
 					}
@@ -410,18 +411,19 @@ public class Spectrum implements Comparable<Spectrum> {
 		return peaks;
 	}
 
-	public float[][] calcCapYPeaks(String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass) { //todo include tolerance
+	public float[][] calcCapYPeaks(String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float tol) {
 		ArrayList<Float> knownPeaks = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, 0.0f);
 		ArrayList<Peak> ps = new ArrayList<>();
 		int localMaxCharge = Math.min(this.charge, maxCharge);
 
-		for (int z = 1; z <= localMaxCharge; z++) { //todo test
+		for (int z = 1; z <= localMaxCharge; z++) { //todo charge
 		//for (int z = 1; z <= 1; z++) {
 			double adjPepMass = (pepMass + 1.00727 * z) / z;
 			for (int i = 0; i < peakMZ.length; i++) {
+				double absTol = peakMZ[i] * tol / 1000000;
 				boolean skipFlag = false;
 				for (Float peak : knownPeaks) {
-					if (Math.abs(peak - peakMZ[i]) < 0.01) { //todo ppm tol
+					if (Math.abs(peak - peakMZ[i]) < absTol) {
 						skipFlag = true;
 						break;
 					}
@@ -672,7 +674,7 @@ public class Spectrum implements Comparable<Spectrum> {
 			nTermMass = fragTypeShifts[iType - 'a'];
 			for (int j = 0; j < peakMZ.length; j++) {
 				boolean skipFlag = false;
-				double trueTol = ppmTol * peakMZ[j] / 1000000;
+				float trueTol = ppmTol * peakMZ[j] / 1000000;
 				for (Float ion : knownFrags) {
 					if (Math.abs(peakMZ[j] - ion) < trueTol) {
 						skipFlag = true;
@@ -688,9 +690,9 @@ public class Spectrum implements Comparable<Spectrum> {
 					for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
 						cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
 						if (skipFlag)
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0));
+							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, trueTol));
 						else {
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j]));
+							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], trueTol));
 							this.averageFragMass[iTypeIndx] += peakMZ[j];
 						}
 						//cPeaksDmass.add(new Peak(peakMZ[j] - (cmass + dmass), peakInt[j]));
@@ -708,7 +710,7 @@ public class Spectrum implements Comparable<Spectrum> {
 				//for (Peak p : cPeaks)
 				//	System.out.println(p.MZ + "\t" + p.Int);
 			}
-			squigglePeaks.put(iType, peaksToArray(ps));
+			squigglePeaks.put(iType, peaksWTolToArray(ps));
 			iTypeIndx++;
 		}
 
@@ -718,7 +720,7 @@ public class Spectrum implements Comparable<Spectrum> {
 			cTermMass = fragTypeShifts[iType - 'x' + 3];
 			for (int j = 0; j < peakMZ.length; j++) {
 				boolean skipFlag = false;
-				double trueTol = ppmTol * peakMZ[j] / 1000000;
+				float trueTol = ppmTol * peakMZ[j] / 1000000;
 				for (Float ion : knownFrags) {
 					if (Math.abs(peakMZ[j] - ion) < trueTol) {
 						skipFlag = true;
@@ -733,9 +735,9 @@ public class Spectrum implements Comparable<Spectrum> {
 					for (int i = 0; i < cLen - 1; i++) {
 						cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
 						if (skipFlag)
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0));
+							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, trueTol));
 						else {
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j]));
+							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], trueTol));
 							this.averageFragMass[iTypeIndx] += peakMZ[j];
 						}
 					}
@@ -744,7 +746,7 @@ public class Spectrum implements Comparable<Spectrum> {
 				for(int i = 0; i < cPeaksNaked.size(); i++)
 					ps.add(cPeaksNaked.get(i));
 			}
-			squigglePeaks.put(iType, peaksToArray(ps));
+			squigglePeaks.put(iType, peaksWTolToArray(ps));
 			iTypeIndx++;
 		}
 		return squigglePeaks;
@@ -758,6 +760,17 @@ public class Spectrum implements Comparable<Spectrum> {
         }
 	    return  peakArr;
     }
+
+	float[][] peaksWTolToArray (ArrayList<Peak> peaks) {
+		float[][] peakArr = new float[peaks.size()][3];
+		for (int i = 0; i < peaks.size(); i ++) {
+			peakArr[i][0] = peaks.get(i).MZ;
+			peakArr[i][1] = peaks.get(i).Int;
+			peakArr[i][2] = peaks.get(i).Tol;
+			//System.out.println(peakArr[i][0] + "\t" + peakArr[i][1] + peakArr[i][2]);
+		}
+		return peakArr;
+	}
 
 	public double getAverageIonMass() {
 		return this.averageIonMass;
@@ -773,10 +786,15 @@ public class Spectrum implements Comparable<Spectrum> {
 }
 
 class Peak implements Comparable<Peak> {
-	float MZ, Int;
+	float MZ, Int, Tol;
 	public Peak(float MZ, float Int) {
 		this.MZ = MZ;
 		this.Int = Int;
+	}
+	public Peak(float MZ, float Int, float Tol) {
+		this.MZ = MZ;
+		this.Int = Int;
+		this.Tol = Tol;
 	}
 	public void lossToRemainder(float dmass) {
 		this.MZ = dmass + this.MZ;

@@ -176,10 +176,11 @@ public class DiagBINFile {
                 ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.squigglePeaks.get(it).length);
                 cpos++;
                 for (int i = 0; i < dr.squigglePeaks.get(it).length; i++) {
-                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 2, dr.squigglePeaks.get(it)[i][0]);
-                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 2 + 1, dr.squigglePeaks.get(it)[i][1]);
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.squigglePeaks.get(it)[i][0]);
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.squigglePeaks.get(it)[i][1]);
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.squigglePeaks.get(it)[i][2]);
                 }
-                cpos += 2 * dr.squigglePeaks.get(it).length;
+                cpos += 3 * dr.squigglePeaks.get(it).length;
             }
             /* Write spec to file */
             dos.write(cdata);
@@ -311,10 +312,11 @@ public class DiagBINFile {
         HashMap<Character, float[][]> squigglePeakSets = new HashMap<>();
         for (int i = 0; i < this.ionTypes.size(); i++) {
             int nSquiggleIons = sibb.getInt();
-            float[][] squigglePeaks = new float[nSquiggleIons][2];
+            float[][] squigglePeaks = new float[nSquiggleIons][3];
             for (int j = 0; j < nSquiggleIons; j++) {
                 squigglePeaks[j][0] = sibb.getFloat();
                 squigglePeaks[j][1] = sibb.getFloat();
+                squigglePeaks[j][2] = sibb.getFloat();
             }
             squigglePeakSets.put(this.ionTypes.get(i), squigglePeaks);
         }
@@ -415,7 +417,7 @@ public class DiagBINFile {
         length += 4 + dr.immoniumPeaks.length * 8; // 4 Bs to store int nImmonPs then (4 Bs float int + 4Bs mzdub mz)
         length += 4 + dr.capYPeaks.length * 8; // 4 Bs to store int nCapyPs then (4 Bs float int + 4Bs mzdub mz)
         for (Character ionType : this.ionTypes)
-            length += 4 + dr.squigglePeaks.get(ionType).length * 8; // 4 Bs to store int nCapyPs then (4 Bs float int + 4Bs mzdub mz)
+            length += 4 + dr.squigglePeaks.get(ionType).length * 12; // 4 Bs to store int nCapyPs then (4 Bs float int + 4Bs mzdub mz + 4Bs tol)
 
         return length;
     }

@@ -169,7 +169,8 @@ public class PTMShepherd {
 		params.put("diagmine_filterIonTypes", "aby");
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
-		params.put("diagmine_minRbc", "0.1");
+		params.put("diagmine_minRbc", "0.5");
+		params.put("diagmine_twoTailedTests", "1");
 
 		params.put("output_extended", "false");
 		params.put("output_path", "");

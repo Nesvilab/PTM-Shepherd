@@ -3,6 +3,7 @@ package edu.umich.andykong.ptmshepherd.diagnosticmining;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
+import sun.reflect.generics.tree.Tree;
 import umich.ms.datatypes.lcmsrun.Hash;
 
 import java.io.*;
@@ -26,6 +27,7 @@ public class DiagnosticPeakPicker {
     FastLocator locate;
     double minSignal;
     int maxPrecursorCharge;
+    int MAXSCANS = 10000;
 
     double maxP;
     double minRbc;
@@ -100,9 +102,8 @@ public class DiagnosticPeakPicker {
         for (Integer peakIndx : this.peakToFileToScan.keySet()) {
             if (peakCount++ > 50)
                 break;
-            //System.out.println("**" + peakIndx + "**" + this.peaks.length);
+
             double[] peakVals = new double[]{this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[2][peakIndx]};
-            System.out.println(this.ionTypes + "\t" + "1");
             BinDiagMetric bdMetrics = new BinDiagMetric(peakVals, this.ionTypes, this.spectraTol);
 
             for (String fname : this.peakToFileToScan.get(peakIndx).keySet()) {
@@ -130,9 +131,11 @@ public class DiagnosticPeakPicker {
 
         /* Tests the peaks in each BinDiagnosticMetric container against zero bin */
         int zeroBin = this.locate.getIndex(0.0);
+        TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan = filterScanNums(this.MAXSCANS);
+
         //todo this should be functions
         peakCount = 0;
-        for (Integer peakIndx : this.peakToFileToScan.keySet()) {
+        for (Integer peakIndx : peakToFileToScan.keySet()) {
             if (peakCount++ > 50) //todo remove this when done
                 break;
             /* Construct unified peaklists that will be used in downstream processes */
@@ -149,24 +152,24 @@ public class DiagnosticPeakPicker {
                 unifiedCapYPeakList.addAll(binDiagMetrics[zeroBin].capYIons.filteredPeaks);
                 for (Character it : this.cIonTypes)
                     unifiedSquiggleIonPeakLists.get(it).addAll(binDiagMetrics[zeroBin].tildeIons.get(this.ionTypes.indexOf(it)).filteredPeaks);
-            }
 
-            /* Remove duplicate peaks */
-            Collections.sort(unifiedImmPeakList);
-            for (int i = unifiedImmPeakList.size() - 1; i > 0; i--) {
-                if (Math.abs(unifiedImmPeakList.get(i) - unifiedImmPeakList.get(i - 1)) <= 0.005)
-                    unifiedImmPeakList.remove(i);
-            }
-            Collections.sort(unifiedCapYPeakList);
-            for (int i = unifiedCapYPeakList.size() - 1; i > 0; i--) {
-                if (Math.abs(unifiedCapYPeakList.get(i) - unifiedCapYPeakList.get(i - 1)) <= 0.005)
-                    unifiedCapYPeakList.remove(i);
-            }
-            for (Character it : this.cIonTypes) {
-                Collections.sort(unifiedSquiggleIonPeakLists.get(it));
-                for (int i = unifiedSquiggleIonPeakLists.get(it).size() - 1; i > 0; i--) {
-                    if (Math.abs(unifiedSquiggleIonPeakLists.get(it).get(i) - unifiedSquiggleIonPeakLists.get(it).get(i - 1)) <= 0.005)
-                        unifiedSquiggleIonPeakLists.get(it).remove(i);
+                /* Remove duplicate peaks */
+                Collections.sort(unifiedImmPeakList);
+                for (int i = unifiedImmPeakList.size() - 1; i > 0; i--) {
+                    if (Math.abs(unifiedImmPeakList.get(i) - unifiedImmPeakList.get(i - 1)) <= 0.005)
+                        unifiedImmPeakList.remove(i);
+                }
+                Collections.sort(unifiedCapYPeakList);
+                for (int i = unifiedCapYPeakList.size() - 1; i > 0; i--) {
+                    if (Math.abs(unifiedCapYPeakList.get(i) - unifiedCapYPeakList.get(i - 1)) <= 0.005)
+                        unifiedCapYPeakList.remove(i);
+                }
+                for (Character it : this.cIonTypes) {
+                    Collections.sort(unifiedSquiggleIonPeakLists.get(it));
+                    for (int i = unifiedSquiggleIonPeakLists.get(it).size() - 1; i > 0; i--) {
+                        if (Math.abs(unifiedSquiggleIonPeakLists.get(it).get(i) - unifiedSquiggleIonPeakLists.get(it).get(i - 1)) <= 0.005)
+                            unifiedSquiggleIonPeakLists.get(it).remove(i);
+                    }
                 }
             }
 
@@ -174,9 +177,9 @@ public class DiagnosticPeakPicker {
             PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.twoTailedTests); // x is baseline, y is deltamasses
             /* Add peaks to peak testers */
             Set<String> unifiedFileList = new HashSet();
-            for (String fname : this.peakToFileToScan.get(peakIndx).keySet())
+            for (String fname : peakToFileToScan.get(peakIndx).keySet())
                 unifiedFileList.add(fname);
-            for (String fname : this.peakToFileToScan.get(zeroBin).keySet())
+            for (String fname : peakToFileToScan.get(zeroBin).keySet())
                 unifiedFileList.add(fname);
 
             /* Add all bin-wise values to PeakCompareTester, then test */
@@ -186,14 +189,14 @@ public class DiagnosticPeakPicker {
                     ArrayList<Integer> scanNums = new ArrayList<>();
                     ArrayList<Integer> peakScanNums = new ArrayList<>();
                     ArrayList<Integer> zeroScanNums = new ArrayList<>();
-                    if (this.peakToFileToScan.get(peakIndx).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname)) {
+                    if (peakToFileToScan.get(peakIndx).containsKey(fname)) {
+                        for (Integer scan : peakToFileToScan.get(peakIndx).get(fname)) {
                             scanNums.add(scan);
                             peakScanNums.add(scan);
                         }
                     }
-                    if (this.peakToFileToScan.get(zeroBin).containsKey(fname)) {
-                        for (Integer scan : this.peakToFileToScan.get(zeroBin).get(fname)) {
+                    if (peakToFileToScan.get(zeroBin).containsKey(fname)) {
+                        for (Integer scan : peakToFileToScan.get(zeroBin).get(fname)) {
                             scanNums.add(scan);
                             zeroScanNums.add(scan);
                         }
@@ -212,7 +215,7 @@ public class DiagnosticPeakPicker {
                             localDrs.add(dgBin.getScan(peakScanNums.get(j)));
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
-                                        unifiedSquiggleIonPeakLists, 0.01, pct, false)));  //todo tol
+                                        unifiedSquiggleIonPeakLists, spectraTol, pct, false)));  //todo tol
                     }
                     /* Get results */
                     for (Future future : futureList)
@@ -228,7 +231,7 @@ public class DiagnosticPeakPicker {
                             localDrs.add(dgBin.getScan(zeroScanNums.get(j)));
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
-                                        unifiedSquiggleIonPeakLists, 0.01, pct, true)));  //todo tol
+                                        unifiedSquiggleIonPeakLists, spectraTol, pct, true)));  //todo tol
                     }
                     /* Get results */
                     for (Future future : futureList)
@@ -259,7 +262,51 @@ public class DiagnosticPeakPicker {
     private void filterSpecBlock(ArrayList<DiagnosticRecord> localDrs, ArrayList<Double> unifiedImmPeakList, ArrayList<Double> unifiedCapYPeakList,
                                  HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists, double tol, PeakCompareTester pct, boolean isControl) {
         for (DiagnosticRecord dr : localDrs)
-            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, 0.01); //todo tol
+            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol); //todo tol
         pct.addDrs(localDrs, isControl);
+    }
+
+    /* Selects MAXSCANS random scans to be included in testing for each bin */
+    private TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> filterScanNums(int maxScans) {
+        /* Set up structure to be sorted */
+        class FileScanTiple {
+            public String f;
+            public int s;
+
+            FileScanTiple(String file, int scan) {
+                this.f = file;
+                this.s = scan;
+            }
+        }
+
+        TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> filteredPeakToFileToScan = new TreeMap<>();
+
+        for (Integer peak : this.peakToFileToScan.keySet()) {
+            ArrayList<FileScanTiple> fileToScan = new ArrayList<>();
+            for (String file : this.peakToFileToScan.get(peak).keySet()) {
+                for (Integer scan : this.peakToFileToScan.get(peak).get(file)) {
+                    fileToScan.add(new FileScanTiple(file, scan));
+                }
+            }
+            Collections.shuffle(fileToScan);
+
+            TreeMap<String, ArrayList<Integer>> filteredFileToScan = new TreeMap<>();
+            for (int i = 0; i < Math.min(maxScans, fileToScan.size()); i++) {
+                String cFile = fileToScan.get(i).f;
+                int cScan = fileToScan.get(i).s;
+                if (!filteredFileToScan.containsKey(cFile))
+                    filteredFileToScan.put(cFile, new ArrayList<>());
+                filteredFileToScan.get(cFile).add(cScan);
+            }
+            filteredPeakToFileToScan.put(peak, filteredFileToScan);
+        }
+
+        return filteredPeakToFileToScan;
+    }
+
+    private ArrayList<Integer> filterScanNums(ArrayList<Integer> scanNums, int maxScans) {
+        Collections.shuffle(scanNums);
+        ArrayList<Integer> scans = new ArrayList<>(scanNums.subList(0, maxScans));
+        return scans;
     }
 }

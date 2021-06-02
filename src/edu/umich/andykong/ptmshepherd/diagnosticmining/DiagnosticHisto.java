@@ -284,9 +284,7 @@ public class DiagnosticHisto {
                 while (this.smoothBins[i+1].val < this.smoothBins[i].val)
                     i++;
                 //System.out.println("Downslope:"+binToMass(i));
-                //TODO increment i on the downhill slope as well, otherwise it'll duplicate peaks on the right side
-                //TODO am i getting lucky? I think I should be adding i rather than peakIndx...
-                // TODO peakindx might be redundant....
+
             } else {
                 //System.out.println("Entered2:" + binToMass(i));
                 /* If local max is shared with other peaks, find source peak in unsmoothed histo */
@@ -318,7 +316,6 @@ public class DiagnosticHisto {
         //}
     }
 
-    //todo this function currently penalizes wider peaks, aka those from larger mass shifts
     public void findPeaks() {
         this.filteredPeaks = new ArrayList<>();
 
@@ -326,7 +323,6 @@ public class DiagnosticHisto {
         double minEntryVal = minVal * 0.01;
         double prominence = 0.8;
 
-        //System.out.println("Minimum:" + minVal);
         ArrayList<Peak> peaks = new ArrayList<>();
         for (int i = 0; i < this.smoothBins.length; i++) {
             /* Skip bins not worth looking at */

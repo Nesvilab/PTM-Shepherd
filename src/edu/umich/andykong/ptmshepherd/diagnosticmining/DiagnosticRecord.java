@@ -139,13 +139,13 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         for (double[] peak : selectImmoniumPeaks)
             this.selectedImmoniumPeaks.put(peak[0], peak[1]);
 
-        double[][] selectCapYPeaks = collectIonIntsensities(capYMasses, this.capYPeaks, tol);
+        double[][] selectCapYPeaks = collectCapYIonIntsensities(capYMasses, this.capYPeaks, tol);
         for (double[] peak : selectCapYPeaks)
             this.selectedCapYPeaks.put(peak[0], peak[1]);
 
         for (Character c : squigglePeaksMasses.keySet()) {
             this.selectedSquigglePeaks.put(c, new HashMap<>());
-            double[][] selectSquigglePeaks = collectIonIntsensities(squigglePeaksMasses.get(c), this.squigglePeaks.get(c), tol);
+            double[][] selectSquigglePeaks = collectSquiggleIonIntsensities(squigglePeaksMasses.get(c), this.squigglePeaks.get(c), c, tol);
             for (int i = 0 ; i < selectSquigglePeaks.length; i++)
                 selectSquigglePeaks[i][1] /= this.pepSeq.length();
             for (double[] peak : selectSquigglePeaks)
@@ -161,27 +161,25 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         Arrays.sort(selectedPeaks, new Comparator<double[]>() {
             @Override
             public int compare(double[] o1, double[] o2) {
-                return -1*Double.compare(o2[0], o1[0]);
+                return Double.compare(o1[0], o2[0]);
             }
         });
 
         Arrays.sort(expPeakList, new Comparator<float[]>() {
             @Override
             public int compare(float[] o1, float[] o2) {
-                return -1*Double.compare(o2[0], o1[0]);
+                return Double.compare(o1[0], o2[0]);
             }
         });
 
         int expPeaksIndx = 0;
         int maxExpPeaksIndx = expPeakList.length;
-        //System.out.println("***");
+
         for (int i = 0; i < selectedPeaks.length; i++) {
-            //System.out.println("SelectPeak\t"+i + "\t" + selectedPeaks[i][0]);
             double minVal = selectedPeaks[i][0] - selectedPeaks[i][0] * tol / 1000000;
             double maxVal = selectedPeaks[i][0] + selectedPeaks[i][0] * tol / 1000000;
 
             while (expPeaksIndx < maxExpPeaksIndx) {
-                //System.out.println("ExpPeakPass\t"+expPeaksIndx + "\t" + expPeakList[expPeaksIndx][0]);
                 if (expPeakList[expPeaksIndx][0] < minVal)
                     expPeaksIndx++;
                 else
@@ -189,7 +187,6 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
             }
             int cIndx = expPeaksIndx;
             while (cIndx < maxExpPeaksIndx) {
-                //System.out.println("ExpPeakAdd\t"+cIndx + "\t" + expPeakList[cIndx][0]);
                 if (expPeakList[cIndx][0] <= maxVal) {
                     selectedPeaks[i][1] += expPeakList[cIndx][1];
                     cIndx++;
@@ -234,11 +231,13 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         int expPeaksIndx = 0;
         int maxExpPeaksIndx = expPeakList.length;
         //System.out.println("***"); //todo tol over multiple charge states
+        double unmodPrecMass = calcPrecursorMass(1); //todo charge states
+
         for (int i = 0; i < selectedPeaks.length; i++) {
             //System.out.println("SelectPeak\t"+i + "\t" + selectedPeaks[i][0]);
-            double precMass = calcPrecursorMass(1) + selectedPeaks[i][0]; //todo charge states
-            double minVal = precMass - precMass * tol / 1000000;
-            double maxVal = precMass + precMass * tol / 1000000;
+            double precMass = unmodPrecMass + selectedPeaks[i][0]; //todo charge states
+            double minVal = selectedPeaks[i][0] - precMass * tol / 1000000;
+            double maxVal = selectedPeaks[i][0] + precMass * tol / 1000000;
 
             while (expPeaksIndx < maxExpPeaksIndx) {
                 //System.out.println("ExpPeakPass\t"+expPeaksIndx + "\t" + expPeakList[expPeaksIndx][0]);
@@ -252,6 +251,70 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
                 //System.out.println("ExpPeakAdd\t"+cIndx + "\t" + expPeakList[cIndx][0]);
                 if (expPeakList[cIndx][0] <= maxVal) {
                     selectedPeaks[i][1] += expPeakList[cIndx][1];
+                    cIndx++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        /*
+        for(int i = 0; i < expPeakList.length; i++)
+            System.out.print(expPeakList[i][0] + " " + expPeakList[i][1]);
+        System.out.println("exp");
+        for(int i = 0; i < selectedPeaks.length; i++)
+            System.out.print(selectedPeaks[i][0] + " " + selectedPeaks[i][1] + " ");
+        System.out.println("sel");
+        */
+
+        return selectedPeaks;
+
+    }
+
+    private double[][] collectSquiggleIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] expPeakList, char ionType, double tol) {
+
+        double[][] selectedPeaks = new double[searchKeyIonList.size()][2];
+        for (int i = 0; i < searchKeyIonList.size(); i++)
+            selectedPeaks[i][0] = searchKeyIonList.get(i);
+        Arrays.sort(selectedPeaks, new Comparator<double[]>() {
+            @Override
+            public int compare(double[] o1, double[] o2) {
+                return Double.compare(o1[0], o2[0]);
+            }
+        });
+
+        Arrays.sort(expPeakList, new Comparator<float[]>() {
+            @Override
+            public int compare(float[] o1, float[] o2) {
+                return Double.compare(o1[0], o2[0]);
+            }
+        });
+
+        int expPeaksIndx = 0;
+        int maxExpPeaksIndx = expPeakList.length;
+        float maxTol = 0;
+        for (int i = 0; i < expPeakList.length; i++) {
+            if (expPeakList[i][2] > maxTol)
+                maxTol = expPeakList[i][2];
+        }
+
+        for (int i = 0; i < selectedPeaks.length; i++) {
+            double minVal = selectedPeaks[i][0] - maxTol;
+            double maxVal = selectedPeaks[i][0] + maxTol;
+
+            while (expPeaksIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakPass\t"+expPeaksIndx + "\t" + expPeakList[expPeaksIndx][0]);
+                if (expPeakList[expPeaksIndx][0] < minVal)
+                    expPeaksIndx++;
+                else
+                    break;
+            }
+            int cIndx = expPeaksIndx;
+            while (cIndx < maxExpPeaksIndx) {
+                //System.out.println("ExpPeakAdd\t"+cIndx + "\t" + expPeakList[cIndx][0]);
+                if (expPeakList[cIndx][0] <= maxVal) {
+                    if (Math.abs(selectedPeaks[i][0] - expPeakList[cIndx][0]) <= expPeakList[cIndx][2])
+                        selectedPeaks[i][1] += expPeakList[cIndx][1];
                     cIndx++;
                 } else {
                     break;
@@ -332,6 +395,48 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
     }
 
+    private double[] calculateFragTols(double ppmTol, char iType) {
+        int maxCharge = 1; //Math.min(Integer.parseInt(PTMShepherd.getParam("spectra_maxfragcharge")), charge); //todo
+
+        /* Locally stores important masses */
+        float[] aaMasses = AAMasses.monoisotopic_masses;
+        float[] fragTypeShifts = AAMasses.ionTypeShifts;
+
+        /* init scoring variables for each pos in peptide */
+        int cLen = this.pepSeq.length();
+        double[] tols = new double[cLen];
+
+        /* calculate the Da tolerances for each position on the peptide */
+        double tol;
+        double nTermMass;
+        if (iType == 'a' || iType == 'b' || iType == 'c') {
+            nTermMass = fragTypeShifts[iType - 'a'] + dmass;
+            for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
+                double cmass = (nTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+                for (int i = 0; i < cLen - 1; i++) {
+                    cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + this.modificationsArray[i]) / ccharge;
+                    tol = cmass * (ppmTol / 1000000.0);
+                    tols[i] = tol;
+                }
+            }
+        }
+        double cTermMass;
+        if (iType == 'x' || iType == 'y' || iType == 'z') {
+            cTermMass = fragTypeShifts[iType - 'x' + 3] + dmass;
+            for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
+                double cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+                for (int i = 0; i < cLen - 1; i++) {
+                    cmass += (aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + this.modificationsArray[cLen - 1 - i]) / ccharge;
+                    tol = cmass * (ppmTol / 1000000.0);
+                    tols[cLen - 1 - i] = tol;
+                }
+            }
+        }
+
+        return tols;
+    }
+
+
     //public double[] localizeRemainderMass(float dmass, char ionType) {
     public int[] localizeRemainderMass(float dmass, char ionType) {
         /* Preinitialize factorials if not done yet */
@@ -353,7 +458,6 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         return scores;
     }
 
-    //private double[] getDeltaHyper(double ppmTol, char iType, double dmass) {
     private int[] getDeltaHyper(double ppmTol, char iType, double dmass) {
         int maxCharge = 1; //Math.min(Integer.parseInt(PTMShepherd.getParam("spectra_maxfragcharge")), charge);
 
@@ -481,7 +585,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         float [] aaMasses = AAMasses.monoisotopic_masses;
         double nTermMass = AAMasses.monoisotopic_nterm_mass;
         double cmass = (nTermMass + charge * AAMasses.monoisotopic_nterm_mass) / charge;
-        for (int i = 0; i < this.pepSeq.length() - 1; i++) {
+        for (int i = 0; i < this.pepSeq.length(); i++) { //todo check if it should be this.pepSeq.length() - 1
             cmass += this.modificationsArray[i] / charge;
             cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + this.modificationsArray[i]) / charge;
         }

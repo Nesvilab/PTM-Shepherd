@@ -141,8 +141,8 @@ public class DiagnosticAnalysis {
 
         /* Initialize DiagnosticRecord and add relevant data */
         DiagnosticRecord diagnosticRecord =  new DiagnosticRecord(spec, this.ionTypes, pepSeq, parseModifications(smods, pepSeq), dmass, charge);
-        diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, dmass)); //todo max charge
-        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, pepMass)); //todo max charge
+        diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, dmass, this.spectraTol)); //todo max charge
+        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, pepMass, this.spectraTol)); //todo max charge
         diagnosticRecord.setSquigglePeaks(calcSquigglePeaks(spec, this.spectraTol, pepSeq, smods, this.ionTypes, this.filterIonTypes, 1)); //todo max charge
 
         return diagnosticRecord;
@@ -161,8 +161,8 @@ public class DiagnosticAnalysis {
         return String.format("%s.%d.%d", sp[0], sn, sn);
     }
 
-    public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass) {
-        float[][] peaks = spec.calcImmoniumPeaks(min, max, seq, mods, filterIonTypes, maxCharge, dmass);
+    public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass, float specTol) {
+        float[][] peaks = spec.calcImmoniumPeaks(min, max, seq, mods, filterIonTypes, maxCharge, dmass, specTol);
         return peaks;
     }
 
@@ -175,8 +175,8 @@ public class DiagnosticAnalysis {
         return sb.substring(0, sb.length()-1);
     }
 
-    public float[][] calcCapYPeaks(Spectrum spec, String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass) {
-        float[][] peaks = spec.calcCapYPeaks(seq, mods, filterIonTypes, maxCharge, pepMass);
+    public float[][] calcCapYPeaks(Spectrum spec, String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float specTol) {
+        float[][] peaks = spec.calcCapYPeaks(seq, mods, filterIonTypes, maxCharge, pepMass, specTol);
         return peaks;
     }
 

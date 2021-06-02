@@ -2,7 +2,7 @@ package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
 import com.google.gson.internal.$Gson$Types;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
-import org.apache.commons.math3.stat.inference.MannWhitneyUTest;
+//import org.apache.commons.math3.stat.inference.MannWhitneyUTest;
 import umich.ms.datatypes.lcmsrun.Hash;
 
 import java.io.File;
@@ -79,7 +79,7 @@ public class PeakCompareTester {
     }
 
     public void addVals(DiagnosticRecord dr, boolean isControl) {
-        String pepKey = dr.pepSeq + dr.modifications + dr.charge; //peptidekey includes charge ///todo is that ideal?
+        String pepKey = dr.pepSeq + dr.modifications + dr.charge; //peptidekey includes charge
         if (isControl) {
             if (!this.contPeptideMap.containsKey(pepKey))
                 this.contPeptideMap.put(pepKey, new ArrayList<>());
@@ -216,24 +216,36 @@ public class PeakCompareTester {
         for (Double peak : this.immoniumX.keySet()) {
             double p = mwu.mannWhitneyUTest(this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.immoniumY.get(peak).stream().mapToDouble(i -> i).toArray());
-            double uStat = mwu.mannWhitneyU(this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray(),
+            double u2 = mwu.mannWhitneyU2(this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.immoniumY.get(peak).stream().mapToDouble(i -> i).toArray());
-            double rankBiserCorr = (2.0 * uStat / (this.immoniumX.get(peak).size() * this.immoniumY.get(peak).size())) - 1;
+            //double rankBiserCorr = Math.abs((2.0 * uStat / (this.immoniumX.get(peak).size() * this.immoniumY.get(peak).size())) - 1);
+            long n1n2 = (long) this.immoniumX.get(peak).size() * (long) this.immoniumY.get(peak).size();
+            double rankBiserCorr = u2 / (n1n2);
+            double u1 = n1n2 - u2;
+            boolean greaterThan = u2 > u1 ? true : false;
+            if (this.twoTailedTests == false)
+                p = convertP(p, greaterThan);
             if (p < this.maxP / this.immoniumY.get(peak).size() && rankBiserCorr > this.minRbc)
-                this.immoniumTests.add(new Test(peak, p, rankBiserCorr));
-            //    System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
+                this.immoniumTests.add(new Test(peak, p, rankBiserCorr, u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
+            //System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
 
         this.capYTests = new ArrayList<>();
         for (Double peak : this.capYX.keySet()) {
             double p = mwu.mannWhitneyUTest(this.capYX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.capYY.get(peak).stream().mapToDouble(i -> i).toArray());
-            double uStat = mwu.mannWhitneyU(this.capYX.get(peak).stream().mapToDouble(i -> i).toArray(),
+            double u2 = mwu.mannWhitneyU2(this.capYX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.capYY.get(peak).stream().mapToDouble(i -> i).toArray());
-            double rankBiserCorr = (2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1;
+            long n1n2 = (long) this.capYX.get(peak).size() * (long) this.capYY.get(peak).size();
+            double rankBiserCorr = u2 / n1n2;
+            double u1 = n1n2 - u2;
+            boolean greaterThan = u2 > u1 ? true : false;
+            if (this.twoTailedTests == false)
+                p = convertP(p, greaterThan);
+            //double rankBiserCorr = Math.abs((2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1);
             if (p < this.maxP / this.capYY.get(peak).size() && rankBiserCorr > this.minRbc)
-                this.capYTests.add(new Test(peak, p, rankBiserCorr));
-            //    System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
+                this.capYTests.add(new Test(peak, p, rankBiserCorr, u2, this.capYX.get(peak).size(), this.capYY.get(peak).size()));
+            //System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
 
         this.squigglesTests = new HashMap<>();
@@ -246,14 +258,20 @@ public class PeakCompareTester {
             for (Double peak : this.squigglesX.get(c).keySet()) {
                 double p = mwu.mannWhitneyUTest(this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).toArray(),
                         this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).toArray());
-                double uStat = mwu.mannWhitneyU(this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).toArray(),
+                double u2 = mwu.mannWhitneyU2(this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).toArray(),
                         this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).toArray());
-                double rankBiserCorr = (2.0 * uStat / (this.squigglesX.get(c).get(peak).size() * this.squigglesY.get(c).get(peak).size())) - 1;
+                long n1n2 = (long) this.squigglesX.get(c).get(peak).size() * (long) this.squigglesY.get(c).get(peak).size();
+                double rankBiserCorr = 2 * u2 / (n1n2) - 1;
+                double u1 = n1n2 - u2;
+                boolean greaterThan = u2 > u1 ? true : false;
+                if (this.twoTailedTests == false)
+                    p = convertP(p, greaterThan);
+                //double rankBiserCorr = Math.abs((2.0 * uStat / (this.squigglesX.get(c).get(peak).size() * this.squigglesY.get(c).get(peak).size())) - 1);
                 //out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
                 if (p < this.maxP / this.squigglesX.get(c).get(peak).size() && rankBiserCorr > this.minRbc)
-                    this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr));
+                    this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr, u2, this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                 //if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
-                //    System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
+                //System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
             }
             //out.close();
         }
@@ -274,15 +292,27 @@ public class PeakCompareTester {
         //Print all tests
         Collections.sort(this.immoniumTests);
         for (Test t : this.immoniumTests)
-            System.out.printf("Immonium %.04f\t%e\t%f\n", t.mass, t.q, t.rbc);
+            System.out.printf("Immonium %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
         Collections.sort(this.capYTests);
         for (Test t : this.capYTests)
-            System.out.printf("CapY %.04f\t%e\t%f\n", t.mass, t.q, t.rbc);
+            System.out.printf("CapY %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
         for (Character c : this.squigglesTests.keySet()) {
             Collections.sort(this.squigglesTests.get(c));
             for (Test t : this.squigglesTests.get(c))
-                System.out.printf("Squiggle %.04f\t%e\t%f\n", t.mass, t.q, t.rbc);
+                System.out.printf("Squiggle %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
         }
+    }
+
+    /* Converts two tailed p-value to one tailed p-value
+    * Hipparchus only provides a two-tailed version of MWU
+    * */
+    private double convertP(double oldPVal, boolean greaterThan) {
+        double p;
+        if (greaterThan)
+            p = oldPVal / 2;
+        else
+            p = 1- oldPVal / 2;
+        return p;
     }
 
     private void collapseTests(ArrayList<Test> tests, double tol, boolean adjustedMass) {
@@ -391,8 +421,6 @@ public class PeakCompareTester {
         }
     }
 
-
-
     private int[] calculateIonModes(ArrayList<int[]> ionCounters) {
         int pepLen = ionCounters.get(0).length;
 
@@ -474,20 +502,24 @@ public class PeakCompareTester {
     }
 }
 
-//todo override MWU with one tailed test
-
 class Test implements Comparable<Test> {
     public double mass;
     public double adjustedMass;
     public double q;
     public double rbc;
     public int group;
+    public double u;
+    public long n1;
+    public long n2;
 
-    Test(double mass, double q, double rbc) {
+    Test(double mass, double q, double rbc, double u, long n1, long n2) {
         this.mass = mass;
         this.q = q;
         this.rbc = rbc;
+        this.u = u;
         this.group = 0;
+        this.n1 = n1;
+        this.n2 = n2;
     }
 
     @Override
