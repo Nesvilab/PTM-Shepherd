@@ -89,7 +89,7 @@ public class GlycoAnalysis {
 
         //write header
         StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
-        headbuff.append("\tBest Glycan\tLog Delta Score\t2nd Best Glycan\tAbs Score\tPass FDR?");
+        headbuff.append("\tBest Glycan\tLog Delta Score\t2nd Best Glycan\tAbs Score\tGlycan q-value");
         for (int i = 0; i < capYShifts.length; i++)
             headbuff.append(String.format("\tY_%.4f_intensity", capYShifts[i]));
         for (int i = 0; i < oxoniumIons.length; i++)
@@ -167,7 +167,7 @@ public class GlycoAnalysis {
         int gSpecCol = 0;
         int absScoreCol = 0;
         int bestGlycanCol = 0;
-        int fdrCol = 0;
+        int qValCol = 0;
         for (int i = 0; i < headerSplits.length; i++) {
             switch (headerSplits[i].trim()) {
                 case "Spectrum":
@@ -179,12 +179,12 @@ public class GlycoAnalysis {
                 case "Best Glycan":
                     bestGlycanCol = i;
                     break;
-                case "Pass FDR?":
-                    fdrCol = i;
+                case "Glycan q-value":
+                    qValCol = i;
                     break;
             }
         }
-        if (absScoreCol == 0 || bestGlycanCol == 0 || fdrCol == 0) {
+        if (absScoreCol == 0 || bestGlycanCol == 0 || qValCol == 0) {
             System.out.printf("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile);
         }
 
@@ -252,11 +252,17 @@ public class GlycoAnalysis {
                     foundThreshold = true;
                     System.out.printf("Converged to %.1f pct FDR with %d targets and %d decoys\n", targetDecoyRatio * 100, targets, decoys);
                 }
-                rawGlycoLine[fdrCol] = "fail";
+                rawGlycoLine[qValCol] = String.format("%s", targetDecoyRatio);
                 rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
             } else {
-                // passed FDR threshold - all entries above this point pass. Update rawglyco lines accordingly
-                rawGlycoLine[fdrCol] = "pass";
+                // passed FDR threshold - all entries above this point pass. Continue updating q-value
+                if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                    decoys--;
+                } else {
+                    targets--;
+                }
+                targetDecoyRatio = decoys / (double) targets;
+                rawGlycoLine[qValCol] = String.format("%s", targetDecoyRatio);
             }
             // update the output text with the new info
             glyLines.put(scoreEntry.getKey(), rawGlycoLine);
