@@ -702,7 +702,7 @@ public class GlycoAnalysis {
             }
         }
         // normalize hit/miss counts and return final probability
-        sumLogRatio = Math.sqrt(hitCount) * Math.log(hitProb) + Math.sqrt(missCount) * Math.log(missProb) + disallowedHitCount * Math.log(1 / hitProb);
+        sumLogRatio = Math.sqrt(hitCount) * Math.log(hitProb) + Math.sqrt(missCount) * Math.log(missProb) + Math.sqrt(disallowedHitCount) * Math.log(1 / hitProb);
         return sumLogRatio;
     }
 
