@@ -54,12 +54,15 @@ public class BinDiagMetric {
         double avgImm = 150;
         double avgPepPrec = 0;
         double avgFrag[] = new double[this.ionTypes.length()];
+        double avgPepLen = 0;
 
         /* Find the mins and maxes of each histo */
         int nPepKeys = this.peptideMap.keySet().size();
         for (String pepKey : this.peptideMap.keySet()) {
             int nDrs = this.peptideMap.get(pepKey).size();
+            int pepLen = 0;
             for (DiagnosticRecord dr : this.peptideMap.get(pepKey)) {
+                pepLen = dr.pepSeq.length();
                 int binMinMaxIndx = 0;
                 for (int i = 0; i < dr.immoniumPeaks.length; i++) {
                     float mz = dr.immoniumPeaks[i][0]; // Cycle through mz vals
@@ -91,6 +94,7 @@ public class BinDiagMetric {
                     avgFrag[h] += (dr.calcAvgFragTol(ionType, 1) / nDrs) / nPepKeys; //todo charge states
                 }
             }
+            avgPepLen += (double) pepLen / nPepKeys;
         }
 
         /* Initialize histograms */
@@ -98,7 +102,7 @@ public class BinDiagMetric {
         this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.001, minSignal, this.ppmTol, avgPepPrec);
         this.tildeIons = new ArrayList<>();
         for (int i = 0; i < this.ionTypes.length(); i++) { /* +2 because of immonium and Y ions in first 2 i's */
-            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.001, minSignal, this.ppmTol, avgFrag[i]));
+            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.001, minSignal / avgPepLen, this.ppmTol, avgFrag[i]));
         }
 
         /* Assign data to histograms */
@@ -135,9 +139,9 @@ public class BinDiagMetric {
 
         this.immoniumIons.smoothify(executorService, nThreads);
         this.capYIons.smoothify(executorService, nThreads);
-        System.out.println("ImmoniumAbund");
+        //System.out.println("ImmoniumAbund");
         this.immoniumIons.findPeaks();
-        System.out.println("CapYAbund");
+        //System.out.println("CapYAbund");
         this.capYIons.findPeaks();
 
 
@@ -149,9 +153,9 @@ public class BinDiagMetric {
             //System.out.println("IonType:"+ionTypes.charAt(i));
             this.tildeIons.get(i).smoothify(executorService, nThreads);
             long t2 = System.currentTimeMillis();
-            System.out.println("SquiggleAbund");
-            //if (this.peakApex >= 0)
-            //    this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
+            //System.out.println("SquiggleAbund");
+            if (Math.abs(this.peakApex - 226.08) < 1)
+                this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
             this.tildeIons.get(i).findPeaks();
             long t3 = System.currentTimeMillis();
             this.tildeIons.get(i).clearMemory();
@@ -161,6 +165,38 @@ public class BinDiagMetric {
 
     public void setTestResults(PeakCompareTester pct) {
         this.testResults = pct;
+    }
+
+    public String toString() {
+        StringBuffer newLines = new StringBuffer();
+
+        /* Format immonium tests */
+        for (int i = 0; i < this.testResults.immoniumTests.size(); i++) {
+            Test t = this.testResults.immoniumTests.get(i);
+            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.04f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.u, t.n1, t.n2);
+            newLines.append(newLine);
+        }
+
+        /* Format capY tests */
+        for (int i = 0; i < this.testResults.capYTests.size(); i++) {
+            Test t = this.testResults.capYTests.get(i);
+            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.04f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.u, t.n1, t.n2);
+            newLines.append(newLine);
+        }
+
+        /* Format squiggle ions */
+        for (Character cIon : this.testResults.squigglesTests.keySet()) {
+            for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
+                Test t = this.testResults.squigglesTests.get(cIon).get(i);
+                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.04f\t%d\t%d\n",
+                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc, t.u, t.n1, t.n2);
+                newLines.append(newLine);
+            }
+        }
+
+        return newLines.toString();
     }
 }
 

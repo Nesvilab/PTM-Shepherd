@@ -1,6 +1,7 @@
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
 import com.google.gson.internal.$Gson$Types;
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 //import org.apache.commons.math3.stat.inference.MannWhitneyUTest;
 import umich.ms.datatypes.lcmsrun.Hash;
@@ -35,6 +36,7 @@ public class PeakCompareTester {
     double maxP;
     double minRbc;
     boolean twoTailedTests;
+    int minPeps;
 
     double specTol;
 
@@ -73,6 +75,7 @@ public class PeakCompareTester {
         this.maxP = maxP;
         this.minRbc = minRbc;
         this.twoTailedTests = twoTailedTests;
+        this.minPeps = Integer.parseInt(PTMShepherd.getParam("diagmine_minPeps"));
 
         this.specTol = specTol;
     }
@@ -218,6 +221,8 @@ public class PeakCompareTester {
 
         this.immoniumTests = new ArrayList<>();
         for (Double peak : this.immoniumX.keySet()) {
+            if (this.immoniumX.get(peak).size() < this.minPeps || this.immoniumY.get(peak).size() < this.minPeps)
+                continue;
             double p = mwu.mannWhitneyUTest(this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.immoniumY.get(peak).stream().mapToDouble(i -> i).toArray());
             double u2 = mwu.mannWhitneyU2(this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray(),
@@ -229,25 +234,29 @@ public class PeakCompareTester {
             boolean greaterThan = u2 > u1 ? true : false;
             if (this.twoTailedTests == false)
                 p = convertP(p, greaterThan);
-            if (p < this.maxP / this.immoniumY.get(peak).size() && rankBiserCorr > this.minRbc)
+            p *= this.immoniumX.size();
+            if (p <= this.maxP && Math.abs(rankBiserCorr) >= this.minRbc)
                 this.immoniumTests.add(new Test(peak, p, rankBiserCorr, u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
             //System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
 
         this.capYTests = new ArrayList<>();
         for (Double peak : this.capYX.keySet()) {
+            if (this.capYX.get(peak).size() < this.minPeps || this.capYY.get(peak).size() < this.minPeps)
+                continue;
             double p = mwu.mannWhitneyUTest(this.capYX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.capYY.get(peak).stream().mapToDouble(i -> i).toArray());
             double u2 = mwu.mannWhitneyU2(this.capYX.get(peak).stream().mapToDouble(i -> i).toArray(),
                     this.capYY.get(peak).stream().mapToDouble(i -> i).toArray());
             long n1n2 = (long) this.capYX.get(peak).size() * (long) this.capYY.get(peak).size();
-            double rankBiserCorr = u2 / n1n2;
+            double rankBiserCorr = u2 / (n1n2);
             double u1 = n1n2 - u2;
             boolean greaterThan = u2 > u1 ? true : false;
             if (this.twoTailedTests == false)
                 p = convertP(p, greaterThan);
             //double rankBiserCorr = Math.abs((2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1);
-            if (p < this.maxP / this.capYY.get(peak).size() && rankBiserCorr > this.minRbc)
+            p *= this.capYX.size();
+            if (p <= this.maxP && Math.abs(rankBiserCorr) >= this.minRbc)
                 this.capYTests.add(new Test(peak, p, rankBiserCorr, u2, this.capYX.get(peak).size(), this.capYY.get(peak).size()));
             //System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
@@ -260,19 +269,23 @@ public class PeakCompareTester {
             //out.printf("mass\tp\trbc\n");
             //System.out.println("Squiggle"+c);
             for (Double peak : this.squigglesX.get(c).keySet()) {
+                if (this.squigglesX.get(c).get(peak).size() < this.minPeps || this.squigglesY.get(c).get(peak).size() < this.minPeps)
+                    continue;
                 double p = mwu.mannWhitneyUTest(this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).toArray(),
                         this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).toArray());
                 double u2 = mwu.mannWhitneyU2(this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).toArray(),
                         this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).toArray());
                 long n1n2 = (long) this.squigglesX.get(c).get(peak).size() * (long) this.squigglesY.get(c).get(peak).size();
-                double rankBiserCorr = 2 * u2 / (n1n2) - 1;
+                double rankBiserCorr = u2 / (n1n2);
                 double u1 = n1n2 - u2;
                 boolean greaterThan = u2 > u1 ? true : false;
                 if (this.twoTailedTests == false)
                     p = convertP(p, greaterThan);
                 //double rankBiserCorr = Math.abs((2.0 * uStat / (this.squigglesX.get(c).get(peak).size() * this.squigglesY.get(c).get(peak).size())) - 1);
                 //out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
-                if (p < this.maxP / this.squigglesX.get(c).get(peak).size() && rankBiserCorr > this.minRbc)
+
+                p *= this.squigglesX.get(c).size();
+                if (p <= this.maxP && Math.abs(rankBiserCorr) >= this.minRbc)
                     this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr, u2, this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                 //if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
                 //System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
@@ -281,11 +294,11 @@ public class PeakCompareTester {
         }
 
         relocalizeDeltas(1, this.specTol); //todo tol and nAdjacentAAs??
-        System.out.println("immonium");
+        //System.out.println("immonium");
         collapseTests(this.immoniumTests, 0.01, false); //todo tol
-        System.out.println("capY");
+        //System.out.println("capY");
         collapseTests(this.capYTests, 0.01, false); //todo tol
-        System.out.println("squiggle");
+        //System.out.println("squiggle");
         for (Character c : this.squigglesTests.keySet())
             collapseTests(this.squigglesTests.get(c), 0.01, true); //todo tol
 
@@ -294,20 +307,23 @@ public class PeakCompareTester {
         this.treatPeptideMap = null;
 
         //Print all tests
-        Collections.sort(this.immoniumTests);
-        for (Test t : this.immoniumTests)
-            System.out.printf("Immonium %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
-        Collections.sort(this.capYTests);
-        for (Test t : this.capYTests)
-            System.out.printf("CapY %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
-        for (Character c : this.squigglesTests.keySet()) {
-            Collections.sort(this.squigglesTests.get(c));
-            for (Test t : this.squigglesTests.get(c))
-                System.out.printf("Squiggle %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
+        boolean debug = true;
+        if (debug) {
+            Collections.sort(this.immoniumTests);
+            for (Test t : this.immoniumTests)
+                System.out.printf("Immonium %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
+            Collections.sort(this.capYTests);
+            for (Test t : this.capYTests)
+                System.out.printf("CapY %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
+            for (Character c : this.squigglesTests.keySet()) {
+                Collections.sort(this.squigglesTests.get(c));
+                for (Test t : this.squigglesTests.get(c))
+                    System.out.printf("Squiggle %.04f\t%e\t%f\t%.04f\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.n1, t.n2);
+            }
         }
     }
 
-    /* Converts two tailed p-value to one tailed p-value
+    /* Converts two-tailed p-value to one-tailed p-value
     * Hipparchus only provides a two-tailed version of MWU
     * */
     private double convertP(double oldPVal, boolean greaterThan) {
@@ -315,7 +331,7 @@ public class PeakCompareTester {
         if (greaterThan)
             p = oldPVal / 2;
         else
-            p = 1- oldPVal / 2;
+            p = 1 - oldPVal / 2;
         return p;
     }
 
@@ -355,9 +371,12 @@ public class PeakCompareTester {
 
     /* Checks for enrichment of adjacent AAs for each squiggle peak, then adjusts mass appropriately */
     private void relocalizeDeltas(int nAdjacentAas, double tol) {
+        System.out.println("Relocalizing deltas");
         for (Character c : this.squigglesTests.keySet()) {
+            //System.out.println("**" + c);
             int[][] shiftedCounts = new int[nAdjacentAas * 2 + 1][26];
             for (Test t : this.squigglesTests.get(c)) {
+                System.out.println(t.mass);
                 int[][] resCounts = new int[nAdjacentAas * 2 + 1][26]; //todo tmp
                 int[][] bgResCounts = new int[nAdjacentAas * 2 + 1][26];
                 int[] totalChances = new int[nAdjacentAas*2+1];
@@ -380,6 +399,7 @@ public class PeakCompareTester {
                             if (cAbsPos < 0 || cAbsPos > ionModes.length - 1)
                                 continue;
                             char cres = Character.toLowerCase(pepSeq.charAt(cAbsPos));
+                            //System.out.println(cres);
                             resCounts[cRelPos+nAdjacentAas][cres - 'a'] += ionModes[i];
                         }
                         totalMatchedIons += ionModes[i];
@@ -412,14 +432,18 @@ public class PeakCompareTester {
                             int notCResNotLoc = notCResBg - notCResLoc;
                             double resP = (double) resCounts[i][j] / (double) totalMatchedIons;
 
+                            //System.out.println(cRes + "\t" + cResLoc + "\t" + resP);
+
                             if (resP > 0.75 && resP > bestResP) {
                                 newRemainderMass = calcNewRemainderMass(t.mass, c, i-nAdjacentAas, j);
+                                //System.out.println(t.mass + "\t" + newRemainderMass + "\t" + c + "\t" + (i-nAdjacentAas) + "\t" + j);
                                 bestResP = resP;
                                 shiftedCounts[i][j]++;
                             }
                         }
                     }
                 }
+                //System.out.println(newRemainderMass + "\t" + t.mass);
                 t.adjustedMass = newRemainderMass;
             }
         }
@@ -490,7 +514,8 @@ public class PeakCompareTester {
     }
 
     private double calcNewRemainderMass(double dmass, char ionType, int relativePosition, int res) {
-        double newDmass = 100000000;
+        //double newDmass = 100000000; //todo some errors on edge cases (doesn't change results)
+        double newDmass = dmass;
         if (ionType > 'n') { // c-term
             if (relativePosition < 0) // to the left
                 newDmass = dmass - AAMasses.monoisotopic_masses[res];
@@ -502,6 +527,10 @@ public class PeakCompareTester {
             else if (relativePosition > 0)
                 newDmass = dmass - AAMasses.monoisotopic_masses[res];
         }
+
+        //if (newDmass > 10000) { //todo some errors on edge cases (doesn't change results)
+        //    System.out.println(dmass + "\t" + ionType + "\t" + relativePosition + "\t" + res);
+        //}
         return newDmass;
     }
 }
@@ -518,6 +547,7 @@ class Test implements Comparable<Test> {
 
     Test(double mass, double q, double rbc, double u, long n1, long n2) {
         this.mass = mass;
+        this.adjustedMass = mass;
         this.q = q;
         this.rbc = rbc;
         this.u = u;
@@ -528,7 +558,7 @@ class Test implements Comparable<Test> {
 
     @Override
     public int compareTo(Test arg0) {
-        return Double.compare(this.mass, arg0.mass);
+        return Double.compare(this.adjustedMass, arg0.adjustedMass);
     }
 
 }

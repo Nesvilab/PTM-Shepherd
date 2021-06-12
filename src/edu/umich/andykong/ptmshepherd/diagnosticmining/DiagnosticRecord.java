@@ -271,7 +271,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
     }
 
-    private double[][] collectSquiggleIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] expPeakList, char ionType, double tol) {
+    private double[][] collectSquiggleIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] fixedExpPeakList, char ionType, double tol) {
 
         double[][] selectedPeaks = new double[searchKeyIonList.size()][2];
         for (int i = 0; i < searchKeyIonList.size(); i++)
@@ -283,6 +283,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
             }
         });
 
+        float[][] expPeakList = Arrays.copyOf(fixedExpPeakList, fixedExpPeakList.length);
         Arrays.sort(expPeakList, new Comparator<float[]>() {
             @Override
             public int compare(float[] o1, float[] o2) {
@@ -450,6 +451,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         double ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol")); //todo
         /* Calc deltaHypers */
         ///double[] scores = getDeltaHyper(ppmTol, ionType, dmass);
+        //System.out.println("*Params:" + ppmTol + "\t" + ionType + "\t" + dmass);
         int[] scores = getDeltaHyper(ppmTol, ionType, dmass);
         //for (int i = 0; i < scores.length; i++) {
         //    System.out.println(scores[i]);
@@ -476,19 +478,23 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         double tol;
         double nTermMass;
         if (iType == 'a' || iType == 'b' || iType =='c') {
-            nTermMass = fragTypeShifts[iType - 'a'] + dmass;
+            nTermMass = fragTypeShifts[iType - 'a']; //+ dmass; todo
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
+                //System.out.println(this.pepSeq);
                 double cmass = (nTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
                 for (int i = 0; i < cLen - 1; i++) {
+                    //System.out.print(cmass + " " + this.modificationsArray[i] + " ");
                     cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + this.modificationsArray[i]) / ccharge;
                     tol = cmass * (ppmTol / 1000000.0);
                     ntols[i] = tol;
+                    //System.out.print(tol + " ");
                 }
+                //System.out.println();
             }
         }
         double cTermMass;
         if (iType == 'x' || iType == 'y' || iType =='z') {
-            cTermMass = fragTypeShifts[iType - 'x' + 3] + dmass;
+            cTermMass = fragTypeShifts[iType - 'x' + 3];// + dmass; todo
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //todo this will break once maxcharge >1
                 double cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
                 for (int i = 0; i < cLen - 1; i++) {
@@ -505,10 +511,13 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
                 float[] peak = this.squigglePeaks.get(iType)[i];
                 if (peak[1] > 0.0) {
                     int cPos = i % (cLen - 1);
+                    //System.out.print("***" + cPos + " " + peak[0] + " " + dmass + " " + (peak[0] - dmass) + " " + ntols[cPos]);
                     if (Math.abs(peak[0] - dmass) < ntols[cPos]) {
                         matchedIons[cPos]++;
                         matchedInts[cPos] += peak[1];
+                        //System.out.print( " match");
                     }
+                    //dSystem.out.println();
                 }
             }
         }
@@ -518,10 +527,13 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
                 if (peak[1] > 0.0) {
                     int cPos = i % (cLen - 1); // enumerated position
                     cPos = cLen - cPos - 1; // actual position in pepSeq
+                    //System.out.println("***" + this.pepSeq + "\t" + this.pepSeq.charAt(cPos) + "\t" + cPos + "\t" + peak[0] + "\t " + dmass + "\t" + (peak[0] - dmass) + "\t" + ctols[cPos]);
                     if (Math.abs(peak[0] - dmass) < ctols[cPos]) {
                         matchedIons[cPos]++;
                         matchedInts[cPos] += peak[1];
+                        //System.out.print( " match");
                     }
+                    //System.out.println();
                 }
             }
         }
@@ -539,6 +551,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         //for (int i = 0; i < cLen; i++)
         //    scores[i] -= minScore;
         //todo maybe try this later
+        // The reason it wasn't working with logged values was because I was using 0 instead of 1
         */
         return matchedIons;
     }

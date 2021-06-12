@@ -320,6 +320,7 @@ public class DiagnosticHisto {
         this.filteredPeaks = new ArrayList<>();
 
         double minVal = this.total * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
+        System.out.println("min:" + minVal);
         double minEntryVal = minVal * 0.01;
         double prominence = 0.8;
 
@@ -361,7 +362,7 @@ public class DiagnosticHisto {
         Collections.sort(peaks);
         for (int i = 0; i < maxPeaks; i++) {
             this.filteredPeaks.add(peaks.get(i).MZ);
-            System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
+            //System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
         }
     }
 

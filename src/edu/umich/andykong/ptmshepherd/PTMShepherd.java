@@ -170,7 +170,10 @@ public class PTMShepherd {
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
 		params.put("diagmine_minRbc", "0.5");
+		params.put("diagmine_minPeps", "5");
 		params.put("diagmine_twoTailedTests", "1");
+		params.put("diagmine_maxPsms", "1000");
+
 
 		params.put("output_extended", "false");
 		params.put("output_path", "");
@@ -525,7 +528,7 @@ public class PTMShepherd {
 		print("Created similarity/RT reports\n");
 
 		//Diagnostic mining
-		boolean diagMineMode = Boolean.parseBoolean(params.get("mine_diag_ions"));
+		boolean diagMineMode = Boolean.parseBoolean(params.get("diagmine_mode"));
 		if (diagMineMode) {
 			System.out.println("Beginning mining diagnostic ions");
 			long t1 = System.currentTimeMillis();
@@ -559,6 +562,7 @@ public class PTMShepherd {
 				}
 			}
 			dpp.process(executorService, Integer.parseInt(getParam("threads")));
+			dpp.print(normFName("global.diagmine.tsv"));
 			System.out.println("Done mining diagnostic ions");
 		}
 

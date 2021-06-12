@@ -27,7 +27,7 @@ public class DiagnosticPeakPicker {
     FastLocator locate;
     double minSignal;
     int maxPrecursorCharge;
-    int MAXSCANS = 10000;
+    int MAXSCANS = 1000;
 
     double maxP;
     double minRbc;
@@ -98,11 +98,7 @@ public class DiagnosticPeakPicker {
     /* Send ions to BinDiagnosticMetric containers */
     public void process(ExecutorService executorService, int nThreads) throws Exception {
         /* Finds the peaks for each BinDiagnosticMetric container */
-        int peakCount = 0;
         for (Integer peakIndx : this.peakToFileToScan.keySet()) {
-            if (peakCount++ > 50)
-                break;
-
             double[] peakVals = new double[]{this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[2][peakIndx]};
             BinDiagMetric bdMetrics = new BinDiagMetric(peakVals, this.ionTypes, this.spectraTol);
 
@@ -134,10 +130,7 @@ public class DiagnosticPeakPicker {
         TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan = filterScanNums(this.MAXSCANS);
 
         //todo this should be functions
-        peakCount = 0;
         for (Integer peakIndx : peakToFileToScan.keySet()) {
-            if (peakCount++ > 50) //todo remove this when done
-                break;
             /* Construct unified peaklists that will be used in downstream processes */
             System.out.println("\nApex\t" + this.peaks[0][peakIndx]);
 
@@ -156,12 +149,12 @@ public class DiagnosticPeakPicker {
                 /* Remove duplicate peaks */
                 Collections.sort(unifiedImmPeakList);
                 for (int i = unifiedImmPeakList.size() - 1; i > 0; i--) {
-                    if (Math.abs(unifiedImmPeakList.get(i) - unifiedImmPeakList.get(i - 1)) <= 0.005)
+                    if (Math.abs(unifiedImmPeakList.get(i) - unifiedImmPeakList.get(i - 1)) <= 0.002)
                         unifiedImmPeakList.remove(i);
                 }
                 Collections.sort(unifiedCapYPeakList);
                 for (int i = unifiedCapYPeakList.size() - 1; i > 0; i--) {
-                    if (Math.abs(unifiedCapYPeakList.get(i) - unifiedCapYPeakList.get(i - 1)) <= 0.005)
+                    if (Math.abs(unifiedCapYPeakList.get(i) - unifiedCapYPeakList.get(i - 1)) <= 0.002)
                         unifiedCapYPeakList.remove(i);
                 }
                 for (Character it : this.cIonTypes) {
@@ -245,7 +238,6 @@ public class DiagnosticPeakPicker {
             pct.performTests();
             this.binDiagMetrics[peakIndx].setTestResults(pct);
         }
-
     }
 
     public String getBasename(String f) {
@@ -269,11 +261,11 @@ public class DiagnosticPeakPicker {
     /* Selects MAXSCANS random scans to be included in testing for each bin */
     private TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> filterScanNums(int maxScans) {
         /* Set up structure to be sorted */
-        class FileScanTiple {
+        class FileScanTuple {
             public String f;
             public int s;
 
-            FileScanTiple(String file, int scan) {
+            FileScanTuple(String file, int scan) {
                 this.f = file;
                 this.s = scan;
             }
@@ -282,10 +274,10 @@ public class DiagnosticPeakPicker {
         TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> filteredPeakToFileToScan = new TreeMap<>();
 
         for (Integer peak : this.peakToFileToScan.keySet()) {
-            ArrayList<FileScanTiple> fileToScan = new ArrayList<>();
+            ArrayList<FileScanTuple> fileToScan = new ArrayList<>();
             for (String file : this.peakToFileToScan.get(peak).keySet()) {
                 for (Integer scan : this.peakToFileToScan.get(peak).get(file)) {
-                    fileToScan.add(new FileScanTiple(file, scan));
+                    fileToScan.add(new FileScanTuple(file, scan));
                 }
             }
             Collections.shuffle(fileToScan);
@@ -302,6 +294,16 @@ public class DiagnosticPeakPicker {
         }
 
         return filteredPeakToFileToScan;
+    }
+
+    public void print(String fout) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(fout,false));
+
+        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\trbc\tu_stat\tn_control\tn_test\n");
+        for (int i = 0; i < this.binDiagMetrics.length; i++)
+            out.print(this.binDiagMetrics[i].toString());
+
+        out.close();
     }
 
     private ArrayList<Integer> filterScanNums(ArrayList<Integer> scanNums, int maxScans) {
