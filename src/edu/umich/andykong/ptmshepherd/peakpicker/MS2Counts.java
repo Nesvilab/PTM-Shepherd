@@ -18,11 +18,11 @@ public class MS2Counts {
 
 	public static int countMS2Scans(File f, int threads) throws Exception {
 		int count = 0;
-		String ext = f.getName().substring(f.getName().lastIndexOf(".")+1);
+		String ext = f.getName().substring(f.getName().lastIndexOf(".")+1).toLowerCase();
 		if(ext.length() == 0)
 			return 0;
 		try {
-			if (ext.equals("mzXML")) {
+			if (ext.equals("mzxml")) {
 				MZXMLFile source = new MZXMLFile(f.getAbsolutePath());
 				source.setNumThreadsForParsing(threads);
 				source.setExcludeEmptyScans(false);
@@ -37,7 +37,7 @@ public class MS2Counts {
 						count++;
 				}
 				scans.reset();
-			} else if (ext.equals("mzML")) {
+			} else if (ext.equals("mzml")) {
 				MZMLFile source = new MZMLFile(f.getAbsolutePath());
 				source.setNumThreadsForParsing(threads);
 				source.setExcludeEmptyScans(false);

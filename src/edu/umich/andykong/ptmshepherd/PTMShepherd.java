@@ -26,7 +26,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "1.0.0";
+ 	public static final String version = "1.1.0";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -243,7 +243,7 @@ public class PTMShepherd {
 				"peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
 
 			for (String f : filesToDelete) {
-				Path p = Paths.get(outputPath + f).toAbsolutePath().normalize();
+				Path p = Paths.get(normFName(f)).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 
@@ -302,6 +302,7 @@ public class PTMShepherd {
 					mzMap.get(ds).put(cname, null);
 				}
 				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds));
+				//System.out.println(mzMap.get(ds));
 			}
 			for(String crun : mzMap.get(ds).keySet()) {
 				if(mzMap.get(ds).get(crun) == null) {
@@ -441,6 +442,15 @@ public class PTMShepherd {
 			pa.init(params.get("varmod_masses"), params.get("annotation_file").trim());
 			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
 			print("Annotated summary table\n");
+			print("Mapping modifications back into PSM lists");
+			for(String ds : datasets.keySet()) {
+				ArrayList<String []> dsData = datasets.get(ds);
+				for(int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					pa.loadAnnotatedFile(peakannotated, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units")));
+					pf.annotateMassDiffs(pa.getDeltaMassMappings(pf.getMassDiffs()));
+				}
+			}
 		}
 
 		//Mod-centric quantification

@@ -5,6 +5,7 @@ import java.util.*;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
+import edu.umich.andykong.ptmshepherd.core.FastLocator;
 
 public class PeakAnnotator {
 
@@ -25,6 +26,12 @@ public class PeakAnnotator {
 	static final int maxDepth = 2;
 	static int cmaxDepth;
 	static boolean found, debug;
+
+	/* Loaded file variables */
+	public String [] headers;
+	public double[][] peaks;
+	public String[][] modMappings;
+	public FastLocator fastLocator;
 	
 	public void annotateTSV(File inTSV, File outTSV, String mos, String isos, Double mod_tol) throws Exception {
         //ArrayList<String> vModNames = new ArrayList<>();
@@ -293,5 +300,63 @@ public class PeakAnnotator {
 			}
 		}
 	}
+
+	public void loadAnnotatedFile(File fin, double precursorTol, int precursorUnits) throws IOException {
+		/* load annotated file */
+		BufferedReader in = new BufferedReader(new FileReader(fin));
+		this.headers = in.readLine().split("\t", -1);
+		ArrayList<String> inLines = new ArrayList<>();
+		String cline;
+		while((cline = in.readLine())!= null)
+			inLines.add(cline);
+
+		/* populate class parameters */
+		this.peaks = new double[3][inLines.size()];
+		this.modMappings = new String[this.maxDepth][inLines.size()];
+
+		for(int i = 0; i < inLines.size(); i++) {
+			String [] sp = inLines.get(i).split("\t", -1);
+			for (int j = 0; j < 3; j++)
+				this.peaks[j][i] = Double.parseDouble(sp[j]);
+			for (int j = 0; j < this.maxDepth; j++)
+				this.modMappings[j][i] = sp[getColumn("mapped_mass_" + (j+1))];
+		}
+
+		/* set up indexer for fast access */
+		this.fastLocator = new FastLocator(this.peaks, precursorTol, precursorUnits);
+	}
+
+	private int getColumn (String head) {
+		for (int i = 0; i < headers.length; i++)
+			if (headers[i].equals(head))
+				return i;
+		return -1;
+	}
+
+	public String[] getDeltaMassMappings(ArrayList<Float> massdiffs) {
+		String[] massDiffAnnotations = new String[massdiffs.size()];
+		int zeroBinInd = this.fastLocator.getIndex(0.0000);
+
+		/* get mod annotations for each delta mass */
+		for (int i = 0; i < massdiffs.size(); i++) {
+			int cind = this.fastLocator.getIndex(massdiffs.get(i));
+			StringBuffer cMods = new StringBuffer();
+			if (cind != -1) {
+				for (int j = 0; j < this.maxDepth; j++) {
+					String cMod = this.modMappings[j][cind];
+					if (!cMod.equals("") && (j > 0))
+						cMods.append("; ");
+					cMods.append(cMod);
+				}
+				if (cind != zeroBinInd)
+					cMods.append(String.format(" (%.04f)", this.peaks[0][cind]));
+			}
+			String cModLine = cMods.toString();
+			massDiffAnnotations[i] = cModLine;
+		}
+
+		return massDiffAnnotations;
+	}
+
 	
 }

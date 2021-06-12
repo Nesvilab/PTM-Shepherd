@@ -1,5 +1,6 @@
 package edu.umich.andykong.ptmshepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
+import edu.umich.andykong.ptmshepherd.peakpicker.PeakAnnotator;
 
 import java.io.*;
 import java.lang.reflect.Array;
@@ -93,11 +94,11 @@ public class PSMFile {
 
 	public static void getMappings(File path, HashMap<String,File> mappings) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
-			datTypes.put("mgf", 0);
+			datTypes.put("mgf", 4);
+			datTypes.put("mzBIN", 3);
+			datTypes.put("mzML", 2);
+			datTypes.put("mzXML", 2);
 			datTypes.put("raw", 1);
-			datTypes.put("mzBIN", 2);
-			datTypes.put("mzXML", 3);
-			datTypes.put("mzML", 4);
 
 		if(path.isDirectory()) {		
 			File [] ls = path.listFiles();
@@ -234,4 +235,49 @@ public class PSMFile {
 		in.close();
 	}
 
+    public void annotateMassDiffs(String [] annotations) throws IOException {
+		/* find column to modify, overwrite Observed Modifications col if exists */
+		int annoCol = getColumn("Observed Modifications");
+		boolean overwrite = true;
+		if (annoCol == -1) {
+			annoCol = getColumn("Assigned Modifications");
+			overwrite = false;
+		}
+		if (annoCol == -1)
+			annoCol = this.headers.length - 1;
+
+		/* write annotations to lines */
+		ArrayList<String> newLines = new ArrayList<>();
+		for (int i = 0; i < this.data.size(); i++) {
+			ArrayList<String> sp = new ArrayList<String>(Arrays.asList(this.data.get(i).split("\t")));
+			if (overwrite == true)
+				sp.set(annoCol, annotations[i]);
+			else
+				sp.add(annoCol, annotations[i]);
+			newLines.add(String.join("\t", sp));
+		}
+
+		/* fix up headers */
+		if (overwrite == false) {
+			ArrayList<String> heads = new ArrayList<>(Arrays.asList(this.headers));
+			heads.add(annoCol, "Observed Modifications");
+			heads.toArray(this.headers);
+		}
+
+		/* write output */
+		String tempFoutName = this.fname + ".anno.tmp";
+		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+
+		/* write the new header */
+		out.println(String.join("\t", this.headers));
+		/* write file lines */
+		for (int i = 0; i < newLines.size(); i ++)
+			out.println(newLines.get(i));
+
+		/* close and rename temp file */
+		out.close();
+		this.fname.delete();
+		File newFileName = new File(tempFoutName);
+		newFileName.renameTo(this.fname);
+    }
 }
