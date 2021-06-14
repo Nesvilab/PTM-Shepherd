@@ -88,7 +88,7 @@ public class FastLocator {
 		return best;
 	}
 
-	public double calculatePeakTol(double pepmass, double ppmtol, double modmass){
+	public double calculatePeakTol(double pepmass, double ppmtol, double modmass) {
 		double peakTol = ((pepmass + modmass) / 1000000.0) * ppmtol;
 		return peakTol;
 	}

@@ -83,6 +83,16 @@ public class PSMFile {
 		return res;
 	}
 
+	public ArrayList<Float> getPrecursorMasses() {
+		ArrayList<Float> precs = new ArrayList<>();
+		int col = getPrecursorCol();
+		for (int i = 0; i < data.size(); i++) {
+			String [] sp = data.get(i).split("\t");
+			precs.add(Float.parseFloat(sp[col]));
+		}
+		return precs;
+	}
+
 	public int getPrecursorCol() {
 		int col = getColumn("Calibrated Observed Mass");
 		if (col == -1)
@@ -250,8 +260,10 @@ public class PSMFile {
 		ArrayList<String> newLines = new ArrayList<>();
 		for (int i = 0; i < this.data.size(); i++) {
 			ArrayList<String> sp = new ArrayList<String>(Arrays.asList(this.data.get(i).split("\t")));
-			if (overwrite == true)
-				sp.set(annoCol, annotations[i]);
+			if (overwrite == true) {
+				if (!annotations[i].equals(""))
+					sp.set(annoCol, annotations[i]);
+			}
 			else
 				sp.add(annoCol, annotations[i]);
 			newLines.add(String.join("\t", sp));

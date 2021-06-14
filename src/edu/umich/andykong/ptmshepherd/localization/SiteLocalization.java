@@ -221,8 +221,10 @@ public class SiteLocalization {
 			double md = Double.parseDouble(sp[3]);
 			for(int i = 0; i < profiles.length; i++) {
 				int cind = profiles[i].locate.getIndex(md);
-				if(cind != -1) 
+				if(cind != -1)
 					profiles[i].records[cind].updateWithLine(sp);
+				else /* ensure we count the specs that aren't matched to a bin for global calcs */
+					profiles[i].records[profiles[i].records.length - 1].updateWithLine(sp);
 			}
 		}
 		in.close();

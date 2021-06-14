@@ -7,6 +7,7 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 
+
 public class PeakAnnotator {
 
 	public static ArrayList<String> mods;
@@ -333,14 +334,21 @@ public class PeakAnnotator {
 		return -1;
 	}
 
-	public String[] getDeltaMassMappings(ArrayList<Float> massdiffs) {
+	public String[] getDeltaMassMappings(ArrayList<Float> massdiffs, ArrayList<Float> precursors, double precursorTol, int precursorUnits) {
 		String[] massDiffAnnotations = new String[massdiffs.size()];
 		int zeroBinInd = this.fastLocator.getIndex(0.0000);
+
+		/* make temp mass diff instance for sorting */
+		ArrayList<MassDiffAnnotation> mdas = new ArrayList<>();
+		for(int i = 0; i < this.mod_diffs.size(); i++)
+			mdas.add(new MassDiffAnnotation(this.mods.get(i), this.mod_diffs.get(i)));
+		Collections.sort(mdas);
 
 		/* get mod annotations for each delta mass */
 		for (int i = 0; i < massdiffs.size(); i++) {
 			int cind = this.fastLocator.getIndex(massdiffs.get(i));
 			StringBuffer cMods = new StringBuffer();
+			/* if PTMShepherd annotation exists */
 			if (cind != -1) {
 				for (int j = 0; j < this.maxDepth; j++) {
 					String cMod = this.modMappings[j][cind];
@@ -351,11 +359,48 @@ public class PeakAnnotator {
 				if (cind != zeroBinInd)
 					cMods.append(String.format(" (%.04f)", this.peaks[0][cind]));
 			}
+			/* if PTMShepherd annotation doesn't exist */
+			else {
+				double tol = 0;
+				if (precursorUnits == 0)
+					tol = precursorTol;
+				else if (precursorUnits == 1)
+					tol = precursors.get(i) * precursorTol / 1000000;
+				double lowerBound = massdiffs.get(i) - tol;
+				double upperBound = massdiffs.get(i) + tol;
+				for (int j = 0; j < mdas.size(); j++) {
+					double cdiff = mdas.get(j).diff;
+					if (cdiff > upperBound)
+						break;
+					else if (cdiff < lowerBound)
+						continue;
+					else {
+						if (cMods.length() > 0)
+							cMods.append(String.format("; %s (%.04f)", mdas.get(j).annotation, mdas.get(j).diff));
+						else
+							cMods.append(String.format("%s (%.04f)", mdas.get(j).annotation, mdas.get(j).diff));
+					}
+				}
+			}
 			String cModLine = cMods.toString();
 			massDiffAnnotations[i] = cModLine;
 		}
 
 		return massDiffAnnotations;
+	}
+
+	class MassDiffAnnotation implements Comparable<MassDiffAnnotation> {
+		String annotation;
+		double diff;
+
+		MassDiffAnnotation(String anno, double dm) {
+			this.annotation = anno;
+			this.diff = dm;
+		}
+
+		public int compareTo(MassDiffAnnotation o) {
+			return Double.valueOf(this.diff).compareTo(o.diff);
+		}
 	}
 
 	

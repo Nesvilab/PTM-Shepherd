@@ -130,7 +130,7 @@ public class PTMShepherd {
         params.put("localization_allowed_res", "all"); //all or ABCDEF
 
         params.put("varmod_masses", "");
-        params.put("precursor_mass_units", "0");
+        params.put("precursor_mass_units", "0"); // 0 = Da, 1 = ppm
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width collapse these two parameters to one (requires redefining precursor tol in peakannotation module)
 		//params.put("precursor_tol_ppm", "20.0"); //for use in mass offset and glyco modes
 		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
@@ -448,7 +448,9 @@ public class PTMShepherd {
 				for(int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					pa.loadAnnotatedFile(peakannotated, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units")));
-					pf.annotateMassDiffs(pa.getDeltaMassMappings(pf.getMassDiffs()));
+					ArrayList<Float> dmasses = pf.getMassDiffs();
+					ArrayList<Float> precs = pf.getPrecursorMasses();
+					pf.annotateMassDiffs(pa.getDeltaMassMappings(dmasses, precs, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))));
 				}
 			}
 		}

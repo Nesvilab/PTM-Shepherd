@@ -6,6 +6,7 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class LocalizationRecord {
 
@@ -13,6 +14,8 @@ public class LocalizationRecord {
 	int originalOrder;
 	static int backgroundEnrich;
 	static boolean globalEnrich = false;
+	static boolean nonlocalizedPsms = false;
+	static boolean uniquePeptides = false;
 
 	double [] aaScores;
 	double [] aaScoresSafe;
@@ -23,9 +26,9 @@ public class LocalizationRecord {
 	int nTerm, improved, total;
 
 	ArrayList<String> localPepSeqs = new ArrayList<>();
-	static ArrayList<String> globalPepSeqs = new ArrayList<>();
+	ArrayList<String> globalPepSeqs = new ArrayList<>();
 	ArrayList<String> uniqueLocalPepSeqs = new ArrayList<>();
-	static ArrayList<String> uniqueGlobalPepSeqs = new ArrayList<>();
+	ArrayList<String> uniqueGlobalPepSeqs = new ArrayList<>();
 	double [] localAANorm;
 	static double [] globalAANorm;
 
@@ -54,17 +57,23 @@ public class LocalizationRecord {
 		int bestFrag = Integer.parseInt(sp[8]);
 
 		//check for local or global enrichment calculation, default is global (4)
-		if(backgroundEnrich > 2)
+		if (backgroundEnrich == 3 || backgroundEnrich == 4 || backgroundEnrich == 7 || backgroundEnrich == 8)
 			globalEnrich = true;
+		if (backgroundEnrich == 5 ||backgroundEnrich == 6 ||backgroundEnrich == 7 ||backgroundEnrich == 8)
+			nonlocalizedPsms = true;
+		if (backgroundEnrich == 1 || backgroundEnrich == 3 || backgroundEnrich == 5 || backgroundEnrich == 7)
+			uniquePeptides = true;
 
-		//todo implement nonlocalized psm background
+		/* include nonlocalized PSMs in localization background */
+		if(bestFrag <= origFrag) {
+			if (nonlocalizedPsms) {
+				localPepSeqs.add(pepSeq);
+			}
+		}
 
 		//if "localized"
 		if(bestFrag > origFrag) {
-			if(globalEnrich)
-				globalPepSeqs.add(pepSeq);
-			else
-				localPepSeqs.add(pepSeq);
+			localPepSeqs.add(pepSeq);
 
 			//calc score diff
 			double improv = bestScore-origScore;
@@ -96,7 +105,7 @@ public class LocalizationRecord {
 		total++;
 	}
 	
-	public String toString() {
+	public String toString(ArrayList<String> globalPepSeqs, ArrayList<String> uniqueGlobalPepSeqs) {
 		StringBuffer sb = new StringBuffer();
 		
 		/* General stats */ //TODO make this better, how to easily filter N-term enrichment form final results if it doesn't matter?
@@ -112,10 +121,7 @@ public class LocalizationRecord {
 		//Normalize
 		if(globalEnrich) { //if norm at global level
 			if (globalAANorm == null) { //if global norms uncomputed
-				if (backgroundEnrich == 3) { //if norm at peptide level
-					HashSet<String> t = new HashSet<>(globalPepSeqs);
-					uniqueGlobalPepSeqs = new ArrayList<>();
-					uniqueGlobalPepSeqs.addAll(t);
+				if (uniquePeptides == true) { //if norm at peptide level
 					//calc norm from unique global peptide seqs
 					globalAANorm = calcNorms(uniqueGlobalPepSeqs);
 				} else { //if norm at psm level
@@ -126,10 +132,8 @@ public class LocalizationRecord {
 			AAnorms = globalAANorm;
 		} else { //if norm at local level
 			if (localAANorm == null) { //if local norms uncomputed
-				if (backgroundEnrich == 1) { //if norm at peptide level
-					HashSet<String> t = new HashSet<>(localPepSeqs);
-					uniqueLocalPepSeqs = new ArrayList<>();
-					uniqueLocalPepSeqs.addAll(t);
+				if (uniquePeptides == true) { //if norm at peptide level
+					uniqueLocalPepSeqs = new ArrayList<>(localPepSeqs.stream().distinct().collect(Collectors.toList()));
 					//calc norm from uniqe local peptide sequences
 					localAANorm = calcNorms(uniqueLocalPepSeqs);
 				} else { //if norm at psm level
