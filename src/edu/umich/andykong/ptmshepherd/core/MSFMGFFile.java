@@ -245,7 +245,7 @@ public class MSFMGFFile {
                 } else {
                     cinfo = line.trim().split(" ");
                     peakmz.add(Float.parseFloat(cinfo[0]));
-                    peakint.add(Float.parseFloat(cinfo[0]));
+                    peakint.add(Float.parseFloat(cinfo[1]));
                 }
             }
         } catch (Exception e) {
