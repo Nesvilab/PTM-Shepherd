@@ -325,6 +325,8 @@ public class PeakAnnotator {
 
 		/* set up indexer for fast access */
 		this.fastLocator = new FastLocator(this.peaks, precursorTol, precursorUnits);
+
+		in.close();
 	}
 
 	private int getColumn (String head) {
