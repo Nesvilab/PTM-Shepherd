@@ -16,6 +16,8 @@ public class GlycoAnalysis {
     String dsName;
     File glycoFile;
     MXMLReader mr;
+    ArrayList<String> lineWithoutSpectra = new ArrayList<>();
+    int totalLines;
     HashMap<String, MXMLReader> multiMr;
     float ppmTol, peakTol;
     int condPeaks;
@@ -34,6 +36,7 @@ public class GlycoAnalysis {
         //open up output file
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
         PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
+        ArrayList<String> linesWithoutSpectra = new ArrayList<>();
 
         //get necessary params
         ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
@@ -104,16 +107,28 @@ public class GlycoAnalysis {
             long t2 = System.currentTimeMillis();
             ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
             for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
-                StringBuffer newline = processLine(pf.data.get(clines.get(i)));
-                out.println(newline.toString());
+                String newline = processLine(pf.data.get(clines.get(i)));
+                this.totalLines++;
+                if (newline.equals("ERROR"))
+                    continue;
+                else
+                    out.println(newline);
             }
             long t3 = System.currentTimeMillis();
             PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
         }
         out.close();
+
+        if (!linesWithoutSpectra.isEmpty()) {
+            System.out.printf("Could not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), this.totalLines,
+                    100.0*((double)linesWithoutSpectra.size()/this.totalLines));
+            int previewSize = Math.min(linesWithoutSpectra.size(), 5);
+            System.out.printf("Showing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
+                    String.join("\n\t", linesWithoutSpectra.subList(0, previewSize)));
+        }
     }
 
-    public StringBuffer processLine(String line) {
+    public String processLine(String line) {
         StringBuffer sb = new StringBuffer();
         String [] sp = line.split("\\t");
         String seq = sp[pepCol];
@@ -125,24 +140,23 @@ public class GlycoAnalysis {
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName,seq,sp[modCol],pepMass, dmass));
 
         Spectrum spec = mr.getSpectrum(reNormName(specName));
+        if (spec == null) {
+            this.lineWithoutSpectra.add(reNormName(specName));
+            return "ERROR";
+        }
         spec.conditionOptNorm(condPeaks, condRatio, false);
-        //System.out.println("got spec");
+
         double [] capYIonIntensities;
         double [] oxoniumIonIntensities;
-        capYIonIntensities = findCapitalYIonMasses(spec, pepMass);
-        //for (int i = 0; i < capYIonIntensities.length; i++)
-        //    System.out.println(capYIonIntensities[i]);
-        // System.out.println(seq+"********");
-        oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
-        //for (int i = 0; i < oxoniumIonIntensities.length; i++)
-        //    System.out.println(oxoniumIonIntensities[i]);
 
-        //System.out.println(specName);
+        capYIonIntensities = findCapitalYIonMasses(spec, pepMass);
+        oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
+
         for (int i = 0; i < capYIonIntensities.length; i++)
             sb.append(String.format("\t%.2f", capYIonIntensities[i]));
         for (int i = 0; i < oxoniumIonIntensities.length; i++)
             sb.append(String.format("\t%.2f", oxoniumIonIntensities[i]));
-        //System.out.println("got ion masses");
+
         float [] deltaScores = new float[remainderMasses.length];
         boolean [][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores);
 
@@ -156,7 +170,7 @@ public class GlycoAnalysis {
             }
             sb.append(locSb.toString());
         }
-        return sb;
+        return sb.toString();
     }
 
     public double[] findCapitalYIonMasses(Spectrum spec, double pepMass) {

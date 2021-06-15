@@ -98,11 +98,11 @@ public class BinDiagMetric {
         }
 
         /* Initialize histograms */
-        this.immoniumIons = new DiagnosticHisto(this.peakApex, this.binMinMax[0][0], this.binMinMax[0][1], 0.001, minSignal, this.ppmTol, avgImm);
-        this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.001, minSignal, this.ppmTol, avgPepPrec);
+        this.immoniumIons = new DiagnosticHisto(this.peakApex, this.binMinMax[0][0], this.binMinMax[0][1], 0.0001, minSignal, this.ppmTol, avgImm);
+        this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.0001, minSignal, this.ppmTol, avgPepPrec);
         this.tildeIons = new ArrayList<>();
         for (int i = 0; i < this.ionTypes.length(); i++) { /* +2 because of immonium and Y ions in first 2 i's */
-            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.001, minSignal / avgPepLen, this.ppmTol, avgFrag[i]));
+            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.0001, minSignal / avgPepLen, this.ppmTol, avgFrag[i]));
         }
 
         /* Assign data to histograms */
@@ -172,16 +172,16 @@ public class BinDiagMetric {
         /* Format immonium tests */
         for (int i = 0; i < this.testResults.immoniumTests.size(); i++) {
             Test t = this.testResults.immoniumTests.get(i);
-            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.04f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIon, t.u, t.n1, t.n2);
+            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.u, t.n1, t.n2);
             newLines.append(newLine);
         }
 
         /* Format capY tests */
         for (int i = 0; i < this.testResults.capYTests.size(); i++) {
             Test t = this.testResults.capYTests.get(i);
-            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.04f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIon, t.u, t.n1, t.n2);
+            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.u, t.n1, t.n2);
             newLines.append(newLine);
         }
 
@@ -189,8 +189,8 @@ public class BinDiagMetric {
         for (Character cIon : this.testResults.squigglesTests.keySet()) {
             for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
                 Test t = this.testResults.squigglesTests.get(cIon).get(i);
-                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.04f\t%d\t%d\n",
-                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIon, t.u, t.n1, t.n2);
+                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
+                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.u, t.n1, t.n2);
                 newLines.append(newLine);
             }
         }

@@ -274,8 +274,9 @@ public class PeakCompareTester {
                 p = convertP(p, greaterThan);
             p *= this.immoniumX.size();
             double propWIon = (double) this.immoniumYN.get(peak) / this.nTreatPsms;
+            double propWIonCont = (double) this.immoniumXN.get(peak) / this.nControlPsms;
             if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc)
-                this.immoniumTests.add(new Test(peak, p, rankBiserCorr, propWIon, u2,
+                this.immoniumTests.add(new Test(peak, p, rankBiserCorr, propWIon, propWIonCont, u2,
                         this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
             //System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
@@ -297,8 +298,9 @@ public class PeakCompareTester {
             //double rankBiserCorr = Math.abs((2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1);
             p *= this.capYX.size();
             double propWIon = (double) this.capYYN.get(peak) / this.nTreatPsms;
+            double propWIonCont = (double) this.capYXN.get(peak) / this.nControlPsms;
             if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc)
-                this.capYTests.add(new Test(peak, p, rankBiserCorr, propWIon, u2,
+                this.capYTests.add(new Test(peak, p, rankBiserCorr, propWIon, propWIonCont, u2,
                         this.capYX.get(peak).size(), this.capYY.get(peak).size()));
             //System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
@@ -327,8 +329,9 @@ public class PeakCompareTester {
                 //out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
                 p *= this.squigglesX.get(c).size();
                 double propWIon = (double) this.squigglesYN.get(c).get(peak) / this.nTreatPsms;
+                double propWIonCont = (double) this.squigglesXN.get(c).get(peak) / this.nControlPsms;
                 if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc)
-                    this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr, propWIon, u2,
+                    this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr, propWIon, propWIonCont, u2,
                             this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                 //if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
                 //System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
@@ -587,14 +590,16 @@ class Test implements Comparable<Test> {
     public double u;
     public long n1;
     public long n2;
-    public double propWIon;
+    public double propWIonTreat;
+    public double propWIonCont;
 
-    Test(double mass, double q, double rbc, double propWIon, double u, long n1, long n2) {
+    Test(double mass, double q, double rbc, double propWIonTreat, double propWIonCont, double u, long n1, long n2) {
         this.mass = mass;
         this.adjustedMass = mass;
         this.q = q;
         this.rbc = rbc;
-        this.propWIon = propWIon;
+        this.propWIonTreat = propWIonTreat;
+        this.propWIonCont = propWIonCont;
         this.u = u;
         this.group = 0;
         this.n1 = n1;

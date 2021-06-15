@@ -299,7 +299,7 @@ public class DiagnosticPeakPicker {
     public void print(String fout) throws IOException {
         PrintWriter out = new PrintWriter(new FileWriter(fout,false));
 
-        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\trbc\tprop_spectra_w_ion\tu_stat\tn_control\tn_test\n");
+        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tu_stat\tn_control\tn_test\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++)
             out.print(this.binDiagMetrics[i].toString());
 
