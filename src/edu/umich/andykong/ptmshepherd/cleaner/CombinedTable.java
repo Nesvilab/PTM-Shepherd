@@ -26,7 +26,7 @@ public class CombinedTable {
         this.fname = PTMShepherd.normFName(dataset + ".profile.tsv");
     }
 
-    public void writeCombinedTable() throws IOException {
+    public void writeCombinedTable(int useIntensities) throws IOException {
         /* Process preaksummary.annotated.tsv file */
 
         /* Get headers that we're adding later */
@@ -58,6 +58,10 @@ public class CombinedTable {
             colsToAddLater.add(exp + "_peptides");
         for (String exp : experiments)
             colsToAddLater.add(exp + "_percent_also_in_unmodified");
+        if (useIntensities == 1) {
+            for (String exp : experiments)
+                colsToAddLater.add(exp + "_intensity");
+        }
 
         /* Read remaining lines and append to data */
         String cline;

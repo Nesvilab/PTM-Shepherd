@@ -82,6 +82,45 @@ public class PSMFile {
 		return res;
 	}
 
+	public ArrayList<Double> getIntensities() {
+		/* set up initial properties */
+		int intPeaks = Integer.parseInt(PTMShepherd.getParam("histo_intensity"));
+		int intCol = getColumn("Intensity");
+		ArrayList<Double> ints = new ArrayList<>();
+
+		/* if no intensity column or intensity no wanted, just get spectral counts */
+		if (intCol == -1 || intPeaks == 0) {
+			if (intPeaks == 1)
+				System.out.printf("\tCould not identify 'Intensity' column in %s. Defaulting to spectral counts.", this.fname);
+			for (int i = 0; i < this.data.size(); i++) {
+				String[] sp = this.data.get(i).split("\t");
+				ints.add(1.0);
+			}
+		}
+		/* if intensity column found, collect counts */
+		else {
+			double total = 0;
+			for (int i = 0; i < this.data.size(); i++) {
+				String[] sp = this.data.get(i).split("\t");
+				double cInt = Double.parseDouble(sp[intCol]);
+				ints.add(cInt);
+				total += cInt;
+			}
+			/* if column is invalid, redo calculation with spectral counts */
+			if (total < 1) {
+				ints = new ArrayList<>();
+				System.out.printf("\tEmpty 'Intensity' column in %s. Defaulting to spectral counts.", this.fname);
+				for (int i = 0; i < this.data.size(); i++) {
+					String[] sp = this.data.get(i).split("\t");
+					ints.add(1.0);
+				}
+			}
+		}
+
+		return ints;
+
+	}
+
 	public int getPrecursorCol() {
 		int col = getColumn("Calibrated Observed Mass");
 		if (col == -1)
@@ -93,11 +132,11 @@ public class PSMFile {
 
 	public static void getMappings(File path, HashMap<String,File> mappings) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
-			datTypes.put("mgf", 0);
-			datTypes.put("raw", 1);
-			datTypes.put("mzBIN", 2);
-			datTypes.put("mzXML", 3);
-			datTypes.put("mzML", 4);
+			datTypes.put("raw", 0);
+			datTypes.put("mzXML", 1);
+			datTypes.put("mzML", 2);
+			datTypes.put("mzBIN", 3);
+			datTypes.put("mgf", 4);
 
 		if(path.isDirectory()) {		
 			File [] ls = path.listFiles();

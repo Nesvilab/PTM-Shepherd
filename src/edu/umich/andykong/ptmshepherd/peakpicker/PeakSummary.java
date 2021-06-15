@@ -13,18 +13,22 @@ public class PeakSummary {
 	ArrayList<PeakFeature> features;
 	PeakFeature topFeature;
 	TreeMap<String,int [][]> counts;
+	TreeMap<String,double []> intensities;
 	TreeMap<String,Integer> dsSize;
 	int minPsms;
-	boolean prepForIonQuant;
+	int useIntensity;
+
 	
-	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets, int psmFilter) throws Exception {
+	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets, int psmFilter, int useIntensity) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(peakTSV));
 		features = new ArrayList<>();
 		counts = new TreeMap<>();
+		this.intensities = new TreeMap<>();
 		dsSize = new TreeMap<>();
 		boolean offsetMode = massOffsets.contains("/");
 		double precursorTol = pt;
 		this.minPsms = psmFilter;
+		this.useIntensity = useIntensity;
 
 		String cline;
 		int cnt = 0;
@@ -134,6 +138,10 @@ public class PeakSummary {
 			out.print("\t"+exps[i] + "_percent_PSMs");
 		for(int i = 0; i < exps.length; i++)
 			out.print("\t"+exps[i] + "_peptides\t" + exps[i] + "_percent_also_in_unmodified");
+		if (this.useIntensity == 1) {
+			for(int i = 0; i < exps.length; i++)
+				out.print("\t"+exps[i] + "_intensity");
+		}
 		out.print("\t"+"percent_also_in_unmodified");
 		out.print("\t"+"PSMs");
 		out.println();
@@ -151,7 +159,7 @@ public class PeakSummary {
 				nInsuffPeaks += 1;
 				continue;
 			}
-			/** Get and print counts to file */
+			/* Get and print counts to file */
 			out.printf("%.5f\t%.5f\t%.5f\t%.2f", features.get(pt).peakCenter,features.get(pt).peakLower,
 					features.get(pt).peakUpper, (features.get(pt).snr / 1000000) * 100);
 			for(int j = 0; j < exps.length; j++) //count PSMs
@@ -160,6 +168,10 @@ public class PeakSummary {
 				out.printf("\t%.3f", (100.0*counts.get(exps[j])[pt][1])/dsSize.get(exps[j]));
 			for(int j = 0; j < exps.length; j++) //count peps
 				out.printf("\t%d\t%.2f", counts.get(exps[j])[pt][0],100*nzr(counts.get(exps[j])[pt][2],counts.get(exps[j])[pt][0]));
+			if (this.useIntensity == 1) { //sum intensity
+				for (int j = 0; j < exps.length; j++)
+					out.printf("\t%e", this.intensities.get(exps[j])[pt]);
+			}
 			double weightedPeps = 0;
 			double totPep = 0;
 			for(int j = 0; j < exps.length; j++){
@@ -183,6 +195,7 @@ public class PeakSummary {
 	
 	public void commit(String dsName, int sz) {
 		int [][] cnts = new int[features.size()][3];
+		double [] ints = new double[features.size()];
 		for(int i = 0; i < features.size(); i++) {
 			int countZeroPeps = 0;
 			if (topFeature != null) {
@@ -193,13 +206,16 @@ public class PeakSummary {
 			cnts[i][0] = features.get(i).peps.size();
 			cnts[i][1] = features.get(i).psms;
 			cnts[i][2] = countZeroPeps;
+			ints[i] = features.get(i).intensity;
 		}
 		dsSize.put(dsName, sz);
 		counts.put(dsName, cnts);
+		this.intensities.put(dsName, ints);
 	}
 	
 	public void appendPSMs(PSMFile pf) {
 		int seqcol = pf.getColumn("Peptide");
+		int intcol = pf.getColumn("Intensity");
 		int mdcol = pf.dMassCol;
 //		long stime = System.currentTimeMillis();
 		for(int i = 0; i < pf.data.size(); i++) {
@@ -222,6 +238,9 @@ public class PeakSummary {
 					if (fast != null) {
 						fast.peps.add(sp[seqcol]);
 						fast.psms++;
+						if (this.useIntensity == 1) {
+							fast.intensity += Double.parseDouble(sp[intcol]);
+						}
 					}
 				}
 			}

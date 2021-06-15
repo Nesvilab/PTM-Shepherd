@@ -22,7 +22,7 @@ public class CombinedExperimentsSummary {
     }
 
     /* Read global profile table to initialize data */
-    public void initializeExperimentSummary(String fn) throws IOException {
+    public void initializeExperimentSummary(String fn, int useIntensity) throws IOException {
         /* Universal columns to be added */
         ArrayList<String> colsToAdd = new ArrayList<>(Arrays.asList("peak_apex", "peak_lower", "peak_upper",
                 "PSMs", "percent_also_in_unmodified",
@@ -41,7 +41,8 @@ public class CombinedExperimentsSummary {
             if ((curHeaders[i].contains("_PSMs") && !curHeaders[i].contains("_percent_PSMs"))||
                     curHeaders[i].contains("_percent_PSMs") ||
                     curHeaders[i].contains("_peptides") ||
-                    curHeaders[i].contains("_percent_also_in_unmodified"))
+                    curHeaders[i].contains("_percent_also_in_unmodified") ||
+                    (curHeaders[i].contains("_intensity") && useIntensity == 1));
                 colsToAdd.add(curHeaders[i]);
         }
 

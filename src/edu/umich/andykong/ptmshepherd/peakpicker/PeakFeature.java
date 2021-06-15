@@ -4,7 +4,7 @@ import java.util.*;
 
 public class PeakFeature implements Comparable<PeakFeature> {
 	
-	double peakCenter, peakLower, peakUpper, snr;
+	double peakCenter, peakLower, peakUpper, snr, intensity;
 	
 	HashSet<String> peps;
 	int psms, order;
@@ -13,8 +13,9 @@ public class PeakFeature implements Comparable<PeakFeature> {
 		this.peakCenter = peakCenter;
 		this.order = order;
 		this.snr = snr;
-		peps = new HashSet<>();
-		psms = 0;
+		this.peps = new HashSet<>();
+		this.psms = 0;
+		this.intensity = 0;
 	}
 	
 	public static PeakFeature getMatchedFeature(ArrayList<PeakFeature> features, double v) {

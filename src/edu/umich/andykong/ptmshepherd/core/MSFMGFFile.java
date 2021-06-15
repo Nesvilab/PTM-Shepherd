@@ -128,7 +128,7 @@ public class MSFMGFFile {
             lineC++;
         }
 
-        System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
+        //System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
 
         ArrayList<Future> futureList = new ArrayList<>(nBlocks);
 
@@ -146,11 +146,11 @@ public class MSFMGFFile {
             futureList.add(executorService.submit(() -> processMSFMGFSpectraBlock(fileLines, ilinestart, ilineend)));
         }
 
-        System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
+        //System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
         for (Future future : futureList) { //checks to make sure all threads are done
             future.get();
         }
-        System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
+        //System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
         //todo
     }
 
@@ -245,7 +245,7 @@ public class MSFMGFFile {
                 } else {
                     cinfo = line.trim().split(" ");
                     peakmz.add(Float.parseFloat(cinfo[0]));
-                    peakint.add(Float.parseFloat(cinfo[0]));
+                    peakint.add(Float.parseFloat(cinfo[1]));
                 }
             }
         } catch (Exception e) {

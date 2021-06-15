@@ -111,7 +111,7 @@ public class Spectrum implements Comparable<Spectrum> {
 			if(peakInt[i] > mv)
 				mv = peakInt[i];
 		}
-				
+
 		Collections.sort(peaks, new Comparator<Peak>() {
 			public int compare(Peak o1, Peak o2) {
 				return -1*Float.valueOf(o1.Int).compareTo(o2.Int);
@@ -122,13 +122,13 @@ public class Spectrum implements Comparable<Spectrum> {
 			peaks.remove(peaks.size()-1);
 		while(peaks.size() > 0 && (peaks.get(peaks.size()-1).Int < peaks.get(0).Int*ratio))
 			peaks.remove(peaks.size()-1);
-		
+
 		Collections.sort(peaks, new Comparator<Peak>() {
 			public int compare(Peak o1, Peak o2) {
 				return Float.valueOf(o1.MZ).compareTo(o2.MZ);
 			}
 		});
-		
+
 		peakMZ = new float[peaks.size()];
 		peakInt = new float[peaks.size()];
 		for(int i = 0; i < peaks.size(); i++) {

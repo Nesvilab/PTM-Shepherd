@@ -32,6 +32,7 @@ public class DiagnosticHisto {
         this.max = (int) mx + buffersize;
         this.total = 0;
         this.binsPerDa = (int) (1.0 / binWidth);
+        System.out.println(min + "\t" + max + "\t" + binsPerDa);
         this.ppmTol = ppmTol;
         this.normMass = normMass;
         this.minSignal = minSignal;

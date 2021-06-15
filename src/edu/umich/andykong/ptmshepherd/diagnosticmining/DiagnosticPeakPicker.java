@@ -61,7 +61,7 @@ public class DiagnosticPeakPicker {
 
         for (String cf : mzMappings.keySet()) {
             try {
-                System.out.println(cf);
+                //System.out.println(cf);
                 String dgbinFname = cf + ".diagBIN";
                 DiagBINFile dbf = new DiagBINFile(executorService, nThreads, dgbinFname, false);
                 LinkedHashMap<Integer, Float> scanToDmass = dbf.getDmasses();
@@ -299,7 +299,7 @@ public class DiagnosticPeakPicker {
     public void print(String fout) throws IOException {
         PrintWriter out = new PrintWriter(new FileWriter(fout,false));
 
-        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\trbc\tu_stat\tn_control\tn_test\n");
+        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\trbc\tprop_spectra_w_ion\tu_stat\tn_control\tn_test\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++)
             out.print(this.binDiagMetrics[i].toString());
 

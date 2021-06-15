@@ -119,6 +119,8 @@ public class PTMShepherd {
 		params.put("histo_bindivs", "5000"); //number of divisions in histogram
 		params.put("histo_smoothbins", "2"); //smoothing factor
 		params.put("histo_normalizeTo", "psms"); //changing default normalization to "psms" instead of "scans"
+		params.put("histo_intensity", "0"); //use MS1 intensities instead of
+		params.put("histo_Tmt", "0"); //uses TMT values to create multiple experiments
 		
 		params.put("peakpicking_promRatio", "0.3"); //prominence ratio for peakpicking
 		params.put("peakpicking_mass_units", "0");
@@ -169,7 +171,7 @@ public class PTMShepherd {
 		params.put("diagmine_filterIonTypes", "aby");
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
-		params.put("diagmine_minRbc", "0.5");
+		params.put("diagmine_minAuc", "0.6");
 		params.put("diagmine_minPeps", "5");
 		params.put("diagmine_twoTailedTests", "1");
 		params.put("diagmine_maxPsms", "1000");
@@ -373,7 +375,7 @@ public class PTMShepherd {
 		//Generate histograms
 		File combinedHisto = new File(normFName("combined.histo"));
 		if(!combinedHisto.exists()) {
-			print("\nCreating combined histogram");
+			print("Creating combined histogram");
 			int min = 1 << 30;
 			int max = -1*(1<<30);
 
@@ -382,11 +384,13 @@ public class PTMShepherd {
 				if(!histoFile.exists()) {
 					ArrayList<String []> dsData = datasets.get(ds);
 					ArrayList<Float> vals = new ArrayList<>();
+					ArrayList<Double> ints =  new ArrayList<>();
 					for(int i = 0; i < dsData.size(); i++) {
 						PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 						vals.addAll(pf.getMassDiffs());
+						ints.addAll(pf.getIntensities());
 					}
-					Histogram chisto = new Histogram(vals, datasetMS2.get(ds), Integer.parseInt(params.get("histo_bindivs")),Integer.parseInt(params.get("histo_smoothbins"))*2+1);
+					Histogram chisto = new Histogram(vals, ints, datasetMS2.get(ds), Integer.parseInt(params.get("histo_bindivs")),Integer.parseInt(params.get("histo_smoothbins"))*2+1);
 					min = Math.min(min, chisto.start);
 					max = Math.max(max, chisto.end);
 					chisto.writeHistogram(histoFile);
@@ -432,7 +436,7 @@ public class PTMShepherd {
 		if(!peaksummary.exists()) {
 			PeakSummary ps = new PeakSummary(peaks,Integer.parseInt(params.get("precursor_mass_units")),
 					Double.parseDouble(params.get("precursor_tol")), params.get("mass_offsets"),
-					Integer.parseInt(params.get("peakpicking_minPsm")));
+					Integer.parseInt(params.get("peakpicking_minPsm")), Integer.parseInt(params.get("histo_intensity")));
 			for(String ds : datasets.keySet()) {
 				ps.reset();
 				ArrayList<String []> dsData = datasets.get(ds);
@@ -548,12 +552,12 @@ public class PTMShepherd {
 				}
 				//da.complete();
 				long t2 = System.currentTimeMillis();
-				System.out.printf("\tFinished preprocessing dataset %s - %d ms total\n", ds, t2-t1);
+				System.out.printf("\tDone preprocessing dataset %s - %d ms total\n", ds, t2-t1);
 			}
 			System.out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
-					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minRbc")), Integer.parseInt(params.get("diagmine_twoTailedTests")));
+					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Integer.parseInt(params.get("diagmine_twoTailedTests")));
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
@@ -569,11 +573,11 @@ public class PTMShepherd {
 		//Combine tables
 		System.out.println("Combining and cleaning reports");
 		CombinedTable gct = new CombinedTable("global");
-		gct.writeCombinedTable();
+		gct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")));
 		for (String ds : datasets.keySet()){
 			System.out.println("Writing combined table for dataset " + ds);
 			CombinedTable cct = new CombinedTable(ds);
-			cct.writeCombinedTable();
+			cct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")));
 		}
 
 		//Glyco analyses
@@ -640,7 +644,7 @@ public class PTMShepherd {
 		if (Boolean.parseBoolean(params.get("output_extended"))) {
 			System.out.println("Creating experiment-level profile report");
 			CombinedExperimentsSummary cs = new CombinedExperimentsSummary(normFName("combined_experiment_profile.tsv"));
-			cs.initializeExperimentSummary(normFName("global.profile.tsv"));
+			cs.initializeExperimentSummary(normFName("global.profile.tsv"), Integer.parseInt(params.get("histo_intensity")));
 			cs.addLocalizationSummary(normFName("global.locprofile.txt"), "combined");
 			cs.addSimilarityRTSummary(normFName("global.simrtprofile.txt"), "combined");
 			for (String ds : datasets.keySet()) {

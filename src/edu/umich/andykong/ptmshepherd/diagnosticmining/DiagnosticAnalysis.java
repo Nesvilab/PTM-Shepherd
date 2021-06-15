@@ -117,8 +117,11 @@ public class DiagnosticAnalysis {
         /* Temporary arrays that hold blocks of spectra to be added to shared Collections synchronously */
         ArrayList<DiagnosticRecord> diagnosticRecords = new ArrayList<>();
 
-        for (int i = 0; i < cBlock.size(); i++)
-            diagnosticRecords.add(processLine(cBlock.get(i)));
+        for (int i = 0; i < cBlock.size(); i++) {
+            DiagnosticRecord dr = processLine(cBlock.get(i));
+            if (dr != null)
+                diagnosticRecords.add(dr);
+        }
 
         addAllTempDiagnosticRecords(diagnosticRecords);
     }
@@ -137,7 +140,10 @@ public class DiagnosticAnalysis {
 
         /* Prep spec and normalize to base peak */
         Spectrum spec = mr.getSpectrum(reNormName(specName));
-        spec.conditionOptNorm(condPeaks, condRatio, true);
+        if (spec != null)
+            spec.conditionOptNorm(condPeaks, condRatio, true);
+        else
+            return null;
 
         /* Initialize DiagnosticRecord and add relevant data */
         DiagnosticRecord diagnosticRecord =  new DiagnosticRecord(spec, this.ionTypes, pepSeq, parseModifications(smods, pepSeq), dmass, charge);

@@ -17,13 +17,21 @@ import java.util.concurrent.ExecutorService;
 public class PeakCompareTester {
     double peakApex;
     HashMap<Double, ArrayList<Double>> immoniumX;
-    HashMap<Double,ArrayList<Double>> immoniumY;
-    HashMap<Double,ArrayList<Double>> capYX;
-    HashMap<Double,ArrayList<Double>> capYY;
+    HashMap<Double, ArrayList<Double>> immoniumY;
+    HashMap<Double, ArrayList<Double>> capYX;
+    HashMap<Double, ArrayList<Double>> capYY;
     HashMap<Character, HashMap<Double,ArrayList<Double>>> squigglesX;
     HashMap<Character, HashMap<Double,ArrayList<Double>>> squigglesY;
+    HashMap<Double, Integer> immoniumXN;
+    HashMap<Double, Integer> immoniumYN;
+    HashMap<Double, Integer> capYXN;
+    HashMap<Double, Integer> capYYN;
+    HashMap<Character, HashMap<Double, Integer>> squigglesXN;
+    HashMap<Character, HashMap<Double, Integer>> squigglesYN;
     HashMap<String, ArrayList<DiagnosticRecord>> contPeptideMap;
+    int nControlPsms;
     HashMap<String, ArrayList<DiagnosticRecord>> treatPeptideMap;
+    int nTreatPsms;
     double [] x;
     double [] y;
     ArrayList<Double> xNums;
@@ -49,28 +57,44 @@ public class PeakCompareTester {
         this.peakApex = peakApex;
         this.immoniumX = new HashMap<>();
         this.immoniumY = new HashMap<>();
+        this.immoniumXN = new HashMap<>();
+        this.immoniumYN = new HashMap<>();
         for (Double peak : unifImm) {
             this.immoniumX.put(peak, new ArrayList<>());
             this.immoniumY.put(peak, new ArrayList<>());
+            this.immoniumXN.put(peak, 0);
+            this.immoniumYN.put(peak, 0);
         }
         this.capYX = new HashMap<>();
         this.capYY = new HashMap<>();
+        this.capYXN = new HashMap<>();
+        this.capYYN = new HashMap<>();
         for (Double peak : unifCapY) {
             this.capYX.put(peak, new ArrayList<>());
             this.capYY.put(peak, new ArrayList<>());
+            this.capYXN.put(peak, 0);
+            this.capYYN.put(peak, 0);
         }
         this.squigglesX = new HashMap<>();
         this.squigglesY = new HashMap<>();
+        this.squigglesXN = new HashMap<>();
+        this.squigglesYN = new HashMap<>();
         for (Character ion : unifSquig.keySet()) {
             this.squigglesX.put(ion, new HashMap<>());
             this.squigglesY.put(ion, new HashMap<>());
+            this.squigglesXN.put(ion, new HashMap<>());
+            this.squigglesYN.put(ion, new HashMap<>());
             for (Double peak : unifSquig.get(ion)) {
                 this.squigglesX.get(ion).put(peak, new ArrayList<>());
                 this.squigglesY.get(ion).put(peak, new ArrayList<>());
+                this.squigglesXN.get(ion).put(peak, 0);
+                this.squigglesYN.get(ion).put(peak, 0);
             }
         }
         this.contPeptideMap = new HashMap<>();
         this.treatPeptideMap = new HashMap<>();
+        this.nControlPsms = 0;
+        this.nTreatPsms = 0;
 
         this.maxP = maxP;
         this.minRbc = minRbc;
@@ -88,10 +112,12 @@ public class PeakCompareTester {
     public void addVals(DiagnosticRecord dr, boolean isControl) {
         String pepKey = dr.pepSeq + dr.modifications + dr.charge; //peptidekey includes charge
         if (isControl) {
+            this.nControlPsms++;
             if (!this.contPeptideMap.containsKey(pepKey))
                 this.contPeptideMap.put(pepKey, new ArrayList<>());
             this.contPeptideMap.get(pepKey).add(dr);
         } else {
+            this.nTreatPsms++;
             if (!this.treatPeptideMap.containsKey(pepKey))
                 this.treatPeptideMap.put(pepKey, new ArrayList<>());
             this.treatPeptideMap.get(pepKey).add(dr);
@@ -120,17 +146,23 @@ public class PeakCompareTester {
                     double cVal = immPeaks.get(peak);
                     cVal += dr.selectedImmoniumPeaks.get(peak) / nPsms;
                     immPeaks.put(peak, cVal);
+                    if (dr.selectedImmoniumPeaks.get(peak) > 1e-6) //count PSMs with ions
+                        this.immoniumXN.put(peak, (this.immoniumXN.get(peak) + 1));
                 }
                 for (Double peak : dr.selectedCapYPeaks.keySet()) {
                     double cVal = capYPeaks.get(peak);
                     cVal += dr.selectedCapYPeaks.get(peak) / nPsms;
                     capYPeaks.put(peak, cVal);
+                    if (dr.selectedCapYPeaks.get(peak) > 1e-6) //count PSMs with ions
+                        this.capYXN.put(peak, (this.capYXN.get(peak) + 1));
                 }
                 for (Character c : dr.selectedSquigglePeaks.keySet()) {
                     for (Double peak : dr.selectedSquigglePeaks.get(c).keySet()) {
                         double cVal = squigglePeaks.get(c).get(peak);
                         cVal += dr.selectedSquigglePeaks.get(c).get(peak) / nPsms;
                         squigglePeaks.get(c).put(peak, cVal);
+                        if (dr.selectedSquigglePeaks.get(c).get(peak) > 1e-6) //count PSMs with ions
+                            this.squigglesXN.get(c).put(peak, (this.squigglesXN.get(c).get(peak) + 1));
                     }
                 }
             }
@@ -166,17 +198,23 @@ public class PeakCompareTester {
                     double cVal = immPeaks.get(peak);
                     cVal += dr.selectedImmoniumPeaks.get(peak) / nPsms;
                     immPeaks.put(peak, cVal);
+                    if (dr.selectedImmoniumPeaks.get(peak) > 1e-6) //count PSMs with ions
+                        this.immoniumYN.put(peak, (this.immoniumYN.get(peak) + 1));
                 }
                 for (Double peak : dr.selectedCapYPeaks.keySet()) {
                     double cVal = capYPeaks.get(peak);
                     cVal += dr.selectedCapYPeaks.get(peak) / nPsms;
                     capYPeaks.put(peak, cVal);
+                    if (dr.selectedCapYPeaks.get(peak) > 1e-6) //count PSMs with ions
+                        this.capYYN.put(peak, (this.capYYN.get(peak) + 1));
                 }
                 for (Character c : dr.selectedSquigglePeaks.keySet()) {
                     for (Double peak : dr.selectedSquigglePeaks.get(c).keySet()) {
                         double cVal = squigglePeaks.get(c).get(peak);
                         cVal += dr.selectedSquigglePeaks.get(c).get(peak) / nPsms;
                         squigglePeaks.get(c).put(peak, cVal);
+                        if (dr.selectedSquigglePeaks.get(c).get(peak) > 1e-6) //count PSMs with ions
+                            this.squigglesYN.get(c).put(peak, (this.squigglesYN.get(c).get(peak) + 1));
                     }
                 }
             }
@@ -235,8 +273,10 @@ public class PeakCompareTester {
             if (this.twoTailedTests == false)
                 p = convertP(p, greaterThan);
             p *= this.immoniumX.size();
-            if (p <= this.maxP && Math.abs(rankBiserCorr) >= this.minRbc)
-                this.immoniumTests.add(new Test(peak, p, rankBiserCorr, u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
+            double propWIon = (double) this.immoniumYN.get(peak) / this.nTreatPsms;
+            if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc)
+                this.immoniumTests.add(new Test(peak, p, rankBiserCorr, propWIon, u2,
+                        this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
             //System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
 
@@ -256,8 +296,10 @@ public class PeakCompareTester {
                 p = convertP(p, greaterThan);
             //double rankBiserCorr = Math.abs((2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1);
             p *= this.capYX.size();
-            if (p <= this.maxP && Math.abs(rankBiserCorr) >= this.minRbc)
-                this.capYTests.add(new Test(peak, p, rankBiserCorr, u2, this.capYX.get(peak).size(), this.capYY.get(peak).size()));
+            double propWIon = (double) this.capYYN.get(peak) / this.nTreatPsms;
+            if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc)
+                this.capYTests.add(new Test(peak, p, rankBiserCorr, propWIon, u2,
+                        this.capYX.get(peak).size(), this.capYY.get(peak).size()));
             //System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
 
@@ -283,10 +325,11 @@ public class PeakCompareTester {
                     p = convertP(p, greaterThan);
                 //double rankBiserCorr = Math.abs((2.0 * uStat / (this.squigglesX.get(c).get(peak).size() * this.squigglesY.get(c).get(peak).size())) - 1);
                 //out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
-
                 p *= this.squigglesX.get(c).size();
-                if (p <= this.maxP && Math.abs(rankBiserCorr) >= this.minRbc)
-                    this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr, u2, this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
+                double propWIon = (double) this.squigglesYN.get(c).get(peak) / this.nTreatPsms;
+                if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc)
+                    this.squigglesTests.get(c).add(new Test(peak, p, rankBiserCorr, propWIon, u2,
+                            this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                 //if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
                 //System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
             }
@@ -329,9 +372,9 @@ public class PeakCompareTester {
     private double convertP(double oldPVal, boolean greaterThan) {
         double p;
         if (greaterThan)
-            p = oldPVal / 2;
+            p = oldPVal / 2.0;
         else
-            p = 1 - oldPVal / 2;
+            p = 1.0 - oldPVal / 2.0;
         return p;
     }
 
@@ -544,12 +587,14 @@ class Test implements Comparable<Test> {
     public double u;
     public long n1;
     public long n2;
+    public double propWIon;
 
-    Test(double mass, double q, double rbc, double u, long n1, long n2) {
+    Test(double mass, double q, double rbc, double propWIon, double u, long n1, long n2) {
         this.mass = mass;
         this.adjustedMass = mass;
         this.q = q;
         this.rbc = rbc;
+        this.propWIon = propWIon;
         this.u = u;
         this.group = 0;
         this.n1 = n1;

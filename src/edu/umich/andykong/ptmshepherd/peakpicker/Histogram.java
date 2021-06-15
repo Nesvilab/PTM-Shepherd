@@ -17,7 +17,7 @@ public class Histogram {
 	
 	public TreeMap<String,double []> merged;
 	
-	public Histogram(ArrayList<Float> vals, int expSize, int binDivs, int smoothBins) {
+	public Histogram(ArrayList<Float> vals, ArrayList<Double> intensities, int expSize, int binDivs, int smoothBins) {
 		//System.out.println(smoothBins);
 		double min = 1e100;
 		double max = -1e100;
@@ -38,10 +38,9 @@ public class Histogram {
 		histo = new double[(end-start)*binDivs];
 		calcWeights(smoothBins);
 		for(int i = 0; i < vals.size(); i++) {
-			//System.out.println(vals.get(i));
 			int cb = (int)(binDivs*(vals.get(i) + Math.random()/1000000 - 0.0000005 - start + 1.0 / binDivs));
 			for(int j = cb - smoothBins/2; j <= (cb + smoothBins/2); j++) {
-				histo[j] += gweights[j - (cb - smoothBins/2)];
+				histo[j] += intensities.get(i) * gweights[j - (cb - smoothBins/2)];
 			}
 		}
 	}
