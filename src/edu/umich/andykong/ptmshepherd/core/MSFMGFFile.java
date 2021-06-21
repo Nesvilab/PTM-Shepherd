@@ -139,7 +139,7 @@ public class MSFMGFFile {
             int ilineend;
             if (iend > scanC) {
                 iend = scanC;
-                ilineend = fileLines.size() - 1; //last line
+                ilineend = fileLines.size(); //last line
             } else
                 ilineend = scanStarts[iend + 1] - 1; //end at line corresponding to line before scan 501
 
