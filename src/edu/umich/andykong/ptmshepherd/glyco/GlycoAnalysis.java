@@ -231,7 +231,7 @@ public class GlycoAnalysis {
             } else {
                 // only missed by a little, try reducing desired FDR to accomodate
                 desiredRatio = targetDecoyRatio - (targetDecoyRatio * 0.1);
-                System.out.printf("FDR reduced to %.1f pct due to limited decoys\n", desiredRatio * 100);
+                System.out.printf("FDR reduced to %.2f pct due to limited decoys\n", desiredRatio * 100);
             }
         }
 
@@ -266,6 +266,11 @@ public class GlycoAnalysis {
             }
             // update the output text with the new info
             glyLines.put(scoreEntry.getKey(), rawGlycoLine);
+        }
+
+        // final check for rare cases with super high-scoring decoys causing big deviation in PSMs found
+        if (targetDecoyRatio < desiredRatio * 0.1) {
+            System.out.print("Warning: FDR calculation appears to have been unstable, likely due to high scoring decoys. It is recommended that you re-run this analysis or check input data and parameters\n");
         }
 
         // write output back to rawglyco file
