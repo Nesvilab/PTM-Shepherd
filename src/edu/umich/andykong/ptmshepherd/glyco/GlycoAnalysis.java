@@ -343,7 +343,6 @@ public class GlycoAnalysis {
     }
 
 
-    public StringBuffer processLine(String line) {
     public String processLine(String line) {
         StringBuffer sb = new StringBuffer();
         String[] sp = line.split("\\t");
