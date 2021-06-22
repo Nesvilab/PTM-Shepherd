@@ -37,8 +37,10 @@ public class GlycoAnalysis {
     public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 3;
     boolean normYions;
     double defaultMassErrorAbsScore;
+    Integer[] glycoIsotopes;
+    double glycoPPMtol;
 
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
         this.glycanDatabase = glycoDatabase;
@@ -47,6 +49,8 @@ public class GlycoAnalysis {
         this.probabilityTable = inputProbabilityTable;
         this.normYions = normYs;
         this.defaultMassErrorAbsScore = absMassErrorDefault;
+        this.glycoPPMtol = glycoPPMtol;
+        this.glycoIsotopes = glycoIsotopes;
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
@@ -410,8 +414,8 @@ public class GlycoAnalysis {
         }
 
         // Determine possible glycan candidates from mass
-        int[] isotopesToSearch = {-1, 0, 1, 2, 3};
-        double ms1TolPPM = 50;  // todo: connect to existing param?
+        Integer[] isotopesToSearch = glycoIsotopes;
+        double ms1TolPPM = glycoPPMtol;
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(deltaMass, glycanDatabase, isotopesToSearch, ms1TolPPM);
 
         // Get Y/oxo ions possible for these candidates (and decoy ions)
@@ -792,7 +796,7 @@ public class GlycoAnalysis {
      * @param ms1TolerancePPM MS1 tolerance to consider around delta mass and isotope errors
      * @return list of glycan candidates with masses within the delta mass + iso errors and tolerance
      */
-    public ArrayList<GlycanCandidate> getMatchingGlycansByMass(double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, int[] isotopesToSearch, double ms1TolerancePPM) {
+    public ArrayList<GlycanCandidate> getMatchingGlycansByMass(double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, Integer[] isotopesToSearch, double ms1TolerancePPM) {
         ArrayList<GlycanCandidate> matchingGlycans = new ArrayList<>();
         for (int isotope : isotopesToSearch) {
             // add isotope error, which is recorded as an increase relative to delta mass

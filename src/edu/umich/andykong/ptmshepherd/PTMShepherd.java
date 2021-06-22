@@ -219,6 +219,37 @@ public class PTMShepherd {
 	}
 
 	/**
+	 * Parse isotopes parameter of format 'min,max' into Integer[] to pass to glyco analysis
+	 * @return Integer[] of all isotopes to consider (from min to max)
+	 */
+	public static Integer[] parseGlycoIsotopesParam() {
+		String paramValue = getParam("glyco_isotope_range");
+		String[] paramStrs;
+		ArrayList<Integer> isotopes = new ArrayList<Integer>();
+		if (paramValue.length() > 0) {
+			paramStrs = paramValue.split(",| |/");
+			if (paramStrs.length == 2) {
+				int minIso = Integer.parseInt(paramStrs[0]);
+				int maxIso = Integer.parseInt(paramStrs[1]);
+				if (maxIso < minIso) {	// reverse if input flipped
+					int oldMax = maxIso;
+					maxIso = minIso;
+					minIso = oldMax;
+				}
+				for (int i = minIso; i <= maxIso; i++) {
+					isotopes.add(i);
+				}
+			} else {
+				// invalid input: warn user
+				die(String.format("Invalid isotopes string %s input to glyco mode: must be in format 'min,max'", paramValue));
+			}
+		} else {
+			return new Integer[]{-1, 0, 1, 2, 3};    // return default value if not specified
+		}
+		return isotopes.toArray(new Integer[0]);
+	}
+
+	/**
 	 * Initialize a default glyco probability table and update it with probabilities from
 	 * parameters, if any are present.
 	 * Param formats:
@@ -793,14 +824,18 @@ public class PTMShepherd {
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
+			// parse glyco parameters
 			ArrayList<GlycanResidue> adductList = parseGlycoAdductParam();
 			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
 			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts);
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
 			boolean glycoYnorm = Boolean.parseBoolean(getParam("norm_Ys"));
 			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
+			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
+			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
+
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
@@ -814,7 +849,7 @@ public class PTMShepherd {
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
@@ -826,7 +861,7 @@ public class PTMShepherd {
 			// default 0.01 if param not provided, otherwise read provided value
 			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam);
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 				ga.computeGlycanFDR(glycoFDR);
 				ga.complete();
 			}
