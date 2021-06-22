@@ -34,7 +34,7 @@ public class GlycoAnalysis {
     double meanMassError;
     double massErrorWidth;
     ProbabilityTables probabilityTable;
-    public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 5;
+    public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 3;
     boolean normYions;
     double defaultMassErrorAbsScore;
 
@@ -89,7 +89,7 @@ public class GlycoAnalysis {
 
         //write header
         StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
-        headbuff.append("\tBest Glycan\tLog Delta Score\t2nd Best Glycan\tAbs Score\tGlycan q-value");
+        headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value");
         for (int i = 0; i < capYShifts.length; i++)
             headbuff.append(String.format("\tY_%.4f_intensity", capYShifts[i]));
         for (int i = 0; i < oxoniumIons.length; i++)
@@ -173,7 +173,7 @@ public class GlycoAnalysis {
                 case "Spectrum":
                     gSpecCol = i;
                     break;
-                case "Abs Score":
+                case "Glycan Score":
                     absScoreCol = i;
                     break;
                 case "Best Glycan":
@@ -400,9 +400,13 @@ public class GlycoAnalysis {
      * @param deltaMass      observed delta mass from PSM
      */
     public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, double massErrorWidth, double meanMassError) {
-        // skip non-delta mass PSMs
+        // skip non-delta mass PSMs - leave added columns empty
         if (deltaMass < 3.5 && deltaMass > -1.5) {
-            return "\t\t\t\t\t";
+            StringBuilder sb = new StringBuilder();
+            for (int i=0; i < NUM_ADDED_GLYCO_PSM_COLUMNS; i++){
+                sb.append("\t");
+            }
+            return sb.toString();
         }
 
         // Determine possible glycan candidates from mass
@@ -473,11 +477,9 @@ public class GlycoAnalysis {
         // output - best glycan, scores, etc back to PSM table
         String output;
         if (searchCandidates.size() == 0) {
-            output = "\tNo Matches\t\t\t\t";
-        } else if (searchCandidates.size() == 1) {
-            output = String.format("\t%s\t\t\t%.1f\t", searchCandidates.get(bestCandidateIndex).toString(), absoluteScore);
+            output = "\tNo Matches\t\t";
         } else {
-            output = String.format("\t%s\t%.2f\t%s\t%.1f\t", searchCandidates.get(bestCandidateIndex).toString(), scoresVsBestCandidate[nextBestCandidateIndex], searchCandidates.get(nextBestCandidateIndex).toString(), absoluteScore);
+            output = String.format("\t%s\t%.1f\t", searchCandidates.get(bestCandidateIndex).toString(), absoluteScore);
         }
         return output;
     }
