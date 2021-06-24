@@ -160,7 +160,7 @@ public class DiagnosticPeakPicker {
                 for (Character it : this.cIonTypes) {
                     Collections.sort(unifiedSquiggleIonPeakLists.get(it));
                     for (int i = unifiedSquiggleIonPeakLists.get(it).size() - 1; i > 0; i--) {
-                        if (Math.abs(unifiedSquiggleIonPeakLists.get(it).get(i) - unifiedSquiggleIonPeakLists.get(it).get(i - 1)) <= 0.005)
+                        if (Math.abs(unifiedSquiggleIonPeakLists.get(it).get(i) - unifiedSquiggleIonPeakLists.get(it).get(i - 1)) <= 0.002)
                             unifiedSquiggleIonPeakLists.get(it).remove(i);
                     }
                 }
@@ -208,7 +208,23 @@ public class DiagnosticPeakPicker {
                             localDrs.add(dgBin.getScan(peakScanNums.get(j)));
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
-                                        unifiedSquiggleIonPeakLists, spectraTol, pct, false)));  //todo tol
+                                        unifiedSquiggleIonPeakLists, spectraTol, pct, false, false)));  //todo tol
+                    }
+                    /* Get results */
+                    for (Future future : futureList)
+                        future.get();
+
+                    /* Set up multithreading structures for decoy instance of peak bin, get DRs, send to threads */
+                    futureList = new ArrayList<>(factor * nThreads);
+                    for (int i = 0; i < factor * nThreads; i++) {
+                        ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
+                        int start = (peakScanNums.size() * i) / (factor * nThreads);
+                        int end = (peakScanNums.size() * (i + 1)) / (factor * nThreads);
+                        for (int j = start; j < end; j++)
+                            localDrs.add(dgBin.getScan(peakScanNums.get(j)).clone());
+                        futureList.add(executorService.submit(() ->
+                                filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
+                                        unifiedSquiggleIonPeakLists, spectraTol, pct, false, true)));  //todo tol
                     }
                     /* Get results */
                     for (Future future : futureList)
@@ -224,7 +240,7 @@ public class DiagnosticPeakPicker {
                             localDrs.add(dgBin.getScan(zeroScanNums.get(j)));
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
-                                        unifiedSquiggleIonPeakLists, spectraTol, pct, true)));  //todo tol
+                                        unifiedSquiggleIonPeakLists, spectraTol, pct, true, false)));  //todo tol
                     }
                     /* Get results */
                     for (Future future : futureList)
@@ -252,10 +268,13 @@ public class DiagnosticPeakPicker {
     }
 
     private void filterSpecBlock(ArrayList<DiagnosticRecord> localDrs, ArrayList<Double> unifiedImmPeakList, ArrayList<Double> unifiedCapYPeakList,
-                                 HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists, double tol, PeakCompareTester pct, boolean isControl) {
-        for (DiagnosticRecord dr : localDrs)
-            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol); //todo tol
-        pct.addDrs(localDrs, isControl);
+                                 HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists, double tol, PeakCompareTester pct, boolean isControl, boolean isDecoy) {
+        for (DiagnosticRecord dr : localDrs) {
+            if (isDecoy)
+                dr.makeDecoy();
+            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol);
+        }
+        pct.addDrs(localDrs, isControl, isDecoy);
     }
 
     /* Selects MAXSCANS random scans to be included in testing for each bin */
@@ -299,7 +318,7 @@ public class DiagnosticPeakPicker {
     public void print(String fout) throws IOException {
         PrintWriter out = new PrintWriter(new FileWriter(fout,false));
 
-        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tu_stat\tn_control\tn_test\n");
+        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tis_decoy\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tu_stat\tn_control\tn_test\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++)
             out.print(this.binDiagMetrics[i].toString());
 

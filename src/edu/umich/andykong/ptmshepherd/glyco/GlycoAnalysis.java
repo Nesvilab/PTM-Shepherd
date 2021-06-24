@@ -187,7 +187,9 @@ public class GlycoAnalysis {
         //find capital Y ion intensities
         for (int i = 0; i < capYIons.length; i++) {
             //System.out.println(capYIons[i]);
-            capYIonIntensities[i] = spec.findIonNeutral(capYIons[i], Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"))); //todo simplify parameter calling
+            capYIonIntensities[i] = spec.findIonNeutral(capYIons[i],
+                    Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol")),
+                    Integer.parseInt(PTMShepherd.getParam("spectra_maxPrecursorCharge"))); //todo simplify parameter calling
             if (normToBasePeak == 1) {
                 //System.out.print(capYIonIntensities[i]);
                 //System.out.println(" 1");

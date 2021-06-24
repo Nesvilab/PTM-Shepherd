@@ -157,19 +157,21 @@ public class DiagBINFile {
             ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.immoniumPeaks.length);
             cpos++;
             for (int i = 0; i < dr.immoniumPeaks.length; i++) {
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 2, dr.immoniumPeaks[i][0]);
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 2 + 1, dr.immoniumPeaks[i][1]);
+                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.immoniumPeaks[i][0]);
+                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.immoniumPeaks[i][1]);
+                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.immoniumPeaks[i][2]);
             }
-            cpos += 2 * dr.immoniumPeaks.length;
+            cpos += 3 * dr.immoniumPeaks.length;
 
             /* Write capY peaks */
             ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.capYPeaks.length);
             cpos++;
             for (int i = 0; i < dr.capYPeaks.length; i++) {
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 2, dr.capYPeaks[i][0]);
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 2 + 1, dr.capYPeaks[i][1]);
+                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.capYPeaks[i][0]);
+                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.capYPeaks[i][1]);
+                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.capYPeaks[i][2]);
             }
-            cpos += 2 * dr.capYPeaks.length;
+            cpos += 3 * dr.capYPeaks.length;
 
             /* Write squiggle peaks */
             for (Character it : this.ionTypes) {
@@ -294,18 +296,20 @@ public class DiagBINFile {
 
         /* Get immonium peaks */
         int nImm = sibb.getInt();
-        float[][] immoniumPeaks = new float[nImm][2];
+        float[][] immoniumPeaks = new float[nImm][3];
         for (int i = 0; i < nImm; i++) {
             immoniumPeaks[i][0] = sibb.getFloat();
             immoniumPeaks[i][1] = sibb.getFloat();
+            immoniumPeaks[i][2] = sibb.getFloat();
         }
 
         /* Get capY peaks */
         int nCapY = sibb.getInt();
-        float[][] capYPeaks = new float[nCapY][2];
+        float[][] capYPeaks = new float[nCapY][3];
         for (int i = 0; i < nCapY; i++) {
             capYPeaks[i][0] = sibb.getFloat();
             capYPeaks[i][1] = sibb.getFloat();
+            capYPeaks[i][2] = sibb.getFloat();
         }
 
         /* Get squiggle peaks */
@@ -414,10 +418,10 @@ public class DiagBINFile {
             length += 2;
         length += 4; // 4 Bs to store int charge
         length += 4 + dr.modifications.size() * 8; // 4 Bs to store int nMods then (4Bs int pos + 4 Bs float dmass)
-        length += 4 + dr.immoniumPeaks.length * 8; // 4 Bs to store int nImmonPs then (4 Bs float int + 4Bs mzdub mz)
-        length += 4 + dr.capYPeaks.length * 8; // 4 Bs to store int nCapyPs then (4 Bs float int + 4Bs mzdub mz)
+        length += 4 + dr.immoniumPeaks.length * 12; // 4 Bs to store int nImmonPs then (4 Bs float int + 4Bs mzdub mz + 4Bs float tol)
+        length += 4 + dr.capYPeaks.length * 12; // 4 Bs to store int nCapyPs then (4 Bs float int + 4Bs mzdub mz + 4B float tol)
         for (Character ionType : this.ionTypes)
-            length += 4 + dr.squigglePeaks.get(ionType).length * 12; // 4 Bs to store int nCapyPs then (4 Bs float int + 4Bs mzdub mz + 4Bs tol)
+            length += 4 + dr.squigglePeaks.get(ionType).length * 12; // 4 Bs to store int nCapyPs then (4 Bs float int + 4Bs mzdub mz + 4Bs float tol)
 
         return length;
     }

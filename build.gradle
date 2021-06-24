@@ -65,6 +65,7 @@ dependencies {
     // https://mvnrepository.com/artifact/org.hipparchus/hipparchus
     //implementation group: 'org.hipparchus', name: 'hipparchus', version: '1.8', ext: 'pom'
     implementation 'org.hipparchus:hipparchus-stat:1.8'
+    implementation 'org.apache.commons:commons-lang3:3.0'
 //    implementation name: 'msftbx'
 
     // logging

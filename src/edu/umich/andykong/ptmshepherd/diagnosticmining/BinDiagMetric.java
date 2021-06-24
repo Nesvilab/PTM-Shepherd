@@ -98,11 +98,11 @@ public class BinDiagMetric {
         }
 
         /* Initialize histograms */
-        this.immoniumIons = new DiagnosticHisto(this.peakApex, this.binMinMax[0][0], this.binMinMax[0][1], 0.0001, minSignal, this.ppmTol, avgImm);
-        this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.0001, minSignal, this.ppmTol, avgPepPrec);
+        this.immoniumIons = new DiagnosticHisto(this.peakApex, this.binMinMax[0][0], this.binMinMax[0][1], 0.0002, minSignal, this.ppmTol, avgImm);
+        this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.0002, minSignal, this.ppmTol, avgPepPrec);
         this.tildeIons = new ArrayList<>();
         for (int i = 0; i < this.ionTypes.length(); i++) { /* +2 because of immonium and Y ions in first 2 i's */
-            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.0001, minSignal / avgPepLen, this.ppmTol, avgFrag[i]));
+            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.0002, minSignal / avgPepLen, this.ppmTol, avgFrag[i]));
         }
 
         /* Assign data to histograms */
@@ -137,8 +137,8 @@ public class BinDiagMetric {
 
         System.out.println("\nPeakApex:"+peakApex);
 
-        this.immoniumIons.smoothify(executorService, nThreads);
-        this.capYIons.smoothify(executorService, nThreads);
+        //this.immoniumIons.smoothify(executorService, nThreads);
+        //this.capYIons.smoothify(executorService, nThreads);
         //System.out.println("ImmoniumAbund");
         this.immoniumIons.findPeaks();
         //System.out.println("CapYAbund");
@@ -151,7 +151,7 @@ public class BinDiagMetric {
         for (int i = 0; i < this.tildeIons.size(); i++) {
             long t1 = System.currentTimeMillis();
             //System.out.println("IonType:"+ionTypes.charAt(i));
-            this.tildeIons.get(i).smoothify(executorService, nThreads);
+            //this.tildeIons.get(i).smoothify(executorService, nThreads);
             long t2 = System.currentTimeMillis();
             //System.out.println("SquiggleAbund");
             //this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
@@ -172,16 +172,16 @@ public class BinDiagMetric {
         /* Format immonium tests */
         for (int i = 0; i < this.testResults.immoniumTests.size(); i++) {
             Test t = this.testResults.immoniumTests.get(i);
-            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.u, t.n1, t.n2);
+            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%b\t%.02f\t%.02f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.isDecoy, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.u, t.n1, t.n2);
             newLines.append(newLine);
         }
 
         /* Format capY tests */
         for (int i = 0; i < this.testResults.capYTests.size(); i++) {
             Test t = this.testResults.capYTests.get(i);
-            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.u, t.n1, t.n2);
+            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%b\t%.02f\t%.02f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.isDecoy, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.u, t.n1, t.n2);
             newLines.append(newLine);
         }
 
@@ -189,23 +189,12 @@ public class BinDiagMetric {
         for (Character cIon : this.testResults.squigglesTests.keySet()) {
             for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
                 Test t = this.testResults.squigglesTests.get(cIon).get(i);
-                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
-                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.u, t.n1, t.n2);
+                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%b\t%.02f\t%.02f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
+                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc, t.isDecoy, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.u, t.n1, t.n2);
                 newLines.append(newLine);
             }
         }
 
         return newLines.toString();
-    }
-}
-
-class SquigglePeak implements Comparable<SquigglePeak> {
-    double MZ, Int;
-    public SquigglePeak(double MZ, double Int) {
-        this.MZ = MZ;
-        this.Int = Int;
-    }
-    public int compareTo(SquigglePeak arg0) {
-        return -1* Double.compare(this.MZ, arg0.MZ);
     }
 }

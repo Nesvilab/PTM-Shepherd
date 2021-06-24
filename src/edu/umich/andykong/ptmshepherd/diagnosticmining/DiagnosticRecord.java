@@ -8,6 +8,9 @@ import umich.ms.datatypes.lcmsrun.Hash;
 import java.lang.reflect.Array;
 import java.nio.CharBuffer;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.DoubleStream;
+import org.apache.commons.lang3.SerializationUtils;
 
 /* This class holds the transformed peaklists of a single PSM
 *  Each instance of this will be entered into a binary diagnostic output file */
@@ -17,6 +20,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
     public float[][] capYPeaks;
     public HashMap<Character, float[][]> squigglePeaks;
     public String ionTypes;
+    public ArrayList<Character> ionTypeChars;
     public String pepSeq;
     public int charge;
     public float[] modificationsArray;
@@ -46,6 +50,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
                             int charge, float[][] immoniumPeaks, float[][] capYPeaks,
                             HashMap<Character, float[][]> squigglePeaks) {
         this.scanNum = scanNum;
+        this.ionTypeChars = ionTypes;
         this.ionTypes = formatIonTypes(ionTypes);
         this.pepSeq = pepSeq;
         this.modificationsArray = mods;
@@ -55,7 +60,6 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         this.immoniumPeaks = immoniumPeaks;
         this.capYPeaks = capYPeaks;
         this.squigglePeaks = squigglePeaks;
-
     }
 
     public void setImmoniumPeaks(float[][] immoniumPeaks) {
@@ -217,14 +221,14 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         Arrays.sort(selectedPeaks, new Comparator<double[]>() {
             @Override
             public int compare(double[] o1, double[] o2) {
-                return -1*Double.compare(o2[0], o1[0]);
+                return Double.compare(o1[0], o2[0]);
             }
         });
 
         Arrays.sort(expPeakList, new Comparator<float[]>() {
             @Override
             public int compare(float[] o1, float[] o2) {
-                return -1*Double.compare(o2[0], o1[0]);
+                return Double.compare(o1[0], o2[0]);
             }
         });
 
@@ -437,7 +441,6 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         return tols;
     }
 
-
     //public double[] localizeRemainderMass(float dmass, char ionType) {
     public int[] localizeRemainderMass(float dmass, char ionType) {
         /* Preinitialize factorials if not done yet */
@@ -638,6 +641,24 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
             }
         }
         return cmasses;
+    }
+
+    public void makeDecoy() {
+        for (int i = 0; i < this.immoniumPeaks.length; i++)
+            this.immoniumPeaks[i][0] += (double) (ThreadLocalRandom.current().nextDouble(7) - 3);// * 1.0005;
+        for (int i = 0; i < this.capYPeaks.length; i++)
+            this.capYPeaks[i][0] += (double) (ThreadLocalRandom.current().nextDouble(7) - 3);// * 1.0005;
+        for (Character c : this.squigglePeaks.keySet()) {
+            for (int i = 0; i < this.squigglePeaks.get(c).length; i++)
+                this.squigglePeaks.get(c)[i][0] += (double) (ThreadLocalRandom.current().nextDouble(7) - 3);// * 1.0005;
+        }
+    }
+
+    public DiagnosticRecord clone() {
+        return new DiagnosticRecord(this.scanNum, SerializationUtils.clone(this.ionTypeChars), this.pepSeq,
+                SerializationUtils.clone(this.modificationsArray), this.dmass, this.charge,
+                SerializationUtils.clone(this.immoniumPeaks), SerializationUtils.clone(this.capYPeaks),
+                SerializationUtils.clone(this.squigglePeaks));
     }
 
 }

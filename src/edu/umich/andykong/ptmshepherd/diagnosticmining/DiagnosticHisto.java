@@ -1,5 +1,8 @@
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import com.google.common.util.concurrent.AtomicDoubleArray;
+import org.apache.commons.math3.distribution.NormalDistribution;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,17 +13,27 @@ import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.DoubleAdder;
+import com.google.common.util.concurrent.AtomicDouble;
 
 public class DiagnosticHisto {
     double peakApex;
     Bin [] bins;
     Bin [] smoothBins;
+    AtomicDoubleArray bins2;
+    AtomicDoubleArray smoothBins2;
     double min;
     double max;
     int buffersize = 5; //pads endings to mirror internal bins
+
     int smoothFactor;
+    double smoothFactorScale; //multiplying by inverse speeds up math
+    double[] gweights;
+    double gfrac = 0.95;
+    int nBinsPerSide;
+
     double binsPerDa;
-    double total;
+    AtomicDouble total;
     double minSignal;
     double ppmTol;
     double normMass;
@@ -30,15 +43,20 @@ public class DiagnosticHisto {
         this.peakApex = peakApex;
         this.min = (int) mn - buffersize;
         this.max = (int) mx + buffersize;
-        this.total = 0;
+        this.total = new AtomicDouble();
         this.binsPerDa = (int) (1.0 / binWidth);
-        System.out.println(min + "\t" + max + "\t" + binsPerDa);
         this.ppmTol = ppmTol;
         this.normMass = normMass;
         this.minSignal = minSignal;
-        this.bins = new Bin [(int)(this.binsPerDa * (this.max - this.min))];
-        for (int i = 0; i < this.bins.length; i++)
-            this.bins[i] = new Bin();
+        this.bins2 = new AtomicDoubleArray((int)(this.binsPerDa * (this.max - this.min)));
+        this.smoothBins2 = new AtomicDoubleArray((int)(this.binsPerDa * (this.max - this.min)));
+
+        /* Calc optimal smoothing factor */
+        this.smoothFactor = calcSmoothFactor(ppmTol, normMass);
+        this.smoothFactorScale = 1.0 / smoothFactor;
+        this.gweights = calcWeights(this.smoothFactor);
+        this.nBinsPerSide = (int) this.smoothFactor / 2;
+
     }
 
     private int locateBin(double val) {
@@ -48,7 +66,15 @@ public class DiagnosticHisto {
     }
 
     public void placeIon(double mz, double intensity) {
-        this.bins[locateBin(mz)].bumpVal(intensity);
+        int cBin = locateBin(mz);
+        //this.bins[cBin].bumpVal(intensity);
+        this.bins2.addAndGet(cBin, intensity);
+        this.total.addAndGet(intensity);
+        double intPerBin = intensity * this.smoothFactorScale;
+        for (int i = -this.nBinsPerSide; i < this.nBinsPerSide; i++)
+            //this.smoothBins[cBin + i].bumpVal(intPerBin);
+            this.smoothBins2.addAndGet(cBin + i, intPerBin);
+            //this.smoothBins[cBin + i].bumpVal(intensity * this.gweights[i + this.nBinsPerSide]);
     }
 
     public void placeIons(float[][] peaks) {
@@ -181,7 +207,7 @@ public class DiagnosticHisto {
                 //    cEldestIndx++;
             //}
             this.smoothBins[i].val = cMean;
-            this.total += cMean;
+            //this.total += cMean;
             //System.out.printf("%.04f\t%.04f\t%.04f\t%.04f\t%.04f\t%.04f\n", this.bins[i].val, this.smoothBins[i].val, cVals[0], cVals[1], cVals[2], cMean);
         }
     }
@@ -249,12 +275,12 @@ public class DiagnosticHisto {
         bumpTotal(locTotal);
     }
 
-    private synchronized void bumpTotal(double v) { this.total += v; }
+    private synchronized void bumpTotal(double v) {} //this.total += v; }
 
     public void findPeaks_safe() {
         this.filteredPeaks = new ArrayList<>();
 
-        double minVal = this.total * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
+        double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
         System.out.println("Minimum:" + minVal);
         ArrayList<Peak> peaks = new ArrayList<>();
         for (int i = 0; i < this.smoothBins.length; i++) {
@@ -308,7 +334,7 @@ public class DiagnosticHisto {
                 //System.out.println("Downslope2:" + binToMass(i));
             }
         }
-        int maxPeaks = Math.min(100, peaks.size());
+        int maxPeaks = Math.min(1000, peaks.size());
         Collections.sort(peaks);
         for (int i = 0; i < maxPeaks; i++)
             this.filteredPeaks.add(peaks.get(i).MZ);
@@ -317,13 +343,12 @@ public class DiagnosticHisto {
         //}
     }
 
-    public void findPeaks() {
+    public void findPeaks_safe2() {
         this.filteredPeaks = new ArrayList<>();
 
-        double minVal = this.total * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
-        System.out.println("min:" + minVal);
-        double minEntryVal = minVal * 0.01;
-        double prominence = 0.8;
+        double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
+        double minEntryVal = 2e-100;
+        double prominence = 0.98;
 
         ArrayList<Peak> peaks = new ArrayList<>();
         for (int i = 0; i < this.smoothBins.length; i++) {
@@ -362,6 +387,56 @@ public class DiagnosticHisto {
         int maxPeaks = Math.min(100, peaks.size());
         Collections.sort(peaks);
         for (int i = 0; i < maxPeaks; i++) {
+            //this.filteredPeaks.add(peaks.get(i).MZ);
+            //System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
+        }
+    }
+
+    public void findPeaks() {
+        this.filteredPeaks = new ArrayList<>();
+
+        double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
+        double minEntryVal = 2e-100;
+        double prominence = 0.98;
+
+        ArrayList<Peak> peaks = new ArrayList<>();
+        for (int i = 0; i < this.smoothBins2.length(); i++) {
+            /* Skip bins not worth looking at */
+            if (this.smoothBins2.get(i) <= minEntryVal)
+                continue;
+            /* Once we find a bin worth looking at, set up vals */
+            int peakApex = i;
+            double maxRaw = this.bins2.get(i);
+            double peakArea = this.smoothBins2.get(i);
+            /* Integrate uphill slope and find apex */
+            while (this.smoothBins2.get(i+1) >= this.smoothBins2.get(i) * prominence) {
+                if (this.smoothBins2.get(i+1) > this.smoothBins2.get(i)) {
+                    maxRaw = this.bins2.get(i+1);
+                    peakApex = i+1;
+                }
+                else if (this.smoothBins2.get(i+1) == this.smoothBins2.get(i)) {
+                    if (this.bins2.get(i+1) > maxRaw) {
+                        maxRaw = this.bins2.get(i + 1);
+                        peakApex = i + 1;
+                    }
+                }
+                peakArea += this.smoothBins2.get(i);
+                i++;
+            }
+            /* Integrate downhill slope */
+            while ((this.smoothBins2.get(i+1) * prominence <= this.smoothBins2.get(i)) &&
+                    (this.smoothBins2.get(i) >= minEntryVal)) {
+                i++;
+                peakArea += this.smoothBins2.get(i);
+            }
+            /* Check if peak meets criteria and store it */
+            if (peakArea >= minVal)
+                peaks.add(new Peak(binToMass(peakApex), peakArea));
+        }
+        /* Select top peaks */
+        int maxPeaks = Math.min(1000, peaks.size());
+        Collections.sort(peaks);
+        for (int i = 0; i < maxPeaks; i++) {
             this.filteredPeaks.add(peaks.get(i).MZ);
             //System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
         }
@@ -393,7 +468,26 @@ public class DiagnosticHisto {
 
     public void clearMemory() {
         this.bins = null;
+        this.bins2 = null;
         this.smoothBins = null;
+        this.smoothBins2 = null;
+    }
+
+
+    private double [] calcWeights(int Nbins) {
+        NormalDistribution nd = new NormalDistribution();
+        double a = (1 - this.gfrac) / 2;
+        double lower = nd.inverseCumulativeProbability(a);
+        double upper = nd.inverseCumulativeProbability(1-a);
+        double width = (upper - lower) / Nbins;
+        double[] gweights = new double[Nbins];
+        for(int i = 0; i < Nbins; i++) {
+            double lo = nd.cumulativeProbability(lower+i*width);
+            double hi = nd.cumulativeProbability(lower +(i+1)*width);
+            gweights[i] = hi-lo;
+        }
+
+        return gweights;
     }
 
 }
@@ -405,6 +499,7 @@ class Bin {
         this.val = 0;
     }
     public synchronized void setVal(double v) { this.val = v; }
+    //public synchronized void bumpVal(double v) {
     public synchronized void bumpVal(double v) {
         this.val += v;
         this.n++;

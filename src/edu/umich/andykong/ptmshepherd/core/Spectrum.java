@@ -204,6 +204,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		if (PTMShepherd.getParam("iontype_z").trim().equals("1"))
 			cIonTypes.add('z');
 
+
 		float nTermMass;
 		for (Character iType : nIonTypes) {
 			nTermMass = fragTypeShifts[iType - 'a'];
@@ -350,8 +351,9 @@ public class Spectrum implements Comparable<Spectrum> {
 		return ionIntensity;
 	}
 
-	public double findIonNeutral(double neutralIonMass, double ppmTol) {
+	public double findIonNeutral(double neutralIonMass, double ppmTol, int maxCharge) {
 		double ionIntensity = 0;
+		int charge = Math.min(this.charge, maxCharge);
 		for (int z = 1; z <= charge; z++) {
 			double ion = (neutralIonMass + (1.00727 * (double) z)) / (double) z;
 			double ppmRange = ppmTol * (1.0 / 1000000) * ion;
@@ -398,15 +400,16 @@ public class Spectrum implements Comparable<Spectrum> {
 					}
 				}
 				if (skipFlag == false) {
-					ps.add(new Peak(peakMZ[i], peakInt[i]));
+					ps.add(new Peak(peakMZ[i], peakInt[i], (float)absTol));
 					this.averageIonMass += peakMZ[i];
 				}
 			}
 		}
-		float[][] peaks =  new float[ps.size()][2];
+		float[][] peaks =  new float[ps.size()][3];
 		for (int i = 0; i < ps.size(); i++) {
 			peaks[i][0] = ps.get(i).MZ;
 			peaks[i][1] = ps.get(i).Int;
+			peaks[i][2] = ps.get(i).Tol;
 		}
 		return peaks;
 	}
@@ -431,13 +434,14 @@ public class Spectrum implements Comparable<Spectrum> {
 				//if (Math.abs(peakMZ[i] - adjPepMass < 0.01))
 				//	skipFlag = true;
 				if (skipFlag == false)
-					ps.add(new Peak((float)((peakMZ[i] - adjPepMass) * z), peakInt[i]));
+					ps.add(new Peak((float)((peakMZ[i] - adjPepMass) * z), peakInt[i], (float)absTol));
 			}
 		}
-		float[][] peaks =  new float[ps.size()][2];
+		float[][] peaks =  new float[ps.size()][3];
 		for (int i = 0; i < ps.size(); i++) {
 			peaks[i][0] = ps.get(i).MZ;
 			peaks[i][1] = ps.get(i).Int;
+			peaks[i][2] = ps.get(i).Tol;
 		}
 		return peaks;
 	}
@@ -674,7 +678,7 @@ public class Spectrum implements Comparable<Spectrum> {
 			nTermMass = fragTypeShifts[iType - 'a'];
 			for (int j = 0; j < peakMZ.length; j++) {
 				boolean skipFlag = false;
-				float trueTol = ppmTol * peakMZ[j] / 1000000;
+				double trueTol = ppmTol * peakMZ[j] / 1000000;
 				for (Float ion : knownFrags) {
 					if (Math.abs(peakMZ[j] - ion) < trueTol) {
 						skipFlag = true;
@@ -690,9 +694,9 @@ public class Spectrum implements Comparable<Spectrum> {
 					for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
 						cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
 						if (skipFlag)
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, trueTol));
+							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, (float)trueTol));
 						else {
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], trueTol));
+							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], (float)trueTol));
 							this.averageFragMass[iTypeIndx] += peakMZ[j];
 						}
 						//cPeaksDmass.add(new Peak(peakMZ[j] - (cmass + dmass), peakInt[j]));
