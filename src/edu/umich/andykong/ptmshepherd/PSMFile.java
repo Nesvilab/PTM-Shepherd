@@ -260,10 +260,8 @@ public class PSMFile {
 		ArrayList<String> newLines = new ArrayList<>();
 		for (int i = 0; i < this.data.size(); i++) {
 			ArrayList<String> sp = new ArrayList<String>(Arrays.asList(this.data.get(i).split("\t")));
-			if (overwrite == true) {
-				if (!annotations[i].equals(""))
-					sp.set(annoCol, annotations[i]);
-			}
+			if (overwrite == true)
+				sp.set(annoCol, annotations[i]);
 			else
 				sp.add(annoCol, annotations[i]);
 			newLines.add(String.join("\t", sp));

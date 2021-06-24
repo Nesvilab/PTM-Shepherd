@@ -1,6 +1,7 @@
 package edu.umich.andykong.ptmshepherd.peakpicker;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.util.*;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
@@ -257,7 +258,7 @@ public class PeakAnnotator {
 		//System.out.println("*"+modSourcePath+"*");
 		BufferedReader in;
 		if (modSourcePath.equals("") || modSourcePath.toLowerCase().trim().equals("unimod")) {
-			modSource = "unimod_20191002.txt";
+			modSource = "unimod_20210623.txt";
 			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 		} else if (modSourcePath.toLowerCase().trim().equals("common")) {
 			modSource = "common_mods_20200813.txt";
@@ -277,6 +278,7 @@ public class PeakAnnotator {
 
 		String cline;
 		//add isotopic peaks to modification list
+		addMod("Isotopic peak error", -1*C13delta);
 		addMod("First isotopic peak",C13delta);
 		addMod("Second isotopic peak",2*C13delta);
 		addMod("Third isotopic peak",3*C13delta);
@@ -338,54 +340,64 @@ public class PeakAnnotator {
 
 	public String[] getDeltaMassMappings(ArrayList<Float> massdiffs, ArrayList<Float> precursors, double precursorTol, int precursorUnits) {
 		String[] massDiffAnnotations = new String[massdiffs.size()];
-		int zeroBinInd = this.fastLocator.getIndex(0.0000);
 
 		/* make temp mass diff instance for sorting */
-		ArrayList<MassDiffAnnotation> mdas = new ArrayList<>();
+		ArrayList<MassDiffAnnotation> mdasUnimod = new ArrayList<>();
 		for(int i = 0; i < this.mod_diffs.size(); i++)
-			mdas.add(new MassDiffAnnotation(this.mods.get(i), this.mod_diffs.get(i)));
-		Collections.sort(mdas);
+			mdasUnimod.add(new MassDiffAnnotation(this.mods.get(i), this.mod_diffs.get(i)));
+		Collections.sort(mdasUnimod);
 
+		/* skip these entries */
+		int zeroBin = this.fastLocator.getIndex(0.0000);
 		/* get mod annotations for each delta mass */
 		for (int i = 0; i < massdiffs.size(); i++) {
-			int cind = this.fastLocator.getIndex(massdiffs.get(i));
-			StringBuffer cMods = new StringBuffer();
-			/* if PTMShepherd annotation exists */
-			if (cind != -1) {
-				for (int j = 0; j < this.maxDepth; j++) {
-					String cMod = this.modMappings[j][cind];
-					if (!cMod.equals("") && (j > 0))
-						cMods.append("; ");
-					cMods.append(cMod);
-				}
-				if (cind != zeroBinInd)
-					cMods.append(String.format(" (%.04f)", this.peaks[0][cind]));
+			if (this.fastLocator.getIndex(massdiffs.get(i)) == zeroBin) {
+				massDiffAnnotations[i] = "";
+				continue;
 			}
-			/* if PTMShepherd annotation doesn't exist */
-			else {
-				double tol = 0;
-				if (precursorUnits == 0)
-					tol = precursorTol;
-				else if (precursorUnits == 1)
-					tol = precursors.get(i) * precursorTol / 1000000;
-				double lowerBound = massdiffs.get(i) - tol;
-				double upperBound = massdiffs.get(i) + tol;
-				for (int j = 0; j < mdas.size(); j++) {
-					double cdiff = mdas.get(j).diff;
-					if (cdiff > upperBound)
-						break;
-					else if (cdiff < lowerBound)
-						continue;
-					else {
-						if (cMods.length() > 0)
-							cMods.append(String.format("; %s (%.04f)", mdas.get(j).annotation, mdas.get(j).diff));
-						else
-							cMods.append(String.format("%s (%.04f)", mdas.get(j).annotation, mdas.get(j).diff));
-					}
+			/* hold indices of possible PTMS and Unimod mods */
+			ArrayList<Integer> cPtmsIs = new ArrayList<>();
+			ArrayList<Integer> cUnimodIs = new ArrayList<>();
+			/* set up search parameters */
+			double tol = 0;
+			if (precursorUnits == 0)
+				tol = precursorTol;
+			else if (precursorUnits == 1)
+				tol = precursors.get(i) * precursorTol / 1000000;
+			double lowerBound = massdiffs.get(i) - tol;
+			double upperBound = massdiffs.get(i) + tol;
+			/* zoom through Unimod annotations */
+			for (int j = 0; j < mdasUnimod.size(); j++) {
+				double cdiff = mdasUnimod.get(j).diff;
+				if (cdiff > upperBound)
+					break;
+				else if (cdiff < lowerBound)
+					continue;
+				else {
+					cUnimodIs.add(j);
 				}
 			}
-			String cModLine = cMods.toString();
-			massDiffAnnotations[i] = cModLine;
+			/* zoom through PTMS annotations */
+			for (int j = 0; j < this.peaks[0].length; j++) {
+				double cdiff = this.peaks[0][j];
+				if (cdiff <= upperBound && cdiff >= lowerBound)
+					cPtmsIs.add(j);
+			}
+			/* see if there are equivalent mods in PTMS and Unimod annotations and format output */
+			DeltaMassAnnotation dma = new DeltaMassAnnotation();
+			for (int j = 0; j < cUnimodIs.size(); j++) {
+				dma.UnimodMasses.add(mdasUnimod.get(cUnimodIs.get(j)).diff);
+				dma.UnimodAnnos.add(mdasUnimod.get(cUnimodIs.get(j)).annotation);
+			}
+			for (int j = 0; j < cPtmsIs.size(); j++) {
+				dma.PtmsMasses.add(this.peaks[0][cPtmsIs.get(j)]);
+				String[] transposedAnnos = new String[this.maxDepth];
+				for (int k = 0; k < this.maxDepth; k++)
+					transposedAnnos[k] = this.modMappings[k][cPtmsIs.get(j)];
+				dma.PtmsAnnos.add(formatMultiplePtmsMods(transposedAnnos));
+			}
+
+			massDiffAnnotations[i] = dma.toString();
 		}
 
 		return massDiffAnnotations;
@@ -405,5 +417,79 @@ public class PeakAnnotator {
 		}
 	}
 
+	class DeltaMassAnnotation {
+		public ArrayList<String> UnimodAnnos;
+		public ArrayList<String> PtmsAnnos;
+		public ArrayList<Double> UnimodMasses;
+		public ArrayList<Double> PtmsMasses;
+
+		DeltaMassAnnotation() {
+			this.UnimodAnnos = new ArrayList<>();
+			this.PtmsAnnos =  new ArrayList<>();
+			this.UnimodMasses = new ArrayList<>();
+			this.PtmsMasses = new ArrayList<>();
+		}
+
+		@Override
+		public String toString() {
+			/* remove unannotated mass shfits from Unimod lists that probably shouldn't be there in the first place */
+			for (int i = UnimodAnnos.size()-1; i >= 0; i--) {
+				if (UnimodAnnos.get(i).contains("Unannotated")) {
+					UnimodAnnos.remove(i);
+					UnimodMasses.remove(i);
+				}
+			}
+
+			StringBuffer sb = new StringBuffer();
+			for (int i = 0; i < PtmsAnnos.size(); i++) {
+				int umIndx = -1;
+				for (int j = 0; j < UnimodAnnos.size(); j++) {
+					if (PtmsAnnos.get(i).equals(UnimodAnnos.get(j))) {
+						umIndx = j;
+						break;
+					}
+				}
+				if (umIndx > -1) {
+					if (sb.length() > 0)
+						sb.append(String.format("; %s (PeakApex: %.04f, Theoretical: %.04f)",
+								PtmsAnnos.get(i), PtmsMasses.get(i), UnimodMasses.get(umIndx)));
+					else
+						sb.append(String.format("%s (PeakApex: %.04f, Theoretical: %.04f)",
+								PtmsAnnos.get(i), PtmsMasses.get(i), UnimodMasses.get(umIndx)));
+					UnimodAnnos.remove(umIndx);
+					UnimodMasses.remove(umIndx);
+				} else {
+					if (sb.length() > 0)
+						sb.append(String.format("; %s (PeakApex: %.04f)",
+								PtmsAnnos.get(i), PtmsMasses.get(i)));
+					else
+						sb.append(String.format("%s (PeakApex: %.04f)",
+								PtmsAnnos.get(i), PtmsMasses.get(i)));
+				}
+			}
+			for (int i  = 0; i < UnimodAnnos.size(); i++) {
+				if (sb.length() > 0)
+					sb.append(String.format("; %s (Theoretical: %.04f)",
+							UnimodAnnos.get(i), UnimodMasses.get(i)));
+				else
+					sb.append(String.format("%s (Theoretical: %.04f)",
+							UnimodAnnos.get(i), UnimodMasses.get(i)));
+			}
+			return sb.toString();
+		}
+	}
+
+	private String formatMultiplePtmsMods (String[] massAnnos) {
+		StringBuffer cMods = new StringBuffer();
+		for (int i = 0; i < massAnnos.length; i++) {
+			if (massAnnos[i].equals(""))
+				continue;
+			if (cMods.length() > 0)
+				cMods.append(String.format(", %s", massAnnos[i]));
+			else
+				cMods.append(String.format("%s", massAnnos[i]));
+		}
+		return cMods.toString();
+	}
 	
 }

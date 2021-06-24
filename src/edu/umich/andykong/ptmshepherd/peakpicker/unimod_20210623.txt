@@ -1127,3 +1127,17 @@ O-methyl amino phosphinate	92.997965
 Loss of O2; nitro photochemical decomposition	12.995249
 Super Heavy Tandem Mass Tag	235.176741
 TMTpro 16plex Tandem Mass Tag	304.207146
+Glycosylation with KDO	220.058303
+Photo-induced Proline adduct	129.042593
+addition of lophotoxin to tyrosine	416.147118
+Photo-induced Lysine adduct	160.084792
+3-hydroxybenzyl phosphate	186.008196
+A3G3S3	2861.000054
+andrographolide with the loss of H2O	332.19876
+Photo-induced histidine adduct	169.048741
+A4G4	2352.846
+Photo-induced Methionine Adduct	163.030314
+Photo-induced Glycine Adduct	89.011293
+Photo-induced Glutamate adduct	161.032422
+MBS_233p24 plus peptide 1250p53	1482.77
+phenyl phosphate	155.997631
