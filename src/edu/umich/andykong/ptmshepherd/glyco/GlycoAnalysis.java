@@ -414,9 +414,7 @@ public class GlycoAnalysis {
         }
 
         // Determine possible glycan candidates from mass
-        Integer[] isotopesToSearch = glycoIsotopes;
-        double ms1TolPPM = glycoPPMtol;
-        ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(deltaMass, glycanDatabase, isotopesToSearch, ms1TolPPM);
+        ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(pepMass, deltaMass, glycanDatabase, glycoIsotopes, glycoPPMtol);
 
         // Get Y/oxo ions possible for these candidates (and decoy ions)
         GlycanFragment[] possibleYIons = initializeYFragments(searchCandidates);
@@ -790,21 +788,24 @@ public class GlycoAnalysis {
     /**
      * Get glycan candidates to consider for a given delta mass and isotope errors/mass tolerance.
      * Might optimize for speed at some point by indexing glycan database by mass (if needed)
+     * @param pepMass peptide mass - needed for correct PPM error calculation
      * @param deltaMass delta mass being searched
      * @param glycanDatabase list of glycan candidates
      * @param isotopesToSearch list of isotope errors to consider
      * @param ms1TolerancePPM MS1 tolerance to consider around delta mass and isotope errors
      * @return list of glycan candidates with masses within the delta mass + iso errors and tolerance
      */
-    public ArrayList<GlycanCandidate> getMatchingGlycansByMass(double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, Integer[] isotopesToSearch, double ms1TolerancePPM) {
+    public ArrayList<GlycanCandidate> getMatchingGlycansByMass(double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, Integer[] isotopesToSearch, double ms1TolerancePPM) {
         ArrayList<GlycanCandidate> matchingGlycans = new ArrayList<>();
         for (int isotope : isotopesToSearch) {
             // add isotope error, which is recorded as an increase relative to delta mass
-            double isotopeCorrMass = deltaMass - (isotope * AAMasses.averagineIsotopeMass);
+            double isotopeCorrMass = deltaMass - (isotope * AAMasses.averagineIsotopeMass) + pepMass;   // add peptide mass to get correct PPM calculation
             double massRangeDa = isotopeCorrMass * 0.000001 * ms1TolerancePPM;
+            double massLo = isotopeCorrMass - massRangeDa - pepMass;    // remove pep mass after PPM calc for final calculation
+            double massHi = isotopeCorrMass + massRangeDa - pepMass;
             for (GlycanCandidate glycan : glycanDatabase) {
                 // see if mass within specified ranges
-                if (glycan.monoisotopicMass >= isotopeCorrMass - massRangeDa && glycan.monoisotopicMass <= isotopeCorrMass + massRangeDa) {
+                if (glycan.monoisotopicMass >= massLo && glycan.monoisotopicMass <= massHi) {
                     // match. todo: check duplicates (could be if user inputs them)
                     matchingGlycans.add(glycan);
                 }
