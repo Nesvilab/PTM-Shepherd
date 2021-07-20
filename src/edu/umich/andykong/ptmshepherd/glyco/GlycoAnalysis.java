@@ -513,7 +513,7 @@ public class GlycoAnalysis {
         sumLogRatio += pairwiseCompareFragments(glycan1, glycan2, oxoFragments);
 
         // isotope and mass errors
-        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, massErrorWidth, meanMassError);
+        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
 
         return sumLogRatio;
     }
@@ -641,11 +641,10 @@ public class GlycoAnalysis {
      * @param glycan1        glycan 1
      * @param glycan2        glycan 2
      * @param deltaMass      observed delta mass
-     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
      * @param meanMassError  mean mass error of non-delta mass peptides
      * @return probability ratio (glycan 1 over 2)
      */
-    public double determineIsotopeAndMassErrorProbs(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double massErrorWidth, double meanMassError) {
+    public double determineIsotopeAndMassErrorProbs(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
         // Determine isotopes
         float iso1 = (float) (deltaMass - glycan1.monoisotopicMass);
         int roundedIso1 = Math.round(iso1);
@@ -661,9 +660,9 @@ public class GlycoAnalysis {
             massProbRatio = 1.0;
         } else {
             double massError1 = deltaMass - glycan1.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
-            double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
+            double massStDevs1 = massError1 - meanMassError;
             double massError2 = deltaMass - glycan2.monoisotopicMass - (roundedIso2 * AAMasses.averagineIsotopeMass);
-            double massStDevs2 = (massError2 - meanMassError) / massErrorWidth;
+            double massStDevs2 = massError2 - meanMassError;
             massProbRatio = Math.abs(massStDevs2 / massStDevs1) * probabilityTable.massProbScaling;     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
         }
         return Math.log(isotopeProbRatio) + Math.log(massProbRatio);
