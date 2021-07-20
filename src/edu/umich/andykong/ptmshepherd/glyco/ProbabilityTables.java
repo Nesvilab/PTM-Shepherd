@@ -59,8 +59,8 @@ public class ProbabilityTables {
         // Oxonium ion probs. Same format as Y ion probabilities
         neuacRules = new double[]{10, 0.05};
         neugcRules = new double[]{10, 0.05};
-        phosphoRules = new double[]{5, 0.1};
-        sulfoRules = new double[]{5, 0.1};
+        phosphoRules = new double[]{10, 0.05};
+        sulfoRules = new double[]{10, 0.05};
     }
 
 

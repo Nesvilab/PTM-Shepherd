@@ -829,7 +829,7 @@ public class PTMShepherd {
 			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
 			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts);
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
-			boolean glycoYnorm = Boolean.parseBoolean(getParam("norm_Ys"));
+			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
 			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
 			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
 			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
