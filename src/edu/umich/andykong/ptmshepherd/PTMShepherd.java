@@ -468,6 +468,36 @@ public class PTMShepherd {
 		extractFile("utils/open_default_params.txt", "shepherd_open_params.txt");
 	}
 
+	/**
+	 * Print glyco params used
+	 */
+	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam, Integer[] glycoIsotopes, double glycoPPMtol) {
+		System.out.print("Glycan Assignment params:\n");
+		System.out.printf("\tMass error (ppm): %.1f\n", glycoPPMtol);
+		System.out.printf("\tIsotope errors: %s\n", Arrays.toString(glycoIsotopes));
+		// adducts
+		if (maxAdducts > 0 && adductList.size() > 0) {
+			StringBuilder adductStr = new StringBuilder();
+			int count = 0;
+			for (GlycanResidue adduct: adductList) {
+				adductStr.append(adduct.name());
+				count++;
+				if (count < adductList.size()) {
+					adductStr.append(", ");
+				}
+			}
+			System.out.printf("\tAdducts: %s, max %d\n", adductStr, maxAdducts);
+		} else {
+			System.out.print("\tAdducts: none\n");
+		}
+		System.out.printf("\tGlycan Database size (including adducts): %d\n", glycoDatabase.size() / 2);
+		System.out.printf("\tNormalize Y ion counts: %s\n", glycoYnorm);
+		System.out.printf("\tAbsolute score scaling: %.1f\n", absScoreErrorParam);
+		System.out.printf("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f\n", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]);
+		System.out.printf("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f\n", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]);
+
+	}
+
 	public static void main(String [] args) throws Exception {
 		Locale.setDefault(new Locale("en","US"));
 		System.out.println();
@@ -833,6 +863,8 @@ public class PTMShepherd {
 			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
 			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
 			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
+
+			printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
