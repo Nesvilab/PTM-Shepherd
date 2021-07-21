@@ -169,9 +169,29 @@ public class PSMFile {
 		}
 		in.close();
 
-		/* Merge headers */
-		int mergeFromCol = 5; // todo this should be dynamically calculated
-		int observedModCol = 23; 	// todo this should be dynamically detected?
+		/* Merge headers, dynamically detect columns */
+		int observedModCol = -1;
+		for (int i=0; i < headers.length; i++){
+			if (headers[i].matches("Observed Modifications")) {
+				observedModCol = i;
+			}
+		}
+		if (observedModCol == -1) {
+			// did not find correct column! Use default and warn user
+			System.out.println("Warning: Could not find Observed Modifications column in PSM table, using default insert point");
+			observedModCol = 27;
+		}
+		int mergeFromCol = -1;
+		for (int i=0; i < glyHeaders.length; i++) {
+			if (glyHeaders[i].matches("Best Glycan")) {
+				mergeFromCol = i;
+			}
+		}
+		if (mergeFromCol == -1) {
+			System.out.println("Warning: Could not find Mass Shift column in rawglyco table, using default insert point");
+			mergeFromCol = 5;
+		}
+
 		ArrayList<String> newHeaders = new ArrayList<>();
 		for (int i = 0; i < this.headers.length; i++)
 			newHeaders.add(this.headers[i]);
