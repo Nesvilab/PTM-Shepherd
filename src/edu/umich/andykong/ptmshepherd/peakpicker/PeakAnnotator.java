@@ -387,7 +387,7 @@ public class PeakAnnotator {
 			DeltaMassAnnotation dma = new DeltaMassAnnotation();
 			for (int j = 0; j < cUnimodIs.size(); j++) {
 				dma.UnimodMasses.add(mdasUnimod.get(cUnimodIs.get(j)).diff);
-				dma.UnimodAnnos.add(mdasUnimod.get(cUnimodIs.get(j)).annotation);
+				dma.UnimodAnnos.add("Mod1: " + mdasUnimod.get(cUnimodIs.get(j)).annotation);
 			}
 			for (int j = 0; j < cPtmsIs.size(); j++) {
 				dma.PtmsMasses.add(this.peaks[0][cPtmsIs.get(j)]);
@@ -485,9 +485,9 @@ public class PeakAnnotator {
 			if (massAnnos[i].equals(""))
 				continue;
 			if (cMods.length() > 0)
-				cMods.append(String.format(", %s", massAnnos[i]));
+				cMods.append(String.format(", Mod2: %s", massAnnos[i]));
 			else
-				cMods.append(String.format("%s", massAnnos[i]));
+				cMods.append(String.format("Mod1: %s", massAnnos[i]));
 		}
 		return cMods.toString();
 	}
