@@ -213,7 +213,8 @@ public class PSMFile {
 			if (hasPreviousGlycoInfo) {
 				// replace old glyco info with the new
 				for (int i=0; i < numColsToUse; i++) {
-					newLine.set(observedModCol + i, glyLine.get(mergeFromCol + i));		// existing info is at obs mod column, new info is in glyline at mergeFromCol
+					// observed mod col has moved if previous glyco info present
+					newLine.set(observedModCol - numColsToUse + i, glyLine.get(mergeFromCol + i));		// existing info is at obs mod column, new info is in glyline at mergeFromCol
 				}
 			} else {
 				newLine.addAll(observedModCol, glyLine.subList(mergeFromCol, mergeFromCol + numColsToUse));
