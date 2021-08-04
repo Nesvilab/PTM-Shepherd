@@ -241,42 +241,46 @@ public class GlycoAnalysis {
             }
         }
 
-        // find threshold at which target/decoy ratio hits desired value and update rawglyco lines
+        /*
+            Find threshold at which target/decoy ratio hits desired value and update rawglyco lines
+            NOTE: calculation is FDR <= desired ratio, so target/decoy counts updated AFTER the current PSM. This means the last
+            decoy passes FDR, and the last target has the correct FDR instead of 0/0
+            NOTE2: q-value is set to min(current FDR, FDR of all PSMs with lower score) to make it a step down rather than sawtooth shape
+         */
         boolean foundThreshold = false;
+        double currentMinQ = 1;
         for (Map.Entry<String, Double> scoreEntry : sortedScoreMap.entrySet()) {
             String[] rawGlycoLine = glyLines.get(scoreEntry.getKey());
+            targetDecoyRatio = decoys / (double) targets;
+            if (decoys > targets) {
+                targetDecoyRatio = 1.0;     // cap FDR at 1
+            } else if (targets == 0) {
+                targetDecoyRatio = 0.0;     // min FDR = 0. Using else-if with the above block so that if decoys are nonzero with 0 targets, FDR = 1
+            }
+            double qval = Math.min(targetDecoyRatio, currentMinQ);
+            if (qval < currentMinQ){
+                currentMinQ = qval;
+            }
+            rawGlycoLine[qValCol] = String.format("%s", qval);
+
             if (!foundThreshold) {
-                // still below the threshold: continue checking decoys/targets and updating counts
-                if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                    decoys--;
-                } else {
-                    targets--;
-                }
-                targetDecoyRatio = decoys / (double) targets;
+                // still below the threshold: continue checking decoys/targets and appending 'failfdr'
                 if (targetDecoyRatio <= desiredRatio) {
                     // stop here, found cutoff
                     foundThreshold = true;
                     System.out.printf("Converged to %.1f pct FDR with %d targets and %d decoys\n", targetDecoyRatio * 100, targets, decoys);
                 }
-                rawGlycoLine[qValCol] = String.format("%s", targetDecoyRatio);
                 rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
+            }
+
+            // update counts
+            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                decoys--;
             } else {
-                // passed FDR threshold - all entries above this point pass. Continue updating q-value
-                if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                    decoys--;
-                } else {
-                    targets--;
-                }
-                targetDecoyRatio = decoys / (double) targets;
-                rawGlycoLine[qValCol] = String.format("%s", targetDecoyRatio);
+                targets--;
             }
             // update the output text with the new info
             glyLines.put(scoreEntry.getKey(), rawGlycoLine);
-        }
-
-        // final check for rare cases with super high-scoring decoys causing big deviation in PSMs found
-        if (targetDecoyRatio < desiredRatio * 0.1) {
-            System.out.print("Warning: FDR calculation appears to have been unstable, likely due to high scoring decoys. It is recommended that you re-run this analysis or check input data and parameters\n");
         }
 
         // write output back to rawglyco file
