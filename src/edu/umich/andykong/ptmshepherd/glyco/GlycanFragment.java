@@ -1,7 +1,7 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 
 /**
  * Container for glycan fragment ion information. Holds composition requirements, mass, and
@@ -19,14 +19,15 @@ public class GlycanFragment {
      * Constructor for case that neutral mass is the mass of requiredComposition exactly
      * @param ruleProbabilities probabilities to use
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
+     * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
         if (isDecoy) {
-            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA);
+            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         } else {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         }
@@ -37,14 +38,15 @@ public class GlycanFragment {
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      * @param ruleProbabilities probabilities to use
      * @param neutralMass neutral mass of the fragment
+     * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMass, boolean isDecoy) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMass, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
         if (isDecoy) {
-            this.neutralMass = neutralMass + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA);
+            this.neutralMass = neutralMass + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         } else {
             this.neutralMass = neutralMass;
         }
@@ -149,10 +151,12 @@ public class GlycanFragment {
     /**
      * Generate a random shift in mass, used for shifting decoy fragment ion masses and intact mass.
      * @param maxShift maximum size of shift (+/-) in Da
+     * @param randomGenerator single random generator instance for whole glycan analysis
      * @return random shift
      */
-    public static double randomMassShift(double maxShift) {
-        return ThreadLocalRandom.current().nextDouble(-maxShift, maxShift);
+    public static double randomMassShift(double maxShift, Random randomGenerator) {
+        double random = randomGenerator.nextDouble();       // between 0 and 1
+        return 1 + random * (maxShift - 1);                 // between 1 and maxShift
     }
 
 }

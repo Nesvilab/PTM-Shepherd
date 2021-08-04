@@ -39,8 +39,9 @@ public class GlycoAnalysis {
     double defaultMassErrorAbsScore;
     Integer[] glycoIsotopes;
     double glycoPPMtol;
+    Random randomGenerator;
 
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol, Random randomGenerator) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
         this.glycanDatabase = glycoDatabase;
@@ -51,6 +52,7 @@ public class GlycoAnalysis {
         this.defaultMassErrorAbsScore = absMassErrorDefault;
         this.glycoPPMtol = glycoPPMtol;
         this.glycoIsotopes = glycoIsotopes;
+        this.randomGenerator = randomGenerator;
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
@@ -1039,7 +1041,7 @@ public class GlycoAnalysis {
                     Map<GlycanResidue, Integer> composition = new HashMap<>();
                     composition.put(GlycanResidue.HexNAc, hexnac);
                     composition.put(GlycanResidue.Hex, hex);
-                    GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, candidate.isDecoy);
+                    GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, candidate.isDecoy, randomGenerator);
                     // only add if not already in list (prevent duplicates)
                     if (!fragmentsInList.containsKey(fragment.toHashString())) {
                         yFragments.add(fragment);
@@ -1051,7 +1053,7 @@ public class GlycoAnalysis {
                         dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
                         dHexcomposition.put(GlycanResidue.Hex, hex);
                         dHexcomposition.put(GlycanResidue.dHex, dHex);
-                        GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, candidate.isDecoy);
+                        GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, candidate.isDecoy, randomGenerator);
                         if (!fragmentsInList.containsKey(dHexfragment.toHashString())) {
                             yFragments.add(dHexfragment);
                             fragmentsInList.put(dHexfragment.toHashString(), true);
@@ -1116,109 +1118,109 @@ public class GlycoAnalysis {
         if (targetNeuAc) {
             Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
             neuacComposition.put(GlycanResidue.NeuAc, 1);
-            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565, false));     // NeuAc - H20
-            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165, false));     // NeuAc
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565, false, randomGenerator));     // NeuAc - H20
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165, false, randomGenerator));     // NeuAc
             Map<GlycanResidue, Integer> neuacHexComposition = new HashMap<>();
             neuacHexComposition.put(GlycanResidue.NeuAc, 1);
             neuacHexComposition.put(GlycanResidue.Hex, 1);
             neuacHexComposition.put(GlycanResidue.HexNAc, 1);
-            oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624, false));     // NeuAc + HexNAc + Hex
+            oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624, false, randomGenerator));     // NeuAc + HexNAc + Hex
         }
         if (decoyNeuAc) {
             Map<GlycanResidue, Integer> neuacComposition = new HashMap<>();
             neuacComposition.put(GlycanResidue.NeuAc, 1);
-            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565, true));     // NeuAc - H20
-            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165, true));     // NeuAc
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 273.0848565, true, randomGenerator));     // NeuAc - H20
+            oxoniumList.add(new GlycanFragment(neuacComposition, probabilityTable.neuacRules, 291.0954165, true, randomGenerator));     // NeuAc
             Map<GlycanResidue, Integer> neuacHexComposition = new HashMap<>();
             neuacHexComposition.put(GlycanResidue.NeuAc, 1);
             neuacHexComposition.put(GlycanResidue.Hex, 1);
             neuacHexComposition.put(GlycanResidue.HexNAc, 1);
-            oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624, true));     // NeuAc + HexNAc + Hex
+            oxoniumList.add(new GlycanFragment(neuacHexComposition, probabilityTable.neuacRules, 656.227624, true, randomGenerator));     // NeuAc + HexNAc + Hex
         }
         // NeuGc
         if (targetNeuGc) {
             Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
             neugcComposition.put(GlycanResidue.NeuGc, 1);
-            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, false));     // NeuGc - H20
-            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, false));     // NeuGc
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, false, randomGenerator));     // NeuGc - H20
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, false, randomGenerator));     // NeuGc
             Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
             neugcHexComposition.put(GlycanResidue.NeuGc, 1);
             neugcHexComposition.put(GlycanResidue.Hex, 1);
             neugcHexComposition.put(GlycanResidue.HexNAc, 1);
-            oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524, false));     // NeuGc + HexNAc + Hex
+            oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524, false, randomGenerator));     // NeuGc + HexNAc + Hex
         }
         if (decoyNeuGc) {
             Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
             neugcComposition.put(GlycanResidue.NeuGc, 1);
-            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, true));     // NeuGc - H20
-            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, true));     // NeuGc
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, true, randomGenerator));     // NeuGc - H20
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, true, randomGenerator));     // NeuGc
             Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
             neugcHexComposition.put(GlycanResidue.NeuGc, 1);
             neugcHexComposition.put(GlycanResidue.Hex, 1);
             neugcHexComposition.put(GlycanResidue.HexNAc, 1);
-            oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524, true));     // NeuGc + HexNAc + Hex
+            oxoniumList.add(new GlycanFragment(neugcHexComposition, probabilityTable.neugcRules, 672.222524, true, randomGenerator));     // NeuGc + HexNAc + Hex
         }
         // Phospho-Hex
         if (targetPhospho) {
             Map<GlycanResidue, Integer> phosphoHexComposition = new HashMap<>();
             phosphoHexComposition.put(GlycanResidue.Hex, 1);
             phosphoHexComposition.put(GlycanResidue.Phospho, 1);
-            oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915, false));
+            oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915, false, randomGenerator));
             Map<GlycanResidue, Integer> phospho2HexComposition = new HashMap<>();
             phospho2HexComposition.put(GlycanResidue.Hex, 2);
             phospho2HexComposition.put(GlycanResidue.Phospho, 1);
-            oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197, false));
+            oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197, false, randomGenerator));
             Map<GlycanResidue, Integer> twoPhosphoHexComposition = new HashMap<>();
             twoPhosphoHexComposition.put(GlycanResidue.Hex, 2);
             twoPhosphoHexComposition.put(GlycanResidue.Phospho, 2);
-            oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383, false));
+            oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383, false, randomGenerator));
         }
         if (decoyPhospho) {
             Map<GlycanResidue, Integer> phosphoHexComposition = new HashMap<>();
             phosphoHexComposition.put(GlycanResidue.Hex, 1);
             phosphoHexComposition.put(GlycanResidue.Phospho, 1);
-            oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915, true));
+            oxoniumList.add(new GlycanFragment(phosphoHexComposition, probabilityTable.phosphoRules, 242.01915, true, randomGenerator));
             Map<GlycanResidue, Integer> phospho2HexComposition = new HashMap<>();
             phospho2HexComposition.put(GlycanResidue.Hex, 2);
             phospho2HexComposition.put(GlycanResidue.Phospho, 1);
-            oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197, true));
+            oxoniumList.add(new GlycanFragment(phospho2HexComposition, probabilityTable.phosphoRules, 404.07197, true, randomGenerator));
             Map<GlycanResidue, Integer> twoPhosphoHexComposition = new HashMap<>();
             twoPhosphoHexComposition.put(GlycanResidue.Hex, 2);
             twoPhosphoHexComposition.put(GlycanResidue.Phospho, 2);
-            oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383, true));
+            oxoniumList.add(new GlycanFragment(twoPhosphoHexComposition, probabilityTable.phosphoRules, 484.0383, true, randomGenerator));
         }
         // Sulfo
         if (targetSulfo) {
             Map<GlycanResidue, Integer> sulfoComposition = new HashMap<>();
             sulfoComposition.put(GlycanResidue.HexNAc, 1);
             sulfoComposition.put(GlycanResidue.Sulfo, 1);
-            oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724, false));
+            oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724, false, randomGenerator));
             Map<GlycanResidue, Integer> sulfoHexNAcHexComposition = new HashMap<>();
             sulfoHexNAcHexComposition.put(GlycanResidue.HexNAc, 1);
             sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 1);
             sulfoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-            oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724, false));
+            oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724, false, randomGenerator));
             Map<GlycanResidue, Integer> sulfoTwoHexNAcHexComposition = new HashMap<>();
             sulfoTwoHexNAcHexComposition.put(GlycanResidue.HexNAc, 2);
             sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 2);
             sulfoTwoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-            oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724, false));
+            oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724, false, randomGenerator));
         }
         if (decoySulfo) {
             Map<GlycanResidue, Integer> sulfoComposition = new HashMap<>();
             sulfoComposition.put(GlycanResidue.HexNAc, 1);
             sulfoComposition.put(GlycanResidue.Sulfo, 1);
-            oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724, true));
+            oxoniumList.add(new GlycanFragment(sulfoComposition, probabilityTable.sulfoRules, 283.036724, true, randomGenerator));
             Map<GlycanResidue, Integer> sulfoHexNAcHexComposition = new HashMap<>();
             sulfoHexNAcHexComposition.put(GlycanResidue.HexNAc, 1);
             sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 1);
             sulfoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-            oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724, true));
+            oxoniumList.add(new GlycanFragment(sulfoHexNAcHexComposition, probabilityTable.sulfoRules, 445.090724, true, randomGenerator));
             Map<GlycanResidue, Integer> sulfoTwoHexNAcHexComposition = new HashMap<>();
             sulfoTwoHexNAcHexComposition.put(GlycanResidue.HexNAc, 2);
             sulfoHexNAcHexComposition.put(GlycanResidue.Hex, 2);
             sulfoTwoHexNAcHexComposition.put(GlycanResidue.Sulfo, 1);
-            oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724, true));
+            oxoniumList.add(new GlycanFragment(sulfoTwoHexNAcHexComposition, probabilityTable.sulfoRules, 810.204724, true, randomGenerator));
         }
         // dHex
 

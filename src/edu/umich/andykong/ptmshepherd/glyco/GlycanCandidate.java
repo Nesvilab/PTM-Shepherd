@@ -4,6 +4,7 @@ import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -18,7 +19,7 @@ public class GlycanCandidate {
     public static final int[] DECOY_ISOTOPES = {-1, 0, 1, 2, 3};
     public static final double MAX_DECOY_SHIFT_FROM_ISOTOPE_DA = 0.2;
 
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType) {
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, Random randomGenerator) {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
@@ -36,11 +37,11 @@ public class GlycanCandidate {
             switch (decoyType) {
                 case 0:
                     // simple mass window
-                    randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA);
+                    randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA, randomGenerator);
                     break;
                 case 1:
                     // random isotope and mass error
-                    randomShift = getRandomShiftIsotopes(DECOY_ISOTOPES, MAX_DECOY_SHIFT_FROM_ISOTOPE_DA);
+                    randomShift = getRandomShiftIsotopes(DECOY_ISOTOPES, MAX_DECOY_SHIFT_FROM_ISOTOPE_DA, randomGenerator);
                     break;
                 case 2:
                     // exact target mass - random shift left at 0
@@ -68,16 +69,18 @@ public class GlycanCandidate {
      * provided isotopes list.
      * @param isotopes list of isotopes
      * @param toleranceDa Da tolerance
+     * @param randomGenerator single random generator instance for whole glycan analysis
      * @return random mass shift within specified ranges
      */
-    public static double getRandomShiftIsotopes(int[] isotopes, double toleranceDa) {
+    public static double getRandomShiftIsotopes(int[] isotopes, double toleranceDa, Random randomGenerator) {
         // randomly select isotope.
         int minIso = Arrays.stream(isotopes).min().getAsInt();
         int maxIso = Arrays.stream(isotopes).max().getAsInt();
         int isotope = ThreadLocalRandom.current().nextInt(minIso, maxIso + 1);  // upper bound is not inclusive, need to add 1 to get to max isotope
 
         // randomly generate mass shift within tolerance and add to chosen isotope
-        double randomShift = ThreadLocalRandom.current().nextDouble(-toleranceDa, toleranceDa);
+        double random = randomGenerator.nextDouble();       // between 0 and 1
+        double randomShift = -toleranceDa + random * (2 * toleranceDa);     // shift to range (min - random * (max - min)), where min = -toleranceDa and max = +toleranceDa
         return isotope * AAMasses.averagineIsotopeMass + randomShift;
     }
 

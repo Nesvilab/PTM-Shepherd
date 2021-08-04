@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.io.*;
 import java.util.concurrent.*;
+import java.util.Random;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedExperimentsSummary;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
@@ -30,6 +31,7 @@ public class PTMShepherd {
 	static ArrayList<GlycanCandidate> glycoDatabase;
 	private static String outputPath;
 	public static ExecutorService executorService;
+	private static final long glycoRandomSeed = 1364955171;
 
 	public static String getParam(String key) {
 		if(params.containsKey(key))
@@ -97,7 +99,7 @@ public class PTMShepherd {
 	 * @param inputPath path to input file
 	 * @return list of glycans to consider
 	 */
-	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts) {
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator) {
 		// read input glycan database or default database if none provided
 		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
 		try {
@@ -145,14 +147,14 @@ public class PTMShepherd {
 					glycanComp.put(residue, count);
 				}
 				// generate a new candidate from this composition and add to DB
-				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType);
+				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, randomGenerator);
 				String compositionHash = candidate.toHashString();
 				// prevent addition of duplicates if user has them in database
 				if (!glycansInDB.containsKey(compositionHash)) {
 					glycanDB.add(candidate);
 					glycansInDB.put(compositionHash, Boolean.TRUE);
 					// also add a decoy for this composition
-					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType);
+					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType, randomGenerator);
 					glycanDB.add(decoy);
 
 					// add adducts from adduct list to each composition
@@ -166,13 +168,13 @@ public class PTMShepherd {
 							}
 							adductComp.put(adduct, numAdducts);
 
-							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType);
+							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, randomGenerator);
 							String adductCompositionHash = adductCandidate.toHashString();
 							if (!glycansInDB.containsKey(adductCompositionHash)) {
 								glycanDB.add(adductCandidate);
 								glycansInDB.put(adductCompositionHash, Boolean.TRUE);
 								// also add a decoy for this composition
-								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType);
+								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType, randomGenerator);
 								glycanDB.add(adductDecoy);
 							}
 						}
@@ -854,10 +856,11 @@ public class PTMShepherd {
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glyco analysis");
-			// parse glyco parameters
+			// parse glyco parameters and initialize database and ratio tables
+			Random randomGenerator = new Random(glycoRandomSeed);
 			ArrayList<GlycanResidue> adductList = parseGlycoAdductParam();
 			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
-			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts);
+			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator);
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
 			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
 			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
@@ -867,7 +870,7 @@ public class PTMShepherd {
 			printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
 				if (ga.isComplete())
 					continue;
 				ArrayList<String[]> dsData = datasets.get(ds);
@@ -881,7 +884,7 @@ public class PTMShepherd {
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
@@ -893,7 +896,7 @@ public class PTMShepherd {
 			// default 0.01 if param not provided, otherwise read provided value
 			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam);
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
 				ga.computeGlycanFDR(glycoFDR);
 				ga.complete();
 			}
