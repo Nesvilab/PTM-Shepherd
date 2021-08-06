@@ -195,11 +195,12 @@ public class PSMFile {
 		ArrayList<String> newHeaders = new ArrayList<>();
 		for (int i = 0; i < this.headers.length; i++)
 			newHeaders.add(this.headers[i]);
-		// add after observed mod column
+		// add after observed mod column (observedModCol + 1)
 		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
+		int numColsOverwritingObsMods = numColsToUse - 1;		// need one less column if overwriting the observed mods column
 		if (!hasPreviousGlycoInfo) {
 			// do not add glyco headers if the PSM table already has them
-			newHeaders.addAll(observedModCol, Arrays.asList(glyHeaders).subList(mergeFromCol, mergeFromCol + numColsToUse));
+			newHeaders.addAll(observedModCol + 1, Arrays.asList(glyHeaders).subList(mergeFromCol + 1, mergeFromCol + numColsToUse));
 		}
 		out.println(String.join("\t", newHeaders));
 
@@ -209,15 +210,21 @@ public class PSMFile {
 			ArrayList<String> newLine = new ArrayList<>(Arrays.asList(cpline.split("\t")));
 			String pSpec = newLine.get(pSpecCol);
 			ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
-			// insert after Observed Modifications column
+			// insert into and after Observed Modifications column
 			if (hasPreviousGlycoInfo) {
-				// replace old glyco info with the new
-				for (int i=0; i < numColsToUse; i++) {
-					// observed mod col has moved if previous glyco info present
-					newLine.set(observedModCol - numColsToUse + i, glyLine.get(mergeFromCol + i));		// existing info is at obs mod column, new info is in glyline at mergeFromCol
+				// only replace observed mods if a glycan was found in a given line
+				if (glyLine.get(mergeFromCol).length() > 0){
+					// replace old glyco info with the new, including the observed mods column if a glycan is present
+					for (int i=0; i < numColsToUse; i++) {
+						newLine.set(observedModCol + i, glyLine.get(mergeFromCol + i));		// existing info is at obs mod column, new info is in glyline at mergeFromCol
+					}
 				}
 			} else {
-				newLine.addAll(observedModCol, glyLine.subList(mergeFromCol, mergeFromCol + numColsToUse));
+				// overwrite the observed mods column if a glycan is present, then add the two new columns for scores
+				if (glyLine.get(mergeFromCol).length() > 0){
+					newLine.set(observedModCol, glyLine.get(mergeFromCol));
+				}
+				newLine.addAll(observedModCol + 1, glyLine.subList(mergeFromCol + 1, mergeFromCol + numColsToUse));
 			}
 			out.println(String.join("\t", newLine));
 		}
@@ -234,7 +241,7 @@ public class PSMFile {
 	 */
 	public boolean hasGlycanAssignmentsWritten() {
 		for (String header : headers) {
-			if (header.contains("Best Glycan")) {
+			if (header.contains("Glycan Score")) {
 				return true;
 			}
 		}
