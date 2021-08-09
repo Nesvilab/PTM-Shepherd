@@ -319,8 +319,11 @@ public class DiagnosticPeakPicker {
         PrintWriter out = new PrintWriter(new FileWriter(fout,false));
 
         out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tis_decoy\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tu_stat\tn_control\tn_test\n");
-        for (int i = 0; i < this.binDiagMetrics.length; i++)
+        for (int i = 0; i < this.binDiagMetrics.length; i++) {
+            System.out.println(this.binDiagMetrics[i].peakApex);
+            System.out.println(i + "\t" + this.binDiagMetrics.length);
             out.print(this.binDiagMetrics[i].toString());
+        }
 
         out.close();
     }

@@ -38,6 +38,7 @@ public class DiagnosticHisto {
     double ppmTol;
     double normMass;
     public ArrayList<Double> filteredPeaks;
+    public ArrayList<HistoPeak> filteredHistoPeaks;
 
     public DiagnosticHisto (double peakApex, double mn, double mx, double binWidth, double minSignal, double ppmTol, double normMass) {
         this.peakApex = peakApex;
@@ -277,129 +278,14 @@ public class DiagnosticHisto {
 
     private synchronized void bumpTotal(double v) {} //this.total += v; }
 
-    public void findPeaks_safe() {
-        this.filteredPeaks = new ArrayList<>();
-
-        double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
-        System.out.println("Minimum:" + minVal);
-        ArrayList<Peak> peaks = new ArrayList<>();
-        for (int i = 0; i < this.smoothBins.length; i++) {
-            if (this.smoothBins[i].val <= minVal)
-                continue;
-            int peakIndx = i;
-            if (this.smoothBins[i+1].val > this.smoothBins[i].val) { //this can be while instead of if todo
-                /* Find local maximum */
-                //System.out.println("Entered:"+binToMass(i));
-                while (this.smoothBins[i+1].val > this.smoothBins[i].val)
-                    i++;
-                /* If local max is shared with other peaks, find source peak in unsmoothed histo */
-                int nEqualBins = 1;
-                while (this.smoothBins[i+nEqualBins-1].val == this.smoothBins[i+nEqualBins].val)
-                    nEqualBins++;
-                double cUnsmoothedMax = 0;
-                for (int j = 0; j < nEqualBins; j++) {
-                    if (this.bins[i+j].val > cUnsmoothedMax) {
-                        cUnsmoothedMax = this.bins[i+j].val;
-                        peakIndx = i+j;
-                    }
-                }
-                /* Store peak and val */ // This will have to move if we decide to measure peak area
-                peaks.add(new Peak(binToMass(peakIndx), this.smoothBins[peakIndx].val));
-                /* Collect number of downslope bins */
-                i += nEqualBins - 1;
-                //System.out.println("Equal:"+binToMass(i));
-                while (this.smoothBins[i+1].val < this.smoothBins[i].val)
-                    i++;
-                //System.out.println("Downslope:"+binToMass(i));
-
-            } else {
-                //System.out.println("Entered2:" + binToMass(i));
-                /* If local max is shared with other peaks, find source peak in unsmoothed histo */
-                int nEqualBins = 1;
-                while (this.smoothBins[i + nEqualBins - 1].val == this.smoothBins[i + nEqualBins].val)
-                    nEqualBins++;
-                double cUnsmoothedMax = 0;
-                for (int j = 0; j < nEqualBins; j++) {
-                    if (this.bins[i + j].val > cUnsmoothedMax) {
-                        cUnsmoothedMax = this.bins[i + j].val;
-                        peakIndx = i + j;
-                    }
-                }
-                peaks.add(new Peak(binToMass(peakIndx), this.smoothBins[peakIndx].val));
-                /* Collect number of downslope bins */
-                i += nEqualBins - 1;
-                //System.out.println("Equal2:" + binToMass(i));
-                while (this.smoothBins[i + 1].val < this.smoothBins[i].val)
-                    i++;
-                //System.out.println("Downslope2:" + binToMass(i));
-            }
-        }
-        int maxPeaks = Math.min(1000, peaks.size());
-        Collections.sort(peaks);
-        for (int i = 0; i < maxPeaks; i++)
-            this.filteredPeaks.add(peaks.get(i).MZ);
-        //for (Peak p : peaks) {
-        //    System.out.println(p.MZ + "\t" + p.Int);
-        //}
-    }
-
-    public void findPeaks_safe2() {
-        this.filteredPeaks = new ArrayList<>();
-
-        double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
-        double minEntryVal = 2e-100;
-        double prominence = 0.98;
-
-        ArrayList<Peak> peaks = new ArrayList<>();
-        for (int i = 0; i < this.smoothBins.length; i++) {
-            /* Skip bins not worth looking at */
-            if (this.smoothBins[i].val <= minEntryVal)
-                continue;
-            /* Once we find a bin worth looking at, set up vals */
-            int peakApex = i;
-            double maxRaw = this.bins[i].val;
-            double peakArea = this.smoothBins[i].val;
-            /* Integrate uphill slope and find apex */
-            while (this.smoothBins[i+1].val >= this.smoothBins[i].val * prominence) {
-                if (this.smoothBins[i+1].val > this.smoothBins[i].val) {
-                    maxRaw = this.bins[i+1].val;
-                    peakApex = i+1;
-                }
-                else if (this.smoothBins[i+1].val == this.smoothBins[i].val) {
-                    if (this.bins[i+1].val > maxRaw) {
-                        maxRaw = this.bins[i + 1].val;
-                        peakApex = i + 1;
-                    }
-                }
-                peakArea += this.smoothBins[i].val;
-                i++;
-            }
-            /* Integrate downhill slope */
-            while ((this.smoothBins[i+1].val * prominence <= this.smoothBins[i].val) && (this.smoothBins[i].val >= minEntryVal)) {
-                i++;
-                peakArea += this.smoothBins[i].val;
-            }
-            /* Check if peak meets criteria and store it */
-            if (peakArea >= minVal)
-                peaks.add(new Peak(binToMass(peakApex), peakArea));
-        }
-        /* Select top peaks */
-        int maxPeaks = Math.min(100, peaks.size());
-        Collections.sort(peaks);
-        for (int i = 0; i < maxPeaks; i++) {
-            //this.filteredPeaks.add(peaks.get(i).MZ);
-            //System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
-        }
-    }
-
     public void findPeaks() {
         this.filteredPeaks = new ArrayList<>();
 
         double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
         double minEntryVal = 2e-100;
-        double prominence = 0.98;
+        double prominence = 0.99;
 
-        ArrayList<Peak> peaks = new ArrayList<>();
+        ArrayList<HistoPeak> peaks = new ArrayList<>();
         for (int i = 0; i < this.smoothBins2.length(); i++) {
             /* Skip bins not worth looking at */
             if (this.smoothBins2.get(i) <= minEntryVal)
@@ -431,15 +317,28 @@ public class DiagnosticHisto {
             }
             /* Check if peak meets criteria and store it */
             if (peakArea >= minVal)
-                peaks.add(new Peak(binToMass(peakApex), peakArea));
+                peaks.add(new HistoPeak(binToMass(peakApex), peakArea));
         }
         /* Select top peaks */
         int maxPeaks = Math.min(1000, peaks.size());
         Collections.sort(peaks);
         for (int i = 0; i < maxPeaks; i++) {
             this.filteredPeaks.add(peaks.get(i).MZ);
+            //this.filteredHistoPeaks.add(peaks.get(i));
             //System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
         }
+        ArrayList<Integer> removePeaks = new ArrayList<>();
+        for (int i = 0; i < this.filteredPeaks.size(); i++) {
+            for (int j = i+1; j < this.filteredPeaks.size(); j++) {
+                if (removePeaks.contains(j))
+                    continue;
+                if (Math.abs(this.filteredPeaks.get(i) - this.filteredPeaks.get(j)) <= 0.0021)
+                    removePeaks.add(j);
+            }
+        }
+        Collections.sort(removePeaks, Collections.reverseOrder());
+        for (Integer j : removePeaks)
+            this.filteredPeaks.remove(j);
     }
 
     private int calculateCBinsSide(int cBins) {
@@ -506,13 +405,13 @@ class Bin {
     }
 }
 
-class Peak implements Comparable<Peak> {
+class HistoPeak implements Comparable<HistoPeak> {
     double MZ, Int;
-    public Peak(double MZ, double Int) {
+    public HistoPeak(double MZ, double Int) {
         this.MZ = MZ;
         this.Int = Int;
     }
-    public int compareTo(Peak arg0) {
+    public int compareTo(HistoPeak arg0) {
         return -1* Double.compare(this.Int, arg0.Int);
     }
 }

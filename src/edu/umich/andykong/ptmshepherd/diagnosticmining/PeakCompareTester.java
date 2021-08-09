@@ -187,7 +187,7 @@ public class PeakCompareTester {
             immN = immoniumYN;
             capYN = capYYN;
             squigglesN = squigglesYN;
-        } else {
+        } else { // "decoy"
             pepMap = decoyPeptideMap;
             imm = immoniumDecoy;
             capY = capYDecoy;
