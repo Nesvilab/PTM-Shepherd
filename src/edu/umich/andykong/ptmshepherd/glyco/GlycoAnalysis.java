@@ -270,7 +270,10 @@ public class GlycoAnalysis {
                     foundThreshold = true;
                     System.out.printf("Converged to %.1f pct FDR with %d targets and %d decoys\n", targetDecoyRatio * 100, targets, decoys);
                 }
-                rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
+                if (!rawGlycoLine[bestGlycanCol].contains("FailFDR")) {
+                    // only add failFDR annotation once (prevents multiple writes on re-analyses)
+                    rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
+                }
             }
 
             // update counts
