@@ -473,10 +473,11 @@ public class PTMShepherd {
 	/**
 	 * Print glyco params used
 	 */
-	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam, Integer[] glycoIsotopes, double glycoPPMtol) {
-		System.out.print("Glycan Assignment params:\n");
-		System.out.printf("\tMass error (ppm): %.1f\n", glycoPPMtol);
-		System.out.printf("\tIsotope errors: %s\n", Arrays.toString(glycoIsotopes));
+	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam, Integer[] glycoIsotopes, double glycoPPMtol, double glycoFDR) {
+		print("Glycan Assignment params:");
+		print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
+		print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
+		print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
 		// adducts
 		if (maxAdducts > 0 && adductList.size() > 0) {
 			StringBuilder adductStr = new StringBuilder();
@@ -488,16 +489,16 @@ public class PTMShepherd {
 					adductStr.append(", ");
 				}
 			}
-			System.out.printf("\tAdducts: %s, max %d\n", adductStr, maxAdducts);
+			print(String.format("\tAdducts: %s, max %d", adductStr, maxAdducts));
 		} else {
-			System.out.print("\tAdducts: none\n");
+			print("\tAdducts: none");
 		}
-		System.out.printf("\tGlycan Database size (including adducts): %d\n", glycoDatabase.size() / 2);
-		System.out.printf("\tNormalize Y ion counts: %s\n", glycoYnorm);
-		System.out.printf("\tAbsolute score scaling: %.1f\n", absScoreErrorParam);
-		System.out.printf("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f\n", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]);
-		System.out.printf("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f\n", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]);
-
+		print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / 2));
+		print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
+		print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
+		print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
+		print(String.format("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]));
+		print("Assigning glycans:");
 	}
 
 	public static void main(String [] args) throws Exception {
@@ -866,13 +867,22 @@ public class PTMShepherd {
 			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
 			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
 			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
-
-			printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+			String glycoFDRParam = getParam("glyco_fdr");
+			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
+			boolean alreadyPrintedParams = false;
 
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
-				if (ga.isComplete())
+				if (ga.isComplete()) {
+					print(String.format("\tGlyco analysis already done for dataset %s, skipping", ds));
 					continue;
+				}
+
+				// print params here to avoid printing if the analysis is already done/not being run
+				if (!alreadyPrintedParams) {
+					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR);
+					alreadyPrintedParams = true;
+				}
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
@@ -880,7 +890,6 @@ public class PTMShepherd {
 				}
 				ga.complete();
 			}
-			print("Done\n");
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
@@ -892,9 +901,6 @@ public class PTMShepherd {
 			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
 
 			// second pass: calculate glycan FDR and update results
-			String glycoFDRParam = getParam("glyco_fdr");
-			// default 0.01 if param not provided, otherwise read provided value
-			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam);
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
 				ga.computeGlycanFDR(glycoFDR);
@@ -909,7 +915,8 @@ public class PTMShepherd {
 					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS);
 				}
 			}
-			print("Created glyco reports\n");
+			print("Created glyco reports");
+			print("Done with glyco analysis\n");
 		}
 
 		/* Make psm table IonQuant compatible */

@@ -197,7 +197,6 @@ public class PSMFile {
 			newHeaders.add(this.headers[i]);
 		// add after observed mod column (observedModCol + 1)
 		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
-		int numColsOverwritingObsMods = numColsToUse - 1;		// need one less column if overwriting the observed mods column
 		if (!hasPreviousGlycoInfo) {
 			// do not add glyco headers if the PSM table already has them
 			newHeaders.addAll(observedModCol + 1, Arrays.asList(glyHeaders).subList(mergeFromCol + 1, mergeFromCol + numColsToUse));
