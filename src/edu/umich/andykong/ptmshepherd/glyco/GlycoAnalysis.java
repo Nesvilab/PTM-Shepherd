@@ -91,16 +91,13 @@ public class GlycoAnalysis {
             remainderMasses[i] = Double.parseDouble(remainderStrs[i]);
 
         //write header
-        StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
+        StringBuilder headbuff = new StringBuilder(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
         if (runGlycanAssignment) {
             headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value");
         }
-        for (int i = 0; i < capYShifts.length; i++)
-            headbuff.append(String.format("\tY_%.4f_intensity", capYShifts[i]));
-        for (int i = 0; i < oxoniumIons.length; i++)
-            headbuff.append(String.format("\tox_%.4f_intensity", oxoniumIons[i]));
-        for (int i = 0; i < remainderMasses.length; i++)
-            headbuff.append(String.format("\tdeltascore_%.4f\tlocalization_%.4f", remainderMasses[i], remainderMasses[i]));
+        for (double capYShift : capYShifts) headbuff.append(String.format("\tY_%.4f_intensity", capYShift));
+        for (double oxoniumIon : oxoniumIons) headbuff.append(String.format("\tox_%.4f_intensity", oxoniumIon));
+        for (double remainderMass : remainderMasses) headbuff.append(String.format("\tdeltascore_%.4f\tlocalization_%.4f", remainderMass, remainderMass));
         out.println(headbuff.toString());
         //get necessary col indices
         specCol = pf.getColumn("Spectrum");
@@ -131,12 +128,10 @@ public class GlycoAnalysis {
             ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
 
             getMassErrorWidth(pf, clines);
-            for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
-                String newline = processLine(pf.data.get(clines.get(i)));
+            for (Integer cline : clines) {//for relevant line in curr spec file
+                String newline = processLine(pf.data.get(cline));
                 this.totalLines++;
-                if (newline.equals("ERROR"))
-                    continue;
-                else
+                if (!newline.equals("ERROR"))
                     out.println(newline);
             }
             long t3 = System.currentTimeMillis();
@@ -197,9 +192,7 @@ public class GlycoAnalysis {
         HashMap<String, Double> scoreMap = new HashMap<>();
         int targets = 0;
         int decoys = 0;
-        int numLines = 0;
         while ((cgline = in.readLine()) != null) {
-            numLines++;
             if (cgline.equals("COMPLETE")) {
                 break;
             }
@@ -315,8 +308,8 @@ public class GlycoAnalysis {
         // Get mass errors for PSMs with delta mass in exclusion range (-1.5 to 3.5)
         double minError = 10;
         double maxError = -10;
-        for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
-            String line = psmFile.data.get(clines.get(i));
+        for (Integer cline : clines) {//for relevant line in curr spec file
+            String line = psmFile.data.get(cline);
             String[] sp = line.split("\\t");
             float deltaMass = Float.parseFloat(sp[deltaCol]);
 //            float pepMass = Float.parseFloat(sp[pmassCol]);
@@ -363,7 +356,7 @@ public class GlycoAnalysis {
 
 
     public String processLine(String line) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         String[] sp = line.split("\\t");
         String seq = sp[pepCol];
         float dmass = Float.parseFloat(sp[deltaCol]);
@@ -389,22 +382,20 @@ public class GlycoAnalysis {
         capYIonIntensities = findCapitalYIonMasses(spec, pepMass);
         oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
 
-        for (int i = 0; i < capYIonIntensities.length; i++)
-            sb.append(String.format("\t%.2f", capYIonIntensities[i]));
-        for (int i = 0; i < oxoniumIonIntensities.length; i++)
-            sb.append(String.format("\t%.2f", oxoniumIonIntensities[i]));
+        for (double capYIonIntensity : capYIonIntensities) sb.append(String.format("\t%.2f", capYIonIntensity));
+        for (double oxoniumIonIntensity : oxoniumIonIntensities) sb.append(String.format("\t%.2f", oxoniumIonIntensity));
         float[] deltaScores = new float[remainderMasses.length];
         boolean[][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores);
 
         for (int i = 0; i < remainderMasses.length; i++) {
             sb.append(String.format("\t%.1f", deltaScores[i]));
-            StringBuffer locSb = new StringBuffer("\t");
+            StringBuilder locSb = new StringBuilder("\t");
             for (int j = 0; j < seq.length(); j++) {
-                if (isMaxScores[i][j] == true) {
+                if (isMaxScores[i][j]) {
                     locSb.append(String.format("%d%c", j + 1, seq.charAt(j))); //position (1 indexed), character
                 }
             }
-            sb.append(locSb.toString());
+            sb.append(locSb);
         }
         return sb.toString();
     }
@@ -457,24 +448,16 @@ public class GlycoAnalysis {
         // score candidates and save results
         int bestCandidateIndex = 0;
         int nextBestCandidateIndex = 1;
-        double[] scoresVsBestCandidate = new double[searchCandidates.size()];
 
         for (int i = 1; i < searchCandidates.size(); i++) {
             if (i == bestCandidateIndex) {
                 continue;
             }
             double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), possibleYIons, possibleOxoniums, pepMass, deltaMass, massErrorWidth, meanMassError);
-            if (comparisonScore > 0) {
-                // best candidate obtained better score and remains unchanged. Put comparison score at position i to indicate the score of this candidate relative to current best candidate
-                scoresVsBestCandidate[i] = comparisonScore;
-            } else {
+            if (comparisonScore < 0) {
                 // new best candidate - reset best candidate position and update scores at all other positions
-                for (int j = 0; j < i; j++) {
-                    scoresVsBestCandidate[j] -= comparisonScore;    // subtract score vs previous best candidate from existing scores to update them
-                }
                 nextBestCandidateIndex = bestCandidateIndex;
                 bestCandidateIndex = i;
-                scoresVsBestCandidate[i] = 0;
             }
         }
         // it's possible for the 2nd best score to be worse than those for candidates searched AFTER the last change to best candidate. Compare those against 2nd best score to get correct result
@@ -932,7 +915,7 @@ public class GlycoAnalysis {
             maxFrags[i] = baseFrags;
             //localize at each position
             for(int j = 0; j < seq.length(); j++) {
-                if (allowedPoses[j] == true)
+                if (allowedPoses[j])
                     mods[j] += dmass;
                 scores[j] = spec.getHyper(seq, mods, ppmTol);
                 //System.out.println(scores[j] + "score");
@@ -941,7 +924,7 @@ public class GlycoAnalysis {
                     maxFrags[i] = frags[j];
                 if(scores[j] > maxScores[i])
                     maxScores[i] = scores[j];
-                if (allowedPoses[j] == true)
+                if (allowedPoses[j])
                     mods[j] -= dmass;
             }
             //System.out.println(maxScores[i]+"maxscore");
