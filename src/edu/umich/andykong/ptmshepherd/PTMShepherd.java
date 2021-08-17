@@ -856,7 +856,7 @@ public class PTMShepherd {
 		//Glyco analyses
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
-			System.out.println("Beginning glyco analysis");
+			System.out.println("Beginning glyco/labile analysis");
 			// parse glyco parameters and initialize database and ratio tables
 			Random randomGenerator = new Random(glycoRandomSeed);
 			ArrayList<GlycanResidue> adductList = parseGlycoAdductParam();
@@ -870,16 +870,17 @@ public class PTMShepherd {
 			String glycoFDRParam = getParam("glyco_fdr");
 			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
 			boolean alreadyPrintedParams = false;
+			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
 
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
 				if (ga.isComplete()) {
-					print(String.format("\tGlyco analysis already done for dataset %s, skipping", ds));
+					print(String.format("\tGlyco/labile analysis already done for dataset %s, skipping", ds));
 					continue;
 				}
 
 				// print params here to avoid printing if the analysis is already done/not being run
-				if (!alreadyPrintedParams) {
+				if (!alreadyPrintedParams && runGlycanAssignment) {
 					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR);
 					alreadyPrintedParams = true;
 				}
@@ -893,7 +894,7 @@ public class PTMShepherd {
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
@@ -901,22 +902,24 @@ public class PTMShepherd {
 			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
 
 			// second pass: calculate glycan FDR and update results
-			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
-				ga.computeGlycanFDR(glycoFDR);
-				ga.complete();
-			}
+			if (runGlycanAssignment) {
+				for (String ds : datasets.keySet()) {
+					GlycoAnalysis ga = new GlycoAnalysis(ds, true, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
+					ga.computeGlycanFDR(glycoFDR);
+					ga.complete();
+				}
 
-			/* Save best glycan information from glyco report to psm tables */
-			for (String ds : datasets.keySet()) {
-				ArrayList<String[]> dsData = datasets.get(ds);
-				for (int i = 0; i < dsData.size(); i++) {
-					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS);
+				/* Save best glycan information from glyco report to psm tables */
+				for (String ds : datasets.keySet()) {
+					ArrayList<String[]> dsData = datasets.get(ds);
+					for (int i = 0; i < dsData.size(); i++) {
+						PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+						pf.mergeGlycoTable(new File(normFName(ds + ".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS);
+					}
 				}
 			}
 			print("Created glyco reports");
-			print("Done with glyco analysis\n");
+			print("Done with glyco/labile analysis\n");
 		}
 
 		/* Make psm table IonQuant compatible */

@@ -5,15 +5,10 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTProfile;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 public class GlycoAnalysis {
@@ -40,9 +35,11 @@ public class GlycoAnalysis {
     Integer[] glycoIsotopes;
     double glycoPPMtol;
     Random randomGenerator;
+    boolean runGlycanAssignment;
 
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol, Random randomGenerator) {
+    public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol, Random randomGenerator) {
         this.dsName = dsName;
+        this.runGlycanAssignment = runGlycanAssignment;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
         this.glycanDatabase = glycoDatabase;
 
@@ -95,7 +92,9 @@ public class GlycoAnalysis {
 
         //write header
         StringBuffer headbuff = new StringBuffer(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
-        headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value");
+        if (runGlycanAssignment) {
+            headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value");
+        }
         for (int i = 0; i < capYShifts.length; i++)
             headbuff.append(String.format("\tY_%.4f_intensity", capYShifts[i]));
         for (int i = 0; i < oxoniumIons.length; i++)
@@ -381,8 +380,9 @@ public class GlycoAnalysis {
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
-        sb.append(assignGlycanToPSM(spec, pepMass, dmass, glycanDatabase, massErrorWidth, meanMassError));
-
+        if (runGlycanAssignment) {
+            sb.append(assignGlycanToPSM(spec, pepMass, dmass, glycanDatabase, massErrorWidth, meanMassError));
+        }
         //System.out.println("got spec");
         double[] capYIonIntensities;
         double[] oxoniumIonIntensities;
@@ -1017,6 +1017,7 @@ public class GlycoAnalysis {
         BufferedReader in = new BufferedReader(new FileReader(glycoFile));
         String cline;
         in.readLine();
+        int glycanAssignmentAddedLines = runGlycanAssignment ? NUM_ADDED_GLYCO_PSM_COLUMNS : 0;     // number of added lines to rawglyco file - 0 if not running glycan assignment
         while ((cline = in.readLine()) != null) {
             if (cline.equals("COMPLETE"))
                 break;
@@ -1027,7 +1028,7 @@ public class GlycoAnalysis {
             for (int i = 0; i < profiles.length; i++) {
                 int cind = profiles[i].locate.getIndex(md);
                 if (cind != -1) {
-                    profiles[i].records[cind].updateWithLine(sp);
+                    profiles[i].records[cind].updateWithLine(sp, glycanAssignmentAddedLines);
                 }
             }
         }

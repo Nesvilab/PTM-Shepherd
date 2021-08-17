@@ -41,11 +41,11 @@ public class GlycoRecord {
         this.remFragCounts = new int[remFragStrs.length];
     }
 
-    public void updateWithLine(String [] sp) {
+    public void updateWithLine(String [] sp, int glycanAssignAddedColumns) {
         count++;
         double cInt;
         //get instances of Y ion identified
-        int startCol = 5 + GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS;   // 5 columns always padding left side, plus some from glyco additions
+        int startCol = 5 + glycanAssignAddedColumns;   // 5 columns always padding left side, plus some from glycan assignment (if run)
         int endCol = startCol + capYCounts.length;
         for(int i = startCol; i < endCol; i++) {
             cInt = Double.parseDouble(sp[i]);
