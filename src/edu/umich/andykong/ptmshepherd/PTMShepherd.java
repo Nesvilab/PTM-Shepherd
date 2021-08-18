@@ -473,7 +473,7 @@ public class PTMShepherd {
 	/**
 	 * Print glyco params used
 	 */
-	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam, Integer[] glycoIsotopes, double glycoPPMtol, double glycoFDR) {
+	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam, Integer[] glycoIsotopes, double glycoPPMtol, double glycoFDR, boolean printFullParams) {
 		print("Glycan Assignment params:");
 		print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
 		print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
@@ -494,10 +494,12 @@ public class PTMShepherd {
 			print("\tAdducts: none");
 		}
 		print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / 2));
-		print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
-		print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
-		print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
-		print(String.format("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]));
+		if (printFullParams) {
+			print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
+			print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
+			print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
+			print(String.format("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]));
+		}
 		print("Assigning glycans:");
 	}
 
@@ -871,6 +873,7 @@ public class PTMShepherd {
 			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
 			boolean alreadyPrintedParams = false;
 			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
+			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));	// default false - for diagnostics
 
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, randomGenerator);
@@ -881,7 +884,7 @@ public class PTMShepherd {
 
 				// print params here to avoid printing if the analysis is already done/not being run
 				if (!alreadyPrintedParams && runGlycanAssignment) {
-					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR);
+					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR, printFullParams);
 					alreadyPrintedParams = true;
 				}
 				ArrayList<String[]> dsData = datasets.get(ds);
