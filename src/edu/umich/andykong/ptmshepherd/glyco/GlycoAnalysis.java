@@ -327,6 +327,13 @@ public class GlycoAnalysis {
             }
         }
 
+        if (massErrors.size() < 200) {
+            // not enough unmodified PSMs to compute mass error stats - use defaults
+            PTMShepherd.print("\tNot enough unmodified PSMs to determine mass error distribution, using default values");
+            massErrorWidth = 0.005;
+            meanMassError = 0;
+            return;
+        }
         // Bin error values into a histogram
         final int numBins = 200;
         final int[] binCounts = new int[numBins];
