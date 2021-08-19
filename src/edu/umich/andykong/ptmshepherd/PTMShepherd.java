@@ -254,7 +254,7 @@ public class PTMShepherd {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
 				for (String ext : extsToDelete) {
-					Path p = Paths.get(outputPath + ds + ext).toAbsolutePath().normalize();
+					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
 					deleteFile(p, true);
 				}
 			}
