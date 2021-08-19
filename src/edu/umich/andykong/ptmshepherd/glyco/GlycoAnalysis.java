@@ -10,6 +10,7 @@ import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class GlycoAnalysis {
@@ -1213,6 +1214,37 @@ public class GlycoAnalysis {
         // dHex
 
         return oxoniumList.toArray(new GlycanFragment[0]);
+    }
+
+    /**
+     * Find the first location of N-glycan sequon (N-X-S/T, X is not P) in the provided peptide sequence.
+     * @param pepSeq peptide sequence string to search
+     * @return index of N in the sequon. Position is 0-indexed
+     */
+    public static int findNGlycSequon(String pepSeq) {
+        byte[] pepseq_glyco = pepSeq.getBytes();
+        boolean xFlag = false;
+        boolean asnFlag = false;
+        for (int i = 0; i < pepseq_glyco.length; ++i) {
+            // Check the sequon: look for next part of the sequence (if nothing, look for N; if N, look for X; etc)
+            if (xFlag) {
+                // Found N-X, look for S/T
+                if (pepseq_glyco[i] == 'S' || pepseq_glyco[i] == 'T') {
+                    // update sequon index and keep looking
+                    return i - 2;       // sequon index is 2 behind S/T
+                }
+                xFlag = false;
+            }
+            if (asnFlag) {
+                // look for X (anything other than pro)
+                xFlag = pepseq_glyco[i] != 'P';
+            }
+            // always reset Asn flag in case of multiple Asn in a row
+            asnFlag = pepseq_glyco[i] == 'N';
+        }
+        // if we reach this point, no sequon was found. This can happen if the sequence ends in NX, where X is an enzyme cut point.
+        // Assume the second to last residue is the desired index
+        return pepSeq.length() - 2;
     }
 
 }
