@@ -230,7 +230,7 @@ public class SiteLocalization {
 		in.close();
 	}
 
-	public boolean [] parseAllowedPositions(String seq, String allowedReses){
+	public static boolean [] parseAllowedPositions(String seq, String allowedReses){
 		boolean [] allowedPoses = new boolean[seq.length()];
 		if (allowedReses.equals("all") || allowedReses.equals(""))
 			Arrays.fill(allowedPoses, true);

@@ -5,6 +5,7 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
@@ -874,7 +875,7 @@ public class GlycoAnalysis {
 
     public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, String[] smods, float[] deltaScores) {
         //initialize allowed positions
-        boolean [] allowedPoses = parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
+        boolean [] allowedPoses = SiteLocalization.parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
         //initialize remainder delta scores
         //double[] remainderDscores = new double[remainderMasses.length];
         //add variable and fixed mods to frag masses for peptide
@@ -952,24 +953,6 @@ public class GlycoAnalysis {
             }
         }
         return isMaxScores;
-    }
-
-    private boolean[] parseAllowedPositions(String seq, String allowedReses) {
-        boolean [] allowedPoses = new boolean[seq.length()];
-        if (allowedReses.equals("all") || allowedReses.equals(""))
-            Arrays.fill(allowedPoses, true);
-        else {
-            Arrays.fill(allowedPoses, false);
-            for (int i = 0; i < seq.length(); i++) {
-                for (int j = 0; j < allowedReses.length(); j++) {
-                    if (seq.charAt(i) == allowedReses.charAt(j)) {
-                        allowedPoses[i] = true;
-                        break;
-                    }
-                }
-            }
-        }
-        return allowedPoses;
     }
 
     public String reNormName(String s) {
