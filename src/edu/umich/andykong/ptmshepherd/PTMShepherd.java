@@ -225,30 +225,44 @@ public class PTMShepherd {
 	 * @return Integer[] of all isotopes to consider (from min to max)
 	 */
 	public static Integer[] parseGlycoIsotopesParam() {
-		String paramValue = getParam("glyco_isotope_range");
-		String[] paramStrs;
-		ArrayList<Integer> isotopes = new ArrayList<Integer>();
-		if (paramValue.length() > 0) {
-			paramStrs = paramValue.split(",| |/");
-			if (paramStrs.length == 2) {
-				int minIso = Integer.parseInt(paramStrs[0]);
-				int maxIso = Integer.parseInt(paramStrs[1]);
-				if (maxIso < minIso) {	// reverse if input flipped
-					int oldMax = maxIso;
-					maxIso = minIso;
-					minIso = oldMax;
-				}
-				for (int i = minIso; i <= maxIso; i++) {
-					isotopes.add(i);
+		String isoLowStr = getParam("glyco_isotope_min");
+		String isoHighStr = getParam("glyco_isotope_max");
+		if (isoLowStr.length() > 0 && isoHighStr.length() > 0) {
+			int minIso = Integer.parseInt(isoLowStr);
+			int maxIso = Integer.parseInt(isoHighStr);
+			ArrayList<Integer> isotopes = new ArrayList<>();
+			for (int i = minIso; i <= maxIso; i++) {
+				isotopes.add(i);
+			}
+			return isotopes.toArray(new Integer[0]);
+
+		} else {
+			// todo: deprecated. Keeping for now for compatibility with old param files, but will remove at some point
+			String paramValue = getParam("glyco_isotope_range");
+			String[] paramStrs;
+			ArrayList<Integer> isotopes = new ArrayList<Integer>();
+			if (paramValue.length() > 0) {
+				paramStrs = paramValue.split(",| |/");
+				if (paramStrs.length == 2) {
+					int minIso = Integer.parseInt(paramStrs[0]);
+					int maxIso = Integer.parseInt(paramStrs[1]);
+					if (maxIso < minIso) {    // reverse if input flipped
+						int oldMax = maxIso;
+						maxIso = minIso;
+						minIso = oldMax;
+					}
+					for (int i = minIso; i <= maxIso; i++) {
+						isotopes.add(i);
+					}
+				} else {
+					// invalid input: warn user
+					die(String.format("Invalid isotopes string %s input to glyco mode: must be in format 'min,max'", paramValue));
 				}
 			} else {
-				// invalid input: warn user
-				die(String.format("Invalid isotopes string %s input to glyco mode: must be in format 'min,max'", paramValue));
+				return new Integer[]{-1, 0, 1, 2, 3};    // return default value if not specified
 			}
-		} else {
-			return new Integer[]{-1, 0, 1, 2, 3};    // return default value if not specified
+			return isotopes.toArray(new Integer[0]);
 		}
-		return isotopes.toArray(new Integer[0]);
 	}
 
 	/**
@@ -870,7 +884,7 @@ public class PTMShepherd {
 			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
 			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
 			String glycoFDRParam = getParam("glyco_fdr");
-			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
+			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam) / 100.0; 	// default 0.01 if param not provided, otherwise read provided value as % and convert to ratio
 			boolean alreadyPrintedParams = false;
 			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
 			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));	// default false - for diagnostics
