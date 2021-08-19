@@ -6,7 +6,7 @@ import java.util.TreeMap;
 public class GlycanMasses {
 
     // Building blocks for glycan compositions
-    public static final float hexnacMass = (float) 203.079037;
+    public static final float hexnacMass = (float) 203.07937;
     public static final float hexMass = (float) 162.05282;
     public static final float dhexMass = (float) 146.057909;
     public static final float neuacMass = (float) 291.095417;
