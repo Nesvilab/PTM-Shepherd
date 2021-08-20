@@ -187,7 +187,7 @@ public class PSMFile {
 			PTMShepherd.print("ERROR: Could not find Assigned Modifications column(s) in PSM table. Glycans NOT written to Assigned Modifications");
 			writeGlycansToAssignedMods = false;
 		}
-		if (fraggerLocCol == -1) {
+		if (fraggerLocCol == -1 && writeGlycansToAssignedMods) {
 			PTMShepherd.print("ERROR: Could not find MSFragger localization column in PSM table. Make sure you are using Philosopher 4.0.0+ and have delta mass localization enabled in MSFragger. Glycans NOT written to Assigned Modifications");
 			writeGlycansToAssignedMods = false;
 		}
