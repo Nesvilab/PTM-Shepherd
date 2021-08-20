@@ -137,11 +137,12 @@ public class MSFMGFFile {
             int iend = (i + 1) * BLOCKSIZE; //end scan 500
             int ilinestart = scanStarts[istart]; //start at line corresponding to line 0 (0)
             int ilineend;
-            if (iend > scanC) {
+            //System.out.println(istart + "\t" + iend + "\t" + i + "\t" + scanC);
+            if (iend >= scanC) {
                 iend = scanC;
                 ilineend = fileLines.size(); //last line
             } else
-                ilineend = scanStarts[iend + 1] - 1; //end at line corresponding to line before scan 501
+                ilineend = scanStarts[iend]; //end at line corresponding to line before scan 501
 
             futureList.add(executorService.submit(() -> processMSFMGFSpectraBlock(fileLines, ilinestart, ilineend)));
         }
@@ -150,6 +151,8 @@ public class MSFMGFFile {
         for (Future future : futureList) { //checks to make sure all threads are done
             future.get();
         }
+
+        //TEST TODO
         //System.out.println("Time: " + Long.toString(System.currentTimeMillis() - t1));
         //todo
     }
@@ -164,6 +167,8 @@ public class MSFMGFFile {
         ArrayList<Spectrum> spectra = new ArrayList<>();
         ArrayList<String> cspecLines = new ArrayList<>();
         String line;
+
+        int nScans = 0;
 
         for (int i = istart; i < iend; i++) {
             line = lines.get(i);
