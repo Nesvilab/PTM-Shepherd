@@ -279,7 +279,7 @@ public class PSMFile {
 		try {
 			glycanComp = PTMShepherd.parseGlycanString(observedMods);
 		} catch (Exception ex) {
-			// Not a glycan (PTM-S or Philosopher may put other string formats here), ignore
+			// Not a glycan OR failedFDR/decoy (PTM-S or Philosopher may put other string formats here). In all cases, ignore
 			// todo: not great design - should have better checking to make sure legit glycan parsing didn't fail
 			return newLine;
 		}
@@ -319,7 +319,16 @@ public class PSMFile {
 		// write mass and location to Assigned Mods
 		String currentAssignedMods = newLine.get(assignedModCol);
 		String glycanMod = String.format("%d%s(%.4f)", glycanLocation + 1, glycanAA, glycanMass);	// site is 1-indexed in PSM table, not 0-indexed
-		String newAssignedMods = currentAssignedMods.length() == 0 ? glycanMod : currentAssignedMods + ", " + glycanMod;
+		// check if glycanAssignedMod already present and avoid double adding if so (in case of re-runs on same file)
+		boolean alreadyAddedGlycan = false;
+		String[] modSplits = currentAssignedMods.split(",");
+		for (String mod: modSplits) {
+			if (mod.equals(glycanMod)){
+				alreadyAddedGlycan = true;
+				break;
+			}
+		}
+		String newAssignedMods = alreadyAddedGlycan ? currentAssignedMods : currentAssignedMods.length() == 0 ? glycanMod : currentAssignedMods + ", " + glycanMod;
 		newLine.set(assignedModCol, newAssignedMods);
 		return newLine;
 	}
