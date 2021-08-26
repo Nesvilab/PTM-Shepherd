@@ -4,10 +4,8 @@ import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import edu.umich.andykong.ptmshepherd.peakpicker.PeakAnnotator;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -288,6 +286,9 @@ public class PSMFile {
 		// Get glycan location from lower case position
 		int glycanLocation = -1;
 		String fraggerPepLocStr = newLine.get(fraggerLocCol);
+		if (fraggerPepLocStr.length() == 0) {
+			PTMShepherd.die(String.format("Error: MSFragger localization not reported for spectrum %s. Please make sure you are using MSFragger 3.4+ and check your parameters and PSM table", newLine.get(0)));
+		}
 		String glycanAA;
 		ArrayList<Integer> allowedPositions = new ArrayList<>();
 		for (int i = 0; i < fraggerPepLocStr.length(); i++) {
