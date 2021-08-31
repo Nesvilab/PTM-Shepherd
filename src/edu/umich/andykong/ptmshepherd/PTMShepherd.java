@@ -899,7 +899,7 @@ public class PTMShepherd {
 			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
 			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
 			String glycoFDRParam = getParam("glyco_fdr");
-			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam) / 100.0; 	// default 0.01 if param not provided, otherwise read provided value as % and convert to ratio
+			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
 			boolean alreadyPrintedParams = false;
 			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
 			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
