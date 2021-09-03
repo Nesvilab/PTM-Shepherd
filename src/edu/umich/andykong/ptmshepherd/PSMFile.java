@@ -286,9 +286,9 @@ public class PSMFile {
 		// Get glycan location from lower case position
 		int glycanLocation = -1;
 		String fraggerPepLocStr = newLine.get(fraggerLocCol);
-		if (fraggerPepLocStr.length() == 0) {
-			PTMShepherd.die(String.format("Error: MSFragger localization not reported for spectrum %s. Please make sure you are using MSFragger 3.4+ and check your parameters and PSM table", newLine.get(0)));
-		}
+//		if (fraggerPepLocStr.length() == 0) {
+//			PTMShepherd.die(String.format("Error: MSFragger localization not reported for spectrum %s. Please make sure you are using MSFragger 3.4+ and check your parameters and PSM table", newLine.get(0)));
+//		}
 		String glycanAA;
 		ArrayList<Integer> allowedPositions = new ArrayList<>();
 		for (int i = 0; i < fraggerPepLocStr.length(); i++) {
@@ -315,8 +315,13 @@ public class PSMFile {
 				}
 			}
 		}
-		glycanAA = fraggerPepLocStr.substring(glycanLocation, glycanLocation + 1).toUpperCase();
-
+		// skip missing loc for now
+		try {
+			glycanAA = fraggerPepLocStr.substring(glycanLocation, glycanLocation + 1).toUpperCase();
+		} catch (StringIndexOutOfBoundsException ex) {
+			PTMShepherd.print(String.format("WARNING: MSFragger localization not reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods", newLine.get(0)));
+			return newLine;
+		}
 		// write mass and location to Assigned Mods
 		String currentAssignedMods = newLine.get(assignedModCol);
 		String glycanMod = String.format("%d%s(%.4f)", glycanLocation + 1, glycanAA, glycanMass);	// site is 1-indexed in PSM table, not 0-indexed
