@@ -1130,7 +1130,7 @@ public class GlycoAnalysis {
         if (targetNeuGc) {
             Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
             neugcComposition.put(GlycanResidue.NeuGc, 1);
-            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, false, randomGenerator));     // NeuGc - H20
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 290.087, false, randomGenerator));     // NeuGc - H20
             oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, false, randomGenerator));     // NeuGc
             Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
             neugcHexComposition.put(GlycanResidue.NeuGc, 1);
@@ -1141,7 +1141,7 @@ public class GlycoAnalysis {
         if (decoyNeuGc) {
             Map<GlycanResidue, Integer> neugcComposition = new HashMap<>();
             neugcComposition.put(GlycanResidue.NeuGc, 1);
-            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 291.0954165, true, randomGenerator));     // NeuGc - H20
+            oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 290.087, true, randomGenerator));     // NeuGc - H20
             oxoniumList.add(new GlycanFragment(neugcComposition, probabilityTable.neugcRules, 307.090334, true, randomGenerator));     // NeuGc
             Map<GlycanResidue, Integer> neugcHexComposition = new HashMap<>();
             neugcHexComposition.put(GlycanResidue.NeuGc, 1);
