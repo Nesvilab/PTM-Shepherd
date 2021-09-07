@@ -274,11 +274,12 @@ public class PSMFile {
 		// parse glycan composition from recently edited observed mods col
 		TreeMap<GlycanResidue, Integer> glycanComp;
 		String observedMods = newLine.get(observedModCol);
+		String glycanOnly = observedMods.replace("FailFDR_", "").replace("Decoy_", "");
+		boolean failOrDecoy = observedMods.contains("FailFDR") || observedMods.contains("Decoy");
 		try {
-			glycanComp = PTMShepherd.parseGlycanString(observedMods);
+			glycanComp = PTMShepherd.parseGlycanString(glycanOnly);
 		} catch (Exception ex) {
-			// Not a glycan OR failedFDR/decoy (PTM-S or Philosopher may put other string formats here). In all cases, ignore
-			// todo: not great design - should have better checking to make sure legit glycan parsing didn't fail
+			// Not a glycan (PTM-S or Philosopher may put other string formats here) - ignore and continue
 			return newLine;
 		}
 		double glycanMass = GlycanCandidate.computeMonoisotopicMass(glycanComp);
@@ -322,19 +323,35 @@ public class PSMFile {
 			PTMShepherd.print(String.format("WARNING: MSFragger localization not reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods", newLine.get(0)));
 			return newLine;
 		}
+
 		// write mass and location to Assigned Mods
 		String currentAssignedMods = newLine.get(assignedModCol);
 		String glycanMod = String.format("%d%s(%.4f)", glycanLocation + 1, glycanAA, glycanMass);	// site is 1-indexed in PSM table, not 0-indexed
+		String[] modSplits = currentAssignedMods.split(", ");
+		ArrayList<String> newModSplits = new ArrayList<>();
+
 		// check if glycanAssignedMod already present and avoid double adding if so (in case of re-runs on same file)
-		boolean alreadyAddedGlycan = false;
-		String[] modSplits = currentAssignedMods.split(",");
 		for (String mod: modSplits) {
-			if (mod.trim().equals(glycanMod)){
-				alreadyAddedGlycan = true;
-				break;
+			int modLocation = parseModLocation(mod);
+			if (modLocation == glycanLocation + 1) {
+				// a mod is already present at this site in the PSM table. Probably an existing glycan mod, but check the mass too to confirm
+				double existingModMass = parseModMass(mod);
+				if (glycanMass - 5 <= existingModMass && glycanMass + 5 >= existingModMass) {
+					// found existing glycan annotation - do not add it to the updated mod list
+					continue;
+				} else {
+					newModSplits.add(mod);
+				}
+			} else {
+				// other mod
+				newModSplits.add(mod);
 			}
 		}
-		String newAssignedMods = alreadyAddedGlycan ? currentAssignedMods : currentAssignedMods.length() == 0 ? glycanMod : currentAssignedMods + ", " + glycanMod;
+		// add the assigned glycan to the updated mod list (from which we removed any old glycan mods) if not failed FDR or is decoy
+		if (!failOrDecoy) {
+			newModSplits.add(glycanMod);
+		}
+		String newAssignedMods = String.join(", ", newModSplits);
 		newLine.set(assignedModCol, newAssignedMods);
 		return newLine;
 	}
@@ -439,4 +456,48 @@ public class PSMFile {
 		File newFileName = new File(tempFoutName);
 		newFileName.renameTo(this.fname);
     }
+
+	/**
+	 * Parse the location index from an Assigned Modification in the PSM table. If location is C-term,
+	 * return -1 and if location is N-term, return -2
+	 * @param mod string to parse
+	 * @return mod location
+	 */
+    public static int parseModLocation(String mod) {
+		// get all chars of the mod location and parse it
+		String trimmedMod = mod.trim();
+		int stopChar = 0;
+		for (int i=0; i < trimmedMod.length(); i++) {
+			if (!Character.isDigit(trimmedMod.charAt(i))) {
+				// stop here
+				stopChar = i;
+				break;
+			}
+		}
+
+		if (stopChar == 0) {
+			// special case: N-term or C-term mod
+			if (trimmedMod.startsWith("N-term")) {
+				return -2;
+			} else if (trimmedMod.startsWith("C-term")) {
+				return -1;
+			} else {
+				PTMShepherd.print(String.format("Warning: invalid Assigned Modification format for mod %s. Not removing existing glycans", mod));
+				return -3;
+			}
+		} else {
+			return Integer.parseInt(trimmedMod.substring(0, stopChar));
+		}
+	}
+
+	/**
+	 * Parse the mass of an assigned modification in the PSM table from between the parentheses [e.g., 4N(1000.0000)]
+	 * @param mod string to parse
+	 * @return mod mass
+	 */
+	public static double parseModMass(String mod) {
+    	String[] splits = mod.split("\\(");
+    	String[] massSplits = splits[1].split("\\)");
+    	return Double.parseDouble(massSplits[0]);
+	}
 }
