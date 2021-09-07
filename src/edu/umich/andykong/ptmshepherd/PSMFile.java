@@ -329,7 +329,7 @@ public class PSMFile {
 		boolean alreadyAddedGlycan = false;
 		String[] modSplits = currentAssignedMods.split(",");
 		for (String mod: modSplits) {
-			if (mod.equals(glycanMod)){
+			if (mod.trim().equals(glycanMod)){
 				alreadyAddedGlycan = true;
 				break;
 			}
