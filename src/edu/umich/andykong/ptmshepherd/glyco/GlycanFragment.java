@@ -37,18 +37,18 @@ public class GlycanFragment {
      * Constructor for cases where neutral mass needs to be supplied (e.g. some oxonium ions)
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      * @param ruleProbabilities probabilities to use
-     * @param neutralMass neutral mass of the fragment
+     * @param neutralMassShift neutral mass shift of the fragment relative to its composition (e.g., for H2O losses from oxonium ions)
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMass, boolean isDecoy, Random randomGenerator) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
         if (isDecoy) {
-            this.neutralMass = neutralMass + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
+            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         } else {
-            this.neutralMass = neutralMass;
+            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift;
         }
     }
 

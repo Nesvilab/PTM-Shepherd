@@ -25,6 +25,8 @@ public class ProbabilityTables {
     public double[] neugcRules;
     public double[] phosphoRules;
     public double[] sulfoRules;
+    public HashMap<GlycanResidue, double[]> rulesByResidue;
+
     // parameter names
     public static String[] probabilityParams = {"prob_neuacOx",
             "prob_neugcOx",
@@ -61,6 +63,13 @@ public class ProbabilityTables {
         neugcRules = new double[]{10, 0.05};
         phosphoRules = new double[]{10, 0.05};
         sulfoRules = new double[]{10, 0.05};
+
+        // initialize lookup table for rule types by residue
+        rulesByResidue = new HashMap<>();
+        rulesByResidue.put(GlycanResidue.NeuAc, neuacRules);
+        rulesByResidue.put(GlycanResidue.NeuGc, neugcRules);
+        rulesByResidue.put(GlycanResidue.Phospho, phosphoRules);
+        rulesByResidue.put(GlycanResidue.Sulfo, sulfoRules);
     }
 
 
