@@ -2,10 +2,7 @@ package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.*;
 
 /**
  Container for theoretical glycan compositions (supplied by user or database) to be
@@ -18,8 +15,10 @@ public class GlycanCandidate {
     public static final double MAX_CANDIDATE_DECOY_SHIFT_DA = 3;
     public static final int[] DECOY_ISOTOPES = {-1, 0, 1, 2, 3};
     public static final double MAX_DECOY_SHIFT_FROM_ISOTOPE_DA = 0.2;
+    public GlycanFragment[] Yfragments;
+    public GlycanFragment[] oxoniumFragments;
 
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, Random randomGenerator) {
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
@@ -49,6 +48,123 @@ public class GlycanCandidate {
             }
             this.monoisotopicMass = baseMonoistopicMass + randomShift;
         }
+
+        // initialize fragments for this candidate
+        initializeYFragments(probabilityTable, glycoOxoniumDatabase, randomGenerator);
+        initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+    }
+
+    /**
+     * Initialize array of all fragment ions to search for this candidate. Candidate has
+     * fragment Ys up to the max HexNAc, Hex, and dHex present. Decoy fragments are generated for decoy candidates.
+     */
+    public void initializeYFragments(ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
+        // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
+        ArrayList<GlycanFragment> yFragments = new ArrayList<>();
+        for (int hexnac = 0; hexnac <= this.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
+            for (int hex = 0; hex <= this.glycanComposition.get(GlycanResidue.Hex); hex++) {
+                if (hexnac == 0 && hex == 0) {
+                    continue;
+                }
+                // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
+                Map<GlycanResidue, Integer> composition = new HashMap<>();
+                composition.put(GlycanResidue.HexNAc, hexnac);
+                composition.put(GlycanResidue.Hex, hex);
+                GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, this.isDecoy, randomGenerator);
+                yFragments.add(fragment);
+
+                for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
+                    // add dHex fragments (if allowed)
+                    Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
+                    dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
+                    dHexcomposition.put(GlycanResidue.Hex, hex);
+                    dHexcomposition.put(GlycanResidue.dHex, dHex);
+                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, this.isDecoy, randomGenerator);
+                    yFragments.add(dHexfragment);
+                }
+            }
+        }
+        this.Yfragments = yFragments.toArray(new GlycanFragment[0]);
+    }
+
+    /**
+     * Helper method to initialize hard-coded oxonium fragment rules. Only initializes fragments for a
+     * residue type if at least one candidate contains that residue type (no need to consider if not).
+     * Decoys generated for all residue types that have at least one decoy candidate containing that type.
+     * @return list of GlycanFragments for oxonium ions
+     */
+    public void initializeOxoniumFragments(HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
+        boolean targetNeuAc = false;
+        boolean targetNeuGc = false;
+        boolean targetPhospho = false;
+        boolean targetSulfo = false;
+
+        if (this.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
+            targetNeuAc = true;
+        }
+        if (this.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
+            targetNeuGc = true;
+        }
+        if (this.glycanComposition.get(GlycanResidue.Phospho) > 0) {
+            targetPhospho = true;
+        }
+        if (this.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
+            targetSulfo = true;
+        }
+
+        ArrayList<GlycanFragment> oxoniumList = new ArrayList<>();
+        // HexNAc, Hex oxoniums
+
+        // NeuAc
+        if (targetNeuAc) {
+            if (this.isDecoy) {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuAc, true, glycoOxoniumDatabase, randomGenerator));
+            } else {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuAc, false, glycoOxoniumDatabase, randomGenerator));
+            }
+        }
+        // NeuGc
+        if (targetNeuGc) {
+            if (this.isDecoy) {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuGc, true, glycoOxoniumDatabase, randomGenerator));
+            } else {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuGc, false, glycoOxoniumDatabase, randomGenerator));
+            }
+        }
+        // Phospho-Hex
+        if (targetPhospho) {
+            if (this.isDecoy) {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.Phospho, true, glycoOxoniumDatabase, randomGenerator));
+            } else {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.Phospho, false, glycoOxoniumDatabase, randomGenerator));
+            }
+        }
+        // Sulfo
+        if (targetSulfo) {
+            if (this.isDecoy) {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.Sulfo, true, glycoOxoniumDatabase, randomGenerator));
+            } else {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.Sulfo, false, glycoOxoniumDatabase, randomGenerator));
+            }
+        }
+        // dHex
+
+        this.oxoniumFragments = oxoniumList.toArray(new GlycanFragment[0]);
+    }
+
+    /**
+     * Helper method to add fragment ions to the oxonium list
+     * @param residue residue type
+     * @param isDecoy decoy or not
+     * @return updated list
+     */
+    private ArrayList<GlycanFragment> makeOxoniums(GlycanResidue residue, boolean isDecoy, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
+        ArrayList<GlycanFragment> newFragments = new ArrayList<>();
+        ArrayList<GlycanFragmentDescriptor> oxoniumIonDescriptors = glycoOxoniumDatabase.get(residue);
+        for (GlycanFragmentDescriptor fragmentDescriptor : oxoniumIonDescriptors) {
+            newFragments.add(new GlycanFragment(fragmentDescriptor.requiredComposition, fragmentDescriptor.ruleProbabilies, fragmentDescriptor.massShift, isDecoy, randomGenerator));
+        }
+        return newFragments;
     }
 
     /**
@@ -76,7 +192,8 @@ public class GlycanCandidate {
         // randomly select isotope.
         int minIso = Arrays.stream(isotopes).min().getAsInt();
         int maxIso = Arrays.stream(isotopes).max().getAsInt();
-        int isotope = ThreadLocalRandom.current().nextInt(minIso, maxIso + 1);  // upper bound is not inclusive, need to add 1 to get to max isotope
+        // randomInt(0, max - min) + min yields correct range of min : max (including if min < 0)
+        int isotope = randomGenerator.nextInt(maxIso + 1 - minIso) + minIso;  // upper bound is not inclusive, need to add 1 to get to max isotope
 
         // randomly generate mass shift within tolerance and add to chosen isotope
         double random = randomGenerator.nextDouble();       // between 0 and 1

@@ -12,6 +12,8 @@ import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 public class GlycoAnalysis {
     String dsName;
@@ -36,11 +38,9 @@ public class GlycoAnalysis {
     double defaultMassErrorAbsScore;
     Integer[] glycoIsotopes;
     double glycoPPMtol;
-    Random randomGenerator;
     boolean runGlycanAssignment;
-    HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase;
 
-    public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol, Random randomGenerator, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+    public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
         this.dsName = dsName;
         this.runGlycanAssignment = runGlycanAssignment;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
@@ -52,11 +52,9 @@ public class GlycoAnalysis {
         this.defaultMassErrorAbsScore = absMassErrorDefault;
         this.glycoPPMtol = glycoPPMtol;
         this.glycoIsotopes = glycoIsotopes;
-        this.randomGenerator = randomGenerator;
-        this.glycoOxoniumDatabase = glycoOxoniumDatabase;
     }
 
-    public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
+    public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) throws Exception {
         //open up output file
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
         PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
@@ -132,12 +130,27 @@ public class GlycoAnalysis {
             ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
 
             getMassErrorWidth(pf, clines);
-            for (Integer cline : clines) {//for relevant line in curr spec file
-                String newline = processLine(pf.data.get(cline));
-                this.totalLines++;
-                if (!newline.equals("ERROR"))
-                    out.println(newline);
+
+            /* set up parallelization blocks */
+            final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
+            int nBlocks = clines.size() / (BLOCKSIZE); //number of jobs submitted to queue
+            if (clines.size() % BLOCKSIZE != 0) //if there are missing scans, add one more block
+                nBlocks++;
+
+            ArrayList<Future> futureList = new ArrayList<>(nBlocks);
+            /* Process PSM chunks */
+            for (int i = 0; i < nBlocks; i++) {
+                int startInd = i * BLOCKSIZE;
+                int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
+                ArrayList<String> cBlock = new ArrayList<>();
+                for (int j = startInd; j < endInd; j++)
+                    cBlock.add(pf.data.get(clines.get(j)));
+                futureList.add(executorService.submit(() -> processLinesBlock(cBlock, out)));
             }
+            /* Wait for all processes to finish */
+            for (Future future : futureList)
+                future.get();
+
             long t3 = System.currentTimeMillis();
             PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2 - t1, t3 - t2));
         }
@@ -150,6 +163,18 @@ public class GlycoAnalysis {
             PTMShepherd.print(String.format("Showing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
                     String.join("\n\t", linesWithoutSpectra.subList(0, previewSize))));
         }
+    }
+
+    public void processLinesBlock(ArrayList<String> cBlock, PrintWriter out) {
+        StringBuilder newBlock  = new StringBuilder();
+        for (String line : cBlock) {
+            newBlock.append(processLine(line)).append("\n");
+        }
+        printLines(out, newBlock.toString());
+    }
+
+    private synchronized void printLines(PrintWriter out, String linesBlock) {
+        out.print(linesBlock);
     }
 
     /**
@@ -435,8 +460,8 @@ public class GlycoAnalysis {
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(pepMass, deltaMass, glycanDatabase, glycoIsotopes, glycoPPMtol);
 
         // Get Y/oxo ions possible for these candidates (and decoy ions)
-        GlycanFragment[] possibleYIons = initializeYFragments(searchCandidates);
-        GlycanFragment[] possibleOxoniums = initializeOxoniumFragments(searchCandidates);
+        GlycanFragment[] possibleYIons = mergeYFragments(searchCandidates);
+        GlycanFragment[] possibleOxoniums = mergeOxoniumFragments(searchCandidates);
         double[] yMasses = new double[possibleYIons.length];
         for (int i = 0; i < possibleYIons.length; i++) {
             yMasses[i] = possibleYIons[i].neutralMass + pepMass;
@@ -823,6 +848,43 @@ public class GlycoAnalysis {
         return matchingGlycans;
     }
 
+    /**
+     * Generate a list of all Y ions found amongst all candidates in the list to search against the spectrum.
+     * @param searchCandidates list of candidates being searched
+     * @return array of fragments
+     */
+    private GlycanFragment[] mergeYFragments(ArrayList<GlycanCandidate> searchCandidates) {
+        ArrayList<GlycanFragment> allFragments = new ArrayList<>();
+        HashMap<String, Boolean> fragmentInList = new HashMap<>();
+        for (GlycanCandidate candidate : searchCandidates) {
+            for (GlycanFragment fragment : candidate.Yfragments) {
+                if (!fragmentInList.containsKey(fragment.toHashString())) {
+                    allFragments.add(fragment);
+                    fragmentInList.put(fragment.toHashString(), true);
+                }
+            }
+        }
+        return allFragments.toArray(new GlycanFragment[0]);
+    }
+    /**
+     * Generate a list of all Y ions found amongst all candidates in the list to search against the spectrum.
+     * @param searchCandidates list of candidates being searched
+     * @return array of fragments
+     */
+    private GlycanFragment[] mergeOxoniumFragments(ArrayList<GlycanCandidate> searchCandidates) {
+        ArrayList<GlycanFragment> allFragments = new ArrayList<>();
+        HashMap<String, Boolean> fragmentInList = new HashMap<>();
+        for (GlycanCandidate candidate : searchCandidates) {
+            for (GlycanFragment fragment : candidate.oxoniumFragments) {
+                if (!fragmentInList.containsKey(fragment.toHashString())) {
+                    allFragments.add(fragment);
+                    fragmentInList.put(fragment.toHashString(), true);
+                }
+            }
+        }
+        return allFragments.toArray(new GlycanFragment[0]);
+    }
+
     public double[] findCapitalYIonMasses(Spectrum spec, double pepMass) {
         //implement charge states //todo
 
@@ -1011,147 +1073,6 @@ public class GlycoAnalysis {
         in.close();
     }
 
-    /**
-     * Initialize array of all fragment ions to search from the list of possible candidates. Each candidate has
-     * fragment Ys up to the max HexNAc, Hex, and dHex present in the candidate. Duplicates are ignored (only 1
-     * instance of a fragment in the list). Decoy fragments are generated for decoy candidates.
-     * @param glycanCandidates input glycan database
-     * @return array of GlycanFragments to search - all Y and oxonium ion
-     */
-    public GlycanFragment[] initializeYFragments(ArrayList<GlycanCandidate> glycanCandidates) {
-        // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
-        ArrayList<GlycanFragment> yFragments = new ArrayList<>();
-        HashMap<String, Boolean> fragmentsInList = new HashMap<>();     // record generated fragments to prevent adding duplicates
-        for (GlycanCandidate candidate : glycanCandidates) {
-            for (int hexnac = 0; hexnac <= candidate.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
-                for (int hex = 0; hex <= candidate.glycanComposition.get(GlycanResidue.Hex); hex++) {
-                    if (hexnac == 0 && hex == 0) {
-                        continue;
-                    }
-                    // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
-                    Map<GlycanResidue, Integer> composition = new HashMap<>();
-                    composition.put(GlycanResidue.HexNAc, hexnac);
-                    composition.put(GlycanResidue.Hex, hex);
-                    GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, candidate.isDecoy, randomGenerator);
-                    // only add if not already in list (prevent duplicates)
-                    if (!fragmentsInList.containsKey(fragment.toHashString())) {
-                        yFragments.add(fragment);
-                        fragmentsInList.put(fragment.toHashString(), true);
-                    }
-                    for (int dHex = 1; dHex <= candidate.glycanComposition.get(GlycanResidue.dHex); dHex++) {
-                        // add dHex fragments (if allowed)
-                        Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
-                        dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
-                        dHexcomposition.put(GlycanResidue.Hex, hex);
-                        dHexcomposition.put(GlycanResidue.dHex, dHex);
-                        GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, candidate.isDecoy, randomGenerator);
-                        if (!fragmentsInList.containsKey(dHexfragment.toHashString())) {
-                            yFragments.add(dHexfragment);
-                            fragmentsInList.put(dHexfragment.toHashString(), true);
-                        }
-                    }
-                }
-            }
-        }
-        return yFragments.toArray(new GlycanFragment[0]);
-    }
-
-    /**
-     * Helper method to initialize hard-coded oxonium fragment rules. Only initializes fragments for a
-     * residue type if at least one candidate contains that residue type (no need to consider if not).
-     * Decoys generated for all residue types that have at least one decoy candidate containing that type.
-     * @return list of GlycanFragments for oxonium ions
-     */
-    public GlycanFragment[] initializeOxoniumFragments(ArrayList<GlycanCandidate> searchCandidates){
-        boolean targetNeuAc = false;
-        boolean decoyNeuAc = false;
-        boolean targetNeuGc = false;
-        boolean decoyNeuGc = false;
-        boolean targetPhospho = false;
-        boolean decoyPhospho = false;
-        boolean targetSulfo = false;
-        boolean decoySulfo = false;
-
-        for (GlycanCandidate candidate : searchCandidates) {
-            if (candidate.isDecoy) {
-                if (candidate.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
-                    decoyNeuAc = true;
-                }
-                if (candidate.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
-                    decoyNeuGc = true;
-                }
-                if (candidate.glycanComposition.get(GlycanResidue.Phospho) > 0) {
-                    decoyPhospho = true;
-                }
-                if (candidate.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
-                    decoySulfo = true;
-                }
-            } else {
-                if (candidate.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
-                    targetNeuAc = true;
-                }
-                if (candidate.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
-                    targetNeuGc = true;
-                }
-                if (candidate.glycanComposition.get(GlycanResidue.Phospho) > 0) {
-                    targetPhospho = true;
-                }
-                if (candidate.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
-                    targetSulfo = true;
-                }
-            }
-        }
-
-        ArrayList<GlycanFragment> oxoniumList = new ArrayList<>();
-        // HexNAc, Hex oxoniums
-
-        // NeuAc
-        if (targetNeuAc) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuAc, false));
-        }
-        if (decoyNeuAc) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuAc, true));
-        }
-        // NeuGc
-        if (targetNeuGc) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuGc, false));
-        }
-        if (decoyNeuGc) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuGc, true));
-        }
-        // Phospho-Hex
-        if (targetPhospho) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.Phospho, false));
-        }
-        if (decoyPhospho) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.Phospho, true));
-        }
-        // Sulfo
-        if (targetSulfo) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.Sulfo, false));
-        }
-        if (decoySulfo) {
-            oxoniumList.addAll(makeOxoniums(GlycanResidue.Sulfo, true));
-        }
-        // dHex
-
-        return oxoniumList.toArray(new GlycanFragment[0]);
-    }
-
-    /**
-     * Helper method to add fragment ions to the oxonium list
-     * @param residue residue type
-     * @param isDecoy decoy or not
-     * @return updated list
-     */
-    private ArrayList<GlycanFragment> makeOxoniums(GlycanResidue residue, boolean isDecoy) {
-        ArrayList<GlycanFragment> newFragments = new ArrayList<>();
-        ArrayList<GlycanFragmentDescriptor> oxoniumIonDescriptors = glycoOxoniumDatabase.get(residue);
-        for (GlycanFragmentDescriptor fragmentDescriptor : oxoniumIonDescriptors) {
-            newFragments.add(new GlycanFragment(fragmentDescriptor.requiredComposition, fragmentDescriptor.ruleProbabilies, fragmentDescriptor.massShift, isDecoy, randomGenerator));
-        }
-        return newFragments;
-    }
 
     /**
      * Find the first location of N-glycan sequon (N-X-S/T, X is not P) in the provided peptide sequence.
