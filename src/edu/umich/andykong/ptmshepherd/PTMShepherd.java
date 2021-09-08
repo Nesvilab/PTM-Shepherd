@@ -99,7 +99,7 @@ public class PTMShepherd {
 	 * @param inputPath path to input file
 	 * @return list of glycans to consider
 	 */
-	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator) {
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType) {
 		// read input glycan database or default database if none provided
 		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
 		try {
@@ -124,8 +124,6 @@ public class PTMShepherd {
 
 			HashMap<String, Boolean> glycansInDB = new HashMap<>();
 			// parse decoy param
-			String decoyParam = getParam("decoy_type");
-			int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
 
 			String line;
 			while ((line = in.readLine()) != null) {
@@ -494,7 +492,7 @@ public class PTMShepherd {
 	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase,
 										 ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam,
 										 Integer[] glycoIsotopes, double glycoPPMtol, double glycoFDR, boolean printFullParams,
-										 boolean nGlycanMode, String allowedLocalizationResidues) {
+										 boolean nGlycanMode, String allowedLocalizationResidues, int decoyType) {
 		print("Glycan Assignment params:");
 		print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
 		print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
@@ -527,6 +525,7 @@ public class PTMShepherd {
 			print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
 			print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
 			print(String.format("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]));
+			print(String.format("\tDecoy type: %d", decoyType));
 		}
 		print("Assigning glycans:");
 	}
@@ -891,7 +890,9 @@ public class PTMShepherd {
 			Random randomGenerator = new Random(glycoRandomSeed);
 			ArrayList<GlycanResidue> adductList = parseGlycoAdductParam();
 			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
-			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator);
+			String decoyParam = getParam("decoy_type");
+			int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
+			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator, decoyType);
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
 			HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoProbabilityTable);
 			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
@@ -916,7 +917,7 @@ public class PTMShepherd {
 
 				// print params here to avoid printing if the analysis is already done/not being run
 				if (!alreadyPrintedParams && runGlycanAssignment) {
-					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR, printFullParams, nGlycan, allowedLocRes);
+					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR, printFullParams, nGlycan, allowedLocRes, decoyType);
 					alreadyPrintedParams = true;
 				}
 				ArrayList<String[]> dsData = datasets.get(ds);
