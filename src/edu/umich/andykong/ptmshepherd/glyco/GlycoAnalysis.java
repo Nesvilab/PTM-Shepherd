@@ -234,7 +234,7 @@ public class GlycoAnalysis {
         if (targetDecoyRatio < desiredRatio) {
             // not enough decoys to compute FDR - already above desired ratio. Do not update table
             PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%%, started at %.2f%%", desiredRatio * 100, targetDecoyRatio * 100));
-            if (desiredRatio > targetDecoyRatio * 0.1) {
+            if (desiredRatio > targetDecoyRatio * 10) {
                 PTMShepherd.print(("\tNot enough decoys to compute FDR at 0.1 * initial ratio. Check data and parameters. No FDR calculation performed!\n"));
                 return;
             } else {
