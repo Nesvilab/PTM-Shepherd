@@ -325,8 +325,7 @@ public class PTMShepherd {
 				}
 			}
 		}
-
-
+		probabilityTable.updateRulesByResidue();
 		return probabilityTable;
 	}
 

@@ -66,6 +66,12 @@ public class ProbabilityTables {
 
         // initialize lookup table for rule types by residue
         rulesByResidue = new HashMap<>();
+    }
+
+    /**
+     * Update the list of probabilities after parameters have been parsed
+     */
+    public void updateRulesByResidue() {
         rulesByResidue.put(GlycanResidue.NeuAc, neuacRules);
         rulesByResidue.put(GlycanResidue.NeuGc, neugcRules);
         rulesByResidue.put(GlycanResidue.Phospho, phosphoRules);
