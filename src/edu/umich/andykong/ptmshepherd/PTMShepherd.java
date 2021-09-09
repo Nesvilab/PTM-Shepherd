@@ -97,9 +97,10 @@ public class PTMShepherd {
 	/**
 	 * Parse input glycan database file. Formatting: 1 glycan per line, "Residue1-count_Residue2-count_...\n"
 	 * @param inputPath path to input file
+	 * @param glycoIsotopes
 	 * @return list of glycans to consider
 	 */
-	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
 		// read input glycan database or default database if none provided
 		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
 		try {
@@ -136,14 +137,14 @@ public class PTMShepherd {
 				}
 				TreeMap<GlycanResidue, Integer> glycanComp = parseGlycanString(glycanName);
 				// generate a new candidate from this composition and add to DB
-				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
 				String compositionHash = candidate.toHashString();
 				// prevent addition of duplicates if user has them in database
 				if (!glycansInDB.containsKey(compositionHash)) {
 					glycanDB.add(candidate);
 					glycansInDB.put(compositionHash, Boolean.TRUE);
 					// also add a decoy for this composition
-					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
 					glycanDB.add(decoy);
 
 					// add adducts from adduct list to each composition
@@ -157,13 +158,13 @@ public class PTMShepherd {
 							}
 							adductComp.put(adduct, numAdducts);
 
-							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
 							String adductCompositionHash = adductCandidate.toHashString();
 							if (!glycansInDB.containsKey(adductCompositionHash)) {
 								glycanDB.add(adductCandidate);
 								glycansInDB.put(adductCompositionHash, Boolean.TRUE);
 								// also add a decoy for this composition
-								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
 								glycanDB.add(adductDecoy);
 							}
 						}
@@ -219,6 +220,12 @@ public class PTMShepherd {
 		if (isoLowStr.length() > 0 && isoHighStr.length() > 0) {
 			int minIso = Integer.parseInt(isoLowStr);
 			int maxIso = Integer.parseInt(isoHighStr);
+			// check for min/max swap from user input
+			if (maxIso < minIso) {
+				int saveMin = minIso;
+				minIso = maxIso;
+				maxIso = saveMin;
+			}
 			ArrayList<Integer> isotopes = new ArrayList<>();
 			for (int i = minIso; i <= maxIso; i++) {
 				isotopes.add(i);
@@ -894,11 +901,11 @@ public class PTMShepherd {
 			int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
 			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
 			HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoProbabilityTable);
-			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator, decoyType, glycoProbabilityTable, glycoOxoniumDatabase);
-			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
-			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
 			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
 			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
+			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator, decoyType, glycoPPMtol, glycoIsotopes, glycoProbabilityTable, glycoOxoniumDatabase);
+			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
+			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
 			String glycoFDRParam = getParam("glyco_fdr");
 			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
 			boolean alreadyPrintedParams = false;

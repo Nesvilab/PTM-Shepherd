@@ -13,12 +13,11 @@ public class GlycanCandidate {
     Map<GlycanResidue, Integer> glycanComposition;     // map of residue type: count of residue to describe the composition
     boolean isDecoy;
     public static final double MAX_CANDIDATE_DECOY_SHIFT_DA = 3;
-    public static final int[] DECOY_ISOTOPES = {-1, 0, 1, 2, 3};
-    public static final double MAX_DECOY_SHIFT_FROM_ISOTOPE_DA = 0.2;
+    public static final double DEFAULT_PEPTIDE_MASS = 1500;
     public GlycanFragment[] Yfragments;
     public GlycanFragment[] oxoniumFragments;
 
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
@@ -40,9 +39,13 @@ public class GlycanCandidate {
                     break;
                 case 1:
                     // random isotope and mass error
-                    randomShift = getRandomShiftIsotopes(DECOY_ISOTOPES, MAX_DECOY_SHIFT_FROM_ISOTOPE_DA, randomGenerator);
+                    randomShift = getRandomShiftIsotopes(baseMonoistopicMass, glycoIsotopes, glycoPPMtol, randomGenerator);
                     break;
                 case 2:
+                    // random mass error, no isotope error
+                    Integer[] noIsotopes = {0};
+                    randomShift = getRandomShiftIsotopes(baseMonoistopicMass, noIsotopes, glycoPPMtol, randomGenerator);
+                case 3:
                     // exact target mass - random shift left at 0
                     break;
             }
@@ -184,19 +187,21 @@ public class GlycanCandidate {
      * Generate a random mass shift within tolerancePPM about a randomly selected isotope peak in the
      * provided isotopes list.
      * @param isotopes list of isotopes
-     * @param toleranceDa Da tolerance
+     * @param tolerancePPM Match tolerance (ppm) for glycan matching (from input parameter)
      * @param randomGenerator single random generator instance for whole glycan analysis
      * @return random mass shift within specified ranges
      */
-    public static double getRandomShiftIsotopes(int[] isotopes, double toleranceDa, Random randomGenerator) {
-        // randomly select isotope.
-        int minIso = Arrays.stream(isotopes).min().getAsInt();
-        int maxIso = Arrays.stream(isotopes).max().getAsInt();
+    public static double getRandomShiftIsotopes(double glycanMass, Integer[] isotopes, double tolerancePPM, Random randomGenerator) {
+        // randomly select isotope (must be sorted in ascending order)
+        int minIso = isotopes[0];
+        int maxIso = isotopes[isotopes.length - 1];
         // randomInt(0, max - min) + min yields correct range of min : max (including if min < 0)
         int isotope = randomGenerator.nextInt(maxIso + 1 - minIso) + minIso;  // upper bound is not inclusive, need to add 1 to get to max isotope
 
         // randomly generate mass shift within tolerance and add to chosen isotope
         double random = randomGenerator.nextDouble();       // between 0 and 1
+        double baseMassEstimate = glycanMass + DEFAULT_PEPTIDE_MASS + isotope;
+        double toleranceDa = baseMassEstimate * 1e-6 * tolerancePPM;
         double randomShift = -toleranceDa + random * (2 * toleranceDa);     // shift to range (min - random * (max - min)), where min = -toleranceDa and max = +toleranceDa
         return isotope * AAMasses.averagineIsotopeMass + randomShift;
     }
