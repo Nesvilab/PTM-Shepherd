@@ -859,7 +859,8 @@ public class GlycoAnalysis {
         for (GlycanCandidate candidate : searchCandidates) {
             for (GlycanFragment fragment : candidate.Yfragments) {
                 if (!fragmentInList.containsKey(fragment.toHashString())) {
-                    allFragments.add(fragment);
+                    // create a new Fragment with a copy of the key information from this fragment to prevent multiple access issues with threading
+                    allFragments.add(new GlycanFragment(fragment.requiredComposition, fragment.ruleProbabilities, fragment.isDecoy, fragment.neutralMass));
                     fragmentInList.put(fragment.toHashString(), true);
                 }
             }
@@ -877,7 +878,7 @@ public class GlycoAnalysis {
         for (GlycanCandidate candidate : searchCandidates) {
             for (GlycanFragment fragment : candidate.oxoniumFragments) {
                 if (!fragmentInList.containsKey(fragment.toHashString())) {
-                    allFragments.add(fragment);
+                    allFragments.add(new GlycanFragment(fragment.requiredComposition, fragment.ruleProbabilities, fragment.isDecoy, fragment.neutralMass));
                     fragmentInList.put(fragment.toHashString(), true);
                 }
             }

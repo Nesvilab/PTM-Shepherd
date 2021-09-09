@@ -53,6 +53,23 @@ public class GlycanFragment {
     }
 
     /**
+     * Constructor for generating new Fragments for searching. Needed to avoid carrying intensity over from one
+     * object to another when searching in multiple threads. Intended to copy all basic info from another
+     * fragment and sets intensity to 0.
+     * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
+     * @param ruleProbabilities probabilities to use
+     * @param isDecoy decoy status
+     * @param exactMass mass of a fragment (i.e., fragment.neutralMass)
+     */
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, double exactMass) {
+        this.requiredComposition = requiredComposition;
+        this.ruleProbabilities = ruleProbabilities;
+        this.isDecoy = isDecoy;
+        this.neutralMass = exactMass;
+        this.foundIntensity = 0;
+    }
+
+    /**
      * Determine if this fragment is an allowed fragment of the provided candidate composition.
      * For comparing candidates, if a given fragment ion is found, there are 4 possibilities for whether that
      * fragment is allowed/expected in both candidates, candidate 1 only, 2 only, or neither. This method
@@ -145,6 +162,8 @@ public class GlycanFragment {
             i++;
             stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
         }
+        // add mass to account for ions with same composition but a mass shift (e.g., oxonium ions with H2O loss)
+        stringBuilder.append(String.format("_%.2f", this.neutralMass));
         return stringBuilder.toString();
     }
 
