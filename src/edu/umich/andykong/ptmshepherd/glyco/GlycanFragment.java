@@ -162,8 +162,6 @@ public class GlycanFragment {
             i++;
             stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
         }
-        // add mass to account for ions with same composition but a mass shift (e.g., oxonium ions with H2O loss)
-        stringBuilder.append(String.format("_%.2f", this.neutralMass));
         return stringBuilder.toString();
     }
 
