@@ -91,6 +91,10 @@ public class GlycanCandidate {
         for (int hexnac = 0; hexnac <= this.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
             for (int hex = 0; hex <= this.glycanComposition.get(GlycanResidue.Hex); hex++) {
                 if (!(hexnac == 0 && hex == 0)) {
+                    if (hexnac == 0 && this.glycanComposition.get(GlycanResidue.HexNAc) > 0) {
+                        // do not generate non-HexNAc containing Y ions for compositions that have HexNAc
+                        continue;
+                    }
                     // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
                     Map<GlycanResidue, Integer> composition = new HashMap<>();
                     composition.put(GlycanResidue.HexNAc, hexnac);
