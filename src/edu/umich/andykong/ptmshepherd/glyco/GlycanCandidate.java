@@ -66,16 +66,14 @@ public class GlycanCandidate {
         ArrayList<GlycanFragment> yFragments = new ArrayList<>();
         for (int hexnac = 0; hexnac <= this.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
             for (int hex = 0; hex <= this.glycanComposition.get(GlycanResidue.Hex); hex++) {
-                if (hexnac == 0 && hex == 0) {
-                    continue;
+                if (!(hexnac == 0 && hex == 0)) {
+                    // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
+                    Map<GlycanResidue, Integer> composition = new HashMap<>();
+                    composition.put(GlycanResidue.HexNAc, hexnac);
+                    composition.put(GlycanResidue.Hex, hex);
+                    GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, this.isDecoy, randomGenerator);
+                    yFragments.add(fragment);
                 }
-                // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
-                Map<GlycanResidue, Integer> composition = new HashMap<>();
-                composition.put(GlycanResidue.HexNAc, hexnac);
-                composition.put(GlycanResidue.Hex, hex);
-                GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, this.isDecoy, randomGenerator);
-                yFragments.add(fragment);
-
                 for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
                     // add dHex fragments (if allowed)
                     Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
