@@ -58,6 +58,30 @@ public class GlycanCandidate {
     }
 
     /**
+     * Constructor for copying existing glycan candidate to new object to avoid concurrent access in multi-threading.
+     * Take all information from previous candidate, just initialize as a new object. Also re-initialize Fragment
+     * objects for same reason.
+     * @param inputGlycanComp composition
+     * @param isDecoy decoy bool
+     * @param monoisotopicMass intact mass
+     * @param yfragments list of Y fragments
+     * @param oxoniumFragments list of oxonium fragments
+     */
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, double monoisotopicMass, GlycanFragment[] yfragments, GlycanFragment[] oxoniumFragments) {
+        this.glycanComposition = inputGlycanComp;
+        this.isDecoy = isDecoy;
+        this.monoisotopicMass = monoisotopicMass;
+        this.Yfragments = new GlycanFragment[yfragments.length];
+        for (int i=0; i < yfragments.length; i++) {
+            this.Yfragments[i] = new GlycanFragment(yfragments[i].requiredComposition, yfragments[i].ruleProbabilities, yfragments[i].isDecoy, yfragments[i].neutralMass);
+        }
+        this.oxoniumFragments = new GlycanFragment[oxoniumFragments.length];
+        for (int i=0; i < oxoniumFragments.length; i++) {
+            this.oxoniumFragments[i] = new GlycanFragment(oxoniumFragments[i].requiredComposition, oxoniumFragments[i].ruleProbabilities, oxoniumFragments[i].isDecoy, oxoniumFragments[i].neutralMass);
+        }
+    }
+
+    /**
      * Initialize array of all fragment ions to search for this candidate. Candidate has
      * fragment Ys up to the max HexNAc, Hex, and dHex present. Decoy fragments are generated for decoy candidates.
      */
