@@ -465,7 +465,7 @@ public class GlycoAnalysis {
                 yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + pepMass, ppmTol);  // sum of charge state intensities if >1 found
             }
             for (GlycanFragment oxoniumFragment: candidate.oxoniumFragments) {
-                oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass, ppmTol);
+                oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol);
             }
         }
 
