@@ -12,6 +12,7 @@ public class GlycanFragment {
     Map<GlycanResidue, Integer> requiredComposition;
     double[] ruleProbabilities;
     double foundIntensity;
+    double expectedIntensity;
     boolean isDecoy;
     public static final double MAX_DECOY_FRAGMENT_SHIFT_DA = 20;
 
@@ -44,6 +45,7 @@ public class GlycanFragment {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.foundIntensity = 0;
+        this.expectedIntensity = ruleProbabilities[2];   // 3rd value is expected intensity
         this.isDecoy = isDecoy;
         if (isDecoy) {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
@@ -61,12 +63,13 @@ public class GlycanFragment {
      * @param isDecoy decoy status
      * @param exactMass mass of a fragment (i.e., fragment.neutralMass)
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, double exactMass) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, double exactMass, double expectedIntensity) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.isDecoy = isDecoy;
         this.neutralMass = exactMass;
         this.foundIntensity = 0;
+        this.expectedIntensity = expectedIntensity;
     }
 
     /**

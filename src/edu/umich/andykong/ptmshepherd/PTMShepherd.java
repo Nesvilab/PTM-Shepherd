@@ -347,8 +347,8 @@ public class PTMShepherd {
 	 */
 	public static double[] parseProbParam(String paramStr, String paramName) {
 		String[] splits = paramStr.split(",");
-		if (splits.length == 2) {
-			double[] values = new double[2];
+		if (splits.length == 2 || splits.length == 3) {
+			double[] values = new double[splits.length];
 			for (int i = 0; i < splits.length; i++) {
 				try {
 					values[i] = Double.parseDouble(splits[i]);
@@ -359,7 +359,7 @@ public class PTMShepherd {
 			}
 			return values;
 		} else {
-			System.out.printf("Invalid format for parameter %s, must have 2 comma-separated values. Param was: %s\n", paramName, paramStr);
+			System.out.printf("Invalid format for parameter %s, must have 2 or 3 comma-separated values. Param was: %s\n", paramName, paramStr);
 			return new double[0];
 		}
 	}
@@ -551,7 +551,7 @@ public class PTMShepherd {
 			print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
 			print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
 			print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
-			print(String.format("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]));
+			print(String.format("\tOxonium probability ratios: NeuAc %.1f,%.2f,%.2f; NeuGc %.1f,%.2f,%.2f; Phospho %.1f,%.2f,%.2f; Sulfo %.1f,%.2f,%.2f", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neuacRules[2], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.neugcRules[2], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.phosphoRules[2], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1], glycoProbabilityTable.sulfoRules[2]));
 			print(String.format("\tDecoy type: %d", decoyType));
 		}
 		print("Assigning glycans:");

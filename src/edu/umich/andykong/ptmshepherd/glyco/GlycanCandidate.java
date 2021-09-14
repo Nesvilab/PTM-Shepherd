@@ -73,11 +73,11 @@ public class GlycanCandidate {
         this.monoisotopicMass = monoisotopicMass;
         this.Yfragments = new GlycanFragment[yfragments.length];
         for (int i=0; i < yfragments.length; i++) {
-            this.Yfragments[i] = new GlycanFragment(yfragments[i].requiredComposition, yfragments[i].ruleProbabilities, yfragments[i].isDecoy, yfragments[i].neutralMass);
+            this.Yfragments[i] = new GlycanFragment(yfragments[i].requiredComposition, yfragments[i].ruleProbabilities, yfragments[i].isDecoy, yfragments[i].neutralMass, yfragments[i].expectedIntensity);
         }
         this.oxoniumFragments = new GlycanFragment[oxoniumFragments.length];
         for (int i=0; i < oxoniumFragments.length; i++) {
-            this.oxoniumFragments[i] = new GlycanFragment(oxoniumFragments[i].requiredComposition, oxoniumFragments[i].ruleProbabilities, oxoniumFragments[i].isDecoy, oxoniumFragments[i].neutralMass);
+            this.oxoniumFragments[i] = new GlycanFragment(oxoniumFragments[i].requiredComposition, oxoniumFragments[i].ruleProbabilities, oxoniumFragments[i].isDecoy, oxoniumFragments[i].neutralMass, oxoniumFragments[i].expectedIntensity);
         }
     }
 

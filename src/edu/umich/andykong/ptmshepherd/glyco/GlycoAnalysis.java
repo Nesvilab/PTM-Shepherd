@@ -460,12 +460,14 @@ public class GlycoAnalysis {
 
         // Search Y and oxonium ions in spectrum for each candidate
         float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
+        double basePeakInt = spec.findBasePeakInt();
         for (GlycanCandidate candidate : searchCandidates) {
             for (GlycanFragment yFragment : candidate.Yfragments) {
                 yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + pepMass, ppmTol, spec.charge);  // sum of charge state intensities if >1 found
             }
             for (GlycanFragment oxoniumFragment: candidate.oxoniumFragments) {
-                oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol);
+                // save oxonium ion intensity relative to base peak
+                oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / basePeakInt;
             }
         }
 
@@ -615,7 +617,9 @@ public class GlycoAnalysis {
             if (!fragment1.isAllowedFragment(glycan2)) {
                 boolean foundInSpectrum = fragment1.foundIntensity > 0;
                 if (foundInSpectrum) {
-                    sumLogRatio += Math.log(fragment1.ruleProbabilities[0]);    // candidate 1 hit - added
+                    double intensityRatio = fragment1.foundIntensity / fragment1.expectedIntensity;
+                    double newRatio = fragment1.ruleProbabilities[0] * intensityRatio;
+                    sumLogRatio += Math.log(fragment1.ruleProbabilities[0] * intensityRatio);    // candidate 1 hit - added
                 } else {
                     sumLogRatio += Math.log(fragment1.ruleProbabilities[1]);    // candidate 1 miss - negative value added
                 }
@@ -625,7 +629,9 @@ public class GlycoAnalysis {
             if (!fragment2.isAllowedFragment(glycan1)) {
                 boolean foundInSpectrum = fragment2.foundIntensity > 0;
                 if (foundInSpectrum) {
-                    sumLogRatio -= Math.log(fragment2.ruleProbabilities[0]);    // candidate 2 hit - subtracted
+                    double intensityRatio = fragment2.foundIntensity / fragment2.expectedIntensity;
+                    double newRatio = fragment2.ruleProbabilities[0] * intensityRatio;
+                    sumLogRatio -= Math.log(fragment2.ruleProbabilities[0] * intensityRatio);    // candidate 2 hit - subtracted
                 } else {
                     sumLogRatio -= Math.log(fragment2.ruleProbabilities[1]);    // candidate 2 miss - negative value subtracted
                 }
