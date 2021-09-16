@@ -462,7 +462,7 @@ public class GlycoAnalysis {
         float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
         for (GlycanCandidate candidate : searchCandidates) {
             for (GlycanFragment yFragment : candidate.Yfragments) {
-                yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + pepMass, ppmTol);  // sum of charge state intensities if >1 found
+                yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + pepMass, ppmTol, spec.charge);  // sum of charge state intensities if >1 found
             }
             for (GlycanFragment oxoniumFragment: candidate.oxoniumFragments) {
                 oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol);

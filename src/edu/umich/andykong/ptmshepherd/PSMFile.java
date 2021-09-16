@@ -121,6 +121,7 @@ public class PSMFile {
 		}
 
 		return ints;
+	}
 
 	public ArrayList<Float> getPrecursorMasses() {
 		ArrayList<Float> precs = new ArrayList<>();

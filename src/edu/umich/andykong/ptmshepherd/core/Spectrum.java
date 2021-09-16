@@ -8,7 +8,7 @@ import java.util.*;
 public class Spectrum implements Comparable<Spectrum> {
 
 	public int scanNum;
-	int charge;
+	public int charge;
 	double precursorMass, rt;
 	double monoMass, targetMass;
 	float [] peakMZ;
@@ -405,8 +405,6 @@ public class Spectrum implements Comparable<Spectrum> {
 		//knownPeaks.addAll(shiftedPeaks);
 
 		this.averageIonMass = 0;
-
-	public float[][] calcImmoniumIons(int min, int max) { //todo I don't think these mins and maxes are very well informed
 		ArrayList<Peak> ps = new ArrayList<>();
 		for (int i = 0; i < peakMZ.length; i++) {
 			if (peakMZ[i] > max) //todo remove min max
