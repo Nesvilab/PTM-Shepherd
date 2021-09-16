@@ -1,39 +1,37 @@
 package edu.umich.andykong.ptmshepherd;
 
-import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.io.*;
 import java.util.concurrent.*;
+import java.util.Random;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedExperimentsSummary;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
-import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
-import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
+import edu.umich.andykong.ptmshepherd.glyco.*;
 import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
 import edu.umich.andykong.ptmshepherd.specsimilarity.*;
-import javolution.io.Struct;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
 
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "1.0.0";
+ 	public static final String version = "1.2.3";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
 	static HashMap<String,HashMap<String,File>> mzMap;
 	static HashMap<String,Integer> datasetMS2;
+	static ArrayList<GlycanCandidate> glycoDatabase;
 	private static String outputPath;
 	public static ExecutorService executorService;
+	private static final long glycoRandomSeed = 1364955171;
 
 	public static String getParam(String key) {
 		if(params.containsKey(key))
@@ -95,6 +93,285 @@ public class PTMShepherd {
 			params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
 		}
 	}
+
+	/**
+	 * Parse input glycan database file. Formatting: 1 glycan per line, "Residue1-count_Residue2-count_...\n"
+	 * @param inputPath path to input file
+	 * @param glycoIsotopes
+	 * @return list of glycans to consider
+	 */
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+		// read input glycan database or default database if none provided
+		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
+		try {
+			BufferedReader in;
+			if (inputPath.equals("")) {
+				// no glycan database provided - fall back to default glycan list in PeakAnnotator
+				String defaultDB = "glyco_mods_20210127.txt";
+				in = new BufferedReader(new InputStreamReader(PeakAnnotator.class.getResourceAsStream(defaultDB)));
+			} else {
+				Path path = null;
+				try {
+					path = Paths.get(inputPath.replaceAll("['\"]", ""));
+				} catch (Exception e) {
+					System.out.println(e);
+					die(String.format("Malformed glycan path string: [%s]", inputPath));
+				}
+				if (path == null || !Files.exists(path)) {
+					die(String.format("Glycan database file does not exist: [%s]", inputPath));
+				}
+				in = new BufferedReader(new FileReader(path.toFile()));
+			}
+
+			HashMap<String, Boolean> glycansInDB = new HashMap<>();
+			// parse decoy param
+
+			String line;
+			while ((line = in.readLine()) != null) {
+				String glycanName;
+				if (line.contains("\t")) {
+					// default database includes mass in addition to glycan name - ignore mass and only take name
+					glycanName = line.split("\t")[0];
+				} else {
+					glycanName = line;
+				}
+				TreeMap<GlycanResidue, Integer> glycanComp = parseGlycanString(glycanName);
+				// generate a new candidate from this composition and add to DB
+				GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+				String compositionHash = candidate.toHashString();
+				// prevent addition of duplicates if user has them in database
+				if (!glycansInDB.containsKey(compositionHash)) {
+					glycanDB.add(candidate);
+					glycansInDB.put(compositionHash, Boolean.TRUE);
+					// also add a decoy for this composition
+					GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+					glycanDB.add(decoy);
+
+					// add adducts from adduct list to each composition
+					for (GlycanResidue adduct : adductList) {
+						for (int numAdducts = 1; numAdducts <= maxAdducts; numAdducts++) {
+							// deep copy the original composition and add the adduct to it
+							TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
+
+							for (Map.Entry<GlycanResidue, Integer> previousResidue : glycanComp.entrySet()) {
+								adductComp.put(previousResidue.getKey(), previousResidue.getValue());
+							}
+							adductComp.put(adduct, numAdducts);
+
+							GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+							String adductCompositionHash = adductCandidate.toHashString();
+							if (!glycansInDB.containsKey(adductCompositionHash)) {
+								glycanDB.add(adductCandidate);
+								glycansInDB.put(adductCompositionHash, Boolean.TRUE);
+								// also add a decoy for this composition
+								GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+								glycanDB.add(adductDecoy);
+							}
+						}
+					}
+				}
+			}
+
+		} catch (FileNotFoundException e) {
+			die(String.format("Glycan database file not found: [%s]", inputPath));
+		} catch (IOException e) {
+			e.printStackTrace();
+			die("IO Exception while reading database file");
+		}
+		return glycanDB;
+	}
+
+	/**
+	 * Read the desired adducts from the parameters file.
+	 * Parameter key: glyco_adducts
+	 * Parameter values: must match GlycanResidue adduct types (case insensitive), comma separated
+	 * @return list of adduct GlycanResidues to add to compositions in glycan database
+	 */
+	public static ArrayList<GlycanResidue> parseGlycoAdductParam() {
+		ArrayList<GlycanResidue> adducts = new ArrayList<>();
+		String adductParamValue = getParam("glyco_adducts");
+		String[] adductStrs;
+		if (adductParamValue.length() > 0)
+			adductStrs = adductParamValue.split(",| |/");
+		else
+			adductStrs = new String[0];
+
+		for (String adductStr : adductStrs) {
+			if (adductStr.equals("")) {
+				continue;
+			}
+			if (GlycanMasses.glycoNames.containsKey(adductStr.trim())) {
+				GlycanResidue adduct = GlycanMasses.glycoNames.get(adductStr.trim());
+				adducts.add(adduct);
+			} else {
+				System.out.printf("Invalid glyco adduct %s, ignored\n", adductStr);
+			}
+		}
+		return adducts;
+	}
+
+	/**
+	 * Parse isotopes parameter of format 'min,max' into Integer[] to pass to glyco analysis
+	 * @return Integer[] of all isotopes to consider (from min to max)
+	 */
+	public static Integer[] parseGlycoIsotopesParam() {
+		String isoLowStr = getParam("glyco_isotope_min");
+		String isoHighStr = getParam("glyco_isotope_max");
+		if (isoLowStr.length() > 0 && isoHighStr.length() > 0) {
+			int minIso = Integer.parseInt(isoLowStr);
+			int maxIso = Integer.parseInt(isoHighStr);
+			// check for min/max swap from user input
+			if (maxIso < minIso) {
+				int saveMin = minIso;
+				minIso = maxIso;
+				maxIso = saveMin;
+			}
+			ArrayList<Integer> isotopes = new ArrayList<>();
+			for (int i = minIso; i <= maxIso; i++) {
+				isotopes.add(i);
+			}
+			return isotopes.toArray(new Integer[0]);
+
+		} else {
+			// todo: deprecated. Keeping for now for compatibility with old param files, but will remove at some point
+			String paramValue = getParam("glyco_isotope_range");
+			String[] paramStrs;
+			ArrayList<Integer> isotopes = new ArrayList<Integer>();
+			if (paramValue.length() > 0) {
+				paramStrs = paramValue.split(",| |/");
+				if (paramStrs.length == 2) {
+					int minIso = Integer.parseInt(paramStrs[0]);
+					int maxIso = Integer.parseInt(paramStrs[1]);
+					if (maxIso < minIso) {    // reverse if input flipped
+						int oldMax = maxIso;
+						maxIso = minIso;
+						minIso = oldMax;
+					}
+					for (int i = minIso; i <= maxIso; i++) {
+						isotopes.add(i);
+					}
+				} else {
+					// invalid input: warn user
+					die(String.format("Invalid isotopes string %s input to glyco mode: must be in format 'min,max'", paramValue));
+				}
+			} else {
+				return new Integer[]{-1, 0, 1, 2, 3};    // return default value if not specified
+			}
+			return isotopes.toArray(new Integer[0]);
+		}
+	}
+
+	/**
+	 * Initialize a default glyco probability table and update it with probabilities from
+	 * parameters, if any are present.
+	 * Param formats:
+	 * -Fragments (Y/Oxo): 8 values, comma separated
+	 * -mass/isotope: key1:value1,key2:value2,etc
+	 * @return ProbabilityTable to use
+	 */
+	public static ProbabilityTables initGlycoProbTable() {
+		ProbabilityTables probabilityTable = new ProbabilityTables();
+
+		// Read params for probabilities if present, otherwise use default values (already init'd in the constructor)
+		for (String paramName : ProbabilityTables.probabilityParams) {
+			String paramStr = getParam(paramName);
+			if (paramStr.length() > 0) {
+				// parameter provided, read probability
+				double[] values;
+				switch (paramName) {
+					case "prob_neuacOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.neuacRules = values;
+						break;
+					case "prob_neugcOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.neugcRules = values;
+						break;
+					case "prob_phosphoOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.phosphoRules = values;
+						break;
+					case "prob_sulfoOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.sulfoRules = values;
+						break;
+					case "prob_regY":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.regularYrules = values;
+						break;
+					case "prob_dhexY":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.dHexYrules = values;
+						break;
+					case "prob_mass":
+						probabilityTable.massProbScaling = Double.parseDouble(paramStr);
+						break;
+					case "prob_isotope":
+						String[] isoSplits = paramStr.split(",");
+						HashMap<Integer, Double> isoProbRules = new HashMap<>();
+						for (String split: isoSplits) {
+							String[] keyValue = split.trim().split(":");
+							try {
+								isoProbRules.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
+							} catch (NumberFormatException ex) {
+								System.out.printf("Illegal character %s in parameter %s, must pairs of numbers like '0:1.5,1:0.75'", split, paramName);
+							}
+						}
+						if (isoProbRules.size() > 0) {
+							probabilityTable.isotopeProbTable = isoProbRules;
+						}
+						break;
+				}
+			}
+		}
+		probabilityTable.updateRulesByResidue();
+		return probabilityTable;
+	}
+
+	/**
+	 * Helper method to parse probability arrays from provided parameters with error checking. Returns
+	 * double[] of length 2 if successful or empty array if failed.
+	 * @param paramStr param to parse
+	 * @return double[] of length 2 if successful or empty array if failed.
+	 */
+	public static double[] parseProbParam(String paramStr, String paramName) {
+		String[] splits = paramStr.split(",");
+		if (splits.length == 2) {
+			double[] values = new double[2];
+			for (int i = 0; i < splits.length; i++) {
+				try {
+					values[i] = Double.parseDouble(splits[i]);
+				} catch (NumberFormatException ex) {
+					System.out.printf("Invalid character in value %s, must be a number", splits[i]);
+					return new double[0];
+				}
+			}
+			return values;
+		} else {
+			System.out.printf("Invalid format for parameter %s, must have 2 comma-separated values. Param was: %s\n", paramName, paramStr);
+			return new double[0];
+		}
+	}
+
+	public static TreeMap<GlycanResidue, Integer> parseGlycanString(String glycanString) {
+		String[] splits = glycanString.split("_");
+		TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
+		// Read all residue counts into the composition container
+		for (String split: splits) {
+			String[] glycanSplits = split.split("-");
+			// todo: add error catching
+			GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
+			int count = Integer.parseInt(glycanSplits[1].trim());
+			glycanComp.put(residue, count);
+		}
+		return glycanComp;
+	}
 	
 	public static void init(String [] args) throws Exception {
 		if (args.length == 1) {
@@ -132,7 +409,7 @@ public class PTMShepherd {
         params.put("localization_allowed_res", "all"); //all or ABCDEF
 
         params.put("varmod_masses", "");
-        params.put("precursor_mass_units", "0");
+        params.put("precursor_mass_units", "0"); // 0 = Da, 1 = ppm
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width collapse these two parameters to one (requires redefining precursor tol in peakannotation module)
 		params.put("precursor_maxCharge", "1");
 		//params.put("precursor_tol_ppm", "20.0"); //for use in mass offset and glyco modes
@@ -181,6 +458,7 @@ public class PTMShepherd {
 		params.put("output_extended", "false");
 		params.put("output_path", "");
 		params.put("run_from_old", "false");
+		params.put("max_adducts", "1");
 		
 		//load parameters
 		for(int i = 0; i < args.length; i++) {
@@ -230,6 +508,50 @@ public class PTMShepherd {
 		extractFile("utils/open_default_params.txt", "shepherd_open_params.txt");
 	}
 
+	/**
+	 * Print glyco params used
+	 */
+	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase,
+										 ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam,
+										 Integer[] glycoIsotopes, double glycoPPMtol, double glycoFDR, boolean printFullParams,
+										 boolean nGlycanMode, String allowedLocalizationResidues, int decoyType) {
+		print("Glycan Assignment params:");
+		print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
+		print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
+		print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
+		// adducts
+		if (maxAdducts > 0 && adductList.size() > 0) {
+			StringBuilder adductStr = new StringBuilder();
+			int count = 0;
+			for (GlycanResidue adduct: adductList) {
+				adductStr.append(adduct.name());
+				count++;
+				if (count < adductList.size()) {
+					adductStr.append(", ");
+				}
+			}
+			print(String.format("\tAdducts: %s, max %d", adductStr, maxAdducts));
+		} else {
+			print("\tAdducts: none");
+		}
+		print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / 2));
+		if (nGlycanMode) {
+			print("\tmode: N-glycan");
+			print("\tAllowed Sites: N in N-X-S/T sequons only");
+		} else {
+			print("\tmode: O-glycan");
+			print(String.format("\tAllowed Sites: %s", allowedLocalizationResidues));
+		}
+		if (printFullParams) {
+			print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
+			print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
+			print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
+			print(String.format("\tOxonium probability ratios: NeuAc %.1f,%.2f; NeuGc %.1f,%.2f; Phospho %.1f,%.2f; Sulfo %.1f,%.2f", glycoProbabilityTable.neuacRules[0], glycoProbabilityTable.neuacRules[1], glycoProbabilityTable.neugcRules[0], glycoProbabilityTable.neugcRules[1], glycoProbabilityTable.phosphoRules[0], glycoProbabilityTable.phosphoRules[1], glycoProbabilityTable.sulfoRules[0], glycoProbabilityTable.sulfoRules[1]));
+			print(String.format("\tDecoy type: %d", decoyType));
+		}
+		print("Assigning glycans:");
+	}
+
 	public static void main(String [] args) throws Exception {
 		Locale.setDefault(new Locale("en","US"));
 		System.out.println();
@@ -258,7 +580,7 @@ public class PTMShepherd {
 				"peaksummary.annotated.tsv", "peaksummary.tsv", "combined.tsv");
 
 			for (String f : filesToDelete) {
-				Path p = Paths.get(outputPath + f).toAbsolutePath().normalize();
+				Path p = Paths.get(normFName(f)).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
 
@@ -269,7 +591,7 @@ public class PTMShepherd {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
 				for (String ext : extsToDelete) {
-					Path p = Paths.get(outputPath + ds + ext).toAbsolutePath().normalize();
+					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
 					deleteFile(p, true);
 				}
 			}
@@ -317,6 +639,7 @@ public class PTMShepherd {
 					mzMap.get(ds).put(cname, null);
 				}
 				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds));
+				//System.out.println(mzMap.get(ds));
 			}
 			for(String crun : mzMap.get(ds).keySet()) {
 				if(mzMap.get(ds).get(crun) == null) {
@@ -458,6 +781,17 @@ public class PTMShepherd {
 			pa.init(params.get("varmod_masses"), params.get("annotation_file").trim());
 			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
 			print("Annotated summary table\n");
+			print("Mapping modifications back into PSM lists");
+			for(String ds : datasets.keySet()) {
+				ArrayList<String []> dsData = datasets.get(ds);
+				for(int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					pa.loadAnnotatedFile(peakannotated, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units")));
+					ArrayList<Float> dmasses = pf.getMassDiffs();
+					ArrayList<Float> precs = pf.getPrecursorMasses();
+					pf.annotateMassDiffs(pa.getDeltaMassMappings(dmasses, precs, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))));
+				}
+			}
 		}
 
 		//Mod-centric quantification
@@ -584,48 +918,78 @@ public class PTMShepherd {
 		//Glyco analyses
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
-			System.out.println("Beginning glyco analysis");
+			System.out.println("Beginning glyco/labile analysis");
+			// parse glyco parameters and initialize database and ratio tables
+			Random randomGenerator = new Random(glycoRandomSeed);
+			ArrayList<GlycanResidue> adductList = parseGlycoAdductParam();
+			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
+			String decoyParam = getParam("decoy_type");
+			int decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): 0;
+			ProbabilityTables glycoProbabilityTable = initGlycoProbTable();
+			HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoProbabilityTable);
+			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? 50.0 : Double.parseDouble(getParam("glyco_ppm_tol"));
+			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
+			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator, decoyType, glycoPPMtol, glycoIsotopes, glycoProbabilityTable, glycoOxoniumDatabase);
+			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
+			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? 5.0 : Double.parseDouble(getParam("glyco_abs_score_base"));
+			String glycoFDRParam = getParam("glyco_fdr");
+			double glycoFDR = glycoFDRParam.equals("") ? 0.01 : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
+			boolean alreadyPrintedParams = false;
+			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
+			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
+			boolean writeGlycansToAssignedMods = !getParam("put_glycans_to_assigned_mods").equals("") && Boolean.parseBoolean(getParam("put_glycans_to_assigned_mods"));	// default false
+			boolean nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
+			String allowedLocRes = PTMShepherd.getParam("localization_allowed_res");
+			int numThreads = Integer.parseInt(params.get("threads"));
+
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds);
-				if (ga.isComplete())
+				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+				if (ga.isComplete()) {
+					print(String.format("\tGlyco/labile analysis already done for dataset %s, skipping", ds));
 					continue;
+				}
+
+				// print params here to avoid printing if the analysis is already done/not being run
+				if (!alreadyPrintedParams && runGlycanAssignment) {
+					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR, printFullParams, nGlycan, allowedLocRes, decoyType);
+					alreadyPrintedParams = true;
+				}
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					ga.glycoPSMs(pf, mzMap.get(ds));
+					ga.glycoPSMs(pf, mzMap.get(ds), executorService, numThreads);
 				}
 				ga.complete();
 			}
-			print("Done\n");
 			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			for (String ds : datasets.keySet()) {
 				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
 				ga.updateGlycoProfiles(gaTargets);
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
 			}
 			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
-			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds);
-				if (ga.isComplete())
-					continue;
-				ArrayList<String[]> dsData = datasets.get(ds);
-				for (int i = 0; i < dsData.size(); i++) {
-					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					ga.glycoPSMs(pf, mzMap.get(ds));
+
+			// second pass: calculate glycan FDR and update results
+			if (runGlycanAssignment) {
+				for (String ds : datasets.keySet()) {
+					GlycoAnalysis ga = new GlycoAnalysis(ds, true, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+					ga.computeGlycanFDR(glycoFDR);
+					ga.complete();
 				}
-				ga.complete();
+
+				/* Save best glycan information from glyco report to psm tables */
+				for (String ds : datasets.keySet()) {
+					ArrayList<String[]> dsData = datasets.get(ds);
+					for (int i = 0; i < dsData.size(); i++) {
+						PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+						pf.mergeGlycoTable(new File(normFName(ds + ".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, writeGlycansToAssignedMods, nGlycan, allowedLocRes);
+					}
+				}
 			}
-			/* Don't merge glyco report with psm tables */
-			//for (String ds : datasets.keySet()) {
-			//	ArrayList<String[]> dsData = datasets.get(ds);
-			//	for (int i = 0; i < dsData.size(); i++) {
-			//		PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-			//		pf.mergeGlycoTable(new File(normFName(ds+".rawglyco")));
-			//	}
-			//}
-			print("Created glyco reports\n");
+			print("Created glyco reports");
+			print("Done with glyco/labile analysis\n");
 		}
 
 		/* Make psm table IonQuant compatible */

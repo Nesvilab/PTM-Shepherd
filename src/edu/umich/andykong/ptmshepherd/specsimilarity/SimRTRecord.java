@@ -41,7 +41,7 @@ public class SimRTRecord {
 			tmean = Double.NaN;
 		if(deltart.getVariance() == 0.0)
 			tvar = Double.NaN;
-		sb.append(String.format("\t%.0f\t%.0f", tmean, tvar));
+		sb.append(String.format("\t%.1f\t%.0f", tmean, tvar));
 		
 		return sb.toString();
 	}

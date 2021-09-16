@@ -50,7 +50,7 @@ output_extended = false     #takes true/false. Prints additional files related t
 
 ### How to cite
 
-Daniel J. Geiszler, Andy T. Kong, Dmitry M. Avtonomov, Fengchao Yu, Felipe V. Leprevost, Alexey I. Nesvizhski. *PTM-Shepherd: analysis and summarization of post-translational and chemical modifications from open search results*. doi: https://doi.org/10.1101/2020.07.08.192583.
+Daniel J. Geiszler, Andy T. Kong, Dmitry M. Avtonomov, Fengchao Yu, Felipe V. Leprevost, Alexey I. Nesvizhskii. *PTM-Shepherd: analysis and summarization of post-translational and chemical modifications from open search results*. doi: https://doi.org/10.1101/2020.07.08.192583.
 
 ### Check out our other tools!
 

@@ -2,6 +2,7 @@ package edu.umich.andykong.ptmshepherd.localization;
 
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
@@ -15,6 +16,8 @@ public class LocalizationProfile {
 	double [][] peaks; //apex, left, right
 	double peakTol;
 	int precursorUnits;
+	ArrayList<String> globalPepSeqs;
+	ArrayList<String> uniqueGlobalPepSeqs;
 
 	static final int [] AAcnts = {3637222,0,1163038,2477586,3690290,1854622,
 			  3426107,1356881,2222643,0,2959209,5141499,
@@ -30,12 +33,24 @@ public class LocalizationProfile {
 		this.precursorUnits = precursorUnits;
 
 		locate = new FastLocator(peaks, peakTol, precursorUnits);
-		records = new LocalizationRecord[masses.length];
+		records = new LocalizationRecord[masses.length + 1]; // + 1 as dumping ground for unmatched psms
 
 		for(int i = 0; i < masses.length; i++)
 			records[i] = new LocalizationRecord(masses[i], i);
+		records[masses.length] = new LocalizationRecord(masses[0], masses.length);
 	}
-	
+
+	public void collectPeptideSequences() {
+		ArrayList<String> globalPepSeqs = new ArrayList<>();
+		for (int i = 0; i < records.length; i++)
+			globalPepSeqs.addAll(records[i].localPepSeqs);
+
+		ArrayList<String> uniqueGlobalPepSeqs = new ArrayList<>(globalPepSeqs.stream().distinct().collect(Collectors.toList()));
+
+		this.globalPepSeqs = globalPepSeqs;
+		this.uniqueGlobalPepSeqs = uniqueGlobalPepSeqs;
+	}
+
 	public void writeProfile(String path) throws Exception {
 		PrintWriter out = new PrintWriter(new FileWriter(path));
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
@@ -47,8 +62,9 @@ public class LocalizationProfile {
 			if(LocalizationProfile.AAcnts[i] != 0)
 				out.printf("\t%c_enrichment", 'A' + i);
 		out.println();
-		for(int i = 0; i < records.length; i++) {
-			out.println(records[i].toString());
+		collectPeptideSequences();
+		for(int i = 0; i < records.length - 1; i++) {
+			out.println(records[i].toString(this.globalPepSeqs, this.uniqueGlobalPepSeqs));
 		}
 		out.close();
 	}

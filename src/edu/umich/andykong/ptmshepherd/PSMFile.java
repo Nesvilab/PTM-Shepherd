@@ -1,8 +1,11 @@
 package edu.umich.andykong.ptmshepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
+import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -119,6 +122,14 @@ public class PSMFile {
 
 		return ints;
 
+	public ArrayList<Float> getPrecursorMasses() {
+		ArrayList<Float> precs = new ArrayList<>();
+		int col = getPrecursorCol();
+		for (int i = 0; i < data.size(); i++) {
+			String [] sp = data.get(i).split("\t");
+			precs.add(Float.parseFloat(sp[col]));
+		}
+		return precs;
 	}
 
 	public int getPrecursorCol() {
@@ -132,11 +143,11 @@ public class PSMFile {
 
 	public static void getMappings(File path, HashMap<String,File> mappings) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
-			datTypes.put("raw", 0);
-			datTypes.put("mzXML", 1);
-			datTypes.put("mzML", 2);
-			datTypes.put("mzBIN", 3);
 			datTypes.put("mgf", 4);
+			datTypes.put("mzBIN", 3);
+			datTypes.put("mzML", 2);
+			datTypes.put("mzXML", 2);
+			datTypes.put("raw", 1);
 
 		if(path.isDirectory()) {		
 			File [] ls = path.listFiles();
@@ -177,8 +188,11 @@ public class PSMFile {
 		return cnts;
 	}
 
-	/* Merges the rawglyco table onto the existing psm.tsv */
-	public void mergeGlycoTable(File glyf) throws Exception {
+	/* Merges the rawglyco table onto the existing psm.tsv
+	*  Update: only writes some columns rather than full rawglyco table
+	*  numColsToUse gives the number of columns to take
+	*/
+	public void mergeGlycoTable(File glyf, int numColsToUse, boolean writeGlycansToAssignedMods, boolean nGlycan, String allowedResidues) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
 		String tempFoutName = this.fname + ".glyco.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
@@ -187,20 +201,53 @@ public class PSMFile {
 		/* Get glyco data */
 		HashMap<String, String[]> glyLines = new HashMap<>();
 		String cgline;
-		int gSpecCol = 0; //should be dynamically calculated
+		int gSpecCol = 0; //todo: should be dynamically calculated
 		while ((cgline = in.readLine()) != null) {
 			String[] sp = cgline.split("\t", -1);
 			glyLines.put(sp[gSpecCol], sp);
 		}
 		in.close();
 
-		/* Merge headers */
-		int mergeFromCol = 5; // todo this should be dynamically calculated
+		/* Find headers, dynamically detect columns */
+		int observedModCol = getColumn("Observed Modifications");
+		int assignedModCol = getColumn("Assigned Modifications");
+		int fraggerLocCol = getColumn("MSFragger Localization");
+		int peptideCol = getColumn("Peptide");
+		if (observedModCol == -1) {
+			// did not find correct column! Use default and warn user
+			System.out.println("Warning: Could not find Observed Modifications column in PSM table, using default insert point");
+			observedModCol = 27;
+		}
+		if (assignedModCol == -1 && writeGlycansToAssignedMods) {
+			PTMShepherd.print("ERROR: Could not find Assigned Modifications column(s) in PSM table. Glycans NOT written to Assigned Modifications");
+			writeGlycansToAssignedMods = false;
+		}
+		if (fraggerLocCol == -1 && writeGlycansToAssignedMods) {
+			PTMShepherd.print("ERROR: Could not find MSFragger localization column in PSM table. Make sure you are using Philosopher 4.0.0+ and have delta mass localization enabled in MSFragger. Glycans NOT written to Assigned Modifications");
+			writeGlycansToAssignedMods = false;
+		}
+
+		// get rawglyco file headers
+		int mergeFromCol = -1;
+		for (int i=0; i < glyHeaders.length; i++) {
+			if (glyHeaders[i].matches("Best Glycan")) {
+				mergeFromCol = i;
+			}
+		}
+		if (mergeFromCol == -1) {
+			System.out.println("Warning: Could not find Mass Shift column in rawglyco table, using default insert point");
+			mergeFromCol = 5;
+		}
+
 		ArrayList<String> newHeaders = new ArrayList<>();
 		for (int i = 0; i < this.headers.length; i++)
 			newHeaders.add(this.headers[i]);
-		for (int i = mergeFromCol; i < glyHeaders.length; i++)
-			newHeaders.add(glyHeaders[i]);
+		// add after observed mod column (observedModCol + 1)
+		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
+		if (!hasPreviousGlycoInfo) {
+			// do not add glyco headers if the PSM table already has them
+			newHeaders.addAll(observedModCol + 1, Arrays.asList(glyHeaders).subList(mergeFromCol + 1, mergeFromCol + numColsToUse));
+		}
 		out.println(String.join("\t", newHeaders));
 
 		/* Match glycolines on PSM spectrum keys */
@@ -209,13 +256,141 @@ public class PSMFile {
 			ArrayList<String> newLine = new ArrayList<>(Arrays.asList(cpline.split("\t")));
 			String pSpec = newLine.get(pSpecCol);
 			ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
-			newLine.addAll(glyLine.subList(mergeFromCol, glyLine.size()));
+
+			// insert into and after Observed Modifications column
+			if (hasPreviousGlycoInfo) {
+				// only replace observed mods if a glycan was found in a given line
+				if (glyLine.get(mergeFromCol).length() > 0){
+					// replace old glyco info with the new, including the observed mods column if a glycan is present
+					for (int i=0; i < numColsToUse; i++) {
+						newLine.set(observedModCol + i, glyLine.get(mergeFromCol + i));		// existing info is at obs mod column, new info is in glyline at mergeFromCol
+					}
+					if (writeGlycansToAssignedMods) {
+						newLine = getGlycanAssignedMod(newLine, observedModCol, nGlycan, allowedResidues, assignedModCol, fraggerLocCol, peptideCol);
+					}
+				}
+			} else {
+				// overwrite the observed mods column if a glycan is present, then add the two new columns for scores
+				if (glyLine.get(mergeFromCol).length() > 0){
+					newLine.set(observedModCol, glyLine.get(mergeFromCol));
+					if (writeGlycansToAssignedMods) {
+						newLine = getGlycanAssignedMod(newLine, observedModCol, nGlycan, allowedResidues, assignedModCol, fraggerLocCol, peptideCol);
+					}
+				}
+				newLine.addAll(observedModCol + 1, glyLine.subList(mergeFromCol + 1, mergeFromCol + numColsToUse));
+			}
 			out.println(String.join("\t", newLine));
 		}
 		out.close();
 
 		/* Move old file onto new file */
 		Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	/**
+	 * Determine if this PSM file has already had glycan assignment info written to it.
+	 * Checks for the glycan header column name
+	 * @return true if glycan info present
+	 */
+	public boolean hasGlycanAssignmentsWritten() {
+		for (String header : headers) {
+			if (header.contains("Glycan Score")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Converts glycan ID to mass and position for Assigned Mods (may change to string for quant later). Uses
+	 * MSFragger localization string from Philosopher (4.0.0+) if that contains localization info OR places
+	 * glycan on the first allowed position if localization is ambiguous.
+	 * NOTE: must come AFTER reading glycan composition from the rawglyco file
+	 */
+	public ArrayList<String> getGlycanAssignedMod(ArrayList<String> newLine, int observedModCol, boolean nGlycan, String allowedResidues, int assignedModCol, int fraggerLocCol, int peptideCol) {
+		// parse glycan composition from recently edited observed mods col
+		TreeMap<GlycanResidue, Integer> glycanComp;
+		String observedMods = newLine.get(observedModCol);
+		String glycanOnly = observedMods.replace("FailFDR_", "").replace("Decoy_", "");
+		boolean failOrDecoy = observedMods.contains("FailFDR") || observedMods.contains("Decoy");
+		try {
+			glycanComp = PTMShepherd.parseGlycanString(glycanOnly);
+		} catch (Exception ex) {
+			// Not a glycan (PTM-S or Philosopher may put other string formats here) - ignore and continue
+			return newLine;
+		}
+		double glycanMass = GlycanCandidate.computeMonoisotopicMass(glycanComp);
+
+		// Get glycan location from lower case position
+		int glycanLocation = -1;
+		String fraggerPepLocStr = newLine.get(fraggerLocCol);
+//		if (fraggerPepLocStr.length() == 0) {
+//			PTMShepherd.die(String.format("Error: MSFragger localization not reported for spectrum %s. Please make sure you are using MSFragger 3.4+ and check your parameters and PSM table", newLine.get(0)));
+//		}
+		String glycanAA;
+		ArrayList<Integer> allowedPositions = new ArrayList<>();
+		for (int i = 0; i < fraggerPepLocStr.length(); i++) {
+			if (Character.isLowerCase(fraggerPepLocStr.charAt(i))) {
+				allowedPositions.add(i);
+			}
+		}
+		if (allowedPositions.size() >= 1) {
+			// 1 or more positions - take first position if ambiguous
+			glycanLocation = allowedPositions.get(0);
+		} else {
+			// no localization info provided by MSFragger. Take first allowed position
+			if (nGlycan) {
+				// find first sequon if Nglycan mode
+				glycanLocation = GlycoAnalysis.findNGlycSequon(newLine.get(peptideCol));
+			} else {
+				// find first allowed residue if not NGlycan mode
+				boolean[] allowedPos = SiteLocalization.parseAllowedPositions(newLine.get(peptideCol), allowedResidues);
+				for (int i = 0; i < allowedPos.length; i++) {
+					if (allowedPos[i]) {
+						glycanLocation = i;
+						break;
+					}
+				}
+			}
+		}
+		// skip missing loc for now
+		try {
+			glycanAA = fraggerPepLocStr.substring(glycanLocation, glycanLocation + 1).toUpperCase();
+		} catch (StringIndexOutOfBoundsException ex) {
+			PTMShepherd.print(String.format("WARNING: MSFragger localization not reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods", newLine.get(0)));
+			return newLine;
+		}
+
+		// write mass and location to Assigned Mods
+		String currentAssignedMods = newLine.get(assignedModCol);
+		String glycanMod = String.format("%d%s(%.4f)", glycanLocation + 1, glycanAA, glycanMass);	// site is 1-indexed in PSM table, not 0-indexed
+		String[] modSplits = currentAssignedMods.split(", ");
+		ArrayList<String> newModSplits = new ArrayList<>();
+
+		// check if glycanAssignedMod already present and avoid double adding if so (in case of re-runs on same file)
+		for (String mod: modSplits) {
+			int modLocation = parseModLocation(mod);
+			if (modLocation == glycanLocation + 1) {
+				// a mod is already present at this site in the PSM table. Probably an existing glycan mod, but check the mass too to confirm
+				double existingModMass = parseModMass(mod);
+				if (glycanMass - 5 <= existingModMass && glycanMass + 5 >= existingModMass) {
+					// found existing glycan annotation - do not add it to the updated mod list
+					continue;
+				} else {
+					newModSplits.add(mod);
+				}
+			} else {
+				// other mod
+				newModSplits.add(mod);
+			}
+		}
+		// add the assigned glycan to the updated mod list (from which we removed any old glycan mods) if not failed FDR or is decoy
+		if (!failOrDecoy) {
+			newModSplits.add(glycanMod);
+		}
+		String newAssignedMods = String.join(", ", newModSplits);
+		newLine.set(assignedModCol, newAssignedMods);
+		return newLine;
 	}
 
 	/* Add new column to PSM table in place to make it IonQuant compatible */
@@ -273,4 +448,93 @@ public class PSMFile {
 		in.close();
 	}
 
+    public void annotateMassDiffs(String [] annotations) throws IOException {
+		/* find column to modify, overwrite Observed Modifications col if exists */
+		int annoCol = getColumn("Observed Modifications");
+		boolean overwrite = true;
+		if (annoCol == -1) {
+			annoCol = getColumn("Assigned Modifications");
+			overwrite = false;
+		}
+		if (annoCol == -1)
+			annoCol = this.headers.length - 1;
+
+		/* write annotations to lines */
+		ArrayList<String> newLines = new ArrayList<>();
+		for (int i = 0; i < this.data.size(); i++) {
+			ArrayList<String> sp = new ArrayList<String>(Arrays.asList(this.data.get(i).split("\t")));
+			if (overwrite == true)
+				sp.set(annoCol, annotations[i]);
+			else
+				sp.add(annoCol, annotations[i]);
+			newLines.add(String.join("\t", sp));
+		}
+
+		/* fix up headers */
+		if (overwrite == false) {
+			ArrayList<String> heads = new ArrayList<>(Arrays.asList(this.headers));
+			heads.add(annoCol, "Observed Modifications");
+			heads.toArray(this.headers);
+		}
+
+		/* write output */
+		String tempFoutName = this.fname + ".anno.tmp";
+		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+
+		/* write the new header */
+		out.println(String.join("\t", this.headers));
+		/* write file lines */
+		for (int i = 0; i < newLines.size(); i ++)
+			out.println(newLines.get(i));
+
+		/* close and rename temp file */
+		out.close();
+		this.fname.delete();
+		File newFileName = new File(tempFoutName);
+		newFileName.renameTo(this.fname);
+    }
+
+	/**
+	 * Parse the location index from an Assigned Modification in the PSM table. If location is C-term,
+	 * return -1 and if location is N-term, return -2
+	 * @param mod string to parse
+	 * @return mod location
+	 */
+    public static int parseModLocation(String mod) {
+		// get all chars of the mod location and parse it
+		String trimmedMod = mod.trim();
+		int stopChar = 0;
+		for (int i=0; i < trimmedMod.length(); i++) {
+			if (!Character.isDigit(trimmedMod.charAt(i))) {
+				// stop here
+				stopChar = i;
+				break;
+			}
+		}
+
+		if (stopChar == 0) {
+			// special case: N-term or C-term mod
+			if (trimmedMod.startsWith("N-term")) {
+				return -2;
+			} else if (trimmedMod.startsWith("C-term")) {
+				return -1;
+			} else {
+				PTMShepherd.print(String.format("Warning: invalid Assigned Modification format for mod %s. Not removing existing glycans", mod));
+				return -3;
+			}
+		} else {
+			return Integer.parseInt(trimmedMod.substring(0, stopChar));
+		}
+	}
+
+	/**
+	 * Parse the mass of an assigned modification in the PSM table from between the parentheses [e.g., 4N(1000.0000)]
+	 * @param mod string to parse
+	 * @return mod mass
+	 */
+	public static double parseModMass(String mod) {
+    	String[] splits = mod.split("\\(");
+    	String[] massSplits = splits[1].split("\\)");
+    	return Double.parseDouble(massSplits[0]);
+	}
 }

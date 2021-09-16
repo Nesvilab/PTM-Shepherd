@@ -377,6 +377,26 @@ public class Spectrum implements Comparable<Spectrum> {
 		return bpInt;
 	}
 
+	/**
+	 * Convert neutral mass to m/z [M+H+]x+, where x is the provided charge
+	 * @param neutralMass neutral mass
+	 * @param charge charge
+	 * @return
+	 */
+	public static float neutralMassToMZ(float neutralMass, int charge) {
+		return (neutralMass + AAMasses.protMass) / (float) charge;
+	}
+
+	/**
+	 * Convert m/z [M+H+]x+ to neutral mass M
+	 * @param mz m/z
+	 * @param charge z
+	 * @return
+	 */
+	public static float mzToNeutralMass(float mz, int charge) {
+		return (mz - AAMasses.protMass) * charge;
+	}
+
 	public float[][] calcImmoniumPeaks(int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass, float tol) { //todo I don't think these mins and maxes are very well informed
 		ArrayList<Float> knownPeaks = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, dmass);
 		//ArrayList<Float> shiftedPeaks = new ArrayList<>();
@@ -386,6 +406,7 @@ public class Spectrum implements Comparable<Spectrum> {
 
 		this.averageIonMass = 0;
 
+	public float[][] calcImmoniumIons(int min, int max) { //todo I don't think these mins and maxes are very well informed
 		ArrayList<Peak> ps = new ArrayList<>();
 		for (int i = 0; i < peakMZ.length; i++) {
 			if (peakMZ[i] > max) //todo remove min max
@@ -787,6 +808,10 @@ public class Spectrum implements Comparable<Spectrum> {
 	public int compareTo(Spectrum o) {
 		return scanNum - o.scanNum;
 	}
+	public double getPrecursorMass() {
+		return precursorMass;
+	}
+
 }
 
 class Peak implements Comparable<Peak> {

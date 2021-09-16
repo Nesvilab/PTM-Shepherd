@@ -67,9 +67,10 @@ public class ModSummary {
             }
             for(int j = 1; j < inFile.size(); j++){
                 String line [] = inFile.get(j);
-                if(line.length == mod1i){
+                if(line.length == mod1i) {
                     psmCounts.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_PSMs")]));
                     psmCountsNorm.get(ds).put("None", Double.parseDouble(line[headis.get(ds + "_percent_PSMs")]));
+                    mods.add("None");
                 }
             }
         }
@@ -94,7 +95,7 @@ public class ModSummary {
     public void toFile(File modOut) throws Exception{
         //sort modifications by psm count for table
         LinkedHashMap<String, Integer> modsCount = new LinkedHashMap<>();
-        mods.add("None"); //allow mods to be searched for
+        //mods.add("None"); //allow mods to be searched for
         for (String mod : mods) { //sum PSMs across DSs
             int nPsms = 0;
             for (String ds : datasets){
