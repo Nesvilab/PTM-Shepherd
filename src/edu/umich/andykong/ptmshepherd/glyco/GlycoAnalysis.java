@@ -617,8 +617,7 @@ public class GlycoAnalysis {
             if (!fragment1.isAllowedFragment(glycan2)) {
                 boolean foundInSpectrum = fragment1.foundIntensity > 0;
                 if (foundInSpectrum) {
-                    double intensityRatio = fragment1.foundIntensity / fragment1.expectedIntensity;
-                    double newRatio = fragment1.ruleProbabilities[0] * intensityRatio;
+                    double intensityRatio = computeIntensityRatio(fragment1);
                     sumLogRatio += Math.log(fragment1.ruleProbabilities[0] * intensityRatio);    // candidate 1 hit - added
                 } else {
                     sumLogRatio += Math.log(fragment1.ruleProbabilities[1]);    // candidate 1 miss - negative value added
@@ -629,8 +628,7 @@ public class GlycoAnalysis {
             if (!fragment2.isAllowedFragment(glycan1)) {
                 boolean foundInSpectrum = fragment2.foundIntensity > 0;
                 if (foundInSpectrum) {
-                    double intensityRatio = fragment2.foundIntensity / fragment2.expectedIntensity;
-                    double newRatio = fragment2.ruleProbabilities[0] * intensityRatio;
+                    double intensityRatio = computeIntensityRatio(fragment2);
                     sumLogRatio -= Math.log(fragment2.ruleProbabilities[0] * intensityRatio);    // candidate 2 hit - subtracted
                 } else {
                     sumLogRatio -= Math.log(fragment2.ruleProbabilities[1]);    // candidate 2 miss - negative value subtracted
@@ -753,7 +751,8 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments) {
             if (fragment.foundIntensity > 0) {
-                sumLogRatio += Math.log(fragment.ruleProbabilities[0]);     // found in spectrum - ion supports this glycan
+                double intensityRatio = computeIntensityRatio(fragment);
+                sumLogRatio += Math.log(fragment.ruleProbabilities[0] * intensityRatio);     // found in spectrum - ion supports this glycan
             } else {
                 sumLogRatio += Math.log(fragment.ruleProbabilities[1]);     // not found in spectrum - ion does not support this glycan
             }
@@ -764,12 +763,14 @@ public class GlycoAnalysis {
             if (!otherFragment.isAllowedFragment(bestGlycan)) {
                 // only allow target-target and decoy-decoy matches to affect absolute score
                 if ((bestGlycan.isDecoy && otherFragment.isDecoy) || (!bestGlycan.isDecoy && !otherFragment.isDecoy)) {
-                    sumLogRatio += Math.log(1 / otherFragment.ruleProbabilities[0]);
+                    double intensityRatio = computeIntensityRatio(otherFragment);
+                    sumLogRatio += Math.log(1 / (otherFragment.ruleProbabilities[0] * intensityRatio));
                 }
             }
         }
         return sumLogRatio;
     }
+
     /**
      * Compute the "absolute" score of this glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
@@ -803,6 +804,31 @@ public class GlycoAnalysis {
             sumLogRatio += Math.log(defaultMassErrorAbsScore / massDist);      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
         }
         return sumLogRatio;
+    }
+
+    /**
+     * Helper method to compute the ratio of observed to expected intensity for a fragment.
+     * NOTE: If the observed intensity is less than the "critical point" value (i.e., the product
+     * of hit probability * intensity ratio < 1), the intensity ratio is set to the critical point value.
+     * This makes it so that finding a low-intensity peak will have no effect on score rather than causing a
+     * reduction in score.
+     * @param fragment fragment of interest with intensity information already stored
+     * @return intensity ratio
+     */
+    public double computeIntensityRatio(GlycanFragment fragment) {
+        double intensityRatio;
+        if (fragment.expectedIntensity > 0) {
+            intensityRatio = fragment.foundIntensity / fragment.expectedIntensity;
+            double criticalValue = 1 / fragment.ruleProbabilities[0];
+            if (intensityRatio < criticalValue) {
+                // beyond critical point - low intensity of hit will cause log to change sign. Cap at no effect rather than allowing sign to go negative
+                intensityRatio = criticalValue;
+            }
+        } else {
+            // ignore if parameter not provided
+            intensityRatio = 1;
+        }
+        return intensityRatio;
     }
 
     /**

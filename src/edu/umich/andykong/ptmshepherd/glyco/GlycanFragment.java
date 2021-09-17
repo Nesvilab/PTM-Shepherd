@@ -45,7 +45,11 @@ public class GlycanFragment {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.foundIntensity = 0;
-        this.expectedIntensity = ruleProbabilities[2];   // 3rd value is expected intensity
+        if (ruleProbabilities.length == 2) {
+            this.expectedIntensity = -1;    // not provided, set to negative value to ignore
+        } else {
+            this.expectedIntensity = ruleProbabilities[2];   // 3rd value is expected intensity
+        }
         this.isDecoy = isDecoy;
         if (isDecoy) {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
