@@ -123,29 +123,11 @@ public class GlycanCandidate {
      * @return list of GlycanFragments for oxonium ions
      */
     public void initializeOxoniumFragments(HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
-        boolean targetNeuAc = false;
-        boolean targetNeuGc = false;
-        boolean targetPhospho = false;
-        boolean targetSulfo = false;
-
-        if (this.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
-            targetNeuAc = true;
-        }
-        if (this.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
-            targetNeuGc = true;
-        }
-        if (this.glycanComposition.get(GlycanResidue.Phospho) > 0) {
-            targetPhospho = true;
-        }
-        if (this.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
-            targetSulfo = true;
-        }
-
         ArrayList<GlycanFragment> oxoniumList = new ArrayList<>();
         // HexNAc, Hex oxoniums
 
         // NeuAc
-        if (targetNeuAc) {
+        if (this.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
             if (this.isDecoy) {
                 oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuAc, true, glycoOxoniumDatabase, randomGenerator));
             } else {
@@ -153,7 +135,7 @@ public class GlycanCandidate {
             }
         }
         // NeuGc
-        if (targetNeuGc) {
+        if (this.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
             if (this.isDecoy) {
                 oxoniumList.addAll(makeOxoniums(GlycanResidue.NeuGc, true, glycoOxoniumDatabase, randomGenerator));
             } else {
@@ -161,7 +143,7 @@ public class GlycanCandidate {
             }
         }
         // Phospho-Hex
-        if (targetPhospho) {
+        if (this.glycanComposition.get(GlycanResidue.Phospho) > 0) {
             if (this.isDecoy) {
                 oxoniumList.addAll(makeOxoniums(GlycanResidue.Phospho, true, glycoOxoniumDatabase, randomGenerator));
             } else {
@@ -169,7 +151,7 @@ public class GlycanCandidate {
             }
         }
         // Sulfo
-        if (targetSulfo) {
+        if (this.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
             if (this.isDecoy) {
                 oxoniumList.addAll(makeOxoniums(GlycanResidue.Sulfo, true, glycoOxoniumDatabase, randomGenerator));
             } else {
