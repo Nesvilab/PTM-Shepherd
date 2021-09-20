@@ -304,6 +304,11 @@ public class PTMShepherd {
 						if (values.length > 0)
 							probabilityTable.sulfoRules = values;
 						break;
+					case "prob_dhexOx":
+						values = parseProbParam(paramStr, paramName);
+						if (values.length > 0)
+							probabilityTable.dhexOxoRules = values;
+						break;
 					case "prob_regY":
 						values = parseProbParam(paramStr, paramName);
 						if (values.length > 0)
@@ -553,9 +558,10 @@ public class PTMShepherd {
 			print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
 			String neuac = Arrays.toString(glycoProbabilityTable.neuacRules);
 			String neugc = Arrays.toString(glycoProbabilityTable.neugcRules);
+			String dhex = Arrays.toString(glycoProbabilityTable.dhexOxoRules);
 			String phospho = Arrays.toString(glycoProbabilityTable.phosphoRules);
 			String sulfo = Arrays.toString(glycoProbabilityTable.sulfoRules);
-			print(String.format("\tOxonium probability ratios: NeuAc %s; NeuGc %s; Phospho %s; Sulfo %s", neuac, neugc, phospho, sulfo));
+			print(String.format("\tOxonium probability ratios: NeuAc %s; NeuGc %s; dHex %s; Phospho %s; Sulfo %s", neuac, neugc, dhex,phospho, sulfo));
 			print(String.format("\tDecoy type: %d", decoyType));
 		}
 		print("Assigning glycans:");

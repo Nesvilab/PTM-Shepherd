@@ -11,3 +11,6 @@ Phospho	Hex-2_Phospho-2	0
 Sulfo	HexNAc-1_Sulfo-1	0	
 Sulfo	HexNAc-1_Hex-1_Sulfo-1	0	
 Sulfo	HexNAc-2_Hex-2_Sulfo-1	0	
+dHex	HexNAc-1_dHex-1	0
+dHex	HexNAc-1_Hex-1_dHex-1	0
+dHex	HexNAc-2_dHex-1	0

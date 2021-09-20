@@ -159,7 +159,13 @@ public class GlycanCandidate {
             }
         }
         // dHex
-
+        if (this.glycanComposition.get(GlycanResidue.dHex) > 0) {
+            if (this.isDecoy) {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.dHex, true, glycoOxoniumDatabase, randomGenerator));
+            } else {
+                oxoniumList.addAll(makeOxoniums(GlycanResidue.dHex, false, glycoOxoniumDatabase, randomGenerator));
+            }
+        }
         this.oxoniumFragments = oxoniumList.toArray(new GlycanFragment[0]);
     }
 
