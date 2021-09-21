@@ -59,14 +59,14 @@ public class ProbabilityTables {
          * Entries 0 is for
          */
         regularYrules = new double[]{5, 0.5};
-        dHexYrules = new double[]{5, 0.5};
+        dHexYrules = new double[]{2, 0.5};
 
         // Oxonium ion probs. Same format as Y ion probabilities
-        neuacRules = new double[]{2, 0.05};
-        neugcRules = new double[]{2, 0.05};
-        phosphoRules = new double[]{2, 0.05};
-        sulfoRules = new double[]{2, 0.05};
-        dhexOxoRules = new double[]{2, 0.5};
+        neuacRules = new double[]{2, 0.05, 0.2};
+        neugcRules = new double[]{2, 0.05, 0.2};
+        phosphoRules = new double[]{2, 0.05, 0.2};
+        sulfoRules = new double[]{2, 0.05, 0.2};
+        dhexOxoRules = new double[]{2, 0.5, 0.1};
         // initialize lookup table for rule types by residue
         rulesByResidue = new HashMap<>();
     }

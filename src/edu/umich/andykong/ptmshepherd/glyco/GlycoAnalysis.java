@@ -38,6 +38,10 @@ public class GlycoAnalysis {
     Integer[] glycoIsotopes;
     double glycoPPMtol;
     boolean runGlycanAssignment;
+    public static final double DEFAULT_GLYCO_PPM_TOL = 50;
+    public static final double DEFAULT_GLYCO_FDR = 0.01;
+    public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
+    public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
 
     public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
         this.dsName = dsName;
