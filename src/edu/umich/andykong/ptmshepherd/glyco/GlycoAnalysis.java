@@ -501,11 +501,9 @@ public class GlycoAnalysis {
         }
 
         // compute absolute score for best glycan
-        GlycanFragment[] foundYions = mergeYFragments(searchCandidates);
-        GlycanFragment[] foundOxoniumIons = mergeOxoniumFragments(searchCandidates);
         double absoluteScore = 0;
         if (searchCandidates.size() > 0) {
-            absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), foundYions, foundOxoniumIons, deltaMass, massErrorWidth, meanMassError);
+            absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), deltaMass, massErrorWidth, meanMassError);
         }
         // output - best glycan, scores, etc back to PSM table
         String output;
@@ -682,15 +680,13 @@ public class GlycoAnalysis {
      * Normalized to account for different glycan sizes. Not compatible with fragment-specific probabilities
      *
      * @param bestGlycan glycan candidate to calculate score for
-     * @param yFragments array of possible Y fragments
      * @return absolute score
      */
-    public double computeYAbsoluteScoreNormed(GlycanCandidate bestGlycan, GlycanFragment[] yFragments) {
+    public double computeYAbsoluteScoreNormed(GlycanCandidate bestGlycan) {
         double sumLogRatio = 0;
         // Y ions - check if allowed for this composition and score if so (ignore if not)
         int hitCount = 0;
         int missCount = 0;
-        int disallowedHitCount = 0;
         // probabilities MUST be the same for all Y ions for this method to work
         double hitProb = bestGlycan.Yfragments[0].ruleProbabilities[0];
         double missProb = bestGlycan.Yfragments[0].ruleProbabilities[1];
@@ -702,17 +698,8 @@ public class GlycoAnalysis {
                 missCount++;
             }
         }
-        // yFragments contains all fragments FOUND in spectrum. Check for those not belonging to the best glycan
-        for (GlycanFragment otherFragment : yFragments) {
-            if (!otherFragment.isAllowedFragment(bestGlycan)) {
-                // only allow target-target and decoy-decoy matches to affect absolute score
-                if ((bestGlycan.isDecoy && otherFragment.isDecoy) || (!bestGlycan.isDecoy && !otherFragment.isDecoy)) {
-                    disallowedHitCount++;
-                }
-            }
-        }
         // normalize hit/miss counts and return final probability
-        sumLogRatio = Math.sqrt(hitCount) * Math.log(hitProb) + Math.sqrt(missCount) * Math.log(missProb) + Math.sqrt(disallowedHitCount) * Math.log(1 / hitProb);
+        sumLogRatio = Math.sqrt(hitCount) * Math.log(hitProb) + Math.sqrt(missCount) * Math.log(missProb);
         return sumLogRatio;
     }
 
@@ -720,10 +707,9 @@ public class GlycoAnalysis {
      * Compute the "absolute" score of the Y ions of the provided glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
      * @param bestGlycan glycan candidate to calculate score for
-     * @param fragments array of possible fragment ions with intensities from spectrum
      * @return absolute score
      */
-    public double computeYAbsoluteScore(GlycanCandidate bestGlycan, GlycanFragment[] fragments){
+    public double computeYAbsoluteScore(GlycanCandidate bestGlycan){
         double sumLogRatio = 0;
         for (GlycanFragment yFragment : bestGlycan.Yfragments) {
             if (yFragment.foundIntensity > 0) {
@@ -733,25 +719,15 @@ public class GlycoAnalysis {
             }
         }
 
-        // yFragments contains all fragments FOUND in spectrum. Check for those not belonging to the best glycan
-        for (GlycanFragment otherFragment : fragments) {
-            if (!otherFragment.isAllowedFragment(bestGlycan)) {
-                // only allow target-target and decoy-decoy matches to affect absolute score
-                if ((bestGlycan.isDecoy && otherFragment.isDecoy) || (!bestGlycan.isDecoy && !otherFragment.isDecoy)) {
-                    sumLogRatio += Math.log(1 / otherFragment.ruleProbabilities[0]);
-                }
-            }
-        }
         return sumLogRatio;
     }
     /**
      * Compute the "absolute" score of the Y ions of the provided glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
      * @param bestGlycan glycan candidate to calculate score for
-     * @param fragments array of possible fragment ions with intensities from spectrum
      * @return absolute score
      */
-    public double computeOxoAbsoluteScore(GlycanCandidate bestGlycan, GlycanFragment[] fragments){
+    public double computeOxoAbsoluteScore(GlycanCandidate bestGlycan){
         double sumLogRatio = 0;
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments) {
             if (fragment.foundIntensity > 0) {
@@ -761,17 +737,6 @@ public class GlycoAnalysis {
                 sumLogRatio += Math.log(fragment.ruleProbabilities[1]);     // not found in spectrum - ion does not support this glycan
             }
         }
-
-        // fragments contains all fragments of given type FOUND in spectrum. Check for those not belonging to the best glycan
-        for (GlycanFragment otherFragment : fragments) {
-            if (!otherFragment.isAllowedFragment(bestGlycan)) {
-                // only allow target-target and decoy-decoy matches to affect absolute score
-                if ((bestGlycan.isDecoy && otherFragment.isDecoy) || (!bestGlycan.isDecoy && !otherFragment.isDecoy)) {
-                    double intensityRatio = computeIntensityRatio(otherFragment);
-                    sumLogRatio += Math.log(1 / (otherFragment.ruleProbabilities[0] * intensityRatio));
-                }
-            }
-        }
         return sumLogRatio;
     }
 
@@ -779,21 +744,19 @@ public class GlycoAnalysis {
      * Compute the "absolute" score of this glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
      * @param bestGlycan glycan candidate to calculate score for
-     * @param yFragments array of possible Y fragments
-     * @param oxoFragments array of possible oxonium fragments
      * @param deltaMass spectrum delta mass
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
      * @param meanMassError mean mass error of non-delta mass peptides
      * @return absolute score
      */
-    public double computeAbsoluteScore(GlycanCandidate bestGlycan, GlycanFragment[] yFragments, GlycanFragment[] oxoFragments, double deltaMass, double massErrorWidth, double meanMassError) {
+    public double computeAbsoluteScore(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
         double sumLogRatio;
         if (normYions) {
-            sumLogRatio = computeYAbsoluteScoreNormed(bestGlycan, yFragments);
+            sumLogRatio = computeYAbsoluteScoreNormed(bestGlycan);
         } else {
-            sumLogRatio = computeYAbsoluteScore(bestGlycan, yFragments);
+            sumLogRatio = computeYAbsoluteScore(bestGlycan);
         }
-        sumLogRatio += computeOxoAbsoluteScore(bestGlycan, oxoFragments);
+        sumLogRatio += computeOxoAbsoluteScore(bestGlycan);
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
         float iso1 = (float) (deltaMass - bestGlycan.monoisotopicMass);
@@ -863,47 +826,6 @@ public class GlycoAnalysis {
             }
         }
         return matchingGlycans;
-    }
-
-    /**
-     * Generate a list of all Y ions with intensity found in spectrum from amongst all candidates in the list.
-     * @param searchCandidates list of candidates being searched
-     * @return array of fragments
-     */
-    private GlycanFragment[] mergeYFragments(ArrayList<GlycanCandidate> searchCandidates) {
-        ArrayList<GlycanFragment> allFragments = new ArrayList<>();
-        HashMap<String, Boolean> fragmentInList = new HashMap<>();
-        for (GlycanCandidate candidate : searchCandidates) {
-            for (GlycanFragment fragment : candidate.Yfragments) {
-                if (!fragmentInList.containsKey(fragment.toHashString())) {
-                    if (fragment.foundIntensity > 0) {
-                        allFragments.add(fragment);
-                        fragmentInList.put(fragment.toHashString(), true);
-                    }
-                }
-            }
-        }
-        return allFragments.toArray(new GlycanFragment[0]);
-    }
-    /**
-     * Generate a list of all oxonium ions with intensity found in spectrum from amongst all candidates in the list.
-     * @param searchCandidates list of candidates being searched
-     * @return array of fragments
-     */
-    private GlycanFragment[] mergeOxoniumFragments(ArrayList<GlycanCandidate> searchCandidates) {
-        ArrayList<GlycanFragment> allFragments = new ArrayList<>();
-        HashMap<String, Boolean> fragmentInList = new HashMap<>();
-        for (GlycanCandidate candidate : searchCandidates) {
-            for (GlycanFragment fragment : candidate.oxoniumFragments) {
-                if (!fragmentInList.containsKey(fragment.toHashString())) {
-                    if (fragment.foundIntensity > 0) {
-                        allFragments.add(fragment);
-                        fragmentInList.put(fragment.toHashString(), true);
-                    }
-                }
-            }
-        }
-        return allFragments.toArray(new GlycanFragment[0]);
     }
 
     public double[] findCapitalYIonMasses(Spectrum spec, double pepMass) {
