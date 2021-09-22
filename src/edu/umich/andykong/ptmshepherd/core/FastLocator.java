@@ -11,7 +11,7 @@ public class FastLocator {
 	int [] massOrder;
 	int [] hintIndex;
 	
-	static final int scale = 10000;
+	static final int scale = 40000;
 	static final double pepmass = 1500.0;
 
 	int offset;
