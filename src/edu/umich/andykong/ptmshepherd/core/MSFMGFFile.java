@@ -100,12 +100,12 @@ public class MSFMGFFile {
     private void loadMSFMGFScans(ExecutorService executorService, int nThread) throws Exception {
         this.scanNums = new ArrayList<>();
         this.specs = new ArrayList<>();
-        long t1 = System.currentTimeMillis();
+        //long t1 = System.currentTimeMillis();
 
         BufferedReader br = new BufferedReader(new FileReader(this.f));
 
         String cline;
-        ArrayList<String> specBlock = new ArrayList<>();
+        //ArrayList<String> specBlock = new ArrayList<>();
 
         //long factor = this.maxScan / nThread;
         //int remainder = (int) (this.maxScan - (factor * nThread));

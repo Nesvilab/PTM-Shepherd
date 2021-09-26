@@ -433,8 +433,9 @@ public class Spectrum implements Comparable<Spectrum> {
 		return peaks;
 	}
 
-	public float[][] calcCapYPeaks(String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float tol) {
+	public float[][] calcCapYPeaks(String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float dmass, float tol) {
 		ArrayList<Float> knownPeaks = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, 0.0f);
+		knownPeaks.addAll(calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, dmass));
 		ArrayList<Peak> ps = new ArrayList<>();
 		int localMaxCharge = Math.min(this.charge, maxCharge);
 

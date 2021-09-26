@@ -48,6 +48,7 @@ public class DiagBINFile {
         for (int i = 0; i < ionTypes.length(); i++)
             this.ionTypes.add(ionTypes.toLowerCase().charAt(i));
         this.spectra = new ArrayList<>(diagnosticRecords);
+
         /* Ensure proper order of diagnostic record and ion types */
         Collections.sort(this.spectra);
         Collections.sort(this.ionTypes);
@@ -109,6 +110,9 @@ public class DiagBINFile {
             ByteBuffer.wrap(this.diagBinIndex).asLongBuffer().put(currIndexPos / 2, offset);
             ByteBuffer.wrap(this.diagBinIndex).asFloatBuffer().put(currIndexPos + 2, dr.dmass);
             ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().put(currIndexPos + 3, calculateDiagnosticRecordLength(dr));
+            if (dr.scanNum == 30390) {
+                System.out.println("Offset: " +offset + "\t" + ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().put(currIndexPos + 3, calculateDiagnosticRecordLength(dr)));
+            }
             /* Add length of vals to offset to calc next spec's starting pos */
             int length = calculateDiagnosticRecordLength(dr);
             offset += length;
@@ -262,6 +266,7 @@ public class DiagBINFile {
     private DiagnosticRecord loadDiagBinSpectrum(FileChannel fc, int scanNum) throws Exception {
         /* Parse header data and find scan */
         int currIndexPos = (this.indexWidth / 4) * scanNum;
+
         long offset = ByteBuffer.wrap(this.diagBinIndex).asLongBuffer().get(currIndexPos / 2);
         float dmass = ByteBuffer.wrap(this.diagBinIndex).asFloatBuffer().get(currIndexPos + 2);
         int specLen = ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().get(currIndexPos + 3);

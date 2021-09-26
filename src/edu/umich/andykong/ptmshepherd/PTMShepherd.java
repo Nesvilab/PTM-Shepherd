@@ -876,10 +876,12 @@ public class PTMShepherd {
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
+					//dpp.addFilesToIndex(ds, mzMap.get(ds), executorService, Integer.parseInt(getParam("threads")));
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					dpp.addFilesToIndex(ds, mzMap.get(ds), executorService, Integer.parseInt(getParam("threads")));
+					dpp.addPepkeysToIndex(pf);
 				}
 			}
+			dpp.filterPepkeys();
 			dpp.process(executorService, Integer.parseInt(getParam("threads")));
 			dpp.print(normFName("global.diagmine.tsv"));
 			out.println("Done mining diagnostic ions");

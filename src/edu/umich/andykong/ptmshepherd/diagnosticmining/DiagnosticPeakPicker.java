@@ -1,5 +1,6 @@
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
@@ -33,6 +34,7 @@ public class DiagnosticPeakPicker {
     double minRbc;
     boolean twoTailedTests;
 
+    HashMap<Integer, HashMap<String, Pepkey>> peakToPepkeys;
     TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan;
 
     double[][] peaks; //[3][n] apex, left, right
@@ -42,6 +44,7 @@ public class DiagnosticPeakPicker {
         this.peaks = peakApexBounds;
         this.minSignal = minSignal;
         this.peakToFileToScan = new TreeMap<>();
+        this.peakToPepkeys = new HashMap<>();
         this.ionTypes = ions; //redundant
         Arrays.sort(this.cIonTypes = ions.toCharArray());
         this.binDiagMetrics = new BinDiagMetric[this.peaks[0].length];
@@ -61,7 +64,6 @@ public class DiagnosticPeakPicker {
 
         for (String cf : mzMappings.keySet()) {
             try {
-                //System.out.println(cf);
                 String dgbinFname = cf + ".diagBIN";
                 DiagBINFile dbf = new DiagBINFile(executorService, nThreads, dgbinFname, false);
                 LinkedHashMap<Integer, Float> scanToDmass = dbf.getDmasses();
@@ -93,6 +95,55 @@ public class DiagnosticPeakPicker {
 
         long t2 = System.currentTimeMillis();
         System.out.printf("\t\tDone indexing data from %s (%d ms)\n", dataset, t2 - t1);
+    }
+
+    public void addPepkeysToIndex(PSMFile pf) {
+        int dmassCol = pf.dMassCol;
+        int eValCol = pf.getColumn("Expectation");
+        int pepSeqCol = pf.getColumn("Peptide");
+        int chargeCol = pf.getColumn("Charge");
+        int modCol = pf.getColumn("Assigned Modifications");
+        int specCol = pf.getColumn("Spectrum");
+
+        for (int i = 0; i < pf.data.size(); i++) {
+            String[] sp = pf.data.get(i).split("\t");
+            String charge = sp[chargeCol];
+            String pepSeq = sp[pepSeqCol];
+            String[] specSp = sp[specCol].split("\\.");
+            String mzFile = specSp[0];
+            int scanNum = Integer.parseInt(specSp[specSp.length-2]);
+            String mods = sp[modCol];
+            float eVal = Float.parseFloat(sp[eValCol]);
+            float dmass = Float.parseFloat(sp[dmassCol]);
+            int peakIndx = this.locate.getIndex(dmass);
+            String pepKey = pepSeq + mods + charge;
+
+            if (peakIndx == -1)
+                continue;
+
+            if (!this.peakToPepkeys.containsKey(peakIndx))
+                this.peakToPepkeys.put(peakIndx, new HashMap<>());
+            if (!this.peakToPepkeys.get(peakIndx).containsKey(pepKey))
+                this.peakToPepkeys.get(peakIndx).put(pepKey, new Pepkey(mzFile, pepKey, eVal, scanNum));
+            else {
+                if (this.peakToPepkeys.get(peakIndx).get(pepKey).eVal > eVal)
+                    this.peakToPepkeys.get(peakIndx).put(pepKey, new Pepkey(mzFile, pepKey, eVal, scanNum));
+            }
+        }
+    }
+
+    public void filterPepkeys() {
+        this.peakToFileToScan = new TreeMap<>();
+
+        for (Integer peakIndx : this.peakToPepkeys.keySet()) {
+            this.peakToFileToScan.put(peakIndx, new TreeMap<>());
+            for (String pk : this.peakToPepkeys.get(peakIndx).keySet()) {
+                Pepkey tpk = this.peakToPepkeys.get(peakIndx).get(pk);
+                if (!this.peakToFileToScan.get(peakIndx).containsKey(tpk.mzFile + ".diagBIN"))
+                    this.peakToFileToScan.get(peakIndx).put(tpk.mzFile + ".diagBIN", new ArrayList<>());
+                this.peakToFileToScan.get(peakIndx).get(tpk.mzFile + ".diagBIN").add(tpk.scan);
+            }
+        }
     }
 
     /* Send ions to BinDiagnosticMetric containers */
@@ -320,8 +371,8 @@ public class DiagnosticPeakPicker {
 
         out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tis_decoy\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tu_stat\tn_control\tn_test\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
-            System.out.println(this.binDiagMetrics[i].peakApex);
             System.out.println(i + "\t" + this.binDiagMetrics.length);
+            System.out.println(this.binDiagMetrics[i].peakApex);
             out.print(this.binDiagMetrics[i].toString());
         }
 
@@ -332,5 +383,24 @@ public class DiagnosticPeakPicker {
         Collections.shuffle(scanNums);
         ArrayList<Integer> scans = new ArrayList<>(scanNums.subList(0, maxScans));
         return scans;
+    }
+
+    private class Pepkey implements Comparable<Pepkey> {
+        public String mzFile;
+        public String pepkey;
+        public float eVal;
+        public int scan;
+
+        Pepkey(String mzFile, String pepkey, float eVal, int scan) {
+            this.mzFile = mzFile;
+            this.pepkey = pepkey;
+            this.eVal = eVal;
+            this.scan = scan;
+        }
+
+        @Override
+        public int compareTo(Pepkey p) {
+            return Float.valueOf(p.eVal).compareTo(this.eVal);
+        }
     }
 }

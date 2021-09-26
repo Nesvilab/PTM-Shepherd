@@ -5,6 +5,7 @@ import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
+import umich.ms.datatypes.lcmsrun.Hash;
 
 import java.io.*;
 import java.nio.file.Files;
