@@ -491,7 +491,7 @@ public class Spectrum implements Comparable<Spectrum> {
 				for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
 					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
 					knownFrags.add(cmass);
-					if (dmass > 0.001) { //add fragments with mass shift to known fragments
+					if (Math.abs(dmass) > 0.001) { //add fragments with mass shift to known fragments
 						cmass += dmass / ccharge;
 						knownFrags.add(cmass);
 						cmass -= dmass / ccharge;

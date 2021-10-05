@@ -110,9 +110,6 @@ public class DiagBINFile {
             ByteBuffer.wrap(this.diagBinIndex).asLongBuffer().put(currIndexPos / 2, offset);
             ByteBuffer.wrap(this.diagBinIndex).asFloatBuffer().put(currIndexPos + 2, dr.dmass);
             ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().put(currIndexPos + 3, calculateDiagnosticRecordLength(dr));
-            if (dr.scanNum == 30390) {
-                System.out.println("Offset: " +offset + "\t" + ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().put(currIndexPos + 3, calculateDiagnosticRecordLength(dr)));
-            }
             /* Add length of vals to offset to calc next spec's starting pos */
             int length = calculateDiagnosticRecordLength(dr);
             offset += length;

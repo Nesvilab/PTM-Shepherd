@@ -100,33 +100,33 @@ public class BinDiagMetric {
         }
 
         /* Initialize histograms */
-        this.immoniumIons = new DiagnosticHisto(this.peakApex, this.binMinMax[0][0], this.binMinMax[0][1], 0.0002, minSignal, this.ppmTol, avgImm);
-        this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.0002, minSignal, this.ppmTol, avgPepPrec);
+        this.immoniumIons = new DiagnosticHisto(this.peakApex, this.binMinMax[0][0], this.binMinMax[0][1], 0.0002, minSignal, this.ppmTol, avgImm, nPepKeys);
+        this.capYIons = new DiagnosticHisto(this.peakApex, this.binMinMax[1][0], this.binMinMax[1][1], 0.0002, minSignal, this.ppmTol, avgPepPrec, nPepKeys);
         this.tildeIons = new ArrayList<>();
         for (int i = 0; i < this.ionTypes.length(); i++) { /* +2 because of immonium and Y ions in first 2 i's */
-            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.0002, minSignal / avgPepLen, this.ppmTol, avgFrag[i]));
+            tildeIons.add(new DiagnosticHisto(this.peakApex, this.binMinMax[i + 2][0], this.binMinMax[i + 2][1], 0.0002, minSignal, this.ppmTol, avgFrag[i], nPepKeys));
         }
 
         /* Assign data to histograms */
         List<Future> futureList = new ArrayList<>(this.peptideMap.size());
         for (String pepKey : this.peptideMap.keySet()) {
             futureList.add(executorService.submit(() -> {
-                double nPsms = this.peptideMap.get(pepKey).size();
+                int nPsms = this.peptideMap.get(pepKey).size();
                 for (DiagnosticRecord dr : this.peptideMap.get(pepKey)) {
                     this.nSpecs++;
                     for (int i = 0; i < dr.immoniumPeaks.length; i++)
-                        this.immoniumIons.placeIon(dr.immoniumPeaks[i][0], (double) dr.immoniumPeaks[i][1] / nPsms);
+                        this.immoniumIons.placeIon(dr.immoniumPeaks[i][0], (double) dr.immoniumPeaks[i][1] / nPsms, nPsms);
                     for (int i = 0; i < dr.capYPeaks.length; i++)
-                        this.capYIons.placeIon(dr.capYPeaks[i][0], (double) dr.capYPeaks[i][1] / nPsms);
+                        this.capYIons.placeIon(dr.capYPeaks[i][0], (double) dr.capYPeaks[i][1] / nPsms, nPsms);
                     for (int h = 0; h < this.ionTypes.length(); h++) {
                         char ionType = this.ionTypes.charAt(h);
                         for (int i = 0; i < dr.squigglePeaks.get(ionType).length; i++) {
-                            double mz = dr.squigglePeaks.get(ionType)[i][0];
-                            if (!(-3.5 < mz && mz < 3.5)) // Filter out small mzs here //todo should be a histo param
-                                this.tildeIons.get(h).placeIon(mz, ((dr.squigglePeaks.get(ionType)[i][1] / (double) dr.pepSeq.length()) / nPsms));
+                            double mz = dr.squigglePeaks.get(ionType)[i][0]; //todo removed small mz filtering
+                            this.tildeIons.get(h).placeIon(mz, ((dr.squigglePeaks.get(ionType)[i][1] / (double) dr.pepSeq.length()) / nPsms), nPsms);
                         }
                     }
                 }
+                //System.out.println(nSpecs + "\t" + nPsms);
             }));
         }
 
@@ -143,8 +143,10 @@ public class BinDiagMetric {
         //this.capYIons.smoothify(executorService, nThreads);
         //System.out.println("ImmoniumAbund");
         this.immoniumIons.findPeaks();
+        //this.immoniumIons.printHisto("histo_Y_"+peakApex+".tsv");
         //System.out.println("CapYAbund");
         this.capYIons.findPeaks();
+        //this.capYIons.printHisto("histo_Y_"+peakApex+".tsv");
 
 
         this.immoniumIons.clearMemory();
@@ -168,22 +170,30 @@ public class BinDiagMetric {
         this.testResults = pct;
     }
 
-    public String toString() {
+    public String toString(boolean printNonReps) {
         StringBuffer newLines = new StringBuffer();
 
         /* Format immonium tests */
         for (int i = 0; i < this.testResults.immoniumTests.size(); i++) {
             Test t = this.testResults.immoniumTests.get(i);
-            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%b\t%.02f\t%.02f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.isDecoy, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.u, t.n1, t.n2);
+            if (t.isDecoy == true)
+                continue;
+            if (!printNonReps && !t.isGroupRep)
+                continue;
+            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.n1, t.n2);
             newLines.append(newLine);
         }
 
         /* Format capY tests */
         for (int i = 0; i < this.testResults.capYTests.size(); i++) {
             Test t = this.testResults.capYTests.get(i);
-            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%b\t%.02f\t%.02f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.isDecoy, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.u, t.n1, t.n2);
+            if (t.isDecoy == true)
+                continue;
+            if (!printNonReps && !t.isGroupRep)
+                continue;
+            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.n1, t.n2);
             newLines.append(newLine);
         }
 
@@ -191,8 +201,12 @@ public class BinDiagMetric {
         for (Character cIon : this.testResults.squigglesTests.keySet()) {
             for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
                 Test t = this.testResults.squigglesTests.get(cIon).get(i);
-                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%b\t%.02f\t%.02f\t%.02f\t%.02f\t%.04f\t%d\t%d\n",
-                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc, t.isDecoy, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.u, t.n1, t.n2);
+                if (t.isDecoy == true)
+                    continue;
+                //if (!printNonReps && !t.isGroupRep)
+                //    continue;
+                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.n1, t.n2);
                 newLines.append(newLine);
             }
         }

@@ -26,7 +26,7 @@ public class DiagnosticAnalysis {
     int specCol, pepCol, modPepCol, deltaCol, rtCol, intCol, pmassCol, modCol, pepMassCol;
     double condRatio;
     int minImmon = 0;
-    int maxImmon = 500;
+    int maxImmon = 10000;
     FastLocator locate;
     private ArrayList<DiagnosticRecord> diagnosticRecords;
     double [][] peaks; //[3][n] apex, left, right

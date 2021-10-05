@@ -45,10 +45,6 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
     public DiagnosticRecord() { this.isMangled = true; };
 
     public DiagnosticRecord(Spectrum spec, String ionTypes, String pepSeq, float[] mods, float dmass, int charge) {
-        if (spec.scanNum == 30390) {
-            System.out.println("Found dr");
-        }
-
         this.scanNum = spec.scanNum;
         this.ionTypes = ionTypes;
         this.pepSeq = pepSeq;
@@ -480,9 +476,6 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         ///double[] scores = getDeltaHyper(ppmTol, ionType, dmass);
         //System.out.println("*Params:" + ppmTol + "\t" + ionType + "\t" + dmass);
         int[] scores = getDeltaHyper(ppmTol, ionType, dmass);
-        //for (int i = 0; i < scores.length; i++) {
-        //    System.out.println(scores[i]);
-        //}
 
         return scores;
     }

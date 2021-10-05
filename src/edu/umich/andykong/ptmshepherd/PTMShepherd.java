@@ -459,9 +459,11 @@ public class PTMShepherd {
 		params.put("diagmine_filterIonTypes", "aby");
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
-		params.put("diagmine_minAuc", "0.6");
+		params.put("diagmine_minAuc", "0.1");
+		params.put("diagmine_minSpecDiff", "0.1");
 		params.put("diagmine_minPeps", "5");
 		params.put("diagmine_twoTailedTests", "1");
+		params.put("diagmine_printRedundantTests", "0");
 		params.put("diagmine_maxPsms", "1000");
 
 
@@ -872,7 +874,7 @@ public class PTMShepherd {
 			out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
-					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Integer.parseInt(params.get("diagmine_twoTailedTests")));
+					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Integer.parseInt(params.get("diagmine_twoTailedTests")));
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {

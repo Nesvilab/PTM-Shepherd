@@ -32,6 +32,7 @@ public class DiagnosticPeakPicker {
 
     double maxP;
     double minRbc;
+    double minSpecDiff;
     boolean twoTailedTests;
 
     HashMap<Integer, HashMap<String, Pepkey>> peakToPepkeys;
@@ -40,7 +41,7 @@ public class DiagnosticPeakPicker {
     double[][] peaks; //[3][n] apex, left, right
     BinDiagMetric[] binDiagMetrics;
 
-    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, int twoTailedTests) {
+    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, int twoTailedTests) {
         this.peaks = peakApexBounds;
         this.minSignal = minSignal;
         this.peakToFileToScan = new TreeMap<>();
@@ -54,6 +55,7 @@ public class DiagnosticPeakPicker {
 
         this.maxP = maxP;
         this.minRbc = minRbc;
+        this.minSpecDiff = minSpecDiff;
         this.twoTailedTests = twoTailedTests == 1 ? true : false;
     }
 
@@ -218,7 +220,7 @@ public class DiagnosticPeakPicker {
             }
 
             /* Initialize peak testers */
-            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.twoTailedTests, this.spectraTol); // x is baseline, y is deltamasses
+            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.minSpecDiff, this.twoTailedTests, this.spectraTol); // x is baseline, y is deltamasses
             /* Add peaks to peak testers */
             Set<String> unifiedFileList = new HashSet();
             for (String fname : peakToFileToScan.get(peakIndx).keySet())
@@ -369,11 +371,9 @@ public class DiagnosticPeakPicker {
     public void print(String fout) throws IOException {
         PrintWriter out = new PrintWriter(new FileWriter(fout,false));
 
-        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tis_decoy\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tu_stat\tn_control\tn_test\n");
+        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
-            System.out.println(i + "\t" + this.binDiagMetrics.length);
-            System.out.println(this.binDiagMetrics[i].peakApex);
-            out.print(this.binDiagMetrics[i].toString());
+            out.print(this.binDiagMetrics[i].toString(false));
         }
 
         out.close();
