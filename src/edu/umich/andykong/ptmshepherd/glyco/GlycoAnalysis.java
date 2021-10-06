@@ -292,8 +292,13 @@ public class GlycoAnalysis {
             if (qval < currentMinQ){
                 currentMinQ = qval;
             }
-            rawGlycoLine[qValCol] = String.format("%s", qval);
-
+            // Write q-value to output, and write q=1 for decoys
+            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                rawGlycoLine[qValCol] = "1";
+            } else {
+                rawGlycoLine[qValCol] = String.format("%s", qval);
+            }
+            
             if (!foundThreshold) {
                 // still below the threshold: continue checking decoys/targets and appending 'failfdr'
                 if (targetDecoyRatio <= desiredRatio) {
