@@ -33,6 +33,7 @@ public class GlycoAnalysis {
     double massErrorWidth;
     ProbabilityTables probabilityTable;
     public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 3;
+    public static final int NUM_ADDED_RAWGLYCO_COLUMNS = 5;
     boolean normYions;
     double defaultMassErrorAbsScore;
     Integer[] glycoIsotopes;
@@ -98,7 +99,7 @@ public class GlycoAnalysis {
         //write header
         StringBuilder headbuff = new StringBuilder(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
         if (runGlycanAssignment) {
-            headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value");
+            headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score");
         }
         for (double capYShift : capYShifts) headbuff.append(String.format("\tY_%.4f_intensity", capYShift));
         for (double oxoniumIon : oxoniumIons) headbuff.append(String.format("\tox_%.4f_intensity", oxoniumIon));
@@ -447,6 +448,7 @@ public class GlycoAnalysis {
     /**
      * Main glycan assignment method at PSM level. Searches Y/Oxonium ions (and eventually exact mass/isotope) to compare
      * to possible glycan candidates. Goal is to return best glycan candidate and score.
+     * Formats results for writing to rawglyco file, which are later written to PSM table.
      *
      * @param spec           spectrum being searched
      * @param pepMass        peptide mass (without glycan)
@@ -458,7 +460,7 @@ public class GlycoAnalysis {
         // skip non-delta mass PSMs - leave added columns empty
         if (deltaMass < 3.5 && deltaMass > -1.5) {
             StringBuilder sb = new StringBuilder();
-            for (int i=0; i < NUM_ADDED_GLYCO_PSM_COLUMNS; i++){
+            for (int i=0; i < NUM_ADDED_RAWGLYCO_COLUMNS; i++){
                 sb.append("\t");
             }
             return sb.toString();
@@ -466,56 +468,87 @@ public class GlycoAnalysis {
 
         // Determine possible glycan candidates from mass
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(pepMass, deltaMass, glycanDatabase, glycoIsotopes, glycoPPMtol);
-
-        // Search Y and oxonium ions in spectrum for each candidate
-        float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
-        double basePeakInt = spec.findBasePeakInt();
-        for (GlycanCandidate candidate : searchCandidates) {
-            for (GlycanFragment yFragment : candidate.Yfragments) {
-                yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + pepMass, ppmTol, spec.charge);  // sum of charge state intensities if >1 found
-            }
-            for (GlycanFragment oxoniumFragment: candidate.oxoniumFragments) {
-                // save oxonium ion intensity relative to base peak
-                oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / basePeakInt;
-            }
-        }
-
-        // score candidates and save results
-        int bestCandidateIndex = 0;
-        int nextBestCandidateIndex = 1;
-
-        for (int i = 1; i < searchCandidates.size(); i++) {
-            if (i == bestCandidateIndex) {
-                continue;
-            }
-            double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), deltaMass, meanMassError);
-            if (comparisonScore < 0) {
-                // new best candidate - reset best candidate position and update scores at all other positions
-                nextBestCandidateIndex = bestCandidateIndex;
-                bestCandidateIndex = i;
-            }
-        }
-        // it's possible for the 2nd best score to be worse than those for candidates searched AFTER the last change to best candidate. Compare those against 2nd best score to get correct result
-        for (int i = bestCandidateIndex + 1; i < searchCandidates.size(); i++) {
-            double comparisonScore2 = pairwiseCompareGlycans(searchCandidates.get(nextBestCandidateIndex), searchCandidates.get(i), deltaMass, meanMassError);
-            if (comparisonScore2 < 0) {
-                // currently listed 2nd best glycan had worse score than this one: change index to this glycan
-                nextBestCandidateIndex = i;
-                // don't need to recalculate comparison score because we still have it relative to the best glycan from before
-            }
-        }
-
-        // compute absolute score for best glycan
-        double absoluteScore = 0;
-        if (searchCandidates.size() > 0) {
-            absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), deltaMass, massErrorWidth, meanMassError);
-        }
-        // output - best glycan, scores, etc back to PSM table
         String output;
-        if (searchCandidates.size() == 0) {
-            output = "\tNo Matches\t\t";
-        } else {
+        if (searchCandidates.size() > 0) {
+            // Search Y and oxonium ions in spectrum for each candidate
+            float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
+            double basePeakInt = spec.findBasePeakInt();
+            for (GlycanCandidate candidate : searchCandidates) {
+                for (GlycanFragment yFragment : candidate.Yfragments) {
+                    yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + pepMass, ppmTol, spec.charge);  // sum of charge state intensities if >1 found
+                }
+                for (GlycanFragment oxoniumFragment : candidate.oxoniumFragments) {
+                    // save oxonium ion intensity relative to base peak
+                    oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / basePeakInt;
+                }
+            }
+
+            // score candidates and save results
+            int bestCandidateIndex = 0;
+            double[] scoresVsBestCandidate = new double[searchCandidates.size()];
+            for (int i = 0; i < searchCandidates.size(); i++) {
+                if (i == bestCandidateIndex) {
+                    continue;
+                }
+                double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), deltaMass, meanMassError);
+                if (comparisonScore < 0) {
+                    // new best candidate - reset best candidate position and update scores at all other positions
+                    bestCandidateIndex = i;
+                    scoresVsBestCandidate[i] = -1 * comparisonScore;    // reverse the score since we have a new best candidate
+                } else {
+                    scoresVsBestCandidate[i] = comparisonScore;
+                }
+            }
+
+            // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
+            for (int i = 0; i <= bestCandidateIndex; i++) {
+                scoresVsBestCandidate[i] = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), deltaMass, meanMassError);
+            }
+
+            int[] sortedIndicesOfBestScores = new int[scoresVsBestCandidate.length];
+            double previousBest = -1000;
+            for (int i = 0; i < scoresVsBestCandidate.length; i++) {
+                double currentMinScore = 1000;
+                int indexOfCurrentMin = -1;
+                for (int j = 0; j < scoresVsBestCandidate.length; j++) {
+                    if (scoresVsBestCandidate[j] < currentMinScore && scoresVsBestCandidate[j] > previousBest) {
+                        // new current max found
+                        currentMinScore = scoresVsBestCandidate[j];
+                        indexOfCurrentMin = j;
+                    }
+                }
+                sortedIndicesOfBestScores[i] = indexOfCurrentMin;
+                previousBest = scoresVsBestCandidate[indexOfCurrentMin];
+            }
+
+            // compute absolute score for best glycan
+            double absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), deltaMass, massErrorWidth, meanMassError);
+
+            // output - best glycan, scores, etc back to PSM table
+            // write top glycan info
             output = String.format("\t%s\t%.1f\t", searchCandidates.get(bestCandidateIndex).toString(), absoluteScore);
+
+            // if top glycan is a decoy, also write best target and best target score to subsequent columns
+            if (searchCandidates.get(bestCandidateIndex).isDecoy) {
+                boolean foundTarget = false;
+                for (int bestIndex : sortedIndicesOfBestScores) {
+                    GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
+                    if (!nextCandidate.isDecoy) {
+                        // add the best target's information
+                        output = String.format("%s\t%s\t%.1f", output, nextCandidate.toString(), computeAbsoluteScore(nextCandidate, deltaMass, massErrorWidth, meanMassError));
+                        foundTarget = true;
+                        break;
+                    }
+                }
+                if (!foundTarget) {
+                    // no target candidates found (only matched to a decoy)
+                    output = output + "\tNo target matches\t";
+                }
+            } else {
+                output = output + "\t\t";
+            }
+        } else {
+            output = "\tNo Matches\t\t\t\t";
         }
         return output;
     }
@@ -1005,7 +1038,7 @@ public class GlycoAnalysis {
         BufferedReader in = new BufferedReader(new FileReader(glycoFile));
         String cline;
         in.readLine();
-        int glycanAssignmentAddedLines = runGlycanAssignment ? NUM_ADDED_GLYCO_PSM_COLUMNS : 0;     // number of added lines to rawglyco file - 0 if not running glycan assignment
+        int glycanAssignmentAddedLines = runGlycanAssignment ? NUM_ADDED_RAWGLYCO_COLUMNS : 0;     // number of added lines to rawglyco file - 0 if not running glycan assignment
         while ((cline = in.readLine()) != null) {
             if (cline.equals("COMPLETE"))
                 break;
