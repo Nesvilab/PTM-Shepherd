@@ -919,6 +919,7 @@ public class PTMShepherd {
 			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
 			boolean writeGlycansToAssignedMods = !getParam("put_glycans_to_assigned_mods").equals("") && Boolean.parseBoolean(getParam("put_glycans_to_assigned_mods"));	// default false
 			boolean nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
+			boolean removeGlycanDeltaMass = getParam("remove_glycan_delta_mass").equals("") || Boolean.parseBoolean(getParam("remove_glycan_delta_mass"));
 			String allowedLocRes = PTMShepherd.getParam("localization_allowed_res");
 			int numThreads = Integer.parseInt(params.get("threads"));
 
@@ -964,7 +965,7 @@ public class PTMShepherd {
 					ArrayList<String[]> dsData = datasets.get(ds);
 					for (int i = 0; i < dsData.size(); i++) {
 						PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-						pf.mergeGlycoTable(new File(normFName(ds + ".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, writeGlycansToAssignedMods, nGlycan, allowedLocRes);
+						pf.mergeGlycoTable(new File(normFName(ds + ".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, writeGlycansToAssignedMods, nGlycan, allowedLocRes, removeGlycanDeltaMass);
 					}
 				}
 			}

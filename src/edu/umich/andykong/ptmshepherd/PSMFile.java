@@ -195,7 +195,7 @@ public class PSMFile {
 	*  Update: only writes some columns rather than full rawglyco table
 	*  numColsToUse gives the number of columns to take
 	*/
-	public void mergeGlycoTable(File glyf, int numColsToUse, boolean writeGlycansToAssignedMods, boolean nGlycan, String allowedResidues) throws Exception {
+	public void mergeGlycoTable(File glyf, int numColsToUse, boolean writeGlycansToAssignedMods, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
 		String tempFoutName = this.fname + ".glyco.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
@@ -434,6 +434,26 @@ public class PSMFile {
 			}
 		}
 		newLine.set(modPeptideCol, newModPep);
+
+		/* Update delta mass */
+		if (removeGlycanDeltaMass) {
+			if (prevGlycanWritten) {
+				// A glycan was previously written to this line, and thus was subtracted from delta mass. Add it back, then subtract new glycan's mass
+				double correctedDelta = Double.parseDouble(newLine.get(deltaMassCol)) + previousGlycanMass;
+				if (!failOrDecoy) {
+					newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
+				} else {
+					// if current analysis failed FDR for this PSM but a previous glycan was written, correct the delta mass but don't subtract new glycan
+					newLine.set(deltaMassCol, String.format("%.4f", correctedDelta));
+				}
+			} else {
+				if (!failOrDecoy) {
+					// subtract glycan mass from delta mass if passed FDR
+					double observedDelta = Double.parseDouble(newLine.get(deltaMassCol));
+					newLine.set(deltaMassCol, String.format("%.4f", observedDelta - glycanMass));
+				}
+			}
+		}
 		return newLine;
 	}
 
