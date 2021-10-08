@@ -526,7 +526,7 @@ public class GlycoAnalysis {
 
             // output - best glycan, scores, etc back to PSM table
             // write top glycan info
-            output = String.format("\t%s\t%.1f\t", searchCandidates.get(bestCandidateIndex).toString(), absoluteScore);
+            output = String.format("\t%s\t%.4f\t", searchCandidates.get(bestCandidateIndex).toString(), absoluteScore);
 
             // if top glycan is a decoy, also write best target and best target score to subsequent columns
             if (searchCandidates.get(bestCandidateIndex).isDecoy) {
@@ -535,7 +535,7 @@ public class GlycoAnalysis {
                     GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
                     if (!nextCandidate.isDecoy) {
                         // add the best target's information
-                        output = String.format("%s\t%s\t%.1f", output, nextCandidate.toString(), computeAbsoluteScore(nextCandidate, deltaMass, massErrorWidth, meanMassError));
+                        output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), computeAbsoluteScore(nextCandidate, deltaMass, massErrorWidth, meanMassError));
                         foundTarget = true;
                         break;
                     }
