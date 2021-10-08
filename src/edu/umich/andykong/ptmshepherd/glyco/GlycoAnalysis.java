@@ -283,6 +283,14 @@ public class GlycoAnalysis {
         double currentMinQ = 1;
         for (Map.Entry<String, Double> scoreEntry : sortedScoreMap.entrySet()) {
             String[] rawGlycoLine = glyLines.get(scoreEntry.getKey());
+
+            // update counts
+            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                decoys--;
+            } else {
+                targets--;
+            }
+            // compute TD ratio and q-val
             targetDecoyRatio = decoys / (double) targets;
             if (decoys > targets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
@@ -313,12 +321,6 @@ public class GlycoAnalysis {
                 }
             }
 
-            // update counts
-            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                decoys--;
-            } else {
-                targets--;
-            }
             // update the output text with the new info
             glyLines.put(scoreEntry.getKey(), rawGlycoLine);
         }
