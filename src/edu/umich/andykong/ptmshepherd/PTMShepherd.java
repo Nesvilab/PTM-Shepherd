@@ -614,7 +614,9 @@ public class PTMShepherd {
 		}
 
 		//Get mzData mapping
+		PTMShepherd.print("Finding and caching spectral data");
 		getMzDataMapping();
+		PTMShepherd.print("Done finding and caching spectral data");
 		
 		//Count MS2 scans
 		for(String ds : datasets.keySet()) {
@@ -1092,6 +1094,7 @@ public class PTMShepherd {
 				for(String cname: fNames) {
 					mzMap.get(ds).put(cname, null);
 				}
+				PTMShepherd.print("\tIndexing data from " + ds);
 				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds));
 			}
 			// Assure that mzData was found
@@ -1102,11 +1105,11 @@ public class PTMShepherd {
 			}
 			// Rewrite mzData to MZBIN files
 			for(int i = 0; i < dsData.size(); i++) {
+				PTMShepherd.print("\tCaching data from " + ds);
 				PSMFile pf = new PSMFile(dsData.get(i)[0]);
 				rewriteMzDataToMzBin(pf, mzMap.get(ds));
+				PTMShepherd.print("\tDone caching data from " + ds);
 			}
-
-
 		}
 	}
 
@@ -1125,6 +1128,10 @@ public class PTMShepherd {
 		// Loop through spectral files -> indexed lines in PSM -> process each line
 		HashMap<Integer, String> linesWithoutSpectra = new HashMap<>();
 		for (String cf : mappings.keySet()) { //for file in relevant spectral files
+			if (mzMappings.get(cf).toString().endsWith(".mzBIN_cache")) {
+				System.out.println("\tFound existing cached spectral data for " + cf);
+				continue;
+			}
 			long t1 = System.currentTimeMillis();
 			//System.out.println(cf);
 			MXMLReader mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
@@ -1143,11 +1150,11 @@ public class PTMShepherd {
 					specs.add(spec);
 			}
 			long t3 = System.currentTimeMillis();
-			PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
-			MZBINFile mzbinFile = new MZBINFile(normFName(cf + ".mzBIN_cache"), specs, "", "");
+			PTMShepherd.print(String.format("\t\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
+			MZBINFile mzbinFile = new MZBINFile(new File(normFName(cf + ".mzBIN_cache")), specs, "", "");
 			mzbinFile.writeMZBIN();
+			mzMappings.put(cf, new File(normFName(cf + ".mzBIN_cache")));
 		}
-		out.close();
 	}
 
 	/* This method extracts compiled resources from the jar */

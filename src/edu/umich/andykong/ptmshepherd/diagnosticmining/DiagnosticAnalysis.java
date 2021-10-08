@@ -119,7 +119,7 @@ public class DiagnosticAnalysis {
 
         for (int i = 0; i < cBlock.size(); i++) {
             DiagnosticRecord dr = processLine(cBlock.get(i));
-            if (dr != null)
+            if (!dr.isMangled)
                 diagnosticRecords.add(dr);
         }
 

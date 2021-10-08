@@ -63,7 +63,7 @@ public class MXMLReader {
 			source = new MZMLFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".raw")) {
 			source = new ThermoRawFile(f.getAbsolutePath());
-		} else if (fn.endsWith(".mzbin")) {
+		} else if (fn.endsWith(".mzbin") || fn.endsWith(".mzbin_cache")) {
 			mzbinSource = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
 		}
 		if ((mzbinSource == null) && (mgfSource == null) && (source == null)) {

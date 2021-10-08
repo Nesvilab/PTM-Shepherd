@@ -145,6 +145,7 @@ public class PSMFile {
 	public static void getMappings(File path, HashMap<String,File> mappings) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
 			datTypes.put("mgf", 4);
+			datTypes.put("mzBIN_cache", 5);
 			datTypes.put("mzBIN", 3);
 			datTypes.put("mzML", 2);
 			datTypes.put("mzXML", 2);
@@ -162,7 +163,7 @@ public class PSMFile {
 				ns[0] = ns[0].substring(0, ns[0].indexOf("_calibrated"));
 			else if (ns[0].contains("_uncalibrated"))
 				ns[0] = ns[0].substring(0, ns[0].indexOf("_uncalibrated"));
-			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN") || ns[1].equals("mgf"))) {
+			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN") || ns[1].equals("mgf")) || ns[1].equals("mzBIN_cache")) {
 				if (mappings.get(ns[0]) == null)
 					mappings.put(ns[0], path);
 				else {

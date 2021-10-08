@@ -111,7 +111,7 @@ public class DiagnosticPeakPicker {
                     dgBin.loadDiagBinSpectra(executorService, nThreads, scanNums);
                     for (Integer scan : scanNums) {
                         DiagnosticRecord dr = dgBin.getScan(scan);
-                        if (dr != null)
+                        if (!dr.isMangled)
                             bdMetrics.addPSMToPeptideMap(dr);
                         else
                             System.out.printf("%d not found in %s\n", scan, fname);

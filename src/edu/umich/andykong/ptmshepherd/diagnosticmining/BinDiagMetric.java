@@ -35,6 +35,8 @@ public class BinDiagMetric {
 
     /* Build map of peptides so that each peptide (not PSM) can be weighted equally */
     public void addPSMToPeptideMap(DiagnosticRecord dr) {
+        if (dr.isMangled == true)
+            return;
         String pepKey = dr.pepSeq + dr.modifications + dr.charge; //peptidekey includes charge ///todo is that ideal?
         /* Check if pepKey exists and add line to pepKey */
         if (!this.peptideMap.containsKey(pepKey))

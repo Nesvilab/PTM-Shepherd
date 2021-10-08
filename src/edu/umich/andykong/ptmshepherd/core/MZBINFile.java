@@ -61,6 +61,14 @@ public class MZBINFile {
         Collections.sort(this.specs);
     }
 
+    public MZBINFile(File filePath, Collection<Spectrum> specs, String batmassVersion, String timsLibVersion) {
+        f = filePath;
+        runName = getBasename(f.getName());
+        this.batmassVersion = batmassVersion;
+        this.timsLibVersion = timsLibVersion;
+        this.specs = new ArrayList<>(specs);
+        Collections.sort(this.specs);
+    }
 
     public static Spectrum loadSpectrum(String path, int scanNum) throws Exception {
         String runName = getBasenameStat(path);

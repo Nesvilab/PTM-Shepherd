@@ -16,6 +16,7 @@ import org.apache.commons.lang3.SerializationUtils;
 *  Each instance of this will be entered into a binary diagnostic output file */
 public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
     public int scanNum;
+    public boolean isMangled = false;
     public float[][] immoniumPeaks;
     public float[][] capYPeaks;
     public HashMap<Character, float[][]> squigglePeaks;
@@ -35,6 +36,8 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
     public int compareTo(DiagnosticRecord dr) {
         return Integer.compare(this.scanNum, dr.scanNum);
     };
+
+    public DiagnosticRecord() { this.isMangled = true; };
 
     public DiagnosticRecord(Spectrum spec, String ionTypes, String pepSeq, float[] mods, float dmass, int charge) {
         this.scanNum = spec.scanNum;

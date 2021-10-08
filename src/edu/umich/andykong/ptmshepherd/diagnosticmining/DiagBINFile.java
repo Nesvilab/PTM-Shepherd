@@ -266,6 +266,10 @@ public class DiagBINFile {
         float dmass = ByteBuffer.wrap(this.diagBinIndex).asFloatBuffer().get(currIndexPos + 2);
         int specLen = ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().get(currIndexPos + 3);
 
+        // Returns new DiagnosticRecord with property isMangled = True for missing scans
+        if (offset == 0)
+            return new DiagnosticRecord();
+
         /* Get byte index and parse */
         byte[] specInfo = new byte[specLen];
         fc.read(ByteBuffer.wrap(specInfo), offset);
