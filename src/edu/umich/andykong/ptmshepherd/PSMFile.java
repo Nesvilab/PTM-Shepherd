@@ -282,7 +282,7 @@ public class PSMFile {
 
 				// add the final glycan info to the line
 				newLine.set(observedModCol, observedGlycan);
-				newLine.set(observedModCol + 1, String.format("%.2f", Double.parseDouble(glycanScore)));
+				newLine.set(observedModCol + 1, glycanScore);
 				newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
 				if (writeGlycansToAssignedMods) {
 					newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, assignedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, removeGlycanDeltaMass);

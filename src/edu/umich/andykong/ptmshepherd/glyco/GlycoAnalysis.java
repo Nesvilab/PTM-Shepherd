@@ -511,7 +511,7 @@ public class GlycoAnalysis {
             double previousBest = -1000;
             for (int i = 0; i < scoresVsBestCandidate.length; i++) {
                 double currentMinScore = 1000;
-                int indexOfCurrentMin = -1;
+                int indexOfCurrentMin = 0;
                 for (int j = 0; j < scoresVsBestCandidate.length; j++) {
                     if (scoresVsBestCandidate[j] < currentMinScore && scoresVsBestCandidate[j] > previousBest) {
                         // new current max found
