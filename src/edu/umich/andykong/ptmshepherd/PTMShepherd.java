@@ -10,6 +10,9 @@ import java.util.Random;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedExperimentsSummary;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
+import edu.umich.andykong.ptmshepherd.core.MXMLReader;
+import edu.umich.andykong.ptmshepherd.core.MZBINFile;
+import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import edu.umich.andykong.ptmshepherd.glyco.*;
@@ -17,6 +20,7 @@ import edu.umich.andykong.ptmshepherd.localization.*;
 import edu.umich.andykong.ptmshepherd.peakpicker.*;
 import edu.umich.andykong.ptmshepherd.specsimilarity.*;
 
+import static java.lang.System.out;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 
 public class PTMShepherd {
@@ -28,6 +32,7 @@ public class PTMShepherd {
 	static TreeMap<String,ArrayList<String []>> datasets;
 	static HashMap<String,HashMap<String,File>> mzMap;
 	static HashMap<String,Integer> datasetMS2;
+	static ArrayList<String> cacheFiles;
 	static ArrayList<GlycanCandidate> glycoDatabase;
 	private static String outputPath;
 	public static ExecutorService executorService;
@@ -45,7 +50,7 @@ public class PTMShepherd {
 	}
 	
 	public static synchronized void print(String s) {
-		System.out.println(s);
+		out.println(s);
 	}
 
 	public static void parseParamFile(String fn) throws Exception {
@@ -57,7 +62,7 @@ public class PTMShepherd {
 		try {
 			path = Paths.get(fn.replaceAll("['\"]", ""));
 		} catch (Exception e) {
-			System.out.println(e);
+			out.println(e);
 			die(String.format("Malformed parameter path string: [%s]", fn));
 		}
 		if (path == null || !Files.exists(path)) {
@@ -554,22 +559,22 @@ public class PTMShepherd {
 
 	public static void main(String [] args) throws Exception {
 		Locale.setDefault(new Locale("en","US"));
-		System.out.println();
-		System.out.printf("%s version %s",name,version);
-		System.out.println("(c) University of Michigan\n");
-		System.out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
+		out.println();
+		out.printf("%s version %s",name,version);
+		out.println("(c) University of Michigan\n");
+		out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
 		
 		if(args.length == 0) {
-			System.out.printf("%s %s\n", name, version);
-			System.out.println();
-			System.out.printf("Usage:\n");
-			System.out.printf("\tTo print the parameter files:\n" +
+			out.printf("%s %s\n", name, version);
+			out.println();
+			out.printf("Usage:\n");
+			out.printf("\tTo print the parameter files:\n" +
 					"\t\tjava -jar ptmshepherd-%s-.jar --config\n", version);
-			System.out.printf("\tTo print the annotation files:\n" +
+			out.printf("\tTo print the annotation files:\n" +
 					"\t\tjava -jar ptmshepherd-%s-.jar --annotate\n", version);
-			System.out.printf("\tTo run PTM-Shepherd:\n" +
+			out.printf("\tTo run PTM-Shepherd:\n" +
 					"\t\tjava -jar ptmshepherd-%s-.jar config_file.txt\n", version);
-			System.out.println();
+			out.println();
 			System.exit(0);
 		}
 
@@ -609,44 +614,7 @@ public class PTMShepherd {
 		}
 
 		//Get mzData mapping
-		ArrayList<String> cacheFiles = new ArrayList<>();
-
-		for(String ds : datasets.keySet()) {
-			ArrayList<String []> dsData = datasets.get(ds);
-			mzMap.put(ds, new HashMap<>());
-			for(int i = 0; i < dsData.size(); i++) {
-				File tpf = new File(dsData.get(i)[0]);
-				String crc = PSMFile.getCRC32(tpf);
-				File cacheFile = new File(normFName("cache-"+crc+".txt"));
-				cacheFiles.add(crc);
-				HashSet<String> fNames;
-				if(!cacheFile.exists()) {
-					PSMFile pf = new PSMFile(tpf);
-					fNames = pf.getRunNames();
-					PrintWriter out = new PrintWriter(new FileWriter(cacheFile));
-					for(String cn : fNames)
-						out.println(cn);
-					out.close();
-				} else {
-					String cline;
-					BufferedReader in = new BufferedReader(new FileReader(cacheFile));
-					fNames = new HashSet<>();
-					while((cline = in.readLine())!= null)
-						fNames.add(cline);
-					in.close();
-				}
-				for(String cname: fNames) {
-					mzMap.get(ds).put(cname, null);
-				}
-				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds));
-				//System.out.println(mzMap.get(ds));
-			}
-			for(String crun : mzMap.get(ds).keySet()) {
-				if(mzMap.get(ds).get(crun) == null) {
-					die("In dataset \""+ds+"\" could not find mzData for run " +  crun);
-				}
-			}
-		}
+		getMzDataMapping();
 		
 		//Count MS2 scans
 		for(String ds : datasets.keySet()) {
@@ -827,7 +795,7 @@ public class PTMShepherd {
 		double [][] peakBounds = PeakSummary.readPeakBounds(peaksummary);
 		LocalizationProfile loc_global = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 		for(String ds : datasets.keySet()) {
-			System.out.println();
+			out.println();
 			LocalizationProfile loc_current = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 			SiteLocalization sl = new SiteLocalization(ds);
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
@@ -869,11 +837,11 @@ public class PTMShepherd {
 		//Diagnostic mining
 		boolean diagMineMode = Boolean.parseBoolean(params.get("diagmine_mode"));
 		if (diagMineMode) {
-			System.out.println("Beginning mining diagnostic ions");
+			out.println("Beginning mining diagnostic ions");
 			long t1 = System.currentTimeMillis();
 			double peakBoundaries[][] = PeakSummary.readPeakBounds(peaksummary);
 			for (String ds : datasets.keySet()) {
-				System.out.println("\tPreprocessing dataset " + ds);
+				out.println("\tPreprocessing dataset " + ds);
 				DiagnosticAnalysis da = new DiagnosticAnalysis(ds);
 				//if (da.isComplete()) {
 				//	System.out.println("\tFound existing data for dataset " + ds);
@@ -887,9 +855,9 @@ public class PTMShepherd {
 				}
 				//da.complete();
 				long t2 = System.currentTimeMillis();
-				System.out.printf("\tDone preprocessing dataset %s - %d ms total\n", ds, t2-t1);
+				out.printf("\tDone preprocessing dataset %s - %d ms total\n", ds, t2-t1);
 			}
-			System.out.println("\tBuilding ion histograms");
+			out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
 					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Integer.parseInt(params.get("diagmine_twoTailedTests")));
@@ -902,15 +870,15 @@ public class PTMShepherd {
 			}
 			dpp.process(executorService, Integer.parseInt(getParam("threads")));
 			dpp.print(normFName("global.diagmine.tsv"));
-			System.out.println("Done mining diagnostic ions");
+			out.println("Done mining diagnostic ions");
 		}
 
 		//Combine tables
-		System.out.println("Combining and cleaning reports");
+		out.println("Combining and cleaning reports");
 		CombinedTable gct = new CombinedTable("global");
 		gct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")));
 		for (String ds : datasets.keySet()){
-			System.out.println("Writing combined table for dataset " + ds);
+			out.println("Writing combined table for dataset " + ds);
 			CombinedTable cct = new CombinedTable(ds);
 			cct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")));
 		}
@@ -994,7 +962,7 @@ public class PTMShepherd {
 
 		/* Make psm table IonQuant compatible */
 		if (Boolean.parseBoolean(params.get("prep_for_ionquant"))) {
-			System.out.println("Prepping PSM tables for IonQuant");
+			out.println("Prepping PSM tables for IonQuant");
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
@@ -1002,12 +970,12 @@ public class PTMShepherd {
 					pf.preparePsmTableForIonQuant(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 				}
 			}
-			System.out.println("Done");
+			out.println("Done");
 		}
 
 		/* Make experiment-level table */
 		if (Boolean.parseBoolean(params.get("output_extended"))) {
-			System.out.println("Creating experiment-level profile report");
+			out.println("Creating experiment-level profile report");
 			CombinedExperimentsSummary cs = new CombinedExperimentsSummary(normFName("combined_experiment_profile.tsv"));
 			cs.initializeExperimentSummary(normFName("global.profile.tsv"), Integer.parseInt(params.get("histo_intensity")));
 			cs.addLocalizationSummary(normFName("global.locprofile.txt"), "combined");
@@ -1093,6 +1061,95 @@ public class PTMShepherd {
 		}
 	}
 
+	private static void getMzDataMapping() throws Exception {
+		cacheFiles = new ArrayList<>();
+
+		// Get true paths to mzData
+		for(String ds : datasets.keySet()) {
+			ArrayList<String []> dsData = datasets.get(ds);
+			mzMap.put(ds, new HashMap<>());
+			for(int i = 0; i < dsData.size(); i++) {
+				File tpf = new File(dsData.get(i)[0]);
+				String crc = PSMFile.getCRC32(tpf);
+				File cacheFile = new File(normFName("cache-"+crc+".txt"));
+				cacheFiles.add(crc);
+				HashSet<String> fNames;
+				if(!cacheFile.exists()) {
+					PSMFile pf = new PSMFile(tpf);
+					fNames = pf.getRunNames();
+					PrintWriter out = new PrintWriter(new FileWriter(cacheFile));
+					for(String cn : fNames)
+						out.println(cn);
+					out.close();
+				} else {
+					String cline;
+					BufferedReader in = new BufferedReader(new FileReader(cacheFile));
+					fNames = new HashSet<>();
+					while((cline = in.readLine())!= null)
+						fNames.add(cline);
+					in.close();
+				}
+				for(String cname: fNames) {
+					mzMap.get(ds).put(cname, null);
+				}
+				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds));
+			}
+			// Assure that mzData was found
+			for(String crun : mzMap.get(ds).keySet()) {
+				if(mzMap.get(ds).get(crun) == null) {
+					die("In dataset \""+ds+"\" could not find mzData for run " +  crun);
+				}
+			}
+			// Rewrite mzData to MZBIN files
+			for(int i = 0; i < dsData.size(); i++) {
+				PSMFile pf = new PSMFile(dsData.get(i)[0]);
+				rewriteMzDataToMzBin(pf, mzMap.get(ds));
+			}
+
+
+		}
+	}
+
+	private static void rewriteMzDataToMzBin(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
+		// Get PSM scan num -> spectral file mapping
+		HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
+		int specCol = pf.getColumn("Spectrum");
+		for (int i = 0; i < pf.data.size(); i++) {
+			String[] sp = pf.data.get(i).split("\t");
+			String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
+			if (!mappings.containsKey(bn))
+				mappings.put(bn, new ArrayList<>());
+			mappings.get(bn).add(i);
+		}
+
+		// Loop through spectral files -> indexed lines in PSM -> process each line
+		HashMap<Integer, String> linesWithoutSpectra = new HashMap<>();
+		for (String cf : mappings.keySet()) { //for file in relevant spectral files
+			long t1 = System.currentTimeMillis();
+			//System.out.println(cf);
+			MXMLReader mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+			ArrayList<Spectrum> specs = new ArrayList<>(); // Holds parsed spectra
+			mr.readFully();
+			long t2 = System.currentTimeMillis();
+			ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
+			for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
+				String line = pf.data.get(clines.get(i));
+				String [] sp = line.split("\\t");
+				String specName = sp[specCol];
+				Spectrum spec =  mr.getSpectrum(reNormName(specName));
+				if (spec == null)
+					linesWithoutSpectra.put(i, line);
+				else
+					specs.add(spec);
+			}
+			long t3 = System.currentTimeMillis();
+			PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
+			MZBINFile mzbinFile = new MZBINFile(normFName(cf + ".mzBIN_cache"), specs, "", "");
+			mzbinFile.writeMZBIN();
+		}
+		out.close();
+	}
+
 	/* This method extracts compiled resources from the jar */
 	private static void extractFile(String jarFilePath, String fout) throws Exception {
 		BufferedReader in;
@@ -1131,15 +1188,15 @@ public class PTMShepherd {
 		if (newF.exists()) {
 			try {
 				deleteFile(newF.toPath(), true);
-				System.out.printf("Moving %s\n", oldF);
+				out.printf("Moving %s\n", oldF);
 			} catch (Exception e) {
-				System.out.printf("Error moving %s\n", oldF);
+				out.printf("Error moving %s\n", oldF);
 			}
 		}
 		try {
 			oldF.renameTo(newF);
 		} catch (Exception e) {
-			System.out.printf("Error deleting old %s\n", oldF);
+			out.printf("Error deleting old %s\n", oldF);
 		}
 	}
 
@@ -1157,8 +1214,17 @@ public class PTMShepherd {
 				}
 			}
 		} catch (Exception e) {
-			System.out.println("Error creating output directory. Terminating.");
+			out.println("Error creating output directory. Terminating.");
 			System.exit(1);
 		}
+	}
+
+	public static String reNormName(String s) {
+		String[] sp = s.split("\\.");
+		int sn = Integer.parseInt(sp[1]);
+		//with charge state
+		//return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+		//without charge state
+		return String.format("%s.%d.%d", sp[0], sn, sn);
 	}
 }
