@@ -809,7 +809,6 @@ public class PTMShepherd {
 		double [][] peakBounds = PeakSummary.readPeakBounds(peaksummary);
 		LocalizationProfile loc_global = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 		for(String ds : datasets.keySet()) {
-			out.println();
 			LocalizationProfile loc_current = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 			SiteLocalization sl = new SiteLocalization(ds);
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
@@ -1143,8 +1142,15 @@ public class PTMShepherd {
 		// Loop through spectral files -> indexed lines in PSM -> process each line
 		HashMap<Integer, String> linesWithoutSpectra = new HashMap<>();
 		for (String cf : mappings.keySet()) { //for file in relevant spectral files
+			// Check to see if an mzBIN_cache file was discovered
 			if (mzMappings.get(cf).toString().endsWith(".mzBIN_cache")) {
 				System.out.println("\tFound existing cached spectral data for " + cf);
+				continue;
+			}
+			// Check to see if mzBIN_cache file exists in output directory
+			else if (new File(normFName(cf + ".mzBIN_cache")).exists()) {
+				System.out.println("\tFound existing cached spectral data for " + cf);
+				mzMappings.put(cf, new File(normFName(cf + ".mzBIN_cache")));
 				continue;
 			}
 			long t1 = System.currentTimeMillis();

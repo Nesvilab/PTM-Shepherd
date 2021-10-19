@@ -304,197 +304,6 @@ public class PeakCompareTester {
         collapseHashMap("decoy");
     }
 
-    private void __collapseHashMaps() {
-        /* Collapse pepkeys in control spectra */
-        for (String pepKey : this.contPeptideMap.keySet()) {
-            /* Init normalizing params and temp objects */
-            int nPsms = this.contPeptideMap.get(pepKey).size();
-            HashMap<Double, Double> immPeaks = new HashMap<>();
-            HashMap<Double, Double> capYPeaks = new HashMap<>();
-            HashMap<Character, HashMap<Double, Double>> squigglePeaks = new HashMap<>();
-            for (Double peak : this.immoniumX.keySet())
-                immPeaks.put(peak, 0.0);
-            for (Double peak : this.capYX.keySet())
-                capYPeaks.put(peak, 0.0);
-            for (Character c : this.squigglesX.keySet()) {
-                squigglePeaks.put(c, new HashMap<>());
-                for (Double peak : this.squigglesX.get(c).keySet())
-                    squigglePeaks.get(c).put(peak, 0.0);
-            }
-            /* Collapse into mean of respective vals */
-            for (DiagnosticRecord dr : this.contPeptideMap.get(pepKey)) {
-                for (Double peak : dr.selectedImmoniumPeaks.keySet()) {
-                    double cVal = immPeaks.get(peak);
-                    cVal += dr.selectedImmoniumPeaks.get(peak) / nPsms;
-                    immPeaks.put(peak, cVal);
-                   //if (dr.selectedImmoniumPeaks.get(peak) > 0.00000000001) { //count PSMs with ions
-                    //    this.immoniumXN.put(peak, (this.immoniumXN.get(peak) + cVal));
-                    //}
-                }
-                for (Double peak : dr.selectedCapYPeaks.keySet()) {
-                    double cVal = capYPeaks.get(peak);
-                    cVal += dr.selectedCapYPeaks.get(peak) / nPsms;
-                    capYPeaks.put(peak, cVal);
-                    //if (dr.selectedCapYPeaks.get(peak) > 0.00000000001) {//count PSMs with ions
-                    //    this.capYXN.put(peak, (this.capYXN.get(peak) + cVal));
-                    //}
-                }
-                for (Character c : dr.selectedSquigglePeaks.keySet()) {
-                    for (Double peak : dr.selectedSquigglePeaks.get(c).keySet()) {
-                        double cVal = squigglePeaks.get(c).get(peak);
-                        cVal += dr.selectedSquigglePeaks.get(c).get(peak) / nPsms;
-                        squigglePeaks.get(c).put(peak, cVal);
-                        //if (dr.selectedSquigglePeaks.get(c).get(peak) > 0.00000000001) //count PSMs with ions
-                        //    this.squigglesXN.get(c).put(peak, (this.squigglesXN.get(c).get(peak) + cVal));
-                    }
-                }
-            }
-            /* Add vals to class lists */
-            for (Double peak : immPeaks.keySet())
-                this.immoniumX.get(peak).add(immPeaks.get(peak));
-            for (Double peak : capYPeaks.keySet())
-                this.capYX.get(peak).add(capYPeaks.get(peak));
-            for (Character c : squigglePeaks.keySet()) {
-                for (Double peak : squigglePeaks.get(c).keySet()) {
-                    this.squigglesX.get(c).get(peak).add(squigglePeaks.get(c).get(peak));
-                }
-            }
-        }
-        /* Collapse pepkeys in spec of interest */
-        for (String pepKey : this.treatPeptideMap.keySet()) {
-            /* Init normalizing params and temp objects */
-            int nPsms = this.treatPeptideMap.get(pepKey).size();
-
-            HashMap<Double, Double> immPeaks = new HashMap<>();
-            HashMap<Double, Double> capYPeaks = new HashMap<>();
-            HashMap<Character, HashMap<Double, Double>> squigglePeaks = new HashMap<>();
-            for (Double peak : this.immoniumY.keySet())
-                immPeaks.put(peak, 0.0);
-            for (Double peak : this.capYY.keySet())
-                capYPeaks.put(peak, 0.0);
-            for (Character c : this.squigglesY.keySet()) {
-                squigglePeaks.put(c, new HashMap<>());
-                for (Double peak : this.squigglesY.get(c).keySet())
-                    squigglePeaks.get(c).put(peak, 0.0);
-            }
-            /* Collapse into mean of respective vals */
-            for (DiagnosticRecord dr : this.treatPeptideMap.get(pepKey)) {
-                for (Double peak : dr.selectedImmoniumPeaks.keySet()) {
-                    double cVal = immPeaks.get(peak);
-                    cVal += dr.selectedImmoniumPeaks.get(peak) / nPsms;
-                    immPeaks.put(peak, cVal);
-                    //if (dr.selectedImmoniumPeaks.get(peak) > 1e-6) { //count PSMs with ions
-                    //    this.immoniumYN.put(peak, (this.immoniumYN.get(peak) + cVal));
-                    //}
-                }
-                for (Double peak : dr.selectedCapYPeaks.keySet()) {
-                    double cVal = capYPeaks.get(peak);
-                    cVal += dr.selectedCapYPeaks.get(peak) / nPsms;
-                    capYPeaks.put(peak, cVal);
-                    //if (dr.selectedCapYPeaks.get(peak) > 1e-6) //count PSMs with ions
-                    //    this.capYYN.put(peak, (this.capYYN.get(peak) + cVal));
-                }
-                for (Character c : dr.selectedSquigglePeaks.keySet()) {
-                    for (Double peak : dr.selectedSquigglePeaks.get(c).keySet()) {
-                        double cVal = squigglePeaks.get(c).get(peak);
-                        cVal += dr.selectedSquigglePeaks.get(c).get(peak) / nPsms;
-                        squigglePeaks.get(c).put(peak, cVal);
-                        //if (dr.selectedSquigglePeaks.get(c).get(peak) > 1e-6) //count PSMs with ions
-                        //    this.squigglesYN.get(c).put(peak, (this.squigglesYN.get(c).get(peak) + cVal));
-                    }
-                }
-            }
-
-            /* Add vals to class lists */
-            for (Double peak : immPeaks.keySet())
-                this.immoniumY.get(peak).add(immPeaks.get(peak));
-            for (Double peak : capYPeaks.keySet())
-                this.capYY.get(peak).add(capYPeaks.get(peak));
-            for (Character c : squigglePeaks.keySet()) {
-                for (Double peak : squigglePeaks.get(c).keySet()) {
-                    this.squigglesY.get(c).get(peak).add(squigglePeaks.get(c).get(peak));
-                }
-            }
-        }
-        /* Collapse pepkey spectra for decoys */
-        for (String pepKey : this.decoyPeptideMap.keySet()) {
-            /* Init normalizing params and temp objects */
-            int nPsms = this.decoyPeptideMap.get(pepKey).size();
-            HashMap<Double, Double> immPeaks = new HashMap<>();
-            HashMap<Double, Double> capYPeaks = new HashMap<>();
-            HashMap<Character, HashMap<Double, Double>> squigglePeaks = new HashMap<>();
-            for (Double peak : this.immoniumDecoy.keySet())
-                immPeaks.put(peak, 0.0);
-            for (Double peak : this.capYDecoy.keySet())
-                capYPeaks.put(peak, 0.0);
-            for (Character c : this.squigglesDecoy.keySet()) {
-                squigglePeaks.put(c, new HashMap<>());
-                for (Double peak : this.squigglesDecoy.get(c).keySet())
-                    squigglePeaks.get(c).put(peak, 0.0);
-            }
-            /* Collapse into mean of respective vals */
-            for (DiagnosticRecord dr : this.decoyPeptideMap.get(pepKey)) {
-                for (Double peak : dr.selectedImmoniumPeaks.keySet()) {
-                    double cVal = immPeaks.get(peak);
-                    cVal += dr.selectedImmoniumPeaks.get(peak) / nPsms;
-                    immPeaks.put(peak, cVal);
-                    //if (dr.selectedImmoniumPeaks.get(peak) > 1e-6) {//count PSMs with ions
-                    //    this.immoniumDecoyN.put(peak, (this.immoniumDecoyN.get(peak) + cVal));
-                    //}
-                }
-                for (Double peak : dr.selectedCapYPeaks.keySet()) {
-                    double cVal = capYPeaks.get(peak);
-                    cVal += dr.selectedCapYPeaks.get(peak) / nPsms;
-                    capYPeaks.put(peak, cVal);
-                    //if (dr.selectedCapYPeaks.get(peak) > 1e-6) //count PSMs with ions
-                    //    this.capYDecoyN.put(peak, (this.capYDecoyN.get(peak) + cVal));
-                }
-                for (Character c : dr.selectedSquigglePeaks.keySet()) {
-                    for (Double peak : dr.selectedSquigglePeaks.get(c).keySet()) {
-                        double cVal = squigglePeaks.get(c).get(peak);
-                        cVal += dr.selectedSquigglePeaks.get(c).get(peak) / nPsms;
-                        squigglePeaks.get(c).put(peak, cVal);
-                        //if (dr.selectedSquigglePeaks.get(c).get(peak) > 1e-6) //count PSMs with ions
-                        //    this.squigglesDecoyN.get(c).put(peak, (this.squigglesDecoyN.get(c).get(peak) + cVal));
-                    }
-                }
-            }
-
-            /* Add vals to class lists */
-            for (Double peak : immPeaks.keySet())
-                this.immoniumDecoy.get(peak).add(immPeaks.get(peak));
-            for (Double peak : capYPeaks.keySet())
-                this.capYDecoy.get(peak).add(capYPeaks.get(peak));
-            for (Character c : squigglePeaks.keySet()) {
-                for (Double peak : squigglePeaks.get(c).keySet()) {
-                    this.squigglesDecoy.get(c).get(peak).add(squigglePeaks.get(c).get(peak));
-                }
-            }
-        }
-    }
-
-    public void _addVals(DiagnosticRecord dr, boolean isControl) {
-        if (isControl) {
-            for (Double peak : dr.selectedImmoniumPeaks.keySet())
-                this.immoniumX.get(peak).add(dr.selectedImmoniumPeaks.get(peak));
-            for (Double peak : dr.selectedCapYPeaks.keySet())
-                this.capYX.get(peak).add(dr.selectedCapYPeaks.get(peak));
-            for (Character c : dr.selectedSquigglePeaks.keySet()) {
-                for (Double peak : dr.selectedSquigglePeaks.get(c).keySet())
-                    this.squigglesX.get(c).get(peak).add(dr.selectedSquigglePeaks.get(c).get(peak));
-            }
-        } else {
-            for (Double peak : dr.selectedImmoniumPeaks.keySet())
-                this.immoniumY.get(peak).add(dr.selectedImmoniumPeaks.get(peak));
-            for (Double peak : dr.selectedCapYPeaks.keySet())
-                this.capYY.get(peak).add(dr.selectedCapYPeaks.get(peak));
-            for (Character c : dr.selectedSquigglePeaks.keySet()) {
-                for (Double peak : dr.selectedSquigglePeaks.get(c).keySet())
-                    this.squigglesY.get(c).get(peak).add(dr.selectedSquigglePeaks.get(c).get(peak));
-            }
-        }
-    }
-
     private double calcProportionWIon(ArrayList<Double> vals, int nPsms) {
         int n = 0;
         for (Double val : vals) {
@@ -754,17 +563,17 @@ public class PeakCompareTester {
                 double propWIonCont = calcProportionWIon(this.squigglesX.get(c).get(peak), this.nControlPsms);
                 double wIonIntensityCont = calcWIonIntensity(this.squigglesX.get(c).get(peak), this.nControlPsms);
                 //if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
-                if (this.twoTailedTests == false) {
-                    if (p <= this.maxP && (rankBiserCorr - 0.5) >= this.minRbc) {
+                //if (this.twoTailedTests == false) {
+                  //  if (p <= this.maxP && (rankBiserCorr - 0.5) >= this.minRbc) {
                         this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                                 this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
-                    }
-                } else {
-                    if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
-                        this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
-                                this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
-                    }
-                }
+                    //}
+                //} else {
+                //    if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
+                //        this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
+                //                this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
+                //    }
+                //}
                 //if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
                 //System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
             }
@@ -837,8 +646,12 @@ public class PeakCompareTester {
         //System.out.println("squiggle");
         for (Character c : this.squigglesTests.keySet()) {
             collapseTests(this.squigglesTests.get(c), 0.05, true); //todo tol
+            findRemainderMassesCutoff(this.squigglesTests.get(c), 0.05);
             calibrateTests(this.squigglesTests.get(c), 0.05, true);
+            findRemainderMassesCutoff(this.squigglesTests.get(c), 0.05);
         }
+
+
 
 
 
@@ -864,6 +677,7 @@ public class PeakCompareTester {
 
     /* Converts two-tailed p-value to one-tailed p-value
     * Hipparchus only provides a two-tailed version of MWU
+    * Currently using two-tailed tests for everything due to inconsistencies in one-tailed test
     * */
     private double convertP(double oldPVal, boolean greaterThan) {
         double p;
@@ -901,11 +715,10 @@ public class PeakCompareTester {
     }
 
     private void collapseTests(ArrayList<Test> tests, double tol, boolean adjustedMass) {
-        //todo sorting this by RBC doesn't work for two sided tests
         Collections.sort(tests, new Comparator<Test>() {
             @Override
             public int compare(Test o1, Test o2) {
-                return -1*Double.compare(o1.rbc, o2.rbc);
+                return Double.compare(o1.q, o2.q);
             }
         });
 
@@ -1125,6 +938,35 @@ public class PeakCompareTester {
         return newDmass;
     }
 
+    /*
+    Find the first mass that was adjusted because an adjacent residue in enriched
+     */
+    private void findRemainderMassesCutoff(ArrayList<Test> tests, double tol) {
+        int breakPoint = -1;
+        for (int i  = 0; i < Math.min(tests.size(), 10); i++) {
+            for (int j  = i + 1; j < Math.min(tests.size(), 10); j++) {
+                if (breakPoint > -1)
+                    break;
+                if (Math.abs(tests.get(i).mass - tests.get(j).mass) > 5 && // Make sure it isn't an isotopic collapse
+                        Math.abs(tests.get(i).adjustedMass - tests.get(j).adjustedMass) < 0.5) { // If it is the same mass
+                    breakPoint = j - 1;
+                }
+            }
+            if (breakPoint > -1)
+                break;
+        }
+        for (int i  = 0; i < tests.size(); i++) {
+            if (i >= 10)
+                tests.get(i).isValid = false;
+            else if (breakPoint == -1)
+                tests.get(i).isValid = true;
+            else
+                if (i <= breakPoint)
+                    tests.get(i).isValid = true;
+                else
+                    tests.get(i).isValid = false;
+        }
+    }
 }
 
 class Test implements Comparable<Test> {
@@ -1134,6 +976,7 @@ class Test implements Comparable<Test> {
     public double q;
     public double rbc;
     public boolean isDecoy;
+    public boolean isValid;
     public int group;
     public boolean isGroupRep;
     public double u;
@@ -1163,10 +1006,17 @@ class Test implements Comparable<Test> {
         this.n2 = n2;
     }
 
-    public void calibrateMass(boolean adjustedMass, double tol) {
+    public void calibrateMass(boolean adjustedMass, double tol) { //TODO is this only correcting some Y ions?
         if (adjustedMass) {
-            if (Math.abs(this.adjustedMass) < tol) //shift pep remainder to 0 if present
+            //if (Math.abs(this.peakApex - 2529.8778) < 0.1)
+            //    System.out.println(this.adjustedMass + "\t" + tol);
+            if (Math.abs(this.adjustedMass) < tol) {//shift pep remainder to 0 if present
+                //if (Math.abs(this.peakApex - 2529.8778) < 0.1)
+                //    System.out.println("**" + this.adjustedMass + "\t" + tol);
                 this.adjustedMass = 0;
+                //if (Math.abs(this.peakApex - 2529.8778) < 0.1)
+                //    System.out.println("**" + this.adjustedMass + "\t" + tol);
+            }
             else if (Math.abs(this.adjustedMass - this.peakApex) < tol)
                 this.adjustedMass = this.peakApex;
         } else {

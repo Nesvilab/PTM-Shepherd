@@ -66,7 +66,7 @@ public class DiagnosticPeakPicker {
 
         for (String cf : mzMappings.keySet()) {
             try {
-                String dgbinFname = cf + ".diagBIN";
+                String dgbinFname = PTMShepherd.normFName(cf + ".diagBIN");
                 DiagBINFile dbf = new DiagBINFile(executorService, nThreads, dgbinFname, false);
                 LinkedHashMap<Integer, Float> scanToDmass = dbf.getDmasses();
                 for (Integer scan : scanToDmass.keySet()) {
@@ -160,10 +160,12 @@ public class DiagnosticPeakPicker {
                     ArrayList<Integer> scanNums = new ArrayList<>();
                     for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname))
                         scanNums.add(scan);
-                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, false);
+                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, PTMShepherd.normFName(fname), false);
                     dgBin.loadDiagBinSpectra(executorService, nThreads, scanNums);
                     for (Integer scan : scanNums) {
                         DiagnosticRecord dr = dgBin.getScan(scan);
+                        if (dr == null)
+                            continue;
                         if (!dr.isMangled)
                             bdMetrics.addPSMToPeptideMap(dr);
                         else
@@ -247,7 +249,7 @@ public class DiagnosticPeakPicker {
                             zeroScanNums.add(scan);
                         }
                     }
-                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, false);
+                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, PTMShepherd.normFName(fname), false);
                     dgBin.loadDiagBinSpectra(executorService, nThreads, scanNums);
 
                     /* Set up multithreading structures for peak bin, get diagnosticRecords, send to threads */
@@ -257,8 +259,12 @@ public class DiagnosticPeakPicker {
                         ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
                         int start = (peakScanNums.size() * i) / (factor * nThreads);
                         int end = (peakScanNums.size() * (i + 1)) / (factor * nThreads);
-                        for (int j = start; j < end; j++)
+                        for (int j = start; j < end; j++) {
+                            DiagnosticRecord dr = dgBin.getScan(peakScanNums.get(j));
+                            if (dr == null)
+                                continue;
                             localDrs.add(dgBin.getScan(peakScanNums.get(j)));
+                        }
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
                                         unifiedSquiggleIonPeakLists, spectraTol, pct, false, false)));  //todo tol
@@ -273,8 +279,12 @@ public class DiagnosticPeakPicker {
                         ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
                         int start = (peakScanNums.size() * i) / (factor * nThreads);
                         int end = (peakScanNums.size() * (i + 1)) / (factor * nThreads);
-                        for (int j = start; j < end; j++)
-                            localDrs.add(dgBin.getScan(peakScanNums.get(j)).clone());
+                        for (int j = start; j < end; j++) {
+                            DiagnosticRecord dr = dgBin.getScan(peakScanNums.get(j));
+                            if (dr == null)
+                                continue;
+                            localDrs.add(dr.clone());
+                        }
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
                                         unifiedSquiggleIonPeakLists, spectraTol, pct, false, true)));  //todo tol
@@ -289,8 +299,12 @@ public class DiagnosticPeakPicker {
                         ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
                         int start = (zeroScanNums.size() * i) / (factor * nThreads);
                         int end = (zeroScanNums.size() * (i + 1)) / (factor * nThreads);
-                        for (int j = start; j < end; j++)
+                        for (int j = start; j < end; j++) {
+                            DiagnosticRecord dr = dgBin.getScan(zeroScanNums.get(j));
+                            if (dr == null)
+                                continue;
                             localDrs.add(dgBin.getScan(zeroScanNums.get(j)));
+                        }
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
                                         unifiedSquiggleIonPeakLists, spectraTol, pct, true, false)));  //todo tol
@@ -323,6 +337,8 @@ public class DiagnosticPeakPicker {
     private void filterSpecBlock(ArrayList<DiagnosticRecord> localDrs, ArrayList<Double> unifiedImmPeakList, ArrayList<Double> unifiedCapYPeakList,
                                  HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists, double tol, PeakCompareTester pct, boolean isControl, boolean isDecoy) {
         for (DiagnosticRecord dr : localDrs) {
+            if (dr == null)
+                continue;
             if (isDecoy)
                 dr.makeDecoy();
             dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol);

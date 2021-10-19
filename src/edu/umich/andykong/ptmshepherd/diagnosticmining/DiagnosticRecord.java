@@ -40,7 +40,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
     public int compareTo(DiagnosticRecord dr) {
         return Integer.compare(this.scanNum, dr.scanNum);
-    };
+    }
 
     public DiagnosticRecord() { this.isMangled = true; };
 
@@ -288,7 +288,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
         double[][] selectedPeaks = new double[searchKeyIonList.size()][2];
         int [] selectedPeaksN = new int[searchKeyIonList.size()];
-        final int minEvidence = 3;
+        final int minEvidence = 2;
         for (int i = 0; i < searchKeyIonList.size(); i++)
             selectedPeaks[i][0] = searchKeyIonList.get(i);
         Arrays.sort(selectedPeaks, new Comparator<double[]>() {

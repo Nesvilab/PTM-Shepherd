@@ -72,6 +72,10 @@ public class DiagnosticAnalysis {
 
         /* Process spectral file one at a time */
         for (String cf : mappings.keySet()) {
+            if (new File(PTMShepherd.normFName(cf+".diagBIN")).exists()) {
+                System.out.println("\tFound existing cached diagnostic data for " + cf);
+                continue;
+            }
             long t1 = System.currentTimeMillis();
             /* Initialize new DiagnosticRecord list */
             this.diagnosticRecords = new ArrayList<>();
@@ -104,7 +108,7 @@ public class DiagnosticAnalysis {
                 future.get();
 
             /* Write results to DiagBINFile */
-            DiagBINFile diagBinFile = new DiagBINFile(this.diagnosticRecords, cf+".diagBIN", this.ionTypes);
+            DiagBINFile diagBinFile = new DiagBINFile(this.diagnosticRecords, PTMShepherd.normFName(cf+".diagBIN"), this.ionTypes);
             diagBinFile.writeDiagBinFile();
 
             long t3 = System.currentTimeMillis();
@@ -119,7 +123,9 @@ public class DiagnosticAnalysis {
 
         for (int i = 0; i < cBlock.size(); i++) {
             DiagnosticRecord dr = processLine(cBlock.get(i));
-            if (!dr.isMangled)
+            if (dr == null) // Spectrum not found
+                continue;
+            if (!dr.isMangled) // redundant?
                 diagnosticRecords.add(dr);
         }
 
