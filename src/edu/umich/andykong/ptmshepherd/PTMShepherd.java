@@ -917,9 +917,10 @@ public class PTMShepherd {
 			boolean alreadyPrintedParams = false;
 			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
 			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
-			boolean writeGlycansToAssignedMods = !getParam("put_glycans_to_assigned_mods").equals("") && Boolean.parseBoolean(getParam("put_glycans_to_assigned_mods"));	// default false
+			boolean writeGlycansToAssignedMods = getParam("put_glycans_to_assigned_mods").equals("") || Boolean.parseBoolean(getParam("put_glycans_to_assigned_mods"));	// default true
 			boolean nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
-			boolean removeGlycanDeltaMass = getParam("remove_glycan_delta_mass").equals("") || Boolean.parseBoolean(getParam("remove_glycan_delta_mass"));
+			boolean removeGlycanDeltaMass = !getParam("remove_glycan_delta_mass").equals("") && Boolean.parseBoolean(getParam("remove_glycan_delta_mass"));	// default false
+			boolean printGlycoDecoys = !getParam("print_decoys").equals("") && Boolean.parseBoolean(getParam("print_decoys"));	// default false
 			String allowedLocRes = PTMShepherd.getParam("localization_allowed_res");
 			int numThreads = Integer.parseInt(params.get("threads"));
 
@@ -965,7 +966,7 @@ public class PTMShepherd {
 					ArrayList<String[]> dsData = datasets.get(ds);
 					for (int i = 0; i < dsData.size(); i++) {
 						PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-						pf.mergeGlycoTable(new File(normFName(ds + ".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, writeGlycansToAssignedMods, nGlycan, allowedLocRes, removeGlycanDeltaMass);
+						pf.mergeGlycoTable(new File(normFName(ds + ".rawglyco")), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, writeGlycansToAssignedMods, nGlycan, allowedLocRes, removeGlycanDeltaMass, printGlycoDecoys);
 					}
 				}
 			}

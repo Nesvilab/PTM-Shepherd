@@ -195,7 +195,7 @@ public class PSMFile {
 	*  Update: only writes some columns rather than full rawglyco table
 	*  numColsToUse gives the number of columns to take
 	*/
-	public void mergeGlycoTable(File glyf, int numColsToUse, boolean writeGlycansToAssignedMods, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass) throws Exception {
+	public void mergeGlycoTable(File glyf, int numColsToUse, boolean writeGlycansToAssignedMods, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass, boolean printDecoys) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
 		String tempFoutName = this.fname + ".glyco.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
@@ -271,9 +271,18 @@ public class PSMFile {
 				String observedGlycan;
 				String glycanScore = glyLine.get(glycanScoreCol);
 				if (rawGlycan.contains("Decoy")) {
-					// report best target glycan instead of decoy (q-value will be reported as 1)
-					observedGlycan = glyLine.get(bestTargetGlycanCol);
-					glycanScore = glyLine.get(bestTargetScoreCol);
+					if (!printDecoys) {
+						// report best target glycan instead of decoy (q-value will be reported as 1)
+						observedGlycan = glyLine.get(bestTargetGlycanCol);
+						glycanScore = glyLine.get(bestTargetScoreCol);
+					} else {
+						// user requested printing decoys, save decoy glycan (removing FailFDR if present)
+						if (rawGlycan.contains("FailFDR")) {
+							observedGlycan = rawGlycan.replace("FailFDR_", "");
+						} else {
+							observedGlycan = rawGlycan;
+						}
+					}
 				} else if (rawGlycan.contains("FailFDR")) {
 					observedGlycan = rawGlycan.replace("FailFDR_", "");
 				} else {
