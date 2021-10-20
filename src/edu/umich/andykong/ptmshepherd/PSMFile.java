@@ -295,7 +295,7 @@ public class PSMFile {
 				newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
 				if (writeGlycansToAssignedMods) {
 					newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, assignedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, removeGlycanDeltaMass);
-				}
+				}	// todo: handle case where previous PSM table has glycans written to assigned mod, but re-run has it not requested? (remove assigned mods)
 			}
 			out.println(String.join("\t", newLine));
 		}
@@ -449,6 +449,10 @@ public class PSMFile {
 			if (prevGlycanWritten) {
 				// A glycan was previously written to this line, and thus was subtracted from delta mass. Add it back, then subtract new glycan's mass
 				double correctedDelta = Double.parseDouble(newLine.get(deltaMassCol)) + previousGlycanMass;
+				if (correctedDelta - 2*previousGlycanMass < 10 && correctedDelta - 2*previousGlycanMass > -10) {
+					// a previous glycan was written, but the delta mass was not changed. No need to correct. +/- 10 to allow for isotope errors in delta mass
+					correctedDelta = Double.parseDouble(newLine.get(deltaMassCol));
+				}
 				if (!failOrDecoy) {
 					newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
 				} else {
