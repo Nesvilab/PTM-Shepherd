@@ -524,7 +524,8 @@ public class PTMShepherd {
 	private static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase,
 										 ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam,
 										 Integer[] glycoIsotopes, double glycoPPMtol, double glycoFDR, boolean printFullParams,
-										 boolean nGlycanMode, String allowedLocalizationResidues, int decoyType) {
+										 boolean nGlycanMode, String allowedLocalizationResidues, int decoyType,
+										 boolean printDecoys, boolean removeGlycanDelta) {
 		print("Glycan Assignment params:");
 		print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
 		print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
@@ -549,20 +550,25 @@ public class PTMShepherd {
 			print("\tmode: N-glycan");
 			print("\tAllowed Sites: N in N-X-S/T sequons only");
 		} else {
-			print("\tmode: O-glycan");
 			print(String.format("\tAllowed Sites: %s", allowedLocalizationResidues));
 		}
+		print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
+		String neuac = Arrays.toString(glycoProbabilityTable.neuacRules);
+		String neugc = Arrays.toString(glycoProbabilityTable.neugcRules);
+		String dhex = Arrays.toString(glycoProbabilityTable.dhexOxoRules);
+		String phospho = Arrays.toString(glycoProbabilityTable.phosphoRules);
+		String sulfo = Arrays.toString(glycoProbabilityTable.sulfoRules);
+		print(String.format("\tOxonium probability ratios: NeuAc %s; NeuGc %s; dHex %s; Phospho %s; Sulfo %s", neuac, neugc, dhex,phospho, sulfo));
 		if (printFullParams) {
 			print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
 			print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
-			print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
-			String neuac = Arrays.toString(glycoProbabilityTable.neuacRules);
-			String neugc = Arrays.toString(glycoProbabilityTable.neugcRules);
-			String dhex = Arrays.toString(glycoProbabilityTable.dhexOxoRules);
-			String phospho = Arrays.toString(glycoProbabilityTable.phosphoRules);
-			String sulfo = Arrays.toString(glycoProbabilityTable.sulfoRules);
-			print(String.format("\tOxonium probability ratios: NeuAc %s; NeuGc %s; dHex %s; Phospho %s; Sulfo %s", neuac, neugc, dhex,phospho, sulfo));
 			print(String.format("\tDecoy type: %d", decoyType));
+			if (printDecoys) {
+				print("\tPrinting decoy glycans");
+			}
+			if (removeGlycanDelta) {
+				print("\tRemoving glycan delta mass from PSM table");
+			}
 		}
 		print("Assigning glycans:");
 	}
@@ -933,7 +939,7 @@ public class PTMShepherd {
 
 				// print params here to avoid printing if the analysis is already done/not being run
 				if (!alreadyPrintedParams && runGlycanAssignment) {
-					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR, printFullParams, nGlycan, allowedLocRes, decoyType);
+					printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR, printFullParams, nGlycan, allowedLocRes, decoyType, printGlycoDecoys, removeGlycanDeltaMass);
 					alreadyPrintedParams = true;
 				}
 				ArrayList<String[]> dsData = datasets.get(ds);
