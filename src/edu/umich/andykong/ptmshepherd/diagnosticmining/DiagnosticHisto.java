@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -51,7 +52,7 @@ public class DiagnosticHisto {
         this.totalSpecs = new AtomicDouble();
         this.nPepkeys = nPepkeys;
         this.binsPerDa = (int) (1.0 / binWidth);
-        this.ppmTol = ppmTol;
+        this.ppmTol = ppmTol / 2.0;
         this.normMass = normMass;
         this.minSignal = minSignal;
         this.bins2 = new AtomicDoubleArray((int)(this.binsPerDa * (this.max - this.min)));
@@ -281,10 +282,10 @@ public class DiagnosticHisto {
         this.filteredPeaks = new ArrayList<>();
 
         //double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
-        double minVal = this.minSignal * this.nPepkeys;
+        double minVal = this.minSignal * this.nPepkeys * 100.0;
         //System.out.println(this.totalSpecs.doubleValue());
         double minEntryVal = 2e-100;
-        double prominence = 0.98;
+        double prominence = 0.99;
 
         ArrayList<HistoPeak> peaks = new ArrayList<>();
         for (int i = 0; i < this.smoothBins2.length(); i++) {
@@ -320,10 +321,29 @@ public class DiagnosticHisto {
             if (peakArea >= minVal)
                 peaks.add(new HistoPeak(binToMass(peakApex), peakArea));
         }
+
+        // Recalculate peak area from apex
+        Collections.sort(peaks);
+        for (HistoPeak p : peaks) {
+            int cBin = locateBin(p.MZ);
+            double cInt = 0;
+            for (int i = -this.nBinsPerSide; i < this.nBinsPerSide; i++)
+                cInt += this.smoothBins2.get(cBin + i);
+            p.Int = cInt;
+        }
+
+        // Remove peaks falling below threshold
+        HashSet<Integer> removePeaks = new HashSet<>();
+        Collections.sort(peaks);
+        for (int i = 0; i < peaks.size(); i++) {
+            //System.out.println(peaks.get(i).Int);
+            if (peaks.get(i).Int < minVal)
+                removePeaks.add(i);
+        }
+
         /* Select top peaks and remove redundant peaks */
         int maxPeaks = Math.min(1000, peaks.size());
-        Collections.sort(peaks);
-        ArrayList<Integer> removePeaks = new ArrayList<>();
+
         double daTol = (normMass * ppmTol) / 1000000.0;
         for (int i = 0; i < maxPeaks; i++) {
             for (int j = i + 1; j < maxPeaks; j++) {
@@ -332,8 +352,8 @@ public class DiagnosticHisto {
             }
         }
 
-        for (int i = 0; i < removePeaks.size(); i++)
-            peaks.remove(removePeaks.get(i));
+        for (Integer i : removePeaks)
+            peaks.remove(i);
 
         for (int i = 0; i < maxPeaks; i++) {
             this.filteredPeaks.add(peaks.get(i).MZ);

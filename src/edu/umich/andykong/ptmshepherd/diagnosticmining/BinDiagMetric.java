@@ -122,7 +122,7 @@ public class BinDiagMetric {
                         char ionType = this.ionTypes.charAt(h);
                         for (int i = 0; i < dr.squigglePeaks.get(ionType).length; i++) {
                             double mz = dr.squigglePeaks.get(ionType)[i][0];
-                            this.tildeIons.get(h).placeIon(mz, ((dr.squigglePeaks.get(ionType)[i][1] / (double) dr.pepSeq.length()) / nPsms), nPsms);
+                            this.tildeIons.get(h).placeIon(mz, (double) (dr.squigglePeaks.get(ionType)[i][1] / nPsms), nPsms);
                         }
                     }
                 }
@@ -183,7 +183,7 @@ public class BinDiagMetric {
             String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
                     this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
                     t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
-                    t.propWIonIntensity, Double.isNaN(t.propWIonIntensityCont) ? 0 : t.propWIonCont,
+                    t.propWIonIntensity, t.propWIonIntensityCont,
                     t.n1, t.n2);
             newLines.append(newLine);
         }
@@ -198,7 +198,7 @@ public class BinDiagMetric {
             String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
                     this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
                     t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
-                    t.propWIonIntensity, Double.isNaN(t.propWIonIntensityCont) ? 0 : t.propWIonCont,
+                    t.propWIonIntensity, t.propWIonIntensityCont,
                     t.n1, t.n2);
             newLines.append(newLine);
         }
@@ -216,7 +216,7 @@ public class BinDiagMetric {
                 String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
                         this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc,
                         t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
-                        t.propWIonIntensity, Double.isNaN(t.propWIonIntensityCont) ? 0 : t.propWIonCont,
+                        t.propWIonIntensity, t.propWIonIntensityCont,
                         t.n1, t.n2);
                 newLines.append(newLine);
             }

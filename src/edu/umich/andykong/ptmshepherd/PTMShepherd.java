@@ -423,7 +423,7 @@ public class PTMShepherd {
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width collapse these two parameters to one (requires redefining precursor tol in peakannotation module)
 		params.put("precursor_maxCharge", "1");
 		//params.put("precursor_tol_ppm", "20.0"); //for use in mass offset and glyco modes
-		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
+
         params.put("mass_offsets", "");
         params.put("isotope_error", "0");
 
@@ -437,6 +437,7 @@ public class PTMShepherd {
 
 		params.put("compare_betweenRuns", "false");
 		params.put("annotation_file", "");
+		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
 
 		params.put("glyco_mode", "false");
 		params.put("cap_y_ions", "0,203.07937,349.137279,406.15874,568.21156,730.26438,892.3172");
@@ -461,6 +462,7 @@ public class PTMShepherd {
 		params.put("diagmine_maxP", "0.05");
 		params.put("diagmine_minAuc", "0.1");
 		params.put("diagmine_minSpecDiff", "0.1");
+		params.put("diagmine_minFoldChange", "2.0");
 		params.put("diagmine_minPeps", "5");
 		params.put("diagmine_twoTailedTests", "1");
 		params.put("diagmine_printRedundantTests", "0");
@@ -873,7 +875,8 @@ public class PTMShepherd {
 			out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
-					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Integer.parseInt(params.get("diagmine_twoTailedTests")));
+					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Double.parseDouble(params.get("diagmine_minFoldChange")),
+					Integer.parseInt(params.get("diagmine_twoTailedTests")));
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
