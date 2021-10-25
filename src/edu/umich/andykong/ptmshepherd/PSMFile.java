@@ -424,14 +424,19 @@ public class PSMFile {
 				int AAindex = modifiedPep.charAt(i) - 65;		// capital alphabet starts at 65
 				int roundedGlycanMass = (int) Math.round(glycanMass + AAMasses.monoisotopic_masses[AAindex]);
 				int secondSubstringStart = i + 1;
-				if (modifiedPep.charAt(i + 1) > 'Z' || modifiedPep.charAt(i + 1) < 'A') {
-					// non-residue character is next, so a modification has previously been written here. Remove it and replace
-					int j = i + 1;
-					// find length of the modification at this site (could vary if glycan has mass < 1000 or not)
-					while (modifiedPep.charAt(j) > 'Z' || modifiedPep.charAt(j) < 'A') {
-						j++;
+				// Skip checking for modification if we've already reached the end of the modified peptide string
+				if (!(secondSubstringStart == modifiedPep.length())) {
+					if (modifiedPep.charAt(i + 1) > 'Z' || modifiedPep.charAt(i + 1) < 'A') {
+						// non-residue character is next, so a modification has previously been written here. Remove it and replace
+						int j = i + 1;
+						// find length of the modification at this site (could vary if glycan has mass < 1000 or not)
+						while (modifiedPep.charAt(j) > 'Z' || modifiedPep.charAt(j) < 'A') {
+							j++;
+							if (j == modifiedPep.length())
+								break;
+						}
+						secondSubstringStart = j;
 					}
-					secondSubstringStart = j;
 				}
 				if (!failOrDecoy) {
 					newModPep = modifiedPep.substring(0, i + 1) + String.format("[%d]", roundedGlycanMass) + modifiedPep.substring(secondSubstringStart);
