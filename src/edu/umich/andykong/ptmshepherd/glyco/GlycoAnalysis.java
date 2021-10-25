@@ -229,6 +229,8 @@ public class GlycoAnalysis {
             if (cgline.equals("COMPLETE")) {
                 break;
             }
+            if (cgline.startsWith("ERROR"))
+                continue;
             String[] splits = cgline.split("\t", -1);
             String spectrumID = splits[gSpecCol];
             glyLines.put(spectrumID, splits);     // save full line for later editing/writing
@@ -1045,6 +1047,8 @@ public class GlycoAnalysis {
             if (cline.equals("COMPLETE"))
                 break;
             if (cline.startsWith("Spectrum"))
+                continue;
+            if (cline.startsWith("ERROR"))
                 continue;
             String[] sp = cline.split("\\t");
             double md = Double.parseDouble(sp[4]);
