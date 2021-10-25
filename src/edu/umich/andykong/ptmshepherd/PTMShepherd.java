@@ -1071,8 +1071,15 @@ public class PTMShepherd {
 			deleteFile(crcpath, true);
 		}
 
-		executorService.shutdown();
+		for (String ds : datasets.keySet()) {
+			for (String crun : mzMap.get(ds).keySet()) {
+				File mzbf = mzMap.get(ds).get(crun);
+				Path mzbpath = mzbf.toPath().toAbsolutePath();
+				deleteFile(mzbpath, true);
+			}
+		}
 
+		executorService.shutdown();
 	}
 
 	private static void deleteFile(Path p, boolean printOnDeletion) throws IOException {
