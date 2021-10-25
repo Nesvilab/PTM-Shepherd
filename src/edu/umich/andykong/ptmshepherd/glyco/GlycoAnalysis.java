@@ -313,7 +313,7 @@ public class GlycoAnalysis {
                 if (targetDecoyRatio <= desiredRatio) {
                     // stop here, found cutoff
                     foundThreshold = true;
-                    PTMShepherd.print(String.format("\tConverged to %.1f pct FDR with %d targets and %d decoys", targetDecoyRatio * 100, targets, decoys));
+                    PTMShepherd.print(String.format("\tConverged to %.1f%% FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
                 }
                 if (!rawGlycoLine[bestGlycanCol].contains("FailFDR")) {
                     // only add failFDR annotation once (prevents multiple writes on re-analyses)
