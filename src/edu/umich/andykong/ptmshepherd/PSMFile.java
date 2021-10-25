@@ -354,6 +354,8 @@ public class PSMFile {
 		TreeMap<GlycanResidue, Integer> glycanComp;
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
 		boolean failOrDecoy = rawGlycan.contains("FailFDR") || rawGlycan.contains("Decoy");
+		// if removing delta mass for quant, ALWAYS edit PSM entry, even if it did not pass FDR (needed for quant)
+		boolean editPSMGlycoEntry = removeGlycanDeltaMass || failOrDecoy;
 
 		/* Get glycan mass */
 		try {
@@ -368,12 +370,11 @@ public class PSMFile {
 		int glycanLocation = readMSFraggerGlycanLocation(newLine, fraggerLocCol, peptideCol, nGlycan, allowedResidues);
 		String glycanAA;
 		String fraggerPepLocStr = newLine.get(fraggerLocCol);
-		// skip missing loc for now
+		// skip missing loc column for now (quant will fail, but not needed for basic ID)
 		try {
 			glycanAA = fraggerPepLocStr.substring(glycanLocation, glycanLocation + 1).toUpperCase();
 		} catch (StringIndexOutOfBoundsException ex) {
-			PTMShepherd.print(String.format("WARNING: MSFragger localization not reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods", newLine.get(0)));
-			// todo: still edit delta mass?
+			PTMShepherd.print(String.format("ERROR: MSFragger localization not reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods", newLine.get(0)));
 			return newLine;
 		}
 
@@ -406,7 +407,7 @@ public class PSMFile {
 			}
 		}
 		// add the assigned glycan to the updated mod list (from which we removed any old glycan mods) if not failed FDR or is decoy
-		if (!failOrDecoy) {
+		if (editPSMGlycoEntry) {
 			newModSplits.add(glycanMod);
 		}
 		String newAssignedMods = String.join(", ", newModSplits);
@@ -444,7 +445,7 @@ public class PSMFile {
 						secondSubstringStart = j;
 					}
 				}
-				if (!failOrDecoy) {
+				if (editPSMGlycoEntry) {
 					newModPep = modifiedPep.substring(0, i + 1) + String.format("[%d]", roundedGlycanMass) + modifiedPep.substring(secondSubstringStart);
 				} else {
 					// if failed or decoy, write no modification at this position (but do remove previous glycan if one was present from an older analysis)
@@ -464,18 +465,11 @@ public class PSMFile {
 					// a previous glycan was written, but the delta mass was not changed. No need to correct. +/- 10 to allow for isotope errors in delta mass
 					correctedDelta = Double.parseDouble(newLine.get(deltaMassCol));
 				}
-				if (!failOrDecoy) {
-					newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
-				} else {
-					// if current analysis failed FDR for this PSM but a previous glycan was written, correct the delta mass but don't subtract new glycan
-					newLine.set(deltaMassCol, String.format("%.4f", correctedDelta));
-				}
+				newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
 			} else {
-				if (!failOrDecoy) {
-					// subtract glycan mass from delta mass if passed FDR
-					double observedDelta = Double.parseDouble(newLine.get(deltaMassCol));
-					newLine.set(deltaMassCol, String.format("%.4f", observedDelta - glycanMass));
-				}
+				// subtract glycan mass from delta mass if passed FDR
+				double observedDelta = Double.parseDouble(newLine.get(deltaMassCol));
+				newLine.set(deltaMassCol, String.format("%.4f", observedDelta - glycanMass));
 			}
 		}
 		return newLine;
