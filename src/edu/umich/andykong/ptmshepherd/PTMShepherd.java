@@ -105,14 +105,19 @@ public class PTMShepherd {
 	 * @param glycoIsotopes
 	 * @return list of glycans to consider
 	 */
-	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+	public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, boolean nGlycan) {
 		// read input glycan database or default database if none provided
 		ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
 		try {
 			BufferedReader in;
 			if (inputPath.equals("")) {
-				// no glycan database provided - fall back to default glycan list in PeakAnnotator
-				String defaultDB = "glyco_mods_20210127.txt";
+				// no glycan database provided - fall back to default glycan list
+				String defaultDB;
+				if (nGlycan) {
+					defaultDB = "glyco_mods_20210127.txt";
+				} else {
+					defaultDB = "glyco_mods_N-O_20211025.txt";
+				}
 				in = new BufferedReader(new InputStreamReader(PeakAnnotator.class.getResourceAsStream(defaultDB)));
 			} else {
 				Path path = null;
@@ -915,7 +920,8 @@ public class PTMShepherd {
 			HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoProbabilityTable);
 			double glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PPM_TOL : Double.parseDouble(getParam("glyco_ppm_tol"));
 			Integer[] glycoIsotopes = parseGlycoIsotopesParam();
-			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator, decoyType, glycoPPMtol, glycoIsotopes, glycoProbabilityTable, glycoOxoniumDatabase);
+			boolean nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
+			glycoDatabase = parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator, decoyType, glycoPPMtol, glycoIsotopes, glycoProbabilityTable, glycoOxoniumDatabase, nGlycan);
 			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
 			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_ABS_SCORE_BASE : Double.parseDouble(getParam("glyco_abs_score_base"));
 			String glycoFDRParam = getParam("glyco_fdr");
@@ -924,7 +930,6 @@ public class PTMShepherd {
 			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
 			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
 			boolean writeGlycansToAssignedMods = getParam("put_glycans_to_assigned_mods").equals("") || Boolean.parseBoolean(getParam("put_glycans_to_assigned_mods"));	// default true
-			boolean nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
 			boolean removeGlycanDeltaMass = !getParam("remove_glycan_delta_mass").equals("") && Boolean.parseBoolean(getParam("remove_glycan_delta_mass"));	// default false
 			boolean printGlycoDecoys = !getParam("print_decoys").equals("") && Boolean.parseBoolean(getParam("print_decoys"));	// default false
 			String allowedLocRes = PTMShepherd.getParam("localization_allowed_res");
