@@ -61,6 +61,7 @@ public class PeakCompareTester {
     double minRbc;
     double minSpecDiff;
     double minFoldChange;
+    double diagMinFoldChange;
     boolean twoTailedTests;
     int minPeps;
 
@@ -73,7 +74,6 @@ public class PeakCompareTester {
 
     public PeakCompareTester(double peakApex, ArrayList<Double> unifImm, ArrayList<Double> unifCapY, HashMap<Character, ArrayList<Double>> unifSquig, double maxP, double minRbc, double minSpecDiff, double minFoldChange, boolean twoTailedTests, double specTol) {
         this.peakApex = peakApex;
-        this.minFoldChange = minFoldChange;
         this.immoniumX = new HashMap<>();
         this.immoniumY = new HashMap<>();
         this.immoniumDecoy = new HashMap<>();
@@ -134,6 +134,8 @@ public class PeakCompareTester {
         this.minRbc = minRbc;
         this.minSpecDiff = minSpecDiff;
         this.twoTailedTests = twoTailedTests;
+        this.diagMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_diagMinFoldChange"));
+        this.minFoldChange = minFoldChange;
         this.minPeps = Integer.parseInt(PTMShepherd.getParam("diagmine_minPeps"));
 
         this.specTol = specTol;
@@ -312,8 +314,10 @@ public class PeakCompareTester {
             if (val > 0.0)
                 n++;
         }
-        double prop = (double) n / (double) nPsms;
-        return prop;
+        if (n > 0 && nPsms > 0)
+            return (double) n / (double) nPsms;
+        else
+            return 0;
     }
 
     private double calcWIonIntensity(ArrayList<Double> vals, int nPsms) {
@@ -365,15 +369,17 @@ public class PeakCompareTester {
             double wIonIntensityCont = calcWIonIntensity(this.immoniumX.get(peak), this.nControlPsms);
             //double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
             double specDiff = propWIon;// - propWIonCont;//, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
-            double foldChange = calcFoldChange(propWIon, wIonIntensityCont, propWIonCont, wIonIntensityCont);
+            double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
             double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
             if (this.twoTailedTests == false) {
-                if (p <= this.maxP && foldChange >= this.minFoldChange && specDiff >= this.minSpecDiff) {
+                //System.out.println(propWIon + "\t" + wIonIntensityCont + "\t" + propWIonCont + "\t" + wIonIntensityCont);
+                //System.out.println(this.peakApex + "\t" + peak + "\t" + this.twoTailedTests + "\t" + foldChange + "\t" +this.diagMinFoldChange);
+                if (p <= this.maxP && foldChange >= this.diagMinFoldChange && specDiff >= this.minSpecDiff) {
                     this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont,
                             u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
                 }
             } else {
-                if (p <= this.maxP && Math.abs(specDiff) >= this.minSpecDiff && maxAbsFoldChange >= minSpecDiff) {
+                if (p <= this.maxP && maxAbsFoldChange >= this.diagMinFoldChange && Math.abs(specDiff) >= this.minSpecDiff ) {
                     this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont,
                             u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
                 }
@@ -464,7 +470,7 @@ public class PeakCompareTester {
             double wIonIntensityCont = calcWIonIntensity(this.capYX.get(peak), this.nControlPsms);
             //double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
             double specDiff = propWIon;
-            double foldChange = calcFoldChange(propWIon, wIonIntensityCont, propWIonCont, wIonIntensityCont);
+            double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
             double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
             if (this.twoTailedTests == false) {
                 if (p <= this.maxP && specDiff > this.minSpecDiff && foldChange >= this.minFoldChange) {
@@ -570,7 +576,7 @@ public class PeakCompareTester {
                 double wIonIntensityCont = calcWIonIntensity(this.squigglesX.get(c).get(peak), this.nControlPsms);
                 //double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
                 double specDiff = propWIon;
-                double foldChange = calcFoldChange(propWIon, wIonIntensityCont, propWIonCont, wIonIntensityCont);
+                double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
                 double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
                 //if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
                 if (this.twoTailedTests == false) {
@@ -579,7 +585,7 @@ public class PeakCompareTester {
                                 this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                     }
                 } else {
-                    if (p <= this.maxP && Math.abs(specDiff) > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) { //divided by 2 bebecause 2 is n min ions
+                    if (p <= this.maxP && Math.abs(specDiff) > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) {
                         this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                                 this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                     }
@@ -724,7 +730,7 @@ public class PeakCompareTester {
         this.squigglesDecoyN = null;
     }
 
-    private void collapseTests(ArrayList<Test> tests, double tol, boolean adjustedMass) {
+    private void _collapseTests(ArrayList<Test> tests, double tol, boolean adjustedMass) {
         Collections.sort(tests, new Comparator<Test>() {
             @Override
             public int compare(Test o1, Test o2) {
@@ -763,6 +769,78 @@ public class PeakCompareTester {
             }
             group++;
         }
+    }
+
+    private void collapseTests(ArrayList<Test> tests, double tol, boolean adjustedMass) {
+        // First, filter out reudndant tests by selecting most sigfnicant ions
+        Collections.sort(tests, new Comparator<Test>() {
+            @Override
+            public int compare(Test o1, Test o2) {
+                return Double.compare(o1.q, o2.q);
+            }
+        });
+
+        int group = 1;
+        for (int i = 0; i < tests.size(); i++) {
+            if (tests.get(i).group > 0)
+                continue;
+            tests.get(i).group = group;
+            //System.out.println(tests.get(i).mass);
+            //todo this can give a suboptimal result if the monoisotopic peak is not the most significant
+            //todo search tests recursively instead of in sequence
+            for (int j = i + 1; j < tests.size(); j++) {
+                if (tests.get(j).group > 0)
+                    continue;
+                for (int c = -1; c < 4; c++) {
+                    double c13 = 1.00235;
+                    double shiftMass = c13 * c;
+                    if (adjustedMass) {
+                        if (Math.abs(tests.get(i).adjustedMass - (tests.get(j).adjustedMass - shiftMass)) < tol) {
+                            tests.get(j).group = group;
+                            if (c == 0)
+                                tests.get(j).isRedundant = true;
+                        }
+                    } else {
+                        if (Math.abs(tests.get(i).mass - (tests.get(j).mass - shiftMass)) < tol) {
+                            tests.get(j).group = group;
+                            if (c == 0)
+                                tests.get(j).isRedundant = true;
+                        }
+                    }
+                }
+            }
+            group++;
+        }
+
+        // Second, find monoisotopc peak by looking at most instense ion
+        Collections.sort(tests, new Comparator<Test>() {
+            @Override
+            public int compare(Test o1, Test o2) {
+                int g1 = o1.group;
+                int g2 = o2.group;
+                int firstComp = Integer.compare(g1, g2);
+
+                if (firstComp != 0)
+                    return firstComp;
+
+                double int1 = o1.propWIonTreat * o1.propWIonIntensity;
+                double int2 = o2.propWIonCont * o2.propWIonIntensityCont;
+                return -1 * Double.compare(int1, int2);
+            }
+        });
+
+        int cGroup = 0;
+        for (int i = 0; i < tests.size(); i++) {
+            if (tests.get(i).isRedundant)
+                continue;
+            if (tests.get(i).group == cGroup)
+                continue;
+            else {
+                tests.get(i).isIsotopeRep = true;
+                cGroup = tests.get(i).group;
+            }
+        }
+
     }
 
     private void calibrateTests(ArrayList<Test> tests, double tol, boolean adjustedMass) {
@@ -998,6 +1076,8 @@ class Test implements Comparable<Test> {
     public double propWIonCont;
     public double propWIonIntensity;
     public double propWIonIntensityCont;
+    public boolean isRedundant;
+    public boolean isIsotopeRep;
 
     Test(double peakApex, double mass, double q, double rbc, boolean isDecoy, double propWIonTreat, double propWIonCont,
          double propWIonIntensity, double propWIonIntensityCont, double u, long n1, long n2) {
@@ -1013,7 +1093,9 @@ class Test implements Comparable<Test> {
         this.propWIonIntensityCont = propWIonIntensityCont;
         this.u = u;
         this.group = 0;
-        this.isGroupRep = true;
+        this.isGroupRep = false;
+        this.isIsotopeRep = false;
+        this.isRedundant = false;
         this.n1 = n1;
         this.n2 = n2;
     }

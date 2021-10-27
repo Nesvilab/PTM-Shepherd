@@ -140,6 +140,8 @@ public class MXMLReader {
 				ns.monoMass = scan.getPrecursor().getMzTargetMono();
 			if (scan.getPrecursor().getMzTarget() != null)
 				ns.targetMass = scan.getPrecursor().getMzTarget();
+			if (scan.getMsLevel() != null)
+				ns.msLevel = scan.getMsLevel();
 			for(int i = 0; i < clen; i++) {
 				ns.peakMZ[i] = (float)spectrum.getMZs()[i];
 				ns.peakInt[i] = (float)spectrum.getIntensities()[i];

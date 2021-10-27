@@ -178,7 +178,7 @@ public class BinDiagMetric {
             Test t = this.testResults.immoniumTests.get(i);
             if (t.isDecoy == true)
                 continue;
-            if (!printNonReps && !t.isGroupRep)
+            if (!printNonReps && !t.isIsotopeRep)
                 continue;
             String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
                     this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
@@ -193,7 +193,7 @@ public class BinDiagMetric {
             Test t = this.testResults.capYTests.get(i);
             if (t.isDecoy == true)
                 continue;
-            if (!printNonReps && !t.isGroupRep)
+            if (!printNonReps && !t.isIsotopeRep)
                 continue;
             String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
                     this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
@@ -209,7 +209,7 @@ public class BinDiagMetric {
                 Test t = this.testResults.squigglesTests.get(cIon).get(i);
                 if (t.isDecoy == true)
                     continue;
-                if (!printNonReps && !t.isGroupRep)
+                if (!printNonReps && !t.isIsotopeRep)
                     continue;
                 if (!printNonReps && !t.isValid)
                     continue;

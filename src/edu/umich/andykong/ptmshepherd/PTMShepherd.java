@@ -463,6 +463,7 @@ public class PTMShepherd {
 		params.put("diagmine_minAuc", "0.1");
 		params.put("diagmine_minSpecDiff", "0.1");
 		params.put("diagmine_minFoldChange", "2.0");
+		params.put("diagmine_diagMinFoldChange", "2.0");
 		params.put("diagmine_minPeps", "5");
 		params.put("diagmine_twoTailedTests", "1");
 		params.put("diagmine_printRedundantTests", "0");
