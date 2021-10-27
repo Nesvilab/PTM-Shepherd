@@ -783,6 +783,10 @@ public class PTMShepherd {
 					pf.annotateMassDiffs(pa.getDeltaMassMappings(dmasses, precs, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))));
 				}
 			}
+			File modSummary = new File(normFName("global.modsummary.tsv"));
+			ModSummary ms = new ModSummary(peakannotated, datasets.keySet());
+			ms.toFile(modSummary);
+			print("Created modification summary");
 		}
 
 		//Mod-centric quantification

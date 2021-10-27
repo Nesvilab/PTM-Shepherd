@@ -99,9 +99,6 @@ public class ModSummary {
         for (String mod : mods) { //sum PSMs across DSs
             int nPsms = 0;
             for (String ds : datasets){
-                System.out.println(psmCounts);
-                System.out.println(psmCounts.get(ds));
-                System.out.println(psmCounts.get(ds).get(mod));
                 nPsms += psmCounts.get(ds).get(mod);
             }
             modsCount.put(mod, nPsms);
@@ -119,7 +116,7 @@ public class ModSummary {
         }
         // write to file
         PrintWriter out = new PrintWriter(new FileWriter(modOut));
-        out.print("Modification\tTheoretical Mass Shift");
+        out.print("Modification\tMass Shift");
         for(String ds : datasets)
             out.printf("\t%s_PSMs", ds);
         for (String ds : datasets)
