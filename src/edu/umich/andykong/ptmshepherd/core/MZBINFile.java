@@ -616,8 +616,9 @@ public class MZBINFile {
 
     private int __mzDoubleToInt(double mz) {
         if (Math.round(mz * MZScale) > Integer.MAX_VALUE) {
-            System.err.printf("The mz %.4f exceeds allowed maximum value using currently scaling factor of %d. Check your data please.\n", mz, MZScale);
-            System.exit(1);
+            System.err.printf("The mz %.4f exceeds allowed maximum value using currently scaling factor of %d. This m/z will be skipped.\n", mz, MZScale);
+//            System.exit(1);
+            return 0;
         }
         return (int) (Math.round(mz * MZScale));
     }
