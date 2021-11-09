@@ -26,7 +26,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "1.2.5";
+ 	public static final String version = "1.2.6";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -1129,7 +1129,8 @@ public class PTMShepherd {
 					mzMap.get(ds).put(cname, null);
 				}
 				PTMShepherd.print("\tIndexing data from " + ds);
-				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds));
+				PSMFile pf = new PSMFile(dsData.get(i)[0]);
+				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), pf.getRunNames());
 			}
 			// Assure that mzData was found
 			for(String crun : mzMap.get(ds).keySet()) {

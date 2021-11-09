@@ -25,7 +25,7 @@ public class PSMFile {
 	public PSMFile(String fn) throws Exception {
 		this(new File(fn));
 	}
-	
+
 	public int getColumn(String head) {
 		for(int i = 0; i < headers.length; i++)
 			if(headers[i].equals(head))
@@ -143,7 +143,7 @@ public class PSMFile {
 
 
 
-	public static void getMappings(File path, HashMap<String,File> mappings) {
+	public static void getMappings(File path, HashMap<String,File> mappings, HashSet<String> runNames) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
 			datTypes.put("mgf", 4);
 			datTypes.put("mzBIN_cache", 5);
@@ -156,7 +156,7 @@ public class PSMFile {
 			File [] ls = path.listFiles();
 			//get mapping for each file
 			for(int i = 0; i < ls.length; i++) {
-				getMappings(ls[i],mappings);
+				getMappings(ls[i],mappings, runNames);
 			}
 		} else {
 			String [] ns = splitName(path.getName());
@@ -164,6 +164,8 @@ public class PSMFile {
 				ns[0] = ns[0].substring(0, ns[0].indexOf("_calibrated"));
 			else if (ns[0].contains("_uncalibrated"))
 				ns[0] = ns[0].substring(0, ns[0].indexOf("_uncalibrated"));
+			if (!runNames.contains(ns[0]))
+				return;
 			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN") || ns[1].equals("mgf")) || ns[1].equals("mzBIN_cache")) {
 				if (mappings.get(ns[0]) == null)
 					mappings.put(ns[0], path);
