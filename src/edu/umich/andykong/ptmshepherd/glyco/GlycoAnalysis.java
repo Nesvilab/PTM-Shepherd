@@ -707,10 +707,15 @@ public class GlycoAnalysis {
             // enable skipping mass error calc for testing
             massProbRatio = 1.0;
         } else {
+            double minMassError = deltaMass * (glycoPPMtol * 0.01) * 1e-6;  // min mass error is ppmTol / 100
             double massError1 = deltaMass - glycan1.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
             double massStDevs1 = massError1 - meanMassError;
+            if (Math.abs(massStDevs1) < minMassError)
+                massStDevs1 = minMassError;
             double massError2 = deltaMass - glycan2.monoisotopicMass - (roundedIso2 * AAMasses.averagineIsotopeMass);
             double massStDevs2 = massError2 - meanMassError;
+            if (Math.abs(massStDevs2) < minMassError)
+                massStDevs2 = minMassError;
             massProbRatio = Math.abs(massStDevs2 / massStDevs1) * probabilityTable.massProbScaling;     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
         }
         return Math.log(isotopeProbRatio) + Math.log(massProbRatio);
