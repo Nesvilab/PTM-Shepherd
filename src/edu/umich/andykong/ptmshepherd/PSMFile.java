@@ -357,7 +357,7 @@ public class PSMFile {
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
 		boolean failOrDecoy = rawGlycan.contains("FailFDR") || rawGlycan.contains("Decoy");
 		// if removing delta mass for quant, ALWAYS edit PSM entry, even if it did not pass FDR (needed for quant)
-		boolean editPSMGlycoEntry = removeGlycanDeltaMass || failOrDecoy;
+		boolean editPSMGlycoEntry = removeGlycanDeltaMass || !failOrDecoy;
 
 		/* Get glycan mass */
 		try {
