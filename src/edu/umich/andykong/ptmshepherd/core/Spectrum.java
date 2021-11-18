@@ -384,7 +384,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	 * @return
 	 */
 	public static float neutralMassToMZ(float neutralMass, int charge) {
-		return (neutralMass + AAMasses.protMass) / (float) charge;
+		return (neutralMass + charge * AAMasses.protMass) / (float) charge;
 	}
 
 	/**
