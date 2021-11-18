@@ -1,6 +1,7 @@
 package edu.umich.andykong.ptmshepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
+import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
@@ -18,10 +19,10 @@ public class PSMFile {
 	String [] headers;
 	public ArrayList<String> data;
 	public ArrayList<String> mappedRuns;
-	public int dMassCol, precursorCol;
+	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, calcMZcol, peptideCalcMassCol, chargeCol;
 	public String prefType;
 	public File fname;
-	
+
 	public PSMFile(String fn) throws Exception {
 		this(new File(fn));
 	}
@@ -220,12 +221,15 @@ public class PSMFile {
 		}
 
 		/* Find headers, dynamically detect columns */
-		int observedModCol = getColumn("Observed Modifications");
-		int assignedModCol = getColumn("Assigned Modifications");
-		int fraggerLocCol = getColumn("MSFragger Localization");
-		int peptideCol = getColumn("Peptide");
-		int modPeptideCol = getColumn("Modified Peptide");
-		int deltaMassCol = getColumn("Delta Mass");
+		observedModCol = getColumn("Observed Modifications");
+		assignedModCol = getColumn("Assigned Modifications");
+		fraggerLocCol = getColumn("MSFragger Localization");
+		peptideCol = getColumn("Peptide");
+		modPeptideCol = getColumn("Modified Peptide");
+		deltaMassCol = getColumn("Delta Mass");
+		chargeCol = getColumn("Charge");
+		peptideCalcMassCol = getColumn("Calculated Peptide Mass");
+		calcMZcol = getColumn("Calculated M/Z");
 		if (warnPSMcolNotFound(observedModCol, "Observed Modifications")) {
 			observedModCol = 27;		// default is 27
 		}
@@ -302,8 +306,9 @@ public class PSMFile {
 				newLine.set(observedModCol + 1, glycanScore);
 				newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
 				if (writeGlycansToAssignedMods) {
-					newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, assignedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, removeGlycanDeltaMass);
-				}	// todo: handle case where previous PSM table has glycans written to assigned mod, but re-run has it not requested? (remove assigned mods)
+					int charge = Integer.parseInt(newLine.get(chargeCol));
+					newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge);
+				}
 			}
 			out.println(String.join("\t", newLine));
 		}
@@ -351,7 +356,7 @@ public class PSMFile {
 	 * Also writes to modified peptide and delta mass columns.
 	 * Handles cases where information was previously written to the PSM table by removing/replacing the previous ID if present
 	 */
-	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, boolean nGlycan, String allowedResidues, int assignedModCol, int fraggerLocCol, int peptideCol, int modPeptideCol, int deltaMassCol, boolean removeGlycanDeltaMass) {
+	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass, int charge) {
 		// parse glycan composition from recently edited observed mods col
 		TreeMap<GlycanResidue, Integer> glycanComp;
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
@@ -458,20 +463,40 @@ public class PSMFile {
 		}
 		newLine.set(modPeptideCol, newModPep);
 
-		/* Update delta mass */
+		/* Update delta mass AND calc m/z columns */
 		if (removeGlycanDeltaMass) {
 			if (prevGlycanWritten) {
 				// A glycan was previously written to this line, and thus was subtracted from delta mass. Add it back, then subtract new glycan's mass
 				double correctedDelta = Double.parseDouble(newLine.get(deltaMassCol)) + previousGlycanMass;
 				if (correctedDelta - 2*previousGlycanMass < 10 && correctedDelta - 2*previousGlycanMass > -10) {
-					// a previous glycan was written, but the delta mass was not changed. No need to correct. +/- 10 to allow for isotope errors in delta mass
+					// a previous glycan was written, but the delta mass was not changed (i.e. full glycan mass still present in delta mass in psm table). No need to correct. +/- 10 to allow for isotope errors in delta mass
 					correctedDelta = Double.parseDouble(newLine.get(deltaMassCol));
 				}
 				newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
+
+				// Also correct calc m/z. A glycan was previously written, and thus its mass may have been added to calcMZ. Remove the old mass and add the new
+				double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
+				double prevNeutralMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);
+				double calcPeptideMass = Double.parseDouble(newLine.get(peptideCalcMassCol));
+				double pepMassMinusPrevGlyc = calcPeptideMass - previousGlycanMass;
+				if (prevNeutralMass - pepMassMinusPrevGlyc > -5 && prevNeutralMass - calcPeptideMass - previousGlycanMass < 5) {
+					// calc m/z had previous glycan mass added to it, so subtracting previous glycan mass from it equals 0 (+/- isotope errors)
+					// remove the previous glycan mass from the calcMZ before adding the new one
+					prevNeutralMass = prevNeutralMass - previousGlycanMass;
+				}
+				// previous mass either did not have previous glycan mass added OR it has already been removed above. Add glycan mass and correct the calc mz column
+				double newMZ = Spectrum.neutralMassToMZ((float) (prevNeutralMass + glycanMass), charge);
+				newLine.set(calcMZcol, String.format("%.4f", newMZ));
 			} else {
-				// subtract glycan mass from delta mass if passed FDR
+				// subtract glycan mass from delta mass
 				double observedDelta = Double.parseDouble(newLine.get(deltaMassCol));
 				newLine.set(deltaMassCol, String.format("%.4f", observedDelta - glycanMass));
+
+				// add glycan mass to the calculated m/z column. Convert to neutral masses to avoid double-adding protons
+				double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
+				double peptideMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);
+				double newMZ = Spectrum.neutralMassToMZ((float) (peptideMass + glycanMass), charge);
+				newLine.set(calcMZcol, String.format("%.4f", newMZ));
 			}
 		}
 		return newLine;
