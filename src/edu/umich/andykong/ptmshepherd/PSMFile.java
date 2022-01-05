@@ -305,10 +305,9 @@ public class PSMFile {
 				newLine.set(observedModCol, observedGlycan);
 				newLine.set(observedModCol + 1, glycanScore);
 				newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
-				if (writeGlycansToAssignedMods) {
-					int charge = Integer.parseInt(newLine.get(chargeCol));
-					newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge);
-				}
+				int charge = Integer.parseInt(newLine.get(chargeCol));
+				newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge, writeGlycansToAssignedMods);
+
 			}
 			out.println(String.join("\t", newLine));
 		}
@@ -356,13 +355,22 @@ public class PSMFile {
 	 * Also writes to modified peptide and delta mass columns.
 	 * Handles cases where information was previously written to the PSM table by removing/replacing the previous ID if present
 	 */
-	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass, int charge) {
+	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass, int charge, boolean writeAllGlycans) {
 		// parse glycan composition from recently edited observed mods col
 		TreeMap<GlycanResidue, Integer> glycanComp;
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
 		boolean failOrDecoy = rawGlycan.contains("FailFDR") || rawGlycan.contains("Decoy");
-		// if removing delta mass for quant, ALWAYS edit PSM entry, even if it did not pass FDR (needed for quant)
-		boolean editPSMGlycoEntry = removeGlycanDeltaMass || !failOrDecoy;
+
+		// Default is to always write glycan mass to assigned mod, unless option to only write glycans passing FDR is specified
+		boolean editPSMGlycoEntry = true;
+		if (!writeAllGlycans) {
+			editPSMGlycoEntry = !failOrDecoy;
+			if (removeGlycanDeltaMass) {
+				// if removing delta mass for quant, ALWAYS edit PSM entry, even if it did not pass FDR (needed for quant)
+				PTMShepherd.print("Note: remove_glycan_delta_mass requires that put_glycans_to_assigned_mods be set to True. All glycans will be written to assigned mods, regardless of FDR");
+				editPSMGlycoEntry = true;
+			}
+		}
 
 		/* Get glycan mass */
 		try {
