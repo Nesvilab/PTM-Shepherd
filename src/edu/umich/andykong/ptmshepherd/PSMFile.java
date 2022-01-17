@@ -408,7 +408,7 @@ public class PSMFile {
 				if (modLocation == glycanLocation + 1) {
 					// a mod is already present at this site in the PSM table. Probably an existing glycan mod, but check the mass too to confirm
 					double existingModMass = parseModMass(mod);
-					if (glycanMass - 5 <= existingModMass && glycanMass + 5 >= existingModMass) {
+					if (glycanMass - 10 <= existingModMass && glycanMass + 10 >= existingModMass) {
 						// found existing glycan annotation - do not add it to the updated mod list
 						prevGlycanWritten = true;
 						previousGlycanMass = existingModMass;
