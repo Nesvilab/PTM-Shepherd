@@ -190,6 +190,63 @@ public class GlycoAnalysis {
     }
 
     /**
+     * Read the generated glycofrags file to determine glycan fragment probabilities for each glycan in the database.
+     * Option to save prevalence file for diagnostics/info to be added?
+     * @return
+     */
+    public ArrayList<GlycanCandidate> computeGlycanFragmentProbs() throws IOException {
+        ArrayList<GlycanCandidate> newDatabase = new ArrayList<>();
+        HashMap<String, ArrayList<GlycanCandidate>> glycanMap = new HashMap<>();
+        HashMap<Integer, ArrayList<String>> massMap = new HashMap<>();
+
+        // read info from glycofrags file
+        BufferedReader in = new BufferedReader(new FileReader(glycoFragmentFile), 1 << 22);
+        String currentLine;
+        String headers = in.readLine();
+        // todo: find headers dynamically and merge with rawglyco file header reading to single helper method
+        int fragmentStartCol = 10;
+        int glycanCol = 5;
+        int qValCol = 7;
+        int deltaMassCol = 4;
+
+        // read all glycan info in
+        while ((currentLine = in.readLine()) != null) {
+            String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
+
+            // todo: add FDR check (and add q-val to the glycofrags file)
+            String glycanString = splits[glycanCol];
+            GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, Arrays.copyOfRange(splits, fragmentStartCol, splits.length));
+            String glycanHash = fragmentInfoContainer.toHashString();
+            if (glycanMap.containsKey(glycanHash)) {
+                glycanMap.get(glycanHash).add(fragmentInfoContainer);
+            } else {
+                ArrayList<GlycanCandidate> newList = new ArrayList<>();
+                newList.add(fragmentInfoContainer);
+                glycanMap.put(glycanHash, newList);
+            }
+
+            // add to delta mass map for calculating glycan prevalence priors
+            double deltaMass = Double.parseDouble(splits[deltaMassCol]);
+            int massBin = (int) Math.floor(deltaMass);
+            if (massMap.containsKey(massBin)) {
+                massMap.get(massBin).add(glycanHash);
+            } else {
+                ArrayList<String> newList = new ArrayList<>();
+                newList.add(glycanHash);
+                massMap.put(massBin, newList);
+            }
+        }
+
+        // summarize results for each glycan and generate the new database
+        for (Map.Entry<String, ArrayList<GlycanCandidate>> glycanEntry : glycanMap.entrySet()) {
+            // Determine the fragment likelihoods based on all PSMs for this entry
+
+        }
+
+        return newDatabase;
+    }
+
+    /**
      * Read rawglyco file during 2nd pass to compute FDR across whole dataset and write updated
      * information back to rawglyco file. Requires that first pass has already been done and
      * Glycans assigned to PSMs.

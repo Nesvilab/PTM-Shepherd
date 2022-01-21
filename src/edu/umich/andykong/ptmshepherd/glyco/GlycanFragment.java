@@ -1,5 +1,7 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
+
 import java.util.Map;
 import java.util.Random;
 
@@ -15,6 +17,19 @@ public class GlycanFragment {
     double expectedIntensity;
     boolean isDecoy;
     public static final double MAX_DECOY_FRAGMENT_SHIFT_DA = 20;
+
+    /**
+     * Fragment info constructor for fragments from the glycofrags file
+     * @param glycanStr string to parse for composition
+     * @param expectedIntensity observed relative intensity todo: might be able to remove this if not using later
+     */
+    public GlycanFragment(String glycanStr, double expectedIntensity) {
+        this.requiredComposition = PTMShepherd.parseGlycanString(glycanStr);
+        this.expectedIntensity = expectedIntensity;
+        this.isDecoy = false;
+        this.foundIntensity = 0;
+        this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
+    }
 
     /**
      * Constructor for case that neutral mass is the mass of requiredComposition exactly
