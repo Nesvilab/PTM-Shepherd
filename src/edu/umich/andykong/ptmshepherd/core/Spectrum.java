@@ -18,6 +18,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	public int msLevel;
 	public double[] averageFragMass;
 	public double averageIonMass;
+	public double basePeakInt;
 	
 	static float [] fact;
 
@@ -32,6 +33,7 @@ public class Spectrum implements Comparable<Spectrum> {
 			for(int i = 1; i < 128; i++)
 				fact[i] = (float)(fact[i-1] + Math.log(i));
 		}
+		basePeakInt = findBasePeakInt();
 	}
 
 	//this constructor parses MZBin files and MGF files
@@ -51,6 +53,7 @@ public class Spectrum implements Comparable<Spectrum> {
 			for(int i = 1; i < 128; i++)
 				fact[i] = (float)(fact[i-1] + Math.log(i));
 		}
+		basePeakInt = findBasePeakInt();
 	}
 
 	public String toString() {

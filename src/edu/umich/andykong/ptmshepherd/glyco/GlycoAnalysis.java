@@ -490,14 +490,13 @@ public class GlycoAnalysis {
         if (searchCandidates.size() > 0) {
             // Search Y and oxonium ions in spectrum for each candidate
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
-            double basePeakInt = spec.findBasePeakInt();
             for (GlycanCandidate candidate : searchCandidates) {
                 for (GlycanFragment yFragment : candidate.Yfragments) {
-                    yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + glycoResult.pepMass, ppmTol, spec.charge);  // sum of charge state intensities if >1 found
+                    yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + glycoResult.pepMass, ppmTol, spec.charge) / spec.basePeakInt;  // sum of charge state intensities if >1 found
                 }
                 for (GlycanFragment oxoniumFragment : candidate.oxoniumFragments) {
                     // save oxonium ion intensity relative to base peak
-                    oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / basePeakInt;
+                    oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
             }
 
@@ -919,7 +918,7 @@ public class GlycoAnalysis {
                 //System.out.println(" 1");
                 //System.out.print(spec.findBasePeakInt());
                 //System.out.println(" 2");
-                capYIonIntensities[i] /= spec.findBasePeakInt();
+                capYIonIntensities[i] /= spec.basePeakInt;
                 capYIonIntensities[i] *= 100.0;
                 //System.out.print(capYIonIntensities[i]);
                 //System.out.println(" 3");
@@ -943,7 +942,7 @@ public class GlycoAnalysis {
                 //System.out.println(" 1");
                 //System.out.print(spec.findBasePeakInt());
                 //System.out.println(" 2");
-                oxoniumIonIntensities[i] /= spec.findBasePeakInt();
+                oxoniumIonIntensities[i] /= spec.basePeakInt;
                 oxoniumIonIntensities[i] *= 100.0;
                 //System.out.print(oxoniumIonIntensities[i]);
                 //System.out.println(" 3");
