@@ -144,7 +144,7 @@ public class GlycanFragment {
             i++;
             stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
         }
-        stringBuilder.append(String.format("_%.0f", foundIntensity));
+        stringBuilder.append(String.format("_%.4f", foundIntensity));
         return stringBuilder.toString();
     }
 
