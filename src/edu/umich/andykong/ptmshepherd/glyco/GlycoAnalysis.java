@@ -172,7 +172,8 @@ public class GlycoAnalysis {
     public void processLinesBlock(ArrayList<String> cBlock, PrintWriter out) {
         StringBuilder newBlock  = new StringBuilder();
         for (String line : cBlock) {
-            newBlock.append(processLine(line)).append("\n");
+            GlycanAssignmentResult glycoResult = processLine(line);
+            newBlock.append(glycoResult.fullRawGlycoString).append("\n");
         }
         printLines(out, newBlock.toString());
     }
@@ -404,7 +405,7 @@ public class GlycoAnalysis {
     }
 
 
-    public String processLine(String line) {
+    public GlycanAssignmentResult processLine(String line) {
         StringBuilder sb = new StringBuilder();
         String[] sp = line.split("\\t");
         String seq = sp[pepCol];
@@ -414,16 +415,19 @@ public class GlycoAnalysis {
         String specName = sp[specCol];
 
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, seq, sp[modCol], pepMass, dmass));
+        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(seq, dmass, pepMass, sp[modCol], specName);
 
         Spectrum spec = mr.getSpectrum(reNormName(specName));
         if (spec == null) {
             this.lineWithoutSpectra.add(reNormName(specName));
-            return "ERROR";
+            glycoResult.fullRawGlycoString = "ERROR";
+            return glycoResult;
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
         if (runGlycanAssignment) {
-            sb.append(assignGlycanToPSM(spec, pepMass, dmass, glycanDatabase, massErrorWidth, meanMassError));
+            glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
+            sb.append(glycoResult.glycanAssignmentString);
         }
         //System.out.println("got spec");
         double[] capYIonIntensities;
@@ -431,8 +435,10 @@ public class GlycoAnalysis {
         capYIonIntensities = findCapitalYIonMasses(spec, pepMass);
         oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
 
-        for (double capYIonIntensity : capYIonIntensities) sb.append(String.format("\t%.2f", capYIonIntensity));
-        for (double oxoniumIonIntensity : oxoniumIonIntensities) sb.append(String.format("\t%.2f", oxoniumIonIntensity));
+        for (double capYIonIntensity : capYIonIntensities)
+            sb.append(String.format("\t%.2f", capYIonIntensity));
+        for (double oxoniumIonIntensity : oxoniumIonIntensities)
+            sb.append(String.format("\t%.2f", oxoniumIonIntensity));
         float[] deltaScores = new float[remainderMasses.length];
         boolean[][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores);
 
@@ -446,7 +452,8 @@ public class GlycoAnalysis {
             }
             sb.append(locSb);
         }
-        return sb.toString();
+        glycoResult.fullRawGlycoString = sb.toString();
+        return glycoResult;
     }
 
     /**
@@ -455,23 +462,23 @@ public class GlycoAnalysis {
      * Formats results for writing to rawglyco file, which are later written to PSM table.
      *
      * @param spec           spectrum being searched
-     * @param pepMass        peptide mass (without glycan)
+     * @param glycoResult    result container with spectrum information. Will have glycan results added
      * @param glycanDatabase possible glycan candidates
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
-     * @param deltaMass      observed delta mass from PSM
      */
-    public String assignGlycanToPSM(Spectrum spec, double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, double massErrorWidth, double meanMassError) {
+    public GlycanAssignmentResult assignGlycanToPSM(Spectrum spec, GlycanAssignmentResult glycoResult, ArrayList<GlycanCandidate> glycanDatabase, double massErrorWidth, double meanMassError) {
         // skip non-delta mass PSMs - leave added columns empty
-        if (deltaMass < 3.5 && deltaMass > -1.5) {
+        if (glycoResult.deltaMass < 3.5 && glycoResult.deltaMass > -1.5) {
             StringBuilder sb = new StringBuilder();
             for (int i=0; i < NUM_ADDED_RAWGLYCO_COLUMNS; i++){
                 sb.append("\t");
             }
-            return sb.toString();
+            glycoResult.glycanAssignmentString = sb.toString();
+            return glycoResult;
         }
 
         // Determine possible glycan candidates from mass
-        ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(pepMass, deltaMass, glycanDatabase, glycoIsotopes, glycoPPMtol);
+        ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(glycoResult.pepMass, glycoResult.deltaMass, glycanDatabase, glycoIsotopes, glycoPPMtol);
         String output;
         if (searchCandidates.size() > 0) {
             // Search Y and oxonium ions in spectrum for each candidate
@@ -479,7 +486,7 @@ public class GlycoAnalysis {
             double basePeakInt = spec.findBasePeakInt();
             for (GlycanCandidate candidate : searchCandidates) {
                 for (GlycanFragment yFragment : candidate.Yfragments) {
-                    yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + pepMass, ppmTol, spec.charge);  // sum of charge state intensities if >1 found
+                    yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + glycoResult.pepMass, ppmTol, spec.charge);  // sum of charge state intensities if >1 found
                 }
                 for (GlycanFragment oxoniumFragment : candidate.oxoniumFragments) {
                     // save oxonium ion intensity relative to base peak
@@ -494,7 +501,7 @@ public class GlycoAnalysis {
                 if (i == bestCandidateIndex) {
                     continue;
                 }
-                double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), deltaMass, meanMassError);
+                double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
                 if (comparisonScore < 0) {
                     // new best candidate - reset best candidate position and update scores at all other positions
                     bestCandidateIndex = i;
@@ -506,7 +513,7 @@ public class GlycoAnalysis {
 
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i <= bestCandidateIndex; i++) {
-                scoresVsBestCandidate[i] = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), deltaMass, meanMassError);
+                scoresVsBestCandidate[i] = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
             }
 
             int[] sortedIndicesOfBestScores = new int[scoresVsBestCandidate.length];
@@ -526,7 +533,9 @@ public class GlycoAnalysis {
             }
 
             // compute absolute score for best glycan
-            double absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), deltaMass, massErrorWidth, meanMassError);
+            double absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), glycoResult.deltaMass, massErrorWidth, meanMassError);
+            glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
+            glycoResult.glycanScore = absoluteScore;
 
             // output - best glycan, scores, etc back to PSM table
             // write top glycan info
@@ -534,13 +543,17 @@ public class GlycoAnalysis {
 
             // if top glycan is a decoy, also write best target and best target score to subsequent columns
             if (searchCandidates.get(bestCandidateIndex).isDecoy) {
+                glycoResult.isDecoyGlycan = true;
                 boolean foundTarget = false;
                 for (int bestIndex : sortedIndicesOfBestScores) {
                     GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
                     if (!nextCandidate.isDecoy) {
                         // add the best target's information
-                        output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), computeAbsoluteScore(nextCandidate, deltaMass, massErrorWidth, meanMassError));
+                        double bestTargetScore = computeAbsoluteScore(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
+                        output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestTargetScore);
                         foundTarget = true;
+                        glycoResult.bestTarget = nextCandidate;
+                        glycoResult.bestTargetScore = bestTargetScore;
                         break;
                     }
                 }
@@ -549,12 +562,14 @@ public class GlycoAnalysis {
                     output = output + "\tNo target matches\t";
                 }
             } else {
+                glycoResult.isDecoyGlycan = false;
                 output = output + "\t\t";
             }
         } else {
             output = "\tNo Matches\t\t\t\t";
         }
-        return output;
+        glycoResult.glycanAssignmentString = output;
+        return glycoResult;
     }
 
     /**
