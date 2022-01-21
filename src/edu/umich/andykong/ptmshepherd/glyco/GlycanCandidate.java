@@ -1,5 +1,6 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
 import java.util.*;
@@ -16,6 +17,33 @@ public class GlycanCandidate {
     public static final double DEFAULT_PEPTIDE_MASS = 1500;
     public GlycanFragment[] Yfragments;
     public GlycanFragment[] oxoniumFragments;
+
+    /**
+     * Constructor for reading fragment probability information from the glycoFrags file
+     * @param glycanStr glycan composition string to read
+     * @param parsedFragmentInfo list of strings containing fragment ion info
+     */
+    public GlycanCandidate(String glycanStr, String[] parsedFragmentInfo){
+        glycanComposition = PTMShepherd.parseGlycanString(glycanStr);
+        ArrayList<GlycanFragment> Yfragments = new ArrayList<>();
+        ArrayList<GlycanFragment> OxFragments = new ArrayList<>();
+
+        for (String fragment : parsedFragmentInfo) {
+            String[] typeSplits = fragment.split("~");
+            if (typeSplits[0].matches("Y")) {
+                // Y ion
+                String[] ionSplits = typeSplits[1].split("_");
+                Yfragments.add(new GlycanFragment(ionSplits[0], Double.parseDouble(ionSplits[1])));
+            } else if (typeSplits[0].matches("Ox")) {
+                String[] ionSplits = typeSplits[1].split("_");
+                OxFragments.add(new GlycanFragment(ionSplits[0], Double.parseDouble(ionSplits[1])));
+            } else {
+                // invalid
+            }
+        }
+        this.Yfragments = Yfragments.toArray(new GlycanFragment[0]);
+        this.oxoniumFragments = OxFragments.toArray(new GlycanFragment[0]);
+    }
 
     public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
         this.glycanComposition = inputGlycanComp;
