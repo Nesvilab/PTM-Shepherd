@@ -195,7 +195,6 @@ public class GlycoAnalysis {
      * @return
      */
     public ArrayList<GlycanCandidate> computeGlycanFragmentProbs() throws IOException {
-        ArrayList<GlycanCandidate> newDatabase = new ArrayList<>();
         HashMap<String, ArrayList<GlycanCandidate>> glycanMap = new HashMap<>();
         HashMap<Integer, ArrayList<String>> massMap = new HashMap<>();
 
@@ -238,8 +237,40 @@ public class GlycoAnalysis {
         }
 
         // summarize results for each glycan and generate the new database
+        ArrayList<GlycanCandidate> newDatabase = new ArrayList<>();
         for (Map.Entry<String, ArrayList<GlycanCandidate>> glycanEntry : glycanMap.entrySet()) {
             // Determine the fragment likelihoods based on all PSMs for this entry
+            HashMap<String, Integer> YCounts = new HashMap<>();
+            HashMap<String, Integer> OxCounts = new HashMap<>();
+            ArrayList<GlycanCandidate> allPSMsWithThisGlycan = glycanEntry.getValue();
+
+            for (GlycanCandidate inputGlycan : allPSMsWithThisGlycan) {
+                // read all fragments from each input glycan into the count database
+                for (GlycanFragment fragment : inputGlycan.Yfragments) {
+                    String fragmentHash = fragment.toHashString();
+                    int count = YCounts.getOrDefault(fragmentHash, 1);
+                    YCounts.put(fragmentHash, count);
+                }
+                for (GlycanFragment fragment : inputGlycan.oxoniumFragments) {
+                    String fragmentHash = fragment.toHashString();
+                    int count = OxCounts.getOrDefault(fragmentHash, 1);
+                    OxCounts.put(fragmentHash, count);
+                }
+            }
+
+            // now that all fragment info from all PSMs of this glycan is collected, determine propensities for each fragment
+            HashMap<String, Double> yFragmentProps = new HashMap<>();
+            for (Map.Entry<String, Integer> fragmentEntry : YCounts.entrySet()) {
+                // save the proportion of PSMs that had this fragment
+                yFragmentProps.put(fragmentEntry.getKey(), fragmentEntry.getValue() / (double) allPSMsWithThisGlycan.size());
+            }
+            HashMap<String, Double> OxFragmentProps = new HashMap<>();
+            for (Map.Entry<String, Integer> fragmentEntry : OxCounts.entrySet()) {
+                // save the proportion of PSMs that had this fragment
+                OxFragmentProps.put(fragmentEntry.getKey(), fragmentEntry.getValue() / (double) allPSMsWithThisGlycan.size());
+            }
+
+            // Compute overall mass-bin propensities for this glycan
 
         }
 
