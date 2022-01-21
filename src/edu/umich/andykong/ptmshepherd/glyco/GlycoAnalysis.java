@@ -16,7 +16,8 @@ import java.util.concurrent.Future;
 
 public class GlycoAnalysis {
     String dsName;
-    File glycoFile;
+    File glycoFile;             // .rawglyco file
+    File glycoFragmentFile;     // fragment boostrapping file
     MXMLReader mr;
     ArrayList<String> lineWithoutSpectra = new ArrayList<>();
     int totalLines;
@@ -48,6 +49,7 @@ public class GlycoAnalysis {
         this.dsName = dsName;
         this.runGlycanAssignment = runGlycanAssignment;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
+        this.glycoFragmentFile = new File(PTMShepherd.normFName(dsName + ".glycofrags"));
         this.glycanDatabase = glycoDatabase;
 
         // init with default values, can be changed by params
@@ -62,6 +64,7 @@ public class GlycoAnalysis {
         //open up output file
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
         PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
+        PrintWriter fragmentOut = new PrintWriter(new FileWriter(glycoFragmentFile));
         ArrayList<String> linesWithoutSpectra = new ArrayList<>();
 
         //get necessary params
@@ -101,6 +104,7 @@ public class GlycoAnalysis {
         if (runGlycanAssignment) {
             headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score");
         }
+        fragmentOut.println(headbuff + "\tFragments:");
         for (double capYShift : capYShifts) headbuff.append(String.format("\tY_%.4f_intensity", capYShift));
         for (double oxoniumIon : oxoniumIons) headbuff.append(String.format("\tox_%.4f_intensity", oxoniumIon));
         for (double remainderMass : remainderMasses) headbuff.append(String.format("\tdeltascore_%.4f\tlocalization_%.4f", remainderMass, remainderMass));
@@ -149,7 +153,7 @@ public class GlycoAnalysis {
                 ArrayList<String> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.data.get(clines.get(j)));
-                futureList.add(executorService.submit(() -> processLinesBlock(cBlock, out)));
+                futureList.add(executorService.submit(() -> processLinesBlock(cBlock, out, fragmentOut)));
             }
             /* Wait for all processes to finish */
             for (Future future : futureList)
@@ -169,13 +173,16 @@ public class GlycoAnalysis {
         }
     }
 
-    public void processLinesBlock(ArrayList<String> cBlock, PrintWriter out) {
+    public void processLinesBlock(ArrayList<String> cBlock, PrintWriter out, PrintWriter fragmentOutWriter) {
         StringBuilder newBlock  = new StringBuilder();
+        StringBuilder fragmentBlock = new StringBuilder();
         for (String line : cBlock) {
             GlycanAssignmentResult glycoResult = processLine(line);
             newBlock.append(glycoResult.fullRawGlycoString).append("\n");
+            fragmentBlock.append(glycoResult.printGlycoFragmentInfo());
         }
         printLines(out, newBlock.toString());
+        printLines(fragmentOutWriter, fragmentBlock.toString());
     }
 
     private synchronized void printLines(PrintWriter out, String linesBlock) {
