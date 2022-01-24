@@ -45,6 +45,17 @@ public class GlycanCandidate {
         this.oxoniumFragments = OxFragments.toArray(new GlycanFragment[0]);
     }
 
+    /**
+     * Base constructor for a new glycan candidate for initial search (not using fragment propensities)
+     * @param inputGlycanComp composition map
+     * @param isDecoy bool
+     * @param decoyType type of decoy (0 - 3)
+     * @param glycoPPMtol MS1 tolerance
+     * @param glycoIsotopes possible isotope errors
+     * @param probabilityTable input prob ratios
+     * @param glycoOxoniumDatabase oxonium ion input info
+     * @param randomGenerator random object for randomizing masses if needed
+     */
     public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
@@ -54,11 +65,47 @@ public class GlycanCandidate {
                 this.glycanComposition.put(residue, 0);
             }
         }
-        // set mass
+        this.monoisotopicMass = setMassHelper(decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+
+        // initialize fragments for this candidate
+        initializeYFragments(probabilityTable, randomGenerator);
+        initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+    }
+
+    /**
+     * Base constructor for a new glycan candidate for initial search (not using fragment propensities)
+     * @param inputGlycanComp composition map
+     * @param isDecoy bool
+     * @param decoyType type of decoy (0 - 3)
+     * @param glycoPPMtol MS1 tolerance
+     * @param glycoIsotopes possible isotope errors
+     * @param yFragmentProps input propensities for Y ions
+     * @param OxFragmentProps input propensities for oxonium ions
+     * @param randomGenerator random object for randomizing masses if needed
+     */
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator) {
+        this.glycanComposition = inputGlycanComp;
+        this.isDecoy = isDecoy;
+        // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
+        for (GlycanResidue residue : GlycanResidue.values()){
+            if (!this.glycanComposition.containsKey(residue)) {
+                this.glycanComposition.put(residue, 0);
+            }
+        }
+        this.monoisotopicMass = setMassHelper(decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+
+        // initialize fragments for this candidate
+        initializeYFragmentsFromProps(yFragmentProps, randomGenerator);
+        initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+    }
+
+    // Helper method for determining decoy masses for various decoy mass generation settings
+    private double setMassHelper(int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator) {
+        double mass;
         if (! isDecoy) {
-            this.monoisotopicMass = computeMonoisotopicMass(inputGlycanComp);
+            mass = computeMonoisotopicMass(glycanComposition);
         } else {
-            double baseMonoistopicMass = computeMonoisotopicMass(inputGlycanComp);
+            double baseMonoistopicMass = computeMonoisotopicMass(glycanComposition);
             double randomShift = 0;
             switch (decoyType) {
                 case 0:
@@ -77,12 +124,9 @@ public class GlycanCandidate {
                     // exact target mass - random shift left at 0
                     break;
             }
-            this.monoisotopicMass = baseMonoistopicMass + randomShift;
+            mass = baseMonoistopicMass + randomShift;
         }
-
-        // initialize fragments for this candidate
-        initializeYFragments(probabilityTable, glycoOxoniumDatabase, randomGenerator);
-        initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+        return mass;
     }
 
     /**
@@ -112,13 +156,52 @@ public class GlycanCandidate {
     /**
      * Initialize array of all fragment ions to search for this candidate. Candidate has
      * fragment Ys up to the max HexNAc, Hex, and dHex present. Decoy fragments are generated for decoy candidates.
+     * Fragment propensities are used for all fragments found in the bootstrap/input data (specified in the input map)
+     * and fragments lacking any input are assumed to have 0 input propensity.
      */
-    public void initializeYFragments(ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
+    public void initializeYFragmentsFromProps(HashMap<String, Double> fragmentProps, Random randomGenerator) {
         // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
         ArrayList<GlycanFragment> yFragments = new ArrayList<>();
         for (int hexnac = 0; hexnac <= this.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
             for (int hex = 0; hex <= this.glycanComposition.get(GlycanResidue.Hex); hex++) {
                 if (!(hexnac == 0 && hex == 0)) {
+                    // todo: option or remove
+                    if (hexnac == 0 && this.glycanComposition.get(GlycanResidue.HexNAc) > 0) {
+                        // do not generate non-HexNAc containing Y ions for compositions that have HexNAc
+                        continue;
+                    }
+                    // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
+                    Map<GlycanResidue, Integer> composition = new HashMap<>();
+                    composition.put(GlycanResidue.HexNAc, hexnac);
+                    composition.put(GlycanResidue.Hex, hex);
+                    GlycanFragment fragment = new GlycanFragment(composition, fragmentProps, this.isDecoy, randomGenerator);
+                    yFragments.add(fragment);
+                }
+                for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
+                    // add dHex fragments (if allowed)
+                    Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
+                    dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
+                    dHexcomposition.put(GlycanResidue.Hex, hex);
+                    dHexcomposition.put(GlycanResidue.dHex, dHex);
+                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, fragmentProps, this.isDecoy, randomGenerator);
+                    yFragments.add(dHexfragment);
+                }
+            }
+        }
+        this.Yfragments = yFragments.toArray(new GlycanFragment[0]);
+    }
+
+    /**
+     * Initialize array of all fragment ions to search for this candidate. Candidate has
+     * fragment Ys up to the max HexNAc, Hex, and dHex present. Decoy fragments are generated for decoy candidates.
+     */
+    public void initializeYFragments(ProbabilityTables probabilityTable, Random randomGenerator) {
+        // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
+        ArrayList<GlycanFragment> yFragments = new ArrayList<>();
+        for (int hexnac = 0; hexnac <= this.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
+            for (int hex = 0; hex <= this.glycanComposition.get(GlycanResidue.Hex); hex++) {
+                if (!(hexnac == 0 && hex == 0)) {
+                    // todo: option or remove
                     if (hexnac == 0 && this.glycanComposition.get(GlycanResidue.HexNAc) > 0) {
                         // do not generate non-HexNAc containing Y ions for compositions that have HexNAc
                         continue;
