@@ -1,6 +1,5 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
-import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 
 import java.util.*;
@@ -24,7 +23,7 @@ public class GlycanCandidate {
      * @param parsedFragmentInfo list of strings containing fragment ion info
      */
     public GlycanCandidate(String glycanStr, String[] parsedFragmentInfo){
-        glycanComposition = PTMShepherd.parseGlycanString(glycanStr);
+        glycanComposition = StaticGlycoUtilities.parseGlycanString(glycanStr);
         ArrayList<GlycanFragment> Yfragments = new ArrayList<>();
         ArrayList<GlycanFragment> OxFragments = new ArrayList<>();
 
@@ -73,7 +72,7 @@ public class GlycanCandidate {
     }
 
     /**
-     * Base constructor for a new glycan candidate for initial search (not using fragment propensities)
+     * Constructor for a new glycan candidate for a second search using fragment propensities
      * @param inputGlycanComp composition map
      * @param isDecoy bool
      * @param decoyType type of decoy (0 - 3)

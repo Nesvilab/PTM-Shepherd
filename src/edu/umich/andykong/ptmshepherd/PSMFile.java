@@ -5,6 +5,7 @@ import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
+import edu.umich.andykong.ptmshepherd.glyco.StaticGlycoUtilities;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import umich.ms.datatypes.lcmsrun.Hash;
 
@@ -383,7 +384,7 @@ public class PSMFile {
 
 		/* Get glycan mass */
 		try {
-			glycanComp = PTMShepherd.parseGlycanString(glycanOnly);
+			glycanComp = StaticGlycoUtilities.parseGlycanString(glycanOnly);
 		} catch (Exception ex) {
 			// Not a glycan (PTM-S or Philosopher may put other string formats here) - ignore and continue
 			return newLine;
