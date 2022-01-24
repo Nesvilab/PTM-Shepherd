@@ -107,6 +107,32 @@ public class StaticGlycoUtilities {
     }
 
     /**
+     * Generate a new glycan candidate database from the provided database of glycan fragment-specific propensities
+     * and the input database for this glycoAnalysis
+     * @param fragmentDB map of glycan string: fragment container
+     * @param oldGlycoDB original glycan DB used for bootstrap analysis (or just initial DB provided by user)
+     * @return glycan candidate arraylist
+     */
+    public static ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, ArrayList<GlycanCandidate> oldGlycoDB, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+        ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
+        for (GlycanCandidate oldCandidate : oldGlycoDB) {
+            GlycanCandidate newCandidate;
+            String currentGlycanHash = oldCandidate.toHashString();
+            if (fragmentDB.containsKey(currentGlycanHash)) {
+                // We have fragment ion info for this candidate - use it to generate the new candidate
+                GlycanCandidateFragments fragmtInfo = fragmentDB.get(currentGlycanHash);
+                newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, fragmtInfo.yFragmentProps, fragmtInfo.OxFragmentProps, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, randomGenerator);
+            } else {
+                // this candidate lacks any fragment info (not found in bootstrapping or other DB) - initialize a new candidate with default probabilities
+                newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+            }
+            newGlycoDB.add(newCandidate);
+        }
+        return newGlycoDB;
+    }
+
+
+    /**
      * Read the desired adducts from the parameters file.
      * Parameter key: glyco_adducts
      * Parameter values: must match GlycanResidue adduct types (case insensitive), comma separated

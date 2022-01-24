@@ -44,6 +44,7 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
+    public boolean useFragmentSpecificProbs;
     HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
 
     // Default constructor
@@ -60,6 +61,7 @@ public class GlycoAnalysis {
         this.defaultMassErrorAbsScore = absMassErrorDefault;
         this.glycoPPMtol = glycoPPMtol;
         this.glycoIsotopes = glycoIsotopes;
+        this.useFragmentSpecificProbs = false;
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) throws Exception {
@@ -598,6 +600,7 @@ public class GlycoAnalysis {
             }
 
             // score candidates and save results
+            // todo: separate methods for fragment-specific analysis
             int bestCandidateIndex = 0;
             double[] scoresVsBestCandidate = new double[searchCandidates.size()];
             for (int i = 0; i < searchCandidates.size(); i++) {

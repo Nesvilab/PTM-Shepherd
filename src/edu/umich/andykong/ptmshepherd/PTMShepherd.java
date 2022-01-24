@@ -595,6 +595,7 @@ public class PTMShepherd {
 			String allowedLocRes = PTMShepherd.getParam("localization_allowed_res");
 			int numThreads = Integer.parseInt(params.get("threads"));
 
+			// Glyco: first pass
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 				if (ga.isComplete()) {
@@ -614,15 +615,6 @@ public class PTMShepherd {
 				}
 				ga.complete();
 			}
-			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-			for (String ds : datasets.keySet()) {
-				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
-				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
-				ga.updateGlycoProfiles(gaTargets);
-				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
-			}
-			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
 
 			// second pass: calculate glycan FDR and update results
 			if (runGlycanAssignment) {
@@ -631,7 +623,20 @@ public class PTMShepherd {
 					ga.computeGlycanFDR(glycoFDR);
 					// second pass - calculate fragment propensities, regenerate database, and re-run
 					HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs();
+					ArrayList<GlycanCandidate> propensityGlycanDB = StaticGlycoUtilities.updateGlycanDatabase(fragmentDB, glycoDatabase, randomGenerator, decoyType, glycoPPMtol, glycoIsotopes, glycoProbabilityTable, glycoOxoniumDatabase);
+
+					// run glyco PSM-level analysis with the new database
+					GlycoAnalysis ga2 = new GlycoAnalysis(ds, true, propensityGlycanDB, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+					ga2.useFragmentSpecificProbs = true;
+					ArrayList<String[]> dsData = datasets.get(ds);
+					for (String[] dsDatum : dsData) {
+						PSMFile pf = new PSMFile(new File(dsDatum[0]));
+						ga2.glycoPSMs(pf, mzMap.get(ds), executorService, numThreads);
+					}
+					ga2.computeGlycanFDR(glycoFDR);
+
 					ga.complete();
+					ga2.complete();
 				}
 
 				/* Save best glycan information from glyco report to psm tables */
@@ -643,6 +648,18 @@ public class PTMShepherd {
 					}
 				}
 			}
+
+			// calculate glycoprofile after all other glyco analysis is done
+			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+			for (String ds : datasets.keySet()) {
+				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
+				ga.updateGlycoProfiles(gaTargets);
+				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
+			}
+			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
+
 			print("Created glyco reports");
 			print("Done with glyco/labile analysis\n");
 		}
