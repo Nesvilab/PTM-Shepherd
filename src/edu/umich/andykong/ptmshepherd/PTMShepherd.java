@@ -973,6 +973,8 @@ public class PTMShepherd {
 				for (String ds : datasets.keySet()) {
 					GlycoAnalysis ga = new GlycoAnalysis(ds, true, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 					ga.computeGlycanFDR(glycoFDR);
+					// second pass - calculate fragment propensities, regenerate database, and re-run
+					HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs();
 					ga.complete();
 				}
 

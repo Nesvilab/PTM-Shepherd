@@ -44,7 +44,9 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
+    HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
 
+    // Default constructor
     public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
         this.dsName = dsName;
         this.runGlycanAssignment = runGlycanAssignment;
@@ -192,11 +194,11 @@ public class GlycoAnalysis {
     /**
      * Read the generated glycofrags file to determine glycan fragment probabilities for each glycan in the database.
      * Option to save prevalence file for diagnostics/info to be added?
-     * @return
+     * @return Map of glycan string : fragment propensities container
      */
-    public ArrayList<GlycanCandidate> computeGlycanFragmentProbs() throws IOException {
-        HashMap<String, ArrayList<GlycanCandidate>> glycanMap = new HashMap<>();
-        HashMap<Integer, ArrayList<String>> massMap = new HashMap<>();
+    public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs() throws IOException {
+        HashMap<String, GlycanCandidateFragments> glycanCandidateFragmentsMap = new HashMap<>();
+        HashMap<String, ArrayList<GlycanCandidate>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
 
         // read info from glycofrags file
         BufferedReader in = new BufferedReader(new FileReader(glycoFragmentFile), 1 << 22);
@@ -216,29 +218,34 @@ public class GlycoAnalysis {
             String glycanString = splits[glycanCol];
             GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, Arrays.copyOfRange(splits, fragmentStartCol, splits.length));
             String glycanHash = fragmentInfoContainer.toHashString();
-            if (glycanMap.containsKey(glycanHash)) {
-                glycanMap.get(glycanHash).add(fragmentInfoContainer);
+            if (glycanInputMap.containsKey(glycanHash)) {
+                glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
             } else {
                 ArrayList<GlycanCandidate> newList = new ArrayList<>();
                 newList.add(fragmentInfoContainer);
-                glycanMap.put(glycanHash, newList);
+                glycanInputMap.put(glycanHash, newList);
             }
 
             // add to delta mass map for calculating glycan prevalence priors
             double deltaMass = Double.parseDouble(splits[deltaMassCol]);
             int massBin = (int) Math.floor(deltaMass);
-            if (massMap.containsKey(massBin)) {
-                massMap.get(massBin).add(glycanHash);
+            if (glycanMassBinMap.containsKey(massBin)) {
+                // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
+                HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
+                int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
+                glycanCount++;
+                massBinGlycanCounts.put(glycanHash, glycanCount);
             } else {
-                ArrayList<String> newList = new ArrayList<>();
-                newList.add(glycanHash);
-                massMap.put(massBin, newList);
+                // New mass bin. Create a new count-by-glycan dict
+                HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
+                massBinGlycanCounts.put(glycanHash, 1);
+                glycanMassBinMap.put(massBin, massBinGlycanCounts);
             }
         }
 
-        // summarize results for each glycan and generate the new database
+        // summarize results for each glycan to get final fragment propensities
         ArrayList<GlycanCandidate> newDatabase = new ArrayList<>();
-        for (Map.Entry<String, ArrayList<GlycanCandidate>> glycanEntry : glycanMap.entrySet()) {
+        for (Map.Entry<String, ArrayList<GlycanCandidate>> glycanEntry : glycanInputMap.entrySet()) {
             // Determine the fragment likelihoods based on all PSMs for this entry
             HashMap<String, Integer> YCounts = new HashMap<>();
             HashMap<String, Integer> OxCounts = new HashMap<>();
@@ -248,12 +255,14 @@ public class GlycoAnalysis {
                 // read all fragments from each input glycan into the count database
                 for (GlycanFragment fragment : inputGlycan.Yfragments) {
                     String fragmentHash = fragment.toHashString();
-                    int count = YCounts.getOrDefault(fragmentHash, 1);
+                    int count = YCounts.getOrDefault(fragmentHash, 0);
+                    count++;
                     YCounts.put(fragmentHash, count);
                 }
                 for (GlycanFragment fragment : inputGlycan.oxoniumFragments) {
                     String fragmentHash = fragment.toHashString();
-                    int count = OxCounts.getOrDefault(fragmentHash, 1);
+                    int count = OxCounts.getOrDefault(fragmentHash, 0);
+                    count++;
                     OxCounts.put(fragmentHash, count);
                 }
             }
@@ -270,11 +279,11 @@ public class GlycoAnalysis {
                 OxFragmentProps.put(fragmentEntry.getKey(), fragmentEntry.getValue() / (double) allPSMsWithThisGlycan.size());
             }
 
-            // Compute overall mass-bin propensities for this glycan
-
+            // save determined propensities to the output container
+            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentProps, OxFragmentProps);
+            glycanCandidateFragmentsMap.put(glycanEntry.getKey(), fragmentInfo);
         }
-
-        return newDatabase;
+        return glycanCandidateFragmentsMap;
     }
 
     /**

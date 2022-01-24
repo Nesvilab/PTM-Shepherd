@@ -17,6 +17,25 @@ public class GlycanFragment {
     double expectedIntensity;
     boolean isDecoy;
     public static final double MAX_DECOY_FRAGMENT_SHIFT_DA = 20;
+    double propensity;      // for fragment-specific probability calculations only
+
+    /**
+     * Constructor for propensity/bootstrapped analysis, replaces rule probs with propensity
+     * @param fragmentPropensities fragment propensity map (fragment hashstring : propensity) from previous/bootstrap data
+     * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
+     * @param randomGenerator the single random number generator instance
+     */
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, Map<String, Double> fragmentPropensities, boolean isDecoy, Random randomGenerator) {
+        this.requiredComposition = requiredComposition;
+        this.foundIntensity = 0;
+        this.isDecoy = isDecoy;
+        this.propensity = fragmentPropensities.get(this.toHashString());
+        if (isDecoy) {
+            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
+        } else {
+            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
+        }
+    }
 
     /**
      * Fragment info constructor for fragments from the glycofrags file
