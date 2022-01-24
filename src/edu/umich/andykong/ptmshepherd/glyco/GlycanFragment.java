@@ -1,7 +1,5 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
-import edu.umich.andykong.ptmshepherd.PTMShepherd;
-
 import java.util.Map;
 import java.util.Random;
 
@@ -43,7 +41,7 @@ public class GlycanFragment {
      * @param expectedIntensity observed relative intensity todo: might be able to remove this if not using later
      */
     public GlycanFragment(String glycanStr, double expectedIntensity) {
-        this.requiredComposition = PTMShepherd.parseGlycanString(glycanStr);
+        this.requiredComposition = StaticGlycoUtilities.parseGlycanString(glycanStr);
         this.expectedIntensity = expectedIntensity;
         this.isDecoy = false;
         this.foundIntensity = 0;
