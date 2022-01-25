@@ -219,7 +219,7 @@ public class GlycoAnalysis {
             // todo: add FDR check (and add q-val to the glycofrags file)
             String glycanString = splits[glycanCol];
             GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, Arrays.copyOfRange(splits, fragmentStartCol, splits.length));
-            String glycanHash = fragmentInfoContainer.toHashString();
+            String glycanHash = fragmentInfoContainer.hash;
             if (glycanInputMap.containsKey(glycanHash)) {
                 glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
             } else {

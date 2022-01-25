@@ -16,6 +16,7 @@ public class GlycanCandidate {
     public static final double DEFAULT_PEPTIDE_MASS = 1500;
     public GlycanFragment[] Yfragments;
     public GlycanFragment[] oxoniumFragments;
+    String hash;
 
     /**
      * Constructor for reading fragment probability information from the glycoFrags file
@@ -42,6 +43,7 @@ public class GlycanCandidate {
         }
         this.Yfragments = Yfragments.toArray(new GlycanFragment[0]);
         this.oxoniumFragments = OxFragments.toArray(new GlycanFragment[0]);
+        this.hash = toHashString();
     }
 
     /**
@@ -69,6 +71,7 @@ public class GlycanCandidate {
         // initialize fragments for this candidate
         initializeYFragments(probabilityTable, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+        this.hash = toHashString();
     }
 
     /**
@@ -96,6 +99,7 @@ public class GlycanCandidate {
         // initialize fragments for this candidate
         initializeYFragmentsFromProps(yFragmentProps, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+        this.hash = toHashString();
     }
 
     // Helper method for determining decoy masses for various decoy mass generation settings
@@ -150,6 +154,7 @@ public class GlycanCandidate {
         for (int i=0; i < oxoniumFragments.length; i++) {
             this.oxoniumFragments[i] = new GlycanFragment(oxoniumFragments[i].requiredComposition, oxoniumFragments[i].ruleProbabilities, oxoniumFragments[i].isDecoy, oxoniumFragments[i].neutralMass, oxoniumFragments[i].expectedIntensity);
         }
+        this.hash = toHashString();
     }
 
     /**
