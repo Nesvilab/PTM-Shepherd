@@ -63,7 +63,7 @@ public class StaticGlycoUtilities {
                 TreeMap<GlycanResidue, Integer> glycanComp = parseGlycanString(glycanName);
                 // generate a new candidate from this composition and add to DB
                 GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                String compositionHash = candidate.toHashString();
+                String compositionHash = candidate.hash;
                 // prevent addition of duplicates if user has them in database
                 if (!glycansInDB.containsKey(compositionHash)) {
                     glycanDB.add(candidate);
@@ -84,7 +84,7 @@ public class StaticGlycoUtilities {
                             adductComp.put(adduct, numAdducts);
 
                             GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                            String adductCompositionHash = adductCandidate.toHashString();
+                            String adductCompositionHash = adductCandidate.hash;
                             if (!glycansInDB.containsKey(adductCompositionHash)) {
                                 glycanDB.add(adductCandidate);
                                 glycansInDB.put(adductCompositionHash, Boolean.TRUE);
@@ -117,11 +117,11 @@ public class StaticGlycoUtilities {
         ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
         for (GlycanCandidate oldCandidate : oldGlycoDB) {
             GlycanCandidate newCandidate;
-            String currentGlycanHash = oldCandidate.toHashString();
+            String currentGlycanHash = oldCandidate.hash;
             if (fragmentDB.containsKey(currentGlycanHash)) {
                 // We have fragment ion info for this candidate - use it to generate the new candidate
                 GlycanCandidateFragments fragmtInfo = fragmentDB.get(currentGlycanHash);
-                newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, fragmtInfo.yFragmentProps, fragmtInfo.OxFragmentProps, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, randomGenerator);
+                newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, fragmtInfo.yFragmentProps, fragmtInfo.OxFragmentProps, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, randomGenerator, glycoOxoniumDatabase);
             } else {
                 // this candidate lacks any fragment info (not found in bootstrapping or other DB) - initialize a new candidate with default probabilities
                 newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
