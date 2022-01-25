@@ -27,7 +27,7 @@ public class GlycanFragment {
         this.requiredComposition = requiredComposition;
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
-        this.propensity = fragmentPropensities.get(this.toHashString());
+        this.propensity = fragmentPropensities.getOrDefault(this.toHashString(), 0.0);
         if (isDecoy) {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         } else {
