@@ -46,6 +46,7 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
     public boolean useFragmentSpecificProbs;
     HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
+    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 5;
 
     // Default constructor
     public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
@@ -216,43 +217,54 @@ public class GlycoAnalysis {
         // read all glycan info in
         while ((currentLine = in.readLine()) != null) {
             String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
+            // only read lines with glycan info (after column 5)
+            if (splits.length > 5) {
+                // todo: add FDR check (and add q-val to the glycofrags file)
+                String glycanString = splits[glycanCol];
+                String[] fragmentInfo;  // String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
+                if (splits.length >= fragmentStartCol) {
+                    fragmentInfo = Arrays.copyOfRange(splits, fragmentStartCol, splits.length);
+                } else {
+                    fragmentInfo = new String[]{};
+                }
+                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo);
+                String glycanHash = fragmentInfoContainer.hash;
+                if (glycanInputMap.containsKey(glycanHash)) {
+                    glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
+                } else {
+                    ArrayList<GlycanCandidate> newList = new ArrayList<>();
+                    newList.add(fragmentInfoContainer);
+                    glycanInputMap.put(glycanHash, newList);
+                }
 
-            // todo: add FDR check (and add q-val to the glycofrags file)
-            String glycanString = splits[glycanCol];
-            GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, Arrays.copyOfRange(splits, fragmentStartCol, splits.length));
-            String glycanHash = fragmentInfoContainer.hash;
-            if (glycanInputMap.containsKey(glycanHash)) {
-                glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
-            } else {
-                ArrayList<GlycanCandidate> newList = new ArrayList<>();
-                newList.add(fragmentInfoContainer);
-                glycanInputMap.put(glycanHash, newList);
-            }
-
-            // add to delta mass map for calculating glycan prevalence priors
-            double deltaMass = Double.parseDouble(splits[deltaMassCol]);
-            int massBin = (int) Math.floor(deltaMass);
-            if (glycanMassBinMap.containsKey(massBin)) {
-                // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
-                HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
-                int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
-                glycanCount++;
-                massBinGlycanCounts.put(glycanHash, glycanCount);
-            } else {
-                // New mass bin. Create a new count-by-glycan dict
-                HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
-                massBinGlycanCounts.put(glycanHash, 1);
-                glycanMassBinMap.put(massBin, massBinGlycanCounts);
+                // add to delta mass map for calculating glycan prevalence priors
+                double deltaMass = Double.parseDouble(splits[deltaMassCol]);
+                int massBin = (int) Math.floor(deltaMass);
+                if (glycanMassBinMap.containsKey(massBin)) {
+                    // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
+                    HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
+                    int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
+                    glycanCount++;
+                    massBinGlycanCounts.put(glycanHash, glycanCount);
+                } else {
+                    // New mass bin. Create a new count-by-glycan dict
+                    HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
+                    massBinGlycanCounts.put(glycanHash, 1);
+                    glycanMassBinMap.put(massBin, massBinGlycanCounts);
+                }
             }
         }
 
         // summarize results for each glycan to get final fragment propensities
-        ArrayList<GlycanCandidate> newDatabase = new ArrayList<>();
         for (Map.Entry<String, ArrayList<GlycanCandidate>> glycanEntry : glycanInputMap.entrySet()) {
             // Determine the fragment likelihoods based on all PSMs for this entry
             HashMap<String, Integer> YCounts = new HashMap<>();
             HashMap<String, Integer> OxCounts = new HashMap<>();
             ArrayList<GlycanCandidate> allPSMsWithThisGlycan = glycanEntry.getValue();
+            // skip generating fragment information for glycans with too few PSMs to get reasonable values
+            if (allPSMsWithThisGlycan.size() < MIN_GLYCO_PSMS_FOR_BOOTSTRAP) {
+                continue;
+            }
 
             for (GlycanCandidate inputGlycan : allPSMsWithThisGlycan) {
                 // read all fragments from each input glycan into the count database
@@ -626,7 +638,11 @@ public class GlycoAnalysis {
 
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i <= bestCandidateIndex; i++) {
-                scoresVsBestCandidate[i] = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                if (useFragmentSpecificProbs) {
+                    scoresVsBestCandidate[i] = pairwiseCompareFragments(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
+                } else {
+                    scoresVsBestCandidate[i] = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                }
             }
 
             int[] sortedIndicesOfBestScores = new int[scoresVsBestCandidate.length];

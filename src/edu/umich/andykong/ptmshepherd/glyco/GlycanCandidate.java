@@ -17,6 +17,7 @@ public class GlycanCandidate {
     public GlycanFragment[] Yfragments;
     public GlycanFragment[] oxoniumFragments;
     String hash;
+    public boolean hasFragmentProps;    // if this candidate has fragment propensity info or default values
 
     /**
      * Constructor for reading fragment probability information from the glycoFrags file
