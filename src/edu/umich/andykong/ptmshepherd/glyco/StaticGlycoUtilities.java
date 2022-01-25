@@ -118,6 +118,11 @@ public class StaticGlycoUtilities {
         for (GlycanCandidate oldCandidate : oldGlycoDB) {
             GlycanCandidate newCandidate;
             String currentGlycanHash = oldCandidate.hash;
+            if (oldCandidate.isDecoy) {
+                // use target glycan propensity information for decoys as well
+                currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
+            }
+
             if (fragmentDB.containsKey(currentGlycanHash)) {
                 // We have fragment ion info for this candidate - use it to generate the new candidate
                 GlycanCandidateFragments fragmtInfo = fragmentDB.get(currentGlycanHash);
@@ -323,7 +328,12 @@ public class StaticGlycoUtilities {
             String[] glycanSplits = split.split("-");
             // todo: add error catching
             GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
-            int count = Integer.parseInt(glycanSplits[1].trim());
+            int count;
+            try {
+                count = Integer.parseInt(glycanSplits[1].trim());
+            } catch (ArrayIndexOutOfBoundsException ex) {
+                continue;   // decoy - will be filtered once FDR in place todo: remove this after fdr filtering adding
+            }
             glycanComp.put(residue, count);
         }
         return glycanComp;
