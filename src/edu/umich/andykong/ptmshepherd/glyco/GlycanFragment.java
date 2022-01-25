@@ -161,23 +161,7 @@ public class GlycanFragment {
     }
 
     public String toString() {
-        StringBuilder stringBuilder = new StringBuilder();
-        int i=0;
-        if (isDecoy) {
-            stringBuilder.append("Decoy_");
-        }
-        for (Map.Entry<GlycanResidue, Integer> residue : requiredComposition.entrySet()) {
-            if (residue.getValue() == 0) {
-                continue;
-            }
-            if (i > 0) {
-                stringBuilder.append("_");
-            }
-            i++;
-            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
-        }
-        stringBuilder.append(String.format("_%.4f", foundIntensity));
-        return stringBuilder.toString();
+        return GlycanCandidate.toGlycanString(requiredComposition, isDecoy, foundIntensity);
     }
 
     /**
@@ -186,22 +170,7 @@ public class GlycanFragment {
      * @return string of composition + decoy
      */
     public String toHashString() {
-        StringBuilder stringBuilder = new StringBuilder();
-        int i=0;
-        if (isDecoy) {
-            stringBuilder.append("Decoy_");
-        }
-        for (Map.Entry<GlycanResidue, Integer> residue : requiredComposition.entrySet()) {
-            if (residue.getValue() == 0) {
-                continue;
-            }
-            if (i > 0) {
-                stringBuilder.append("_");
-            }
-            i++;
-            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
-        }
-        return stringBuilder.toString();
+        return GlycanCandidate.toGlycanHash(requiredComposition, isDecoy);
     }
 
     /**

@@ -30,20 +30,19 @@ public class GlycanCandidate {
 
         for (String fragment : parsedFragmentInfo) {
             String[] typeSplits = fragment.split("~");
+            // string format is [type]~[composition]~[intensity]
             if (typeSplits[0].matches("Y")) {
                 // Y ion
-                String[] ionSplits = typeSplits[1].split("_");
-                Yfragments.add(new GlycanFragment(ionSplits[0], Double.parseDouble(ionSplits[1])));
+                Yfragments.add(new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2])));
             } else if (typeSplits[0].matches("Ox")) {
-                String[] ionSplits = typeSplits[1].split("_");
-                OxFragments.add(new GlycanFragment(ionSplits[0], Double.parseDouble(ionSplits[1])));
+                OxFragments.add(new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2])));
             } else {
                 // invalid
             }
         }
         this.Yfragments = Yfragments.toArray(new GlycanFragment[0]);
         this.oxoniumFragments = OxFragments.toArray(new GlycanFragment[0]);
-        this.hash = toHashString();
+        this.hash = toString();
     }
 
     /**
@@ -71,7 +70,8 @@ public class GlycanCandidate {
         // initialize fragments for this candidate
         initializeYFragments(probabilityTable, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
-        this.hash = toHashString();
+        this.hash = toString();
+        this.hasFragmentProps = false;
     }
 
     /**
@@ -99,7 +99,8 @@ public class GlycanCandidate {
         // initialize fragments for this candidate
         initializeYFragmentsFromProps(yFragmentProps, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
-        this.hash = toHashString();
+        this.hash = toString();
+        this.hasFragmentProps = true;
     }
 
     // Helper method for determining decoy masses for various decoy mass generation settings
@@ -154,7 +155,8 @@ public class GlycanCandidate {
         for (int i=0; i < oxoniumFragments.length; i++) {
             this.oxoniumFragments[i] = new GlycanFragment(oxoniumFragments[i].requiredComposition, oxoniumFragments[i].ruleProbabilities, oxoniumFragments[i].isDecoy, oxoniumFragments[i].neutralMass, oxoniumFragments[i].expectedIntensity);
         }
-        this.hash = toHashString();
+        this.hash = toString();
+        this.hasFragmentProps = false;
     }
 
     /**
@@ -340,39 +342,32 @@ public class GlycanCandidate {
      * @return string
      */
     public String toString() {
-        StringBuilder stringBuilder = new StringBuilder();
-        int i=0;
-        if (isDecoy) {
-            stringBuilder.append("Decoy_");
-        }
-        for (Map.Entry<GlycanResidue, Integer> residue : glycanComposition.entrySet()) {
-            if (residue.getValue() == 0) {
-                continue;
-            }
-            if (i > 0) {
-                stringBuilder.append("_");
-            }
-            i++;
-            stringBuilder.append(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residue.getKey()), residue.getValue()));
-        }
-        return stringBuilder.toString();
-    }
-
-    /**
-     * Generate a string representation of this composition in guaranteed order. Uses declaration
-     * order of Residue types in the GlycanResidue enum as the output order
-     * @return string
-     */
-    public String toHashString() {
-        StringBuilder stringBuilder = new StringBuilder();
-        for (GlycanResidue residueKey : GlycanResidue.values()) {
-            stringBuilder.append(String.format("%s-%d-", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
-        }
-        return stringBuilder.toString();
+        return toGlycanHash(glycanComposition, isDecoy);
     }
 
     public boolean containsResidueType(GlycanResidue residue) {
         return glycanComposition.containsKey(residue);
     }
 
+    // Static helper for both glycan fragment and candidate
+    public static String toGlycanHash(Map<GlycanResidue, Integer> glycanComposition, boolean isDecoy) {
+        StringBuilder stringBuilder = new StringBuilder();
+        if (isDecoy) {
+            stringBuilder.append("Decoy_");
+        }
+        ArrayList<String> residues = new ArrayList<>();
+        for (GlycanResidue residueKey : GlycanResidue.values()) {
+//        for (Map.Entry<GlycanResidue, Integer> residue : glycanComposition.entrySet()) {
+            if (glycanComposition.getOrDefault(residueKey, 0) > 0) {
+                residues.add(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
+            }
+        }
+        stringBuilder.append(String.join("_", residues));
+        return stringBuilder.toString();
+    }
+
+    // Static helper for both glycan fragment and candidate
+    public static String toGlycanString(Map<GlycanResidue, Integer> glycanComposition, boolean isDecoy, double intensity) {
+        return String.format("%s~%.4f", toGlycanHash(glycanComposition, isDecoy), intensity);
+    }
 }
