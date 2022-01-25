@@ -62,6 +62,7 @@ public class GlycoAnalysis {
         this.glycoPPMtol = glycoPPMtol;
         this.glycoIsotopes = glycoIsotopes;
         this.useFragmentSpecificProbs = false;
+        this.glycanMassBinMap = new HashMap<>();
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) throws Exception {
@@ -607,7 +608,13 @@ public class GlycoAnalysis {
                 if (i == bestCandidateIndex) {
                     continue;
                 }
-                double comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                double comparisonScore;
+                if (useFragmentSpecificProbs) {
+                    comparisonScore = pairwiseCompareFragments(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
+                } else {
+                    comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                }
+
                 if (comparisonScore < 0) {
                     // new best candidate - reset best candidate position and update scores at all other positions
                     bestCandidateIndex = i;
@@ -639,6 +646,7 @@ public class GlycoAnalysis {
             }
 
             // compute absolute score for best glycan
+            // todo: add fragment-specific method
             double absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), glycoResult.deltaMass, massErrorWidth, meanMassError);
             glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
             glycoResult.glycanScore = absoluteScore;
@@ -697,6 +705,77 @@ public class GlycoAnalysis {
         sumLogRatio += pairwiseCompareOxoFragments(glycan1, glycan2);
 
         // isotope and mass errors
+        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
+
+        return sumLogRatio;
+    }
+
+    public double pairwiseCompareFragments(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
+        // determine the overall likelihood priors of these glycans given the observed delta mass
+        int glyc1Count = 0;
+        int glyc2Count = 0;
+        int totalGlycCount = 0;
+        HashMap<String, Integer> emptyMap = new HashMap<>();
+        // count glycans in this delta mass bin and nearby allowed bins
+        for (int isotope : glycoIsotopes) {
+            int massBin = (int) Math.floor(deltaMass + isotope);
+            HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
+            if (glycanCountMap.size() > 0) {
+                // count instances of glycan 1, glycan 2, and all glycans
+                glyc1Count = glyc1Count + glycanCountMap.getOrDefault(glycan1.hash, 0);
+                glyc2Count = glyc2Count + glycanCountMap.getOrDefault(glycan2.hash, 0);
+                for (int glycanCount : glycanCountMap.values()) {
+                    totalGlycCount += glycanCount;
+                }
+            }
+        }
+        double propGlycan1 = glyc1Count / (double) totalGlycCount;
+        double propGlycan2 = glyc2Count / (double) totalGlycCount;
+
+        // calculate fragment-specific prob estimates based on observed fragment ions
+        double sumLogRatio = 0;
+        for (GlycanFragment fragment1 : glycan1.Yfragments) {
+            double prob;
+            if (fragment1.isAllowedFragment(glycan2)) {
+                GlycanFragment fragment2 = glycan2.Yfragments[0];   // todo: fix
+                if (fragment1.foundIntensity > 0) {
+                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
+                    prob = fragment1.propensity * propGlycan1 / (fragment1.propensity * propGlycan1 + fragment2.propensity * propGlycan2);
+                } else {
+                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
+                    prob = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment1.propensity) * propGlycan1 + (1 - fragment2.propensity) * propGlycan2);
+                }
+            } else {
+                // fragment only possible for glycan 1, use glycan 1 only estimate
+                if (fragment1.foundIntensity > 0) {
+                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
+                    prob = fragment1.propensity * propGlycan1;
+                } else {
+                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
+                    prob = (1 - fragment1.propensity) * propGlycan1;
+                }
+            }
+            sumLogRatio += Math.log(prob);
+        }
+        // glycan 2 fragments
+        for (GlycanFragment fragment2 : glycan2.Yfragments) {
+            double prob;
+            // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
+            if (!fragment2.isAllowedFragment(glycan2)) {
+                // fragment only possible for glycan 1, use glycan 1 only estimate
+                if (fragment2.foundIntensity > 0) {
+                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
+                    prob = fragment2.propensity * propGlycan1;
+                } else {
+                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
+                    prob = (1 - fragment2.propensity) * propGlycan1;
+                }
+                sumLogRatio += Math.log(prob);
+            }
+        }
+        // todo: add oxoniums
+
+        // mass and isotope error
         sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
 
         return sumLogRatio;

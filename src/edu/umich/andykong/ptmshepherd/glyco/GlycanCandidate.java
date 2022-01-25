@@ -85,7 +85,7 @@ public class GlycanCandidate {
      * @param OxFragmentProps input propensities for oxonium ions
      * @param randomGenerator random object for randomizing masses if needed
      */
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator) {
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
