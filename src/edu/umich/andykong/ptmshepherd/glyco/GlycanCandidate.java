@@ -16,7 +16,6 @@ public class GlycanCandidate {
     public static final double DEFAULT_PEPTIDE_MASS = 1500;
     public TreeMap<String, GlycanFragment> Yfragments;
     public TreeMap<String, GlycanFragment> oxoniumFragments;
-    String hash;
     public boolean hasFragmentProps;    // if this candidate has fragment propensity info or default values
 
     /**
@@ -35,15 +34,14 @@ public class GlycanCandidate {
             if (typeSplits[0].matches("Y")) {
                 // Y ion
                 GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]));
-                Yfragments.put(newFragment.hash, newFragment);
+                Yfragments.put(newFragment.toHashString(), newFragment);
             } else if (typeSplits[0].matches("Ox")) {
                 GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]));
-                oxoniumFragments.put(newFragment.hash, newFragment);
+                oxoniumFragments.put(newFragment.toHashString(), newFragment);
             } else {
                 // invalid
             }
         }
-        this.hash = toString();
     }
 
     /**
@@ -71,7 +69,6 @@ public class GlycanCandidate {
         // initialize fragments for this candidate
         initializeYFragments(probabilityTable, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
-        this.hash = toString();
         this.hasFragmentProps = false;
     }
 
@@ -100,7 +97,6 @@ public class GlycanCandidate {
         // initialize fragments for this candidate
         initializeYFragmentsFromProps(yFragmentProps, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
-        this.hash = toString();
         this.hasFragmentProps = true;
     }
 
@@ -125,7 +121,6 @@ public class GlycanCandidate {
         this.oxoniumFragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> entry : oxoniumFragments.entrySet()) {
             this.oxoniumFragments.put(entry.getKey(), new GlycanFragment(entry.getValue().requiredComposition, entry.getValue().ruleProbabilities, entry.getValue().isDecoy, entry.getValue().neutralMass, entry.getValue().expectedIntensity, entry.getValue().propensity));        }
-        this.hash = toString();
         this.hasFragmentProps = false;
     }
 
@@ -181,7 +176,7 @@ public class GlycanCandidate {
                     composition.put(GlycanResidue.HexNAc, hexnac);
                     composition.put(GlycanResidue.Hex, hex);
                     GlycanFragment fragment = new GlycanFragment(composition, fragmentProps, this.isDecoy, randomGenerator);
-                    Yfragments.put(fragment.hash, fragment);
+                    Yfragments.put(fragment.toHashString(), fragment);
                 }
                 for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
                     // add dHex fragments (if allowed)
@@ -190,7 +185,7 @@ public class GlycanCandidate {
                     dHexcomposition.put(GlycanResidue.Hex, hex);
                     dHexcomposition.put(GlycanResidue.dHex, dHex);
                     GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, fragmentProps, this.isDecoy, randomGenerator);
-                    Yfragments.put(dHexfragment.hash, dHexfragment);
+                    Yfragments.put(dHexfragment.toHashString(), dHexfragment);
                 }
             }
         }
@@ -216,7 +211,7 @@ public class GlycanCandidate {
                     composition.put(GlycanResidue.HexNAc, hexnac);
                     composition.put(GlycanResidue.Hex, hex);
                     GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, this.isDecoy, randomGenerator);
-                    Yfragments.put(fragment.hash, fragment);
+                    Yfragments.put(fragment.toHashString(), fragment);
                 }
                 for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
                     // add dHex fragments (if allowed)
@@ -225,7 +220,7 @@ public class GlycanCandidate {
                     dHexcomposition.put(GlycanResidue.Hex, hex);
                     dHexcomposition.put(GlycanResidue.dHex, dHex);
                     GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, this.isDecoy, randomGenerator);
-                    Yfragments.put(dHexfragment.hash, dHexfragment);
+                    Yfragments.put(dHexfragment.toHashString(), dHexfragment);
                 }
             }
         }
@@ -293,7 +288,7 @@ public class GlycanCandidate {
         ArrayList<GlycanFragmentDescriptor> oxoniumIonDescriptors = glycoOxoniumDatabase.get(residue);
         for (GlycanFragmentDescriptor fragmentDescriptor : oxoniumIonDescriptors) {
             GlycanFragment newFragment = new GlycanFragment(fragmentDescriptor.requiredComposition, fragmentDescriptor.ruleProbabilies, fragmentDescriptor.massShift, isDecoy, randomGenerator);
-            newFragments.put(newFragment.hash, newFragment);
+            newFragments.put(newFragment.toHashString(), newFragment);
         }
         return newFragments;
     }

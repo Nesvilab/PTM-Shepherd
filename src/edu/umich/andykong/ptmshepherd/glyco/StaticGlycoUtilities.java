@@ -63,7 +63,7 @@ public class StaticGlycoUtilities {
                 TreeMap<GlycanResidue, Integer> glycanComp = parseGlycanString(glycanName);
                 // generate a new candidate from this composition and add to DB
                 GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                String compositionHash = candidate.hash;
+                String compositionHash = candidate.toString();
                 // prevent addition of duplicates if user has them in database
                 if (!glycansInDB.containsKey(compositionHash)) {
                     glycanDB.add(candidate);
@@ -84,7 +84,7 @@ public class StaticGlycoUtilities {
                             adductComp.put(adduct, numAdducts);
 
                             GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                            String adductCompositionHash = adductCandidate.hash;
+                            String adductCompositionHash = adductCandidate.toString();
                             if (!glycansInDB.containsKey(adductCompositionHash)) {
                                 glycanDB.add(adductCandidate);
                                 glycansInDB.put(adductCompositionHash, Boolean.TRUE);
@@ -117,7 +117,7 @@ public class StaticGlycoUtilities {
         ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
         for (GlycanCandidate oldCandidate : oldGlycoDB) {
             GlycanCandidate newCandidate;
-            String currentGlycanHash = oldCandidate.hash;
+            String currentGlycanHash = oldCandidate.toString();
             if (oldCandidate.isDecoy) {
                 // use target glycan propensity information for decoys as well
                 currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
