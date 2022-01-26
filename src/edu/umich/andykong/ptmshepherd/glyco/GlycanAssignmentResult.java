@@ -68,13 +68,13 @@ public class GlycanAssignmentResult {
             // glycan fragment info for target glycans
             if (!isDecoyGlycan) {
                 // Y ions
-                for (GlycanFragment ion : bestCandidate.Yfragments) {
+                for (GlycanFragment ion : bestCandidate.Yfragments.values()) {
                     if (ion.foundIntensity > 0) {
                         sb.append(String.format("\tY~%s", ion));      // format is [ion type] [ion comp] [found intensity]
                     }
                 }
                 // oxonium ions
-                for (GlycanFragment ion : bestCandidate.oxoniumFragments) {
+                for (GlycanFragment ion : bestCandidate.oxoniumFragments.values()) {
                     if (ion.foundIntensity > 0) {
                         sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
                     }
