@@ -228,7 +228,7 @@ public class GlycoAnalysis {
                     fragmentInfo = new String[]{};
                 }
                 GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo);
-                String glycanHash = fragmentInfoContainer.hash;
+                String glycanHash = fragmentInfoContainer.toString();
                 if (glycanInputMap.containsKey(glycanHash)) {
                     glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
                 } else {
@@ -722,8 +722,8 @@ public class GlycoAnalysis {
             HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
             if (glycanCountMap.size() > 0) {
                 // count instances of glycan 1, glycan 2, and all glycans
-                glyc1Count = glyc1Count + glycanCountMap.getOrDefault(glycan1.hash, 0);
-                glyc2Count = glyc2Count + glycanCountMap.getOrDefault(glycan2.hash, 0);
+                glyc1Count = glyc1Count + glycanCountMap.getOrDefault(glycan1.toString(), 0);
+                glyc2Count = glyc2Count + glycanCountMap.getOrDefault(glycan2.toString(), 0);
                 for (int glycanCount : glycanCountMap.values()) {
                     totalGlycCount += glycanCount;
                 }
@@ -742,7 +742,7 @@ public class GlycoAnalysis {
         for (GlycanFragment fragment1 : glycan1.Yfragments.values()) {
             double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
-                GlycanFragment fragment2 = glycan2.Yfragments.get(fragment1.hash);
+                GlycanFragment fragment2 = glycan2.Yfragments.get(fragment1.toHashString());
                 if (fragment1.foundIntensity > 0) {
                     // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
                     probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
@@ -800,7 +800,7 @@ public class GlycoAnalysis {
         for (GlycanFragment fragment1 : glycan1.oxoniumFragments.values()) {
             double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
-                GlycanFragment fragment2 = glycan2.oxoniumFragments.get(fragment1.hash);
+                GlycanFragment fragment2 = glycan2.oxoniumFragments.get(fragment1.toHashString());
                 if (fragment1.foundIntensity > 0) {
                     // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
                     probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
@@ -860,7 +860,7 @@ public class GlycoAnalysis {
             HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
             if (glycanCountMap.size() > 0) {
                 // count instances of glycan 1, glycan 2, and all glycans
-                glycCount = glycCount + glycanCountMap.getOrDefault(bestGlycan.hash, 0);
+                glycCount = glycCount + glycanCountMap.getOrDefault(bestGlycan.toString(), 0);
                 for (int glycanCount : glycanCountMap.values()) {
                     totalGlycCount += glycanCount;
                 }
