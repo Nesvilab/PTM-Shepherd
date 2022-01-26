@@ -46,7 +46,7 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
-    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 5;
+    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 25;
 
     // Default constructor
     public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
