@@ -620,9 +620,9 @@ public class GlycoAnalysis {
                 }
                 double comparisonScore;
                 if (useFragmentSpecificProbs) {
-                    comparisonScore = pairwiseCompareFragments(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
+                    comparisonScore = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
                 } else {
-                    comparisonScore = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                    comparisonScore = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
                 }
 
                 if (comparisonScore < 0) {
@@ -637,9 +637,9 @@ public class GlycoAnalysis {
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i <= bestCandidateIndex; i++) {
                 if (useFragmentSpecificProbs) {
-                    scoresVsBestCandidate[i] = pairwiseCompareFragments(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
+                    scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
                 } else {
-                    scoresVsBestCandidate[i] = pairwiseCompareGlycans(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                    scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
                 }
             }
 
@@ -661,7 +661,12 @@ public class GlycoAnalysis {
 
             // compute absolute score for best glycan
             // todo: add fragment-specific method
-            double absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), glycoResult.deltaMass, massErrorWidth, meanMassError);
+            double absoluteScore;
+            if (useFragmentSpecificProbs) {
+                absoluteScore = computeAbsoluteScoreDynamic(searchCandidates.get(bestCandidateIndex), glycoResult.deltaMass, massErrorWidth, meanMassError);
+            } else {
+                absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), glycoResult.deltaMass, massErrorWidth, meanMassError);
+            }
             glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
             glycoResult.glycanScore = absoluteScore;
 
@@ -677,7 +682,12 @@ public class GlycoAnalysis {
                     GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
                     if (!nextCandidate.isDecoy) {
                         // add the best target's information
-                        double bestTargetScore = computeAbsoluteScore(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
+                        double bestTargetScore;
+                        if (useFragmentSpecificProbs) {
+                            bestTargetScore = computeAbsoluteScoreDynamic(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
+                        } else {
+                            bestTargetScore = computeAbsoluteScore(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
+                        }
                         output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestTargetScore);
                         foundTarget = true;
                         glycoResult.bestTarget = nextCandidate;
@@ -700,31 +710,7 @@ public class GlycoAnalysis {
         return glycoResult;
     }
 
-    /**
-     * Perform pairwise comparison of two glycans. Uses sum of log probability ratios between candidates for
-     * each category (mass/iso error and fragment ion) being considered. Returns a single score of combined
-     * probability of first glycan candidate over second.
-     *
-     * @param glycan1        candidate 1
-     * @param glycan2        candidate 2
-     * @param deltaMass      observed delta mass
-     * @return output probability score (sum of log ratios)
-     */
-    public double pairwiseCompareGlycans(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
-        double sumLogRatio = 0;
-        // Y ions
-        sumLogRatio += pairwiseCompareYFragments(glycan1, glycan2, normYions);
-
-        // oxonium ions
-        sumLogRatio += pairwiseCompareOxoFragments(glycan1, glycan2);
-
-        // isotope and mass errors
-        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
-
-        return sumLogRatio;
-    }
-
-    public double pairwiseCompareFragments(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
+    public double pairwiseCompareDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
         // determine the overall likelihood priors of these glycans given the observed delta mass
         int glyc1Count = 0;
         int glyc2Count = 0;
@@ -788,12 +774,162 @@ public class GlycoAnalysis {
                     // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
                     probRatio = (1 - fragment2.propensity) * propGlycan2;
                 }
-                sumLogRatio += Math.log(probRatio);
+                // subtract resulting value since these are from glycan 2
+                sumLogRatio -= Math.log(probRatio);
             }
         }
-        // todo: add oxoniums
+        sumLogRatio += pairwiseCompareOxoDynamic(glycan1, glycan2, propGlycan1, propGlycan2);
 
         // mass and isotope error
+        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
+
+        return sumLogRatio;
+    }
+
+    /**
+     * Compute sum log probability ratios for the compared glycans for a particular fragment type. Does NOT
+     * normalize fragment miss rate. Allows fragment specific probabilities.
+     *
+     * @param glycan1       candidate 1
+     * @param glycan2       candidate 2
+     * @return sum log probability with normalization included
+     */
+    public double pairwiseCompareOxoDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double propGlycan1, double propGlycan2) {
+        double sumLogRatio = 0;
+
+        for (GlycanFragment fragment1 : glycan1.oxoniumFragments.values()) {
+            double probRatio;
+            if (fragment1.isAllowedFragment(glycan2)) {
+                GlycanFragment fragment2 = glycan2.oxoniumFragments.get(fragment1.hash);
+                if (fragment1.foundIntensity > 0) {
+                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
+                    probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
+                } else {
+                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
+                    probRatio = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment2.propensity) * propGlycan2);
+                }
+            } else {
+                // fragment only possible for glycan 1, use glycan 1 only estimate
+                if (fragment1.foundIntensity > 0) {
+                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
+                    probRatio = 1 / ((1 - fragment1.propensity * propGlycan1));
+                } else {
+                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
+                    probRatio = (1 - fragment1.propensity) * propGlycan1;
+                }
+            }
+            sumLogRatio += Math.log(probRatio);
+        }
+        // glycan 2 fragments
+        for (GlycanFragment fragment2 : glycan2.oxoniumFragments.values()) {
+            double probRatio;
+            // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
+            if (!fragment2.isAllowedFragment(glycan2)) {
+                if (fragment2.foundIntensity > 0) {
+                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
+                    probRatio = 1 / ((1 - fragment2.propensity) * propGlycan2);
+                } else {
+                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
+                    probRatio = (1 - fragment2.propensity) * propGlycan2;
+                }
+                // subtract resulting value since these are from glycan 2
+                sumLogRatio -= Math.log(probRatio);
+            }
+        }
+        return sumLogRatio;
+    }
+
+    /**
+     * Compute the "absolute" score of this glycan for the given spectrum, meaning the score if all ions are distinguishing
+     * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
+     * @param bestGlycan glycan candidate to calculate score for
+     * @param deltaMass spectrum delta mass
+     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
+     * @param meanMassError mean mass error of non-delta mass peptides
+     * @return absolute score
+     */
+    public double computeAbsoluteScoreDynamic(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
+        double sumLogRatio;
+        // determine the overall likelihood priors of these glycans given the observed delta mass
+        int glycCount = 0;
+        int totalGlycCount = 0;
+        HashMap<String, Integer> emptyMap = new HashMap<>();
+        // count glycans in this delta mass bin and nearby allowed bins
+        for (int isotope : glycoIsotopes) {
+            int massBin = (int) Math.floor(deltaMass + isotope);
+            HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
+            if (glycanCountMap.size() > 0) {
+                // count instances of glycan 1, glycan 2, and all glycans
+                glycCount = glycCount + glycanCountMap.getOrDefault(bestGlycan.hash, 0);
+                for (int glycanCount : glycanCountMap.values()) {
+                    totalGlycCount += glycanCount;
+                }
+            }
+        }
+        // ignore glycan proportion data if it's 0. todo: Could instead set some minimum value (empirically determined)?
+        double propGlycan = glycCount == 0 ? 1 : glycCount / (double) totalGlycCount;
+
+        // Y ions
+        sumLogRatio = computeFragmentAbsoluteScore(bestGlycan.Yfragments.values(), propGlycan);
+        // oxonium ions
+        sumLogRatio += computeFragmentAbsoluteScore(bestGlycan.oxoniumFragments.values(), propGlycan);
+
+        // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
+        float iso1 = (float) (deltaMass - bestGlycan.monoisotopicMass);
+        int roundedIso1 = Math.round(iso1);
+        double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(0);
+        sumLogRatio += Math.log(isotopeProbRatio);
+        if (! (probabilityTable.massProbScaling == 0)) {
+            // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
+            double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
+            double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
+            double massDist = Math.abs(massStDevs1) * probabilityTable.massProbScaling;
+            sumLogRatio += Math.log(defaultMassErrorAbsScore / massDist);      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
+        }
+        return sumLogRatio;
+    }
+
+    /**
+     * Helper for computing absolute score of Y or oxonium fragment lists
+     * @param fragments list of GlycanFragments
+     * @param propGlycan proportion of this glycan in the mass bin
+     * @return sum log ratio of fragment probs
+     */
+    public double computeFragmentAbsoluteScore(Collection<GlycanFragment> fragments, double propGlycan) {
+        double sumLogRatio = 0;
+        for (GlycanFragment fragment : fragments) {
+            double probRatio;
+            if (fragment.foundIntensity > 0) {
+                // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
+                probRatio = 1 / ((1 - fragment.propensity) * propGlycan);
+            } else {
+                // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
+                probRatio = (1 - fragment.propensity) * propGlycan;
+            }
+            sumLogRatio += Math.log(probRatio);
+        }
+        return sumLogRatio;
+    }
+
+    /**
+     * Perform pairwise comparison of two glycans. Uses sum of log probability ratios between candidates for
+     * each category (mass/iso error and fragment ion) being considered. Returns a single score of combined
+     * probability of first glycan candidate over second.
+     *
+     * @param glycan1        candidate 1
+     * @param glycan2        candidate 2
+     * @param deltaMass      observed delta mass
+     * @return output probability score (sum of log ratios)
+     */
+    public double pairwiseCompareStatic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
+        double sumLogRatio = 0;
+        // Y ions
+        sumLogRatio += pairwiseCompareYstatic(glycan1, glycan2, normYions);
+
+        // oxonium ions
+        sumLogRatio += pairwiseCompareOxoStatic(glycan1, glycan2);
+
+        // isotope and mass errors
         sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
 
         return sumLogRatio;
@@ -808,7 +944,7 @@ public class GlycoAnalysis {
      * @param glycan2       candidate 2
      * @return sum log probability with normalization included
      */
-    public double pairwiseCompareYFragments(GlycanCandidate glycan1, GlycanCandidate glycan2, boolean normYions) {
+    public double pairwiseCompareYstatic(GlycanCandidate glycan1, GlycanCandidate glycan2, boolean normYions) {
         int cand1Misses = 0;
         int cand2Misses = 0;
         int cand1Hits = 0;
@@ -871,7 +1007,7 @@ public class GlycoAnalysis {
      * @param glycan2       candidate 2
      * @return sum log probability with normalization included
      */
-    public double pairwiseCompareOxoFragments(GlycanCandidate glycan1, GlycanCandidate glycan2) {
+    public double pairwiseCompareOxoStatic(GlycanCandidate glycan1, GlycanCandidate glycan2) {
         double sumLogRatio = 0;
 
         // Loop over each candidate's fragments, scoring unique (i.e., not in the other candidate) fragments as hit/miss if found/not in spectrum
