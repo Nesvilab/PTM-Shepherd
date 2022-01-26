@@ -627,6 +627,7 @@ public class PTMShepherd {
 
 					// run glyco PSM-level analysis with the new database
 					GlycoAnalysis ga2 = new GlycoAnalysis(ds, true, propensityGlycanDB, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+					ga2.glycanMassBinMap = ga.glycanMassBinMap;
 					ga2.useFragmentSpecificProbs = true;
 					ArrayList<String[]> dsData = datasets.get(ds);
 					for (String[] dsDatum : dsData) {
