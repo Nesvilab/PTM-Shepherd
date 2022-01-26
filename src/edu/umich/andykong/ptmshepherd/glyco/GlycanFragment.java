@@ -57,6 +57,8 @@ public class GlycanFragment {
     public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
+        // propensity default is 1 - miss probRatio to generate equivalent scoring in new system
+        this.propensity = 1 - ruleProbabilities[1];
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
         if (isDecoy) {
@@ -76,6 +78,8 @@ public class GlycanFragment {
     public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
+        // propensity default is 1 - miss probRatio to generate equivalent scoring in new system
+        this.propensity = 1 - ruleProbabilities[1];
         this.foundIntensity = 0;
         if (ruleProbabilities.length == 2) {
             this.expectedIntensity = -1;    // not provided, set to negative value to ignore
@@ -99,13 +103,14 @@ public class GlycanFragment {
      * @param isDecoy decoy status
      * @param exactMass mass of a fragment (i.e., fragment.neutralMass)
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, double exactMass, double expectedIntensity) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, double exactMass, double expectedIntensity, double propensity) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.isDecoy = isDecoy;
         this.neutralMass = exactMass;
         this.foundIntensity = 0;
         this.expectedIntensity = expectedIntensity;
+        this.propensity = propensity;
     }
 
     /**
