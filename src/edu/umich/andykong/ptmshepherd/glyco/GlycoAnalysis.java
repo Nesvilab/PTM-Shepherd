@@ -766,7 +766,7 @@ public class GlycoAnalysis {
         for (GlycanFragment fragment2 : glycan2.Yfragments.values()) {
             double probRatio;
             // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
-            if (!fragment2.isAllowedFragment(glycan2)) {
+            if (!fragment2.isAllowedFragment(glycan1)) {
                 if (fragment2.foundIntensity > 0) {
                     // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
                     probRatio = 1 / ((1 - fragment2.propensity) * propGlycan2);
@@ -824,7 +824,7 @@ public class GlycoAnalysis {
         for (GlycanFragment fragment2 : glycan2.oxoniumFragments.values()) {
             double probRatio;
             // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
-            if (!fragment2.isAllowedFragment(glycan2)) {
+            if (!fragment2.isAllowedFragment(glycan1)) {
                 if (fragment2.foundIntensity > 0) {
                     // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
                     probRatio = 1 / ((1 - fragment2.propensity) * propGlycan2);
