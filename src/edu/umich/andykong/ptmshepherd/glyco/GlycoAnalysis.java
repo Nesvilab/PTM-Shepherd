@@ -751,42 +751,42 @@ public class GlycoAnalysis {
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
         for (GlycanFragment fragment1 : glycan1.Yfragments) {
-            double prob;
+            double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
-                GlycanFragment fragment2 = glycan2.Yfragments[0];   // todo: fix
+                GlycanFragment fragment2 = glycan2.Yfragments[0];   // todo: FIX!
+                // todo: add case for one or both fragments lack propensities
                 if (fragment1.foundIntensity > 0) {
                     // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-                    prob = fragment1.propensity * propGlycan1 / (fragment1.propensity * propGlycan1 + fragment2.propensity * propGlycan2);
+                    probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
                 } else {
                     // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-                    prob = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment1.propensity) * propGlycan1 + (1 - fragment2.propensity) * propGlycan2);
+                    probRatio = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment2.propensity) * propGlycan2);
                 }
             } else {
                 // fragment only possible for glycan 1, use glycan 1 only estimate
                 if (fragment1.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-                    prob = fragment1.propensity * propGlycan1;
+                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
+                    probRatio = 1 / ((1 - fragment1.propensity * propGlycan1));
                 } else {
-                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-                    prob = (1 - fragment1.propensity) * propGlycan1;
+                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
+                    probRatio = (1 - fragment1.propensity) * propGlycan1;
                 }
             }
-            sumLogRatio += Math.log(prob);
+            sumLogRatio += Math.log(probRatio);
         }
         // glycan 2 fragments
         for (GlycanFragment fragment2 : glycan2.Yfragments) {
-            double prob;
+            double probRatio;
             // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
             if (!fragment2.isAllowedFragment(glycan2)) {
-                // fragment only possible for glycan 1, use glycan 1 only estimate
                 if (fragment2.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-                    prob = fragment2.propensity * propGlycan1;
+                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
+                    probRatio = 1 / ((1 - fragment2.propensity) * propGlycan2);
                 } else {
-                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-                    prob = (1 - fragment2.propensity) * propGlycan1;
+                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
+                    probRatio = (1 - fragment2.propensity) * propGlycan2;
                 }
-                sumLogRatio += Math.log(prob);
+                sumLogRatio += Math.log(probRatio);
             }
         }
         // todo: add oxoniums
