@@ -45,7 +45,7 @@ public class GlycoAnalysis {
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
     public boolean useFragmentSpecificProbs;
-    HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
+    public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 5;
 
     // Default constructor
@@ -747,6 +747,11 @@ public class GlycoAnalysis {
         }
         double propGlycan1 = glyc1Count / (double) totalGlycCount;
         double propGlycan2 = glyc2Count / (double) totalGlycCount;
+        if (propGlycan1 == 0 || propGlycan2 == 0) {
+            // ignore glycan proportion data if either is 0. todo: Could instead set some minimum value (empirically determined)?
+            propGlycan1 = 1;
+            propGlycan2 = 1;
+        }
 
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
