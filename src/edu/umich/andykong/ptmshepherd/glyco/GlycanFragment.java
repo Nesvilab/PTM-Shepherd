@@ -16,6 +16,7 @@ public class GlycanFragment {
     boolean isDecoy;
     public static final double MAX_DECOY_FRAGMENT_SHIFT_DA = 20;
     double propensity;      // for fragment-specific probability calculations only
+    public String hash;
 
     /**
      * Constructor for propensity/bootstrapped analysis, replaces rule probs with propensity
@@ -33,6 +34,7 @@ public class GlycanFragment {
         } else {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         }
+        this.hash = toHashString();
     }
 
     /**
@@ -46,6 +48,7 @@ public class GlycanFragment {
         this.isDecoy = false;
         this.foundIntensity = 0;
         this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
+        this.hash = toHashString();
     }
 
     /**
@@ -66,6 +69,7 @@ public class GlycanFragment {
         } else {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         }
+        this.hash = toHashString();
     }
 
     /**
@@ -92,6 +96,7 @@ public class GlycanFragment {
         } else {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift;
         }
+        this.hash = toHashString();
     }
 
     /**
@@ -111,6 +116,7 @@ public class GlycanFragment {
         this.foundIntensity = 0;
         this.expectedIntensity = expectedIntensity;
         this.propensity = propensity;
+        this.hash = toHashString();
     }
 
     /**

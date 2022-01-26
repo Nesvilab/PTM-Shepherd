@@ -268,14 +268,12 @@ public class GlycoAnalysis {
 
             for (GlycanCandidate inputGlycan : allPSMsWithThisGlycan) {
                 // read all fragments from each input glycan into the count database
-                for (GlycanFragment fragment : inputGlycan.Yfragments) {
-                    String fragmentHash = fragment.toHashString();
+                for (String fragmentHash : inputGlycan.Yfragments.keySet()) {
                     int count = YCounts.getOrDefault(fragmentHash, 0);
                     count++;
                     YCounts.put(fragmentHash, count);
                 }
-                for (GlycanFragment fragment : inputGlycan.oxoniumFragments) {
-                    String fragmentHash = fragment.toHashString();
+                for (String fragmentHash : inputGlycan.oxoniumFragments.keySet()) {
                     int count = OxCounts.getOrDefault(fragmentHash, 0);
                     count++;
                     OxCounts.put(fragmentHash, count);
@@ -603,10 +601,10 @@ public class GlycoAnalysis {
             // Search Y and oxonium ions in spectrum for each candidate
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
             for (GlycanCandidate candidate : searchCandidates) {
-                for (GlycanFragment yFragment : candidate.Yfragments) {
+                for (GlycanFragment yFragment : candidate.Yfragments.values()) {
                     yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + glycoResult.pepMass, ppmTol, spec.charge) / spec.basePeakInt;  // sum of charge state intensities if >1 found
                 }
-                for (GlycanFragment oxoniumFragment : candidate.oxoniumFragments) {
+                for (GlycanFragment oxoniumFragment : candidate.oxoniumFragments.values()) {
                     // save oxonium ion intensity relative to base peak
                     oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
@@ -755,11 +753,10 @@ public class GlycoAnalysis {
 
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
-        for (GlycanFragment fragment1 : glycan1.Yfragments) {
+        for (GlycanFragment fragment1 : glycan1.Yfragments.values()) {
             double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
-                GlycanFragment fragment2 = glycan2.Yfragments[0];   // todo: FIX!
-                // todo: add case for one or both fragments lack propensities
+                GlycanFragment fragment2 = glycan2.Yfragments.get(fragment1.hash);
                 if (fragment1.foundIntensity > 0) {
                     // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
                     probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
@@ -780,7 +777,7 @@ public class GlycoAnalysis {
             sumLogRatio += Math.log(probRatio);
         }
         // glycan 2 fragments
-        for (GlycanFragment fragment2 : glycan2.Yfragments) {
+        for (GlycanFragment fragment2 : glycan2.Yfragments.values()) {
             double probRatio;
             // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
             if (!fragment2.isAllowedFragment(glycan2)) {
@@ -819,7 +816,7 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Loop over each candidate's fragments, scoring unique (i.e., not in the other candidate) fragments as hit/miss if found/not in spectrum
-        for (GlycanFragment fragment1 : glycan1.Yfragments) {
+        for (GlycanFragment fragment1 : glycan1.Yfragments.values()) {
             if (!fragment1.isAllowedFragment(glycan2)) {
                 boolean foundInSpectrum = fragment1.foundIntensity > 0;
                 if (foundInSpectrum) {
@@ -829,7 +826,7 @@ public class GlycoAnalysis {
                 }
             }
         }
-        for (GlycanFragment fragment2 : glycan2.Yfragments) {
+        for (GlycanFragment fragment2 : glycan2.Yfragments.values()) {
             if (!fragment2.isAllowedFragment(glycan1)) {
                 boolean foundInSpectrum = fragment2.foundIntensity > 0;
                 if (foundInSpectrum) {
@@ -840,11 +837,11 @@ public class GlycoAnalysis {
             }
         }
 
-        // add prob normalized for number of misses for each candidate
-        double cand1MissProb = glycan1.Yfragments[0].ruleProbabilities[1];
-        double cand2MissProb = glycan2.Yfragments[0].ruleProbabilities[1];
-        double cand1HitProb = glycan1.Yfragments[0].ruleProbabilities[0];
-        double cand2HitProb = glycan2.Yfragments[0].ruleProbabilities[0];
+        // get probability ratios from one fragment (same probs used for all fragments in this method)
+        double cand1MissProb = glycan1.Yfragments.values().iterator().next().ruleProbabilities[1];
+        double cand2MissProb = glycan2.Yfragments.values().iterator().next().ruleProbabilities[1];
+        double cand1HitProb = glycan1.Yfragments.values().iterator().next().ruleProbabilities[0];
+        double cand2HitProb = glycan2.Yfragments.values().iterator().next().ruleProbabilities[0];
         /* score is [log(prob1) * hits1 - log(prob2) * hits2] - [log(prob2miss) * miss2 - log(prob1miss) * miss1], or
          *      log(prob1) * hits1 - log(prob2) * hits2 - log(prob1miss) * miss1 + log(prob2miss) * miss2
          * Because log(prob) of hits is always positive, and log(prob) of miss is always negative,
@@ -878,7 +875,7 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Loop over each candidate's fragments, scoring unique (i.e., not in the other candidate) fragments as hit/miss if found/not in spectrum
-        for (GlycanFragment fragment1 : glycan1.oxoniumFragments) {
+        for (GlycanFragment fragment1 : glycan1.oxoniumFragments.values()) {
             if (!fragment1.isAllowedFragment(glycan2)) {
                 boolean foundInSpectrum = fragment1.foundIntensity > 0;
                 if (foundInSpectrum) {
@@ -889,7 +886,7 @@ public class GlycoAnalysis {
                 }
             }
         }
-        for (GlycanFragment fragment2 : glycan2.oxoniumFragments) {
+        for (GlycanFragment fragment2 : glycan2.oxoniumFragments.values()) {
             if (!fragment2.isAllowedFragment(glycan1)) {
                 boolean foundInSpectrum = fragment2.foundIntensity > 0;
                 if (foundInSpectrum) {
@@ -956,10 +953,10 @@ public class GlycoAnalysis {
         int hitCount = 0;
         int missCount = 0;
         // probabilities MUST be the same for all Y ions for this method to work
-        double hitProb = bestGlycan.Yfragments[0].ruleProbabilities[0];
-        double missProb = bestGlycan.Yfragments[0].ruleProbabilities[1];
+        double hitProb = bestGlycan.Yfragments.values().iterator().next().ruleProbabilities[0];
+        double missProb = bestGlycan.Yfragments.values().iterator().next().ruleProbabilities[1];
 
-        for (GlycanFragment yFragment : bestGlycan.Yfragments) {
+        for (GlycanFragment yFragment : bestGlycan.Yfragments.values()) {
             if (yFragment.foundIntensity > 0) {
                 hitCount++;
             } else {
@@ -979,7 +976,7 @@ public class GlycoAnalysis {
      */
     public double computeYAbsoluteScore(GlycanCandidate bestGlycan){
         double sumLogRatio = 0;
-        for (GlycanFragment yFragment : bestGlycan.Yfragments) {
+        for (GlycanFragment yFragment : bestGlycan.Yfragments.values()) {
             if (yFragment.foundIntensity > 0) {
                 sumLogRatio += Math.log(yFragment.ruleProbabilities[0]);     // found in spectrum - ion supports this glycan
             } else {
@@ -997,7 +994,7 @@ public class GlycoAnalysis {
      */
     public double computeOxoAbsoluteScore(GlycanCandidate bestGlycan){
         double sumLogRatio = 0;
-        for (GlycanFragment fragment : bestGlycan.oxoniumFragments) {
+        for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
             if (fragment.foundIntensity > 0) {
                 double intensityRatio = computeIntensityRatio(fragment);
                 sumLogRatio += Math.log(fragment.ruleProbabilities[0] * intensityRatio);     // found in spectrum - ion supports this glycan
