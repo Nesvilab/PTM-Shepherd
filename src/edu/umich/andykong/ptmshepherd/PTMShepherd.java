@@ -598,7 +598,7 @@ public class PTMShepherd {
 			// Glyco: first pass
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
-				if (ga.isComplete()) {
+				if (ga.isDiagnosticComplete() && ga.isGlycoComplete()) {
 					print(String.format("\tGlyco/labile analysis already done for dataset %s, skipping", ds));
 					continue;
 				}
@@ -613,7 +613,7 @@ public class PTMShepherd {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					ga.glycoPSMs(pf, mzMap.get(ds), executorService, numThreads);
 				}
-				ga.complete();
+				ga.completeDiagnostic();
 			}
 
 			// second pass: calculate glycan FDR and update results
@@ -636,8 +636,8 @@ public class PTMShepherd {
 					}
 					ga2.computeGlycanFDR(glycoFDR);
 
-					ga.complete();
-					ga2.complete();
+					ga2.completeDiagnostic();
+					ga2.completeGlyco();
 				}
 
 				/* Save best glycan information from glyco report to psm tables */

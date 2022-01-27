@@ -19,17 +19,10 @@ public class GlycanAssignmentResult {
     String assignedMods;
     String specName;
 
-    // old-style results strings for preserving old outputs
+    // old-style results strings for printing diagnostic, glycan outputs
     String glycanAssignmentString;
-    String fullRawGlycoString;
+    String diagnosticResultString;
 
-
-    public GlycanAssignmentResult(GlycanCandidate bestCandidate, boolean isDecoyGlycan, double glycanScore, double glycanQval) {
-        this.bestCandidate = bestCandidate;
-        this.isDecoyGlycan = isDecoyGlycan;
-        this.glycanScore = glycanScore;
-        this.glycanQval = glycanQval;
-    }
 
     public GlycanAssignmentResult(String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {
         this.peptide = peptide;
@@ -44,7 +37,8 @@ public class GlycanAssignmentResult {
     }
 
     /**
-     * Format glycan fragment info for output to file for later fragment probability boostrapping
+     * Format glycan fragment info for output to file for later fragment probability boostrapping.
+     * Note: does not print glycan q-value because FDR performed after the initial run analysis
      * @return formatted string to print one line from this result
      */
     public String printGlycoFragmentInfo() {
@@ -55,13 +49,13 @@ public class GlycanAssignmentResult {
         if (deltaMass > 3.5 || deltaMass < -1.5) {
             // main glycan results
             if (!isDecoyGlycan) {
-                sb.append(String.format("\t%s\t%.2f\t%.4f\t\t", bestCandidate, glycanScore, glycanQval));
+                sb.append(String.format("\t%s\t%.2f\t\t\t", bestCandidate, glycanScore));
             } else {
                 // for decoy glycans, append best target as well
                 if (bestTarget != null && !Double.isNaN(bestTargetScore)) {
-                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval, bestTarget, bestTargetScore));
+                    sb.append(String.format("\t%s\t%.2f\t\t%s\t%.2f", bestCandidate, glycanScore, bestTarget, bestTargetScore));
                 } else {
-                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no target matches"));
+                    sb.append(String.format("\t%s\t%.2f\t\t%s\t", bestCandidate, glycanScore, "no target matches"));
                 }
             }
 
