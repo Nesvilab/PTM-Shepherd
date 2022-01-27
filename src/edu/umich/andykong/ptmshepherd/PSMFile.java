@@ -283,41 +283,46 @@ public class PSMFile {
 				}
 			}
 			if (!hasPreviousGlycoInfo) {
-				// add columns for glycan score and q-value before proceeding
-				newLine.addAll(observedModCol + 1, glyLine.subList(mergeFromCol + 1, mergeFromCol + numColsToUse));
+				// add columns for glycan score and q-value before proceeding (for all lines, whether glycan-containing or not)
+				for (int i=0; i <= numColsToUse; i++) {
+					newLine.add(observedModCol + 1 + i, "\t");
+				}
 			}
 
 			// check if a glycan was found
-			if (glyLine.get(mergeFromCol).length() > 0){
-				String rawGlycan = glyLine.get(mergeFromCol);
-				String observedGlycan;
-				String glycanScore = glyLine.get(glycanScoreCol);
-				if (rawGlycan.contains("Decoy")) {
-					if (!printDecoys) {
-						// report best target glycan instead of decoy (q-value will be reported as 1)
-						observedGlycan = glyLine.get(bestTargetGlycanCol);
-						glycanScore = glyLine.get(bestTargetScoreCol);
-					} else {
-						// user requested printing decoys, save decoy glycan (removing FailFDR if present)
-						if (rawGlycan.contains("FailFDR")) {
-							observedGlycan = rawGlycan.replace("FailFDR_", "");
+			if (glyLines.containsKey(pSpec)) {
+				ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
+				if (glyLine.get(mergeFromCol).length() > 0) {
+					String rawGlycan = glyLine.get(mergeFromCol);
+					String observedGlycan;
+					String glycanScore = glyLine.get(glycanScoreCol);
+					if (rawGlycan.contains("Decoy")) {
+						if (!printDecoys) {
+							// report best target glycan instead of decoy (q-value will be reported as 1)
+							observedGlycan = glyLine.get(bestTargetGlycanCol);
+							glycanScore = glyLine.get(bestTargetScoreCol);
 						} else {
-							observedGlycan = rawGlycan;
+							// user requested printing decoys, save decoy glycan (removing FailFDR if present)
+							if (rawGlycan.contains("FailFDR")) {
+								observedGlycan = rawGlycan.replace("FailFDR_", "");
+							} else {
+								observedGlycan = rawGlycan;
+							}
 						}
+					} else if (rawGlycan.contains("FailFDR")) {
+						observedGlycan = rawGlycan.replace("FailFDR_", "");
+					} else {
+						observedGlycan = rawGlycan;
 					}
-				} else if (rawGlycan.contains("FailFDR")) {
-					observedGlycan = rawGlycan.replace("FailFDR_", "");
-				} else {
-					observedGlycan = rawGlycan;
+
+					// add the final glycan info to the line
+					newLine.set(observedModCol, observedGlycan);
+					newLine.set(observedModCol + 1, glycanScore);
+					newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
+					int charge = Integer.parseInt(newLine.get(chargeCol));
+					newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge, writeGlycansToAssignedMods);
+
 				}
-
-				// add the final glycan info to the line
-				newLine.set(observedModCol, observedGlycan);
-				newLine.set(observedModCol + 1, glycanScore);
-				newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
-				int charge = Integer.parseInt(newLine.get(chargeCol));
-				newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge, writeGlycansToAssignedMods);
-
 			}
 			out.println(String.join("\t", newLine));
 		}

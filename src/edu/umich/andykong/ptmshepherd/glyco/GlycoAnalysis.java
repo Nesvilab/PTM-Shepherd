@@ -16,8 +16,8 @@ import java.util.concurrent.Future;
 
 public class GlycoAnalysis {
     String dsName;
-    File glycoFile;             // .rawglyco file
-    File glycoFragmentFile;     // fragment boostrapping file
+    File rawDiagnosticFile;             // .diagnosticIon.tsv file
+    File glycoFile;                     // .rawglyco file
     MXMLReader mr;
     ArrayList<String> lineWithoutSpectra = new ArrayList<>();
     int totalLines;
@@ -52,8 +52,8 @@ public class GlycoAnalysis {
     public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
         this.dsName = dsName;
         this.runGlycanAssignment = runGlycanAssignment;
+        this.rawDiagnosticFile = new File(PTMShepherd.normFName(dsName + ".diagnosticIons.tsv"));
         this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
-        this.glycoFragmentFile = new File(PTMShepherd.normFName(dsName + ".glycofrags"));
         this.glycanDatabase = glycoDatabase;
 
         // init with default values, can be changed by params
@@ -69,8 +69,8 @@ public class GlycoAnalysis {
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) throws Exception {
         //open up output file
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-        PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
-        PrintWriter fragmentOut = new PrintWriter(new FileWriter(glycoFragmentFile));
+        PrintWriter diagnosticOut = new PrintWriter(new FileWriter(rawDiagnosticFile));
+        PrintWriter glycoOut = new PrintWriter(new FileWriter(glycoFile));
         ArrayList<String> linesWithoutSpectra = new ArrayList<>();
 
         //get necessary params
@@ -106,15 +106,16 @@ public class GlycoAnalysis {
             remainderMasses[i] = Double.parseDouble(remainderStrs[i]);
 
         //write header
-        StringBuilder headbuff = new StringBuilder(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
+        StringBuilder diagnosticHeader = new StringBuilder(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
+        StringBuilder glycoHeader = new StringBuilder(diagnosticHeader.toString());
         if (runGlycanAssignment) {
-            headbuff.append("\tBest Glycan\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score");
+            glycoHeader.append("\tBest Glycan\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score");
+            glycoOut.println(glycoHeader + "\tFragments:");
         }
-        fragmentOut.println(headbuff + "\tFragments:");
-        for (double capYShift : capYShifts) headbuff.append(String.format("\tY_%.4f_intensity", capYShift));
-        for (double oxoniumIon : oxoniumIons) headbuff.append(String.format("\tox_%.4f_intensity", oxoniumIon));
-        for (double remainderMass : remainderMasses) headbuff.append(String.format("\tdeltascore_%.4f\tlocalization_%.4f", remainderMass, remainderMass));
-        out.println(headbuff.toString());
+        for (double capYShift : capYShifts) diagnosticHeader.append(String.format("\tY_%.4f_intensity", capYShift));
+        for (double oxoniumIon : oxoniumIons) diagnosticHeader.append(String.format("\tox_%.4f_intensity", oxoniumIon));
+        for (double remainderMass : remainderMasses) diagnosticHeader.append(String.format("\tdeltascore_%.4f\tlocalization_%.4f", remainderMass, remainderMass));
+        diagnosticOut.println(diagnosticHeader);
         //get necessary col indices
         specCol = pf.getColumn("Spectrum");
         pepCol = pf.getColumn("Peptide");
@@ -159,7 +160,7 @@ public class GlycoAnalysis {
                 ArrayList<String> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.data.get(clines.get(j)));
-                futureList.add(executorService.submit(() -> processLinesBlock(cBlock, out, fragmentOut)));
+                futureList.add(executorService.submit(() -> processLinesBlock(cBlock, diagnosticOut, glycoOut)));
             }
             /* Wait for all processes to finish */
             for (Future future : futureList)
@@ -168,7 +169,7 @@ public class GlycoAnalysis {
             long t3 = System.currentTimeMillis();
             PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2 - t1, t3 - t2));
         }
-        out.close();
+        diagnosticOut.close();
 
         if (!linesWithoutSpectra.isEmpty()) {
             PTMShepherd.print(String.format("Could not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), this.totalLines,
@@ -184,7 +185,7 @@ public class GlycoAnalysis {
         StringBuilder fragmentBlock = new StringBuilder();
         for (String line : cBlock) {
             GlycanAssignmentResult glycoResult = processLine(line);
-            newBlock.append(glycoResult.fullRawGlycoString).append("\n");
+            newBlock.append(glycoResult.diagnosticResultString).append("\n");
             fragmentBlock.append(glycoResult.printGlycoFragmentInfo());
         }
         printLines(out, newBlock.toString());
@@ -205,7 +206,7 @@ public class GlycoAnalysis {
         HashMap<String, ArrayList<GlycanCandidate>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
 
         // read info from glycofrags file
-        BufferedReader in = new BufferedReader(new FileReader(glycoFragmentFile), 1 << 22);
+        BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
         String currentLine;
         String headers = in.readLine();
         // todo: find headers dynamically and merge with rawglyco file header reading to single helper method
@@ -350,6 +351,9 @@ public class GlycoAnalysis {
             if (cgline.startsWith("ERROR"))
                 continue;
             String[] splits = cgline.split("\t", -1);
+            // skip non-glyco columns
+            if (splits.length < bestGlycanCol + 1)
+                continue;
             String spectrumID = splits[gSpecCol];
             glyLines.put(spectrumID, splits);     // save full line for later editing/writing
             // only consider columns with actual glycan info
@@ -523,7 +527,7 @@ public class GlycoAnalysis {
 
 
     public GlycanAssignmentResult processLine(String line) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder diagnosticResultString = new StringBuilder();
         String[] sp = line.split("\\t");
         String seq = sp[pepCol];
         float dmass = Float.parseFloat(sp[deltaCol]);
@@ -531,20 +535,20 @@ public class GlycoAnalysis {
         String[] smods = sp[modCol].split(",");
         String specName = sp[specCol];
 
-        sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, seq, sp[modCol], pepMass, dmass));
+        diagnosticResultString.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, seq, sp[modCol], pepMass, dmass));
         GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(seq, dmass, pepMass, sp[modCol], specName);
 
         Spectrum spec = mr.getSpectrum(reNormName(specName));
         if (spec == null) {
             this.lineWithoutSpectra.add(reNormName(specName));
-            glycoResult.fullRawGlycoString = "ERROR";
+            glycoResult.diagnosticResultString = "ERROR";
+            glycoResult.glycanAssignmentString = "ERROR";
             return glycoResult;
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
         if (runGlycanAssignment) {
             glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
-            sb.append(glycoResult.glycanAssignmentString);
         }
         //System.out.println("got spec");
         double[] capYIonIntensities;
@@ -553,23 +557,23 @@ public class GlycoAnalysis {
         oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
 
         for (double capYIonIntensity : capYIonIntensities)
-            sb.append(String.format("\t%.2f", capYIonIntensity));
+            diagnosticResultString.append(String.format("\t%.2f", capYIonIntensity));
         for (double oxoniumIonIntensity : oxoniumIonIntensities)
-            sb.append(String.format("\t%.2f", oxoniumIonIntensity));
+            diagnosticResultString.append(String.format("\t%.2f", oxoniumIonIntensity));
         float[] deltaScores = new float[remainderMasses.length];
         boolean[][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores);
 
         for (int i = 0; i < remainderMasses.length; i++) {
-            sb.append(String.format("\t%.1f", deltaScores[i]));
+            diagnosticResultString.append(String.format("\t%.1f", deltaScores[i]));
             StringBuilder locSb = new StringBuilder("\t");
             for (int j = 0; j < seq.length(); j++) {
                 if (isMaxScores[i][j]) {
                     locSb.append(String.format("%d%c", j + 1, seq.charAt(j))); //position (1 indexed), character
                 }
             }
-            sb.append(locSb);
+            diagnosticResultString.append(locSb);
         }
-        glycoResult.fullRawGlycoString = sb.toString();
+        glycoResult.diagnosticResultString = diagnosticResultString.toString();
         return glycoResult;
     }
 
@@ -611,7 +615,6 @@ public class GlycoAnalysis {
             }
 
             // score candidates and save results
-            // todo: separate methods for fragment-specific analysis
             int bestCandidateIndex = 0;
             double[] scoresVsBestCandidate = new double[searchCandidates.size()];
             for (int i = 0; i < searchCandidates.size(); i++) {
@@ -660,7 +663,6 @@ public class GlycoAnalysis {
             }
 
             // compute absolute score for best glycan
-            // todo: add fragment-specific method
             double absoluteScore;
             if (useFragmentSpecificProbs) {
                 absoluteScore = computeAbsoluteScoreDynamic(searchCandidates.get(bestCandidateIndex), glycoResult.deltaMass, massErrorWidth, meanMassError);
@@ -1375,7 +1377,23 @@ public class GlycoAnalysis {
         return String.format("%s.%d.%d", sp[0], sn, sn);
     }
 
-    public boolean isComplete() throws Exception {
+    public boolean isDiagnosticComplete() throws Exception {
+        if(rawDiagnosticFile.exists()) {
+            RandomAccessFile raf = new RandomAccessFile(rawDiagnosticFile, "r");
+            raf.seek(Math.max(0, rawDiagnosticFile.length() - 20));
+            String cline;
+            while((cline = raf.readLine())!=null)
+                if(cline.equals("COMPLETE")) {
+                    raf.close();
+                    return true;
+                }
+            raf.close();
+            rawDiagnosticFile.delete();
+        }
+        return false;
+    }
+
+    public boolean isGlycoComplete() throws Exception {
         if(glycoFile.exists()) {
             RandomAccessFile raf = new RandomAccessFile(glycoFile, "r");
             raf.seek(Math.max(0, glycoFile.length() - 20));
@@ -1391,17 +1409,22 @@ public class GlycoAnalysis {
         return false;
     }
 
-    public void complete() throws Exception {
+    public void completeDiagnostic() throws Exception {
+        PrintWriter out = new PrintWriter(new FileWriter(rawDiagnosticFile,true));
+        out.println("COMPLETE");
+        out.close();
+    }
+
+    public void completeGlyco() throws Exception {
         PrintWriter out = new PrintWriter(new FileWriter(glycoFile,true));
         out.println("COMPLETE");
         out.close();
     }
 
     public void updateGlycoProfiles(GlycoProfile[] profiles) throws Exception {
-        BufferedReader in = new BufferedReader(new FileReader(glycoFile));
+        BufferedReader in = new BufferedReader(new FileReader(rawDiagnosticFile));
         String cline;
         in.readLine();
-        int glycanAssignmentAddedLines = runGlycanAssignment ? NUM_ADDED_RAWGLYCO_COLUMNS : 0;     // number of added lines to rawglyco file - 0 if not running glycan assignment
         while ((cline = in.readLine()) != null) {
             if (cline.equals("COMPLETE"))
                 break;
@@ -1414,7 +1437,7 @@ public class GlycoAnalysis {
             for (int i = 0; i < profiles.length; i++) {
                 int cind = profiles[i].locate.getIndex(md);
                 if (cind != -1) {
-                    profiles[i].records[cind].updateWithLine(sp, glycanAssignmentAddedLines);
+                    profiles[i].records[cind].updateWithLine(sp);
                 }
             }
         }
