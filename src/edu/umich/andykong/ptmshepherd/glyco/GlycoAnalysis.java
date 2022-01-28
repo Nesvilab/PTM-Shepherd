@@ -208,38 +208,34 @@ public class GlycoAnalysis {
 
         // read info from glycofrags file
         BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
-        String currentLine;
-        String headers = in.readLine();
-        // todo: find headers dynamically and merge with rawglyco file header reading to single helper method
-        int fragmentStartCol = 10;
-        int glycanCol = 5;
-        int qValCol = 7;
-        int deltaMassCol = 4;
+        String[] headerSplits = in.readLine().split("\t");
+        int glycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Glycan");
+        int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
+        int deltaMassCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Mass Shift");
+        int fragmentStartCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Fragments:");
 
         // read all glycan info in
+        String currentLine;
         while ((currentLine = in.readLine()) != null) {
             String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
             // only read lines with glycan info (after column 5)
             if (splits.length > 5) {
-                // todo: add FDR check (and add q-val to the glycofrags file)
                 String glycanString = splits[glycanCol];
-                String[] fragmentInfo;  // String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
-                if (splits.length >= fragmentStartCol) {
-                    fragmentInfo = Arrays.copyOfRange(splits, fragmentStartCol, splits.length);
-                } else {
-                    fragmentInfo = new String[]{};
-                }
+                boolean isDecoy = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
+                String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
                 GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo);
                 String glycanHash = fragmentInfoContainer.toString();
-                if (glycanInputMap.containsKey(glycanHash)) {
-                    glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
-                } else {
-                    ArrayList<GlycanCandidate> newList = new ArrayList<>();
-                    newList.add(fragmentInfoContainer);
-                    glycanInputMap.put(glycanHash, newList);
+                // only include targets in fragment info
+                if (!isDecoy) {
+                    if (glycanInputMap.containsKey(glycanHash)) {
+                        glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
+                    } else {
+                        ArrayList<GlycanCandidate> newList = new ArrayList<>();
+                        newList.add(fragmentInfoContainer);
+                        glycanInputMap.put(glycanHash, newList);
+                    }
                 }
-
-                // add to delta mass map for calculating glycan prevalence priors
+                // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
                 double deltaMass = Double.parseDouble(splits[deltaMassCol]);
                 int massBin = (int) Math.floor(deltaMass);
                 if (glycanMassBinMap.containsKey(massBin)) {
