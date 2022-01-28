@@ -47,6 +47,7 @@ public class GlycoAnalysis {
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 25;
+    public double finalGlycoFDR;
 
     // Default constructor
     public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
@@ -305,9 +306,10 @@ public class GlycoAnalysis {
      * information back to rawglyco file. Requires that first pass has already been done and
      * Glycans assigned to PSMs.
      *
-     * @param desiredRatio: desired FDR (typically 0.01 = 1%)
+     * @param glycoFDR: desired FDR (typically 0.01 = 1%)
      */
-    public void computeGlycanFDR(double desiredRatio) throws IOException {
+    public void computeGlycanFDR(double glycoFDR) throws IOException {
+        finalGlycoFDR = glycoFDR;
         BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
 
         // read rawglyco file into map of spectrum index: full line (string)
@@ -316,27 +318,12 @@ public class GlycoAnalysis {
 
         // detect headers
         String[] headerSplits = in.readLine().split("\t");
-        int gSpecCol = 0;
-        int absScoreCol = 0;
-        int bestGlycanCol = 0;
-        int qValCol = 0;
-        for (int i = 0; i < headerSplits.length; i++) {
-            switch (headerSplits[i].trim()) {
-                case "Spectrum":
-                    gSpecCol = i;
-                    break;
-                case "Glycan Score":
-                    absScoreCol = i;
-                    break;
-                case "Best Glycan":
-                    bestGlycanCol = i;
-                    break;
-                case "Glycan q-value":
-                    qValCol = i;
-                    break;
-            }
-        }
-        if (absScoreCol == 0 || bestGlycanCol == 0 || qValCol == 0) {
+        int gSpecCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Spectrum");
+        int absScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan Score");
+        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Glycan");
+        int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
+
+        if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
             PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
         }
 
@@ -384,16 +371,16 @@ public class GlycoAnalysis {
             sortedScoreMap.put(entry.getKey(), entry.getValue());
         }
         double targetDecoyRatio = decoys / (double) targets;
-        if (targetDecoyRatio < desiredRatio) {
+        if (targetDecoyRatio < finalGlycoFDR) {
             // not enough decoys to compute FDR - already above desired ratio. Do not update table
-            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%%, started at %.2f%%", desiredRatio * 100, targetDecoyRatio * 100));
-            if (desiredRatio > targetDecoyRatio * 100) {
+            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%%, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
+            if (finalGlycoFDR > targetDecoyRatio * 100) {
                 PTMShepherd.print(("\tNot enough decoys to compute FDR at 0.01 * initial ratio. Check data and parameters. No FDR calculation performed!\n"));
                 return;
             } else {
                 // only missed by a little, try reducing desired FDR to accomodate
-                desiredRatio = targetDecoyRatio - (targetDecoyRatio * 0.1);
-                PTMShepherd.print(String.format("\tFDR reduced to %.2f pct due to limited decoys", desiredRatio * 100));
+                finalGlycoFDR = targetDecoyRatio - (targetDecoyRatio * 0.1);
+                PTMShepherd.print(String.format("\tFDR reduced to %.2f pct due to limited decoys", finalGlycoFDR * 100));
             }
         }
 
@@ -434,7 +421,7 @@ public class GlycoAnalysis {
             
             if (!foundThreshold) {
                 // still below the threshold: continue checking decoys/targets and appending 'failfdr'
-                if (targetDecoyRatio <= desiredRatio) {
+                if (targetDecoyRatio <= finalGlycoFDR) {
                     // stop here, found cutoff
                     foundThreshold = true;
                     PTMShepherd.print(String.format("\tConverged to %.1f%% FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
