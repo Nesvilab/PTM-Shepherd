@@ -46,7 +46,8 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
-    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 25;
+    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;
+    public static final int MAX_PROB_RATIO_ABSOLUTE = 10;
     public double finalGlycoFDR;
 
     // Default constructor
@@ -867,6 +868,10 @@ public class GlycoAnalysis {
         if (fragment.foundIntensity > 0) {
             // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
             probRatio = 1 / ((1 - fragment.propensity) * propGlycan);
+            // cap probRatio to prevent high-propensity fragments from going to infinity
+            if (probRatio > MAX_PROB_RATIO_ABSOLUTE) {
+                probRatio = MAX_PROB_RATIO_ABSOLUTE;
+            }
         } else {
             // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
             probRatio = (1 - fragment.propensity) * propGlycan;
