@@ -340,6 +340,22 @@ public class StaticGlycoUtilities {
     }
 
     /**
+     * Helper method for determining column numbers in the .rawglyco file
+     * @param headerSplits file header string, split on the appropriate delimiter
+     * @param columnName name of the column to find
+     * @return column index
+     */
+    public static int getHeaderColIndex(String[] headerSplits, String columnName) {
+        for (int i = 0; i < headerSplits.length; i++) {
+            if (headerSplits[i].trim().matches(columnName)) {
+                return i;
+            }
+        }
+        // column not found, return -1
+        return -1;
+    }
+
+    /**
      * Print glyco params used
      */
     public static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase,
