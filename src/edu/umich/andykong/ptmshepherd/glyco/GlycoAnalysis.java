@@ -728,41 +728,20 @@ public class GlycoAnalysis {
             double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
                 GlycanFragment fragment2 = glycan2.Yfragments.get(fragment1.toHashString());
-                if (fragment1.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-                    probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
-                } else {
-                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-                    probRatio = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment2.propensity) * propGlycan2);
-                }
+                probRatio = computeFragmentPairwiseScore(fragment1, fragment2, propGlycan1, propGlycan2);
             } else {
                 // fragment only possible for glycan 1, use glycan 1 only estimate
-                if (fragment1.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
-                    probRatio = 1 / ((1 - fragment1.propensity * propGlycan1));
-                } else {
-                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
-                    probRatio = (1 - fragment1.propensity) * propGlycan1;
-                }
+                probRatio = computeFragmentAbsoluteScore(fragment1, propGlycan1);
             }
             sumLogRatio += Math.log(probRatio);
         }
-        // glycan 2 fragments
-        for (GlycanFragment fragment2 : glycan2.Yfragments.values()) {
-            double probRatio;
-            // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
-            if (!fragment2.isAllowedFragment(glycan1)) {
-                if (fragment2.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
-                    probRatio = 1 / ((1 - fragment2.propensity) * propGlycan2);
-                } else {
-                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
-                    probRatio = (1 - fragment2.propensity) * propGlycan2;
-                }
-                // subtract resulting value since these are from glycan 2
-                sumLogRatio -= Math.log(probRatio);
-            }
+        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
+        for (GlycanFragment fragment : glycan2.Yfragments.values()) {
+            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan2);
+            sumLogRatio -= Math.log(probRatio);
         }
+
+        // oxonium ions
         sumLogRatio += pairwiseCompareOxoDynamic(glycan1, glycan2, propGlycan1, propGlycan2);
 
         // mass and isotope error
@@ -786,40 +765,17 @@ public class GlycoAnalysis {
             double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
                 GlycanFragment fragment2 = glycan2.oxoniumFragments.get(fragment1.toHashString());
-                if (fragment1.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-                    probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
-                } else {
-                    // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-                    probRatio = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment2.propensity) * propGlycan2);
-                }
+                probRatio = computeFragmentPairwiseScore(fragment1, fragment2, propGlycan1, propGlycan2);
             } else {
-                // fragment only possible for glycan 1, use glycan 1 only estimate
-                if (fragment1.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
-                    probRatio = 1 / ((1 - fragment1.propensity * propGlycan1));
-                } else {
-                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
-                    probRatio = (1 - fragment1.propensity) * propGlycan1;
-                }
+                // fragment only possible for glycan 1, use glycan 1 only (absolute) estimate
+                probRatio = computeFragmentAbsoluteScore(fragment1, propGlycan1);
             }
             sumLogRatio += Math.log(probRatio);
         }
-        // glycan 2 fragments
-        for (GlycanFragment fragment2 : glycan2.oxoniumFragments.values()) {
-            double probRatio;
-            // only consider fragments unique to glycan 2 because the shared fragments have already been included from glycan 1
-            if (!fragment2.isAllowedFragment(glycan1)) {
-                if (fragment2.foundIntensity > 0) {
-                    // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
-                    probRatio = 1 / ((1 - fragment2.propensity) * propGlycan2);
-                } else {
-                    // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
-                    probRatio = (1 - fragment2.propensity) * propGlycan2;
-                }
-                // subtract resulting value since these are from glycan 2
-                sumLogRatio -= Math.log(probRatio);
-            }
+        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method
+        for (GlycanFragment fragment : glycan2.oxoniumFragments.values()) {
+            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan2);
+            sumLogRatio -= Math.log(probRatio);
         }
         return sumLogRatio;
     }
@@ -834,7 +790,7 @@ public class GlycoAnalysis {
      * @return absolute score
      */
     public double computeAbsoluteScoreDynamic(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
-        double sumLogRatio;
+        double sumLogRatio = 0;
         // determine the overall likelihood priors of these glycans given the observed delta mass
         int glycCount = 0;
         int totalGlycCount = 0;
@@ -855,9 +811,15 @@ public class GlycoAnalysis {
         double propGlycan = glycCount == 0 ? 1 : glycCount / (double) totalGlycCount;
 
         // Y ions
-        sumLogRatio = computeFragmentAbsoluteScore(bestGlycan.Yfragments.values(), propGlycan);
+        for (GlycanFragment fragment : bestGlycan.Yfragments.values()) {
+            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan);
+            sumLogRatio += Math.log(probRatio);
+        }
         // oxonium ions
-        sumLogRatio += computeFragmentAbsoluteScore(bestGlycan.oxoniumFragments.values(), propGlycan);
+        for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
+            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan);
+            sumLogRatio += Math.log(probRatio);
+        }
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
         float iso1 = (float) (deltaMass - bestGlycan.monoisotopicMass);
@@ -876,24 +838,40 @@ public class GlycoAnalysis {
 
     /**
      * Helper for computing absolute score of Y or oxonium fragment lists
-     * @param fragments list of GlycanFragments
+     * @param fragment1 fragment from glycan 1
+     * @param fragment2 fragment from glycan 2
+     * @param propGlycan1 proportion of this glycan in the mass bin
+     * @param propGlycan2 proportion of this glycan in the mass bin
+     * @return ratio of fragment probs
+     */
+    public double computeFragmentPairwiseScore(GlycanFragment fragment1, GlycanFragment fragment2, double propGlycan1, double propGlycan2) {
+        double probRatio;
+        if (fragment1.foundIntensity > 0) {
+            // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
+            probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
+        } else {
+            // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
+            probRatio = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment2.propensity) * propGlycan2);
+        }
+        return probRatio;
+    }
+
+    /**
+     * Helper for computing absolute score of Y or oxonium fragment lists
+     * @param fragment fragment to consider
      * @param propGlycan proportion of this glycan in the mass bin
      * @return sum log ratio of fragment probs
      */
-    public double computeFragmentAbsoluteScore(Collection<GlycanFragment> fragments, double propGlycan) {
-        double sumLogRatio = 0;
-        for (GlycanFragment fragment : fragments) {
-            double probRatio;
-            if (fragment.foundIntensity > 0) {
-                // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
-                probRatio = 1 / ((1 - fragment.propensity) * propGlycan);
-            } else {
-                // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
-                probRatio = (1 - fragment.propensity) * propGlycan;
-            }
-            sumLogRatio += Math.log(probRatio);
+    public double computeFragmentAbsoluteScore(GlycanFragment fragment, double propGlycan) {
+        double probRatio;
+        if (fragment.foundIntensity > 0) {
+            // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
+            probRatio = 1 / ((1 - fragment.propensity) * propGlycan);
+        } else {
+            // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
+            probRatio = (1 - fragment.propensity) * propGlycan;
         }
-        return sumLogRatio;
+        return probRatio;
     }
 
     /**
