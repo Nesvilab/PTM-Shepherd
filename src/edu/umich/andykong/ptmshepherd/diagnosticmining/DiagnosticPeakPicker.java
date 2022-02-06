@@ -4,6 +4,7 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
+import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import sun.reflect.generics.tree.Tree;
 import umich.ms.datatypes.lcmsrun.Hash;
 
@@ -41,6 +42,8 @@ public class DiagnosticPeakPicker {
 
     double[][] peaks; //[3][n] apex, left, right
     BinDiagMetric[] binDiagMetrics;
+
+
 
     public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, double minFoldChange, int twoTailedTests) {
         this.peaks = peakApexBounds;
@@ -276,6 +279,7 @@ public class DiagnosticPeakPicker {
                         future.get();
 
                     /* Set up multithreading structures for decoy instance of peak bin, get DRs, send to threads */
+                    /*
                     futureList = new ArrayList<>(factor * nThreads);
                     for (int i = 0; i < factor * nThreads; i++) {
                         ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
@@ -291,9 +295,10 @@ public class DiagnosticPeakPicker {
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
                                         unifiedSquiggleIonPeakLists, spectraTol, pct, false, true)));  //todo tol
                     }
+                    */
                     /* Get results */
-                    for (Future future : futureList)
-                        future.get();
+                    //for (Future future : futureList)
+                    //    future.get();
 
                     /* Set up multithreading structures for zero bin, get diagnosticRecords, send to threads */
                     futureList = new ArrayList<>(factor * nThreads);
@@ -341,8 +346,8 @@ public class DiagnosticPeakPicker {
         for (DiagnosticRecord dr : localDrs) {
             if (dr == null)
                 continue;
-            if (isDecoy)
-                dr.makeDecoy();
+            //if (isDecoy)
+            //    dr.makeDecoy();
             dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol);
         }
         pct.addDrs(localDrs, isControl, isDecoy);
@@ -387,6 +392,7 @@ public class DiagnosticPeakPicker {
     }
 
     public void print(String fout) throws IOException {
+        /*
         PrintWriter out = new PrintWriter(new FileWriter(fout,false));
 
         out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
@@ -395,12 +401,161 @@ public class DiagnosticPeakPicker {
         }
 
         out.close();
+        */
+        PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
+
+        out2.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\t" +
+                "prop_mod_spectra\tmod_spectra_int\tremainder_propensity_odds_spectra\t" +
+                "prop_mod_ions\tprop_unmod_ions\t" +
+                "mod_ions_int\tunmod_ions_int\t" +
+                "e_value\tauc\n");
+        for (int i = 0; i < this.binDiagMetrics.length; i++) {
+            out2.print(this.binDiagMetrics[i].toString());
+        }
+
+        out2.close();
     }
 
-    private ArrayList<Integer> filterScanNums(ArrayList<Integer> scanNums, int maxScans) {
-        Collections.shuffle(scanNums);
-        ArrayList<Integer> scans = new ArrayList<>(scanNums.subList(0, maxScans));
-        return scans;
+    /* Initialize diagnostic profile */
+    public void initDiagProfRecs() {
+        for (int i = 0; i < this.binDiagMetrics.length; i++)
+            this.binDiagMetrics[i].initializeDiagProfRecs();
+    }
+
+    /* This function goes back into the scans to get PSM-level info on diagnostic ion propensity */
+    public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService) throws Exception {
+        /* Get PSM table headers for parsing */
+        int specCol = pf.getColumn("Spectrum");
+        int pepCol = pf.getColumn("Peptide");
+        int deltaCol = pf.dMassCol;
+        int modCol = pf.getColumn("Assigned Modifications");
+        int pepMassCol = pf.getColumn("Calculated Peptide Mass");
+
+        /* Map PSM lines to each fraction */
+        HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
+        for (int i = 0; i < pf.data.size(); i++) {
+            String[] sp = pf.data.get(i).split("\t");
+            String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
+            if (!mappings.containsKey(bn))
+                mappings.put(bn, new ArrayList<>());
+            mappings.get(bn).add(i);
+        }
+
+        /* Process spectral files one at a time */
+        for (String cf : mappings.keySet()) {
+            long t1 = System.currentTimeMillis();
+            mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+            mr.readFully();
+            long t2 = System.currentTimeMillis();
+
+            ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
+            /* set up parallelization blocks */
+            final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
+            int nBlocks = clines.size() / (BLOCKSIZE); //number of jobs submitted to queue
+            if (clines.size() % BLOCKSIZE != 0) //if there are missing scans, add one more block
+                nBlocks++;
+            ArrayList<Future> futureList = new ArrayList<>(nBlocks);
+
+            /* Process PSM chunks and add them to diagnosticRecords*/
+            for (int i = 0; i < nBlocks; i++) {
+                int startInd = i * BLOCKSIZE;
+                int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
+                ArrayList<String> cBlock = new ArrayList<>();
+                for (int j = startInd; j < endInd; j++)
+                    cBlock.add(pf.data.get(clines.get(j)));
+                futureList.add(executorService.submit(() -> extractIonsBlock(cBlock, specCol, pepCol, deltaCol, modCol, pepMassCol)));
+            }
+
+            /* Wait for all processes to finish */
+            for (Future future : futureList)
+                future.get();
+
+            long t3 = System.currentTimeMillis();
+            PTMShepherd.print(String.format("\t\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));
+        }
+
+    }
+
+    //HERE TODO HERE
+    public void extractIonsBlock(ArrayList<String> cBlock, int specCol, int pepCol, int deltaCol, int modCol, int pepMassCol) {
+        for (int i = 0; i < cBlock.size(); i++)
+            extractIonsLine(cBlock.get(i), specCol, pepCol, deltaCol, modCol, pepMassCol);
+    }
+
+    // Gets the intensities for diagnostic ions for a single PSM
+    public void extractIonsLine(String in, int specCol, int pepCol, int deltaCol, int modCol, int pepMassCol) {
+        // PSM metadata
+        String[] sp = in.split("\t");
+        String specName = sp[specCol];
+        int charge = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 1]);
+        String pepSeq = sp[pepCol];
+        String [] smods = sp[modCol].split(",");
+        float dmass = Float.parseFloat(sp[deltaCol]);
+        float pepMass = Float.parseFloat(sp[pepMassCol]);
+
+        int dmassIndx = locate.getIndex(dmass);
+        if (dmassIndx == -1)
+            return;
+
+        // Get spec
+        Spectrum spec = mr.getSpectrum(reNormName(specName));
+        spec.condition(100, 0.01);
+
+        // Find ions of interest
+        for (DiagnosticProfileRecord dpr : binDiagMetrics[dmassIndx].diagProfRecs) {
+            if (dpr.type.equals("imm")) {
+                double immInt = spec.findIon(dpr.adjustedMass, this.spectraTol);
+                if (immInt > 0.01) {
+                    dpr.nWithIon.incrementAndGet();
+                    dpr.wIonInt.addAndGet(immInt);
+                }
+                dpr.nTotal.incrementAndGet();
+            } else if (dpr.type.equals("Y")) {
+                double capYInt = spec.findIonNeutral(pepMass + dpr.adjustedMass, this.spectraTol, 1);
+                if (capYInt > 0.01) {
+                    dpr.nWithIon.incrementAndGet();
+                    dpr.wIonInt.addAndGet(capYInt);
+                }
+                dpr.nTotal.incrementAndGet();
+            } else {
+                int nUnshiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, 0.0f);
+                dpr.nUnshiftedIons.getAndAdd(nUnshiftedIons);
+                int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, dmass);
+                dpr.nShiftedIons.getAndAdd(nShiftedIons);
+            }
+        }
+    }
+
+    public String reNormName(String s) {
+        String[] sp = s.split("\\.");
+        int sn = Integer.parseInt(sp[1]);
+        //with charge state
+        //return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+        //without charge state
+        return String.format("%s.%d.%d", sp[0], sn, sn);
+    }
+
+    public float[] formatMods(String[] smods, String seq) {
+        float [] mods = new float[seq.length()];
+        Arrays.fill(mods, 0f);
+        for(int i = 0; i < smods.length; i++) {
+            smods[i] = smods[i].trim();
+            if (smods[i].length() == 0)
+                continue;
+            int p = smods[i].indexOf("(");
+            int q = smods[i].indexOf(")");
+            String spos = smods[i].substring(0, p).trim();
+            double mass = Double.parseDouble(smods[i].substring(p + 1, q).trim());
+            int pos = -1;
+            if (spos.equals("N-term"))
+                pos = 0;
+            else if (spos.equals("c"))
+                pos = mods.length - 1;
+            else
+                pos = Integer.parseInt(spos.substring(0, spos.length() - 1)) - 1;
+            mods[pos] += mass;
+        }
+        return mods;
     }
 
     private class Pepkey implements Comparable<Pepkey> {

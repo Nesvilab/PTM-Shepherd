@@ -10,7 +10,7 @@ import java.nio.CharBuffer;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.DoubleStream;
-import org.apache.commons.lang3.SerializationUtils;
+//import org.apache.commons.lang3.SerializationUtils;
 
 /* This class holds the transformed peaklists of a single PSM
 *  Each instance of this will be entered into a binary diagnostic output file */
@@ -676,6 +676,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
     }
 
+    /*
     public void makeDecoy() {
         for (int i = 0; i < this.immoniumPeaks.length; i++)
             this.immoniumPeaks[i][0] += (double) (ThreadLocalRandom.current().nextDouble(7) - 3);// * 1.0005;
@@ -686,12 +687,15 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
                 this.squigglePeaks.get(c)[i][0] += (double) (ThreadLocalRandom.current().nextDouble(7) - 3);// * 1.0005;
         }
     }
+     */
 
+    /*
     public DiagnosticRecord clone() {
         return new DiagnosticRecord(this.scanNum, SerializationUtils.clone(this.ionTypeChars), this.pepSeq,
                 SerializationUtils.clone(this.modificationsArray), this.dmass, this.charge,
                 SerializationUtils.clone(this.immoniumPeaks), SerializationUtils.clone(this.capYPeaks),
                 SerializationUtils.clone(this.squigglePeaks));
     }
+     */
 
 }

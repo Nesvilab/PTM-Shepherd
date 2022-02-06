@@ -13,6 +13,7 @@ import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.MZBINFile;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.diagnosticanalysis.DiagnosticExtractor;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import edu.umich.andykong.ptmshepherd.glyco.*;
@@ -26,7 +27,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "1.2.5";
+ 	public static final String version = "2.0.0-RC1";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -461,11 +462,11 @@ public class PTMShepherd {
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
 		params.put("diagmine_minAuc", "0.1");
-		params.put("diagmine_minSpecDiff", "0.1");
-		params.put("diagmine_minFoldChange", "2.0");
-		params.put("diagmine_diagMinFoldChange", "2.0");
-		params.put("diagmine_minPeps", "5");
-		params.put("diagmine_twoTailedTests", "1");
+		params.put("diagmine_minSpecDiff", "0.30");
+		params.put("diagmine_minFoldChange", "3.0");
+		params.put("diagmine_diagMinFoldChange", "3.0");
+		params.put("diagmine_minPeps", "25");
+		params.put("diagmine_twoTailedTests", "0");
 		params.put("diagmine_printRedundantTests", "0");
 		params.put("diagmine_maxPsms", "1000");
 
@@ -888,6 +889,17 @@ public class PTMShepherd {
 			}
 			dpp.filterPepkeys();
 			dpp.process(executorService, Integer.parseInt(getParam("threads")));
+			out.println("\tDone identifying candidate ions");
+			out.println("\tExtracting ions from spectra");
+			//TODO HERE
+			dpp.initDiagProfRecs();
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					dpp.diagIonsPSMs(pf, mzMap.get(ds), executorService);
+				}
+			}
 			dpp.print(normFName("global.diagmine.tsv"));
 			out.println("Done mining diagnostic ions");
 		}
@@ -1125,13 +1137,13 @@ public class PTMShepherd {
 			for(int i = 0; i < dsData.size(); i++) {
 				PTMShepherd.print("\tCaching data from " + ds);
 				PSMFile pf = new PSMFile(dsData.get(i)[0]);
-				rewriteMzDataToMzBin(pf, mzMap.get(ds));
+				rewriteMzDataToMzBin(pf, mzMap.get(ds), Integer.parseInt(params.get("spectra_condPeaks")), Float.parseFloat(params.get("spectra_condRatio")));
 				PTMShepherd.print("\tDone caching data from " + ds);
 			}
 		}
 	}
 
-	private static void rewriteMzDataToMzBin(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
+	private static void rewriteMzDataToMzBin(PSMFile pf, HashMap<String, File> mzMappings, int topNPeaks, float minPeakRatio) throws Exception {
 		// Get PSM scan num -> spectral file mapping
 		HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
 		int specCol = pf.getColumn("Spectrum");
@@ -1169,6 +1181,7 @@ public class PTMShepherd {
 				String [] sp = line.split("\\t");
 				String specName = sp[specCol];
 				Spectrum spec =  mr.getSpectrum(reNormName(specName));
+				spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
 				if (spec == null)
 					linesWithoutSpectra.put(i, line);
 				else

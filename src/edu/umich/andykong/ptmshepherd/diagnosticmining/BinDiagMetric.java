@@ -23,6 +23,8 @@ public class BinDiagMetric {
     public HashMap<String, ArrayList<DiagnosticRecord>> peptideMap;
     public PeakCompareTester testResults;
 
+    ArrayList<DiagnosticProfileRecord> diagProfRecs;
+
     public BinDiagMetric(double[] peakBounds, String ions, double ppmTol) {
         this.peakApex = peakBounds[0];
         this.leftBound = peakBounds[1];
@@ -223,5 +225,41 @@ public class BinDiagMetric {
         }
 
         return newLines.toString();
+    }
+
+    public String toString() {
+        StringBuffer newLines = new StringBuffer();
+        /* Format tests */
+        for (int i = 0; i < this.diagProfRecs.size(); i++) {
+            String newLine = this.diagProfRecs.get(i).toString();
+            newLines.append(newLine);
+        }
+        return newLines.toString();
+    }
+
+    public void initializeDiagProfRecs() {
+        this.diagProfRecs =  new ArrayList<>();
+        for (int i = 0; i < this.testResults.immoniumTests.size(); i++) {
+            Test t = this.testResults.immoniumTests.get(i);
+            if (!t.isIsotopeRep)
+                continue;
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "imm", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+        }
+        for (int i = 0; i < this.testResults.capYTests.size(); i++) {
+            Test t = this.testResults.capYTests.get(i);
+            if (!t.isIsotopeRep)
+                continue;
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "Y", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+        }
+        for (Character cIon : this.testResults.squigglesTests.keySet()) {
+            for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
+                Test t = this.testResults.squigglesTests.get(cIon).get(i);
+                if (!t.isIsotopeRep)
+                    continue;
+                if (!t.isValid)
+                    continue;
+                this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, Character.toString(cIon), t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+            }
+        }
     }
 }
