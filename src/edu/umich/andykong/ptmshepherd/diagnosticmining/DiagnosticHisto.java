@@ -10,9 +10,11 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.DoubleAdder;
 import com.google.common.util.concurrent.AtomicDouble;
 
@@ -34,19 +36,23 @@ public class DiagnosticHisto {
 
     double binsPerDa;
     AtomicDouble total;
+    AtomicDouble totalSpecs;
     double minSignal;
     double ppmTol;
     double normMass;
+    int nPepkeys;
     public ArrayList<Double> filteredPeaks;
     public ArrayList<HistoPeak> filteredHistoPeaks;
 
-    public DiagnosticHisto (double peakApex, double mn, double mx, double binWidth, double minSignal, double ppmTol, double normMass) {
+    public DiagnosticHisto (double peakApex, double mn, double mx, double binWidth, double minSignal, double ppmTol, double normMass, int nPepkeys) {
         this.peakApex = peakApex;
         this.min = (int) mn - buffersize;
         this.max = (int) mx + buffersize;
         this.total = new AtomicDouble();
+        this.totalSpecs = new AtomicDouble();
+        this.nPepkeys = nPepkeys;
         this.binsPerDa = (int) (1.0 / binWidth);
-        this.ppmTol = ppmTol;
+        this.ppmTol = ppmTol / 2.0;
         this.normMass = normMass;
         this.minSignal = minSignal;
         this.bins2 = new AtomicDoubleArray((int)(this.binsPerDa * (this.max - this.min)));
@@ -66,11 +72,12 @@ public class DiagnosticHisto {
         return bini;
     }
 
-    public void placeIon(double mz, double intensity) {
+    public void placeIon(double mz, double intensity, int nIons) {
         int cBin = locateBin(mz);
         //this.bins[cBin].bumpVal(intensity);
         this.bins2.addAndGet(cBin, intensity);
         this.total.addAndGet(intensity);
+        //this.totalSpecs.addAndGet(1 / nIons);
         double intPerBin = intensity * this.smoothFactorScale;
         for (int i = -this.nBinsPerSide; i < this.nBinsPerSide; i++)
             //this.smoothBins[cBin + i].bumpVal(intPerBin);
@@ -101,7 +108,7 @@ public class DiagnosticHisto {
     }
 
     private int calcSmoothFactor(double ppmTol, double normMass) {
-        double daTol = (normMass * ppmTol) / 1000000.0;
+        double daTol = (normMass * ppmTol * 2) / 1000000.0;
         int sf;
         if ((int)(this.binsPerDa * daTol) > 1)
             sf = (int)(this.binsPerDa * daTol);
@@ -126,18 +133,11 @@ public class DiagnosticHisto {
 
     public void printHisto(String fname) throws IOException {
         PrintWriter out = new PrintWriter(new FileWriter(new File(fname)));
-        out.printf("mass\theight\tsmooth\n");
-        for (int i = 0; i < this.bins.length; i++) {
-            StringBuffer sb = new StringBuffer();
-            for (int j = 0; j < 10000; j++) {
-                if (i + j < this.bins.length) {
-                    sb.append(String.format("%.04f\t%.04f\t%.04f\n", binToMass(i), this.bins[i].val, this.smoothBins[i].val));
-                    i++;
-                } else {
-                    continue;
-                }
-            }
-            out.printf(sb.toString());
+        out.printf("mass\theight\n");
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < this.bins2.length(); i++) {
+            //System.out.printf("%.04f\t%.04f\n", binToMass(i), this.bins2.get(i));
+            out.printf("%.04f\t%.04f\n", binToMass(i), this.bins2.get(i));
         }
         out.close();
     }
@@ -281,7 +281,9 @@ public class DiagnosticHisto {
     public void findPeaks() {
         this.filteredPeaks = new ArrayList<>();
 
-        double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
+        //double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
+        double minVal = this.minSignal * this.nPepkeys * 100.0;
+        //System.out.println(this.totalSpecs.doubleValue());
         double minEntryVal = 2e-100;
         double prominence = 0.99;
 
@@ -319,26 +321,58 @@ public class DiagnosticHisto {
             if (peakArea >= minVal)
                 peaks.add(new HistoPeak(binToMass(peakApex), peakArea));
         }
-        /* Select top peaks */
-        int maxPeaks = Math.min(1000, peaks.size());
+
+        // Recalculate peak area from apex
         Collections.sort(peaks);
+        for (HistoPeak p : peaks) {
+            int cBin = locateBin(p.MZ);
+            double cInt = 0;
+            for (int i = -this.nBinsPerSide; i < this.nBinsPerSide; i++)
+                cInt += this.smoothBins2.get(cBin + i);
+            p.Int = cInt;
+        }
+
+        // Remove peaks falling below threshold
+        HashSet<Integer> removePeaks = new HashSet<>();
+        Collections.sort(peaks);
+        for (int i = 0; i < peaks.size(); i++) {
+            //System.out.println(peaks.get(i).Int);
+            if (peaks.get(i).Int < minVal)
+                removePeaks.add(i);
+        }
+
+        /* Select top peaks and remove redundant peaks */
+        int maxPeaks = Math.min(1000, peaks.size());
+
+        double daTol = (normMass * ppmTol) / 1000000.0;
+        for (int i = 0; i < maxPeaks; i++) {
+            for (int j = i + 1; j < maxPeaks; j++) {
+                if (Math.abs(peaks.get(i).MZ - peaks.get(j).MZ) < daTol)
+                    removePeaks.add(j);
+            }
+        }
+
+        for (Integer i : removePeaks)
+            peaks.remove(i);
+
         for (int i = 0; i < maxPeaks; i++) {
             this.filteredPeaks.add(peaks.get(i).MZ);
             //this.filteredHistoPeaks.add(peaks.get(i));
             //System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
         }
-        ArrayList<Integer> removePeaks = new ArrayList<>();
-        for (int i = 0; i < this.filteredPeaks.size(); i++) {
-            for (int j = i+1; j < this.filteredPeaks.size(); j++) {
-                if (removePeaks.contains(j))
-                    continue;
-                if (Math.abs(this.filteredPeaks.get(i) - this.filteredPeaks.get(j)) <= 0.0021)
-                    removePeaks.add(j);
-            }
-        }
-        Collections.sort(removePeaks, Collections.reverseOrder());
-        for (Integer j : removePeaks)
-            this.filteredPeaks.remove(j);
+
+        //ArrayList<Integer> removePeaks = new ArrayList<>();
+        //for (int i = 0; i < this.filteredPeaks.size(); i++) {
+        //    for (int j = i+1; j < this.filteredPeaks.size(); j++) {
+        //        if (removePeaks.contains(j))
+        //            continue;
+        //        if (Math.abs(this.filteredPeaks.get(i) - this.filteredPeaks.get(j)) <= 0.0041)
+        //            removePeaks.add(j);
+        //    }
+        //}
+        //Collections.sort(removePeaks, Collections.reverseOrder());
+        //for (Integer j : removePeaks)
+        //    this.filteredPeaks.remove(j);
     }
 
     private int calculateCBinsSide(int cBins) {

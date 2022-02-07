@@ -48,6 +48,7 @@ public class DiagBINFile {
         for (int i = 0; i < ionTypes.length(); i++)
             this.ionTypes.add(ionTypes.toLowerCase().charAt(i));
         this.spectra = new ArrayList<>(diagnosticRecords);
+
         /* Ensure proper order of diagnostic record and ion types */
         Collections.sort(this.spectra);
         Collections.sort(this.ionTypes);
@@ -262,6 +263,7 @@ public class DiagBINFile {
     private DiagnosticRecord loadDiagBinSpectrum(FileChannel fc, int scanNum) throws Exception {
         /* Parse header data and find scan */
         int currIndexPos = (this.indexWidth / 4) * scanNum;
+
         long offset = ByteBuffer.wrap(this.diagBinIndex).asLongBuffer().get(currIndexPos / 2);
         float dmass = ByteBuffer.wrap(this.diagBinIndex).asFloatBuffer().get(currIndexPos + 2);
         int specLen = ByteBuffer.wrap(this.diagBinIndex).asIntBuffer().get(currIndexPos + 3);

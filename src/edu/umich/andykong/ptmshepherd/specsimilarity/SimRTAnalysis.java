@@ -127,6 +127,7 @@ public class SimRTAnalysis {
 		//iterate and calculate similarity/retention time deltas for each file
 		//if inter run comparisons is turned on, this look will be broken after first iteration
 		for(String cf : mappings.keySet()) { //cf = fraction
+			long t3 = System.currentTimeMillis();
 			//leaving this here in case we need a less memory intensive application at some point
 			//mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
 			//mr.readFully();
@@ -246,13 +247,13 @@ public class SimRTAnalysis {
 			}
 			
 			out.flush();
-			long t3 = System.currentTimeMillis();
+			long t4 = System.currentTimeMillis();
 
 			if (interRunComparisons) {
-				PTMShepherd.print(String.format("\tProcessed - %d (%d ms)", clines.size(), t3-t2));
+				PTMShepherd.print(String.format("\tProcessed - %d (%d ms)", clines.size(), t4-t3));
 				break;
 			}
-			PTMShepherd.print(String.format("\t%s - %d (%d ms)", cf, clines.size(), t3-t2));
+			PTMShepherd.print(String.format("\t%s - %d (%d ms)", cf, clines.size(), t4-t3));
 		}
 		
 		out.close();

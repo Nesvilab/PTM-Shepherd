@@ -1,8 +1,10 @@
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
+import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import sun.reflect.generics.tree.Tree;
 import umich.ms.datatypes.lcmsrun.Hash;
 
@@ -31,17 +33,24 @@ public class DiagnosticPeakPicker {
 
     double maxP;
     double minRbc;
+    double minSpecDiff;
+    double minFoldChange;
     boolean twoTailedTests;
 
+    HashMap<Integer, HashMap<String, Pepkey>> peakToPepkeys;
     TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan;
 
     double[][] peaks; //[3][n] apex, left, right
     BinDiagMetric[] binDiagMetrics;
 
-    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, int twoTailedTests) {
+
+
+    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, double minFoldChange, int twoTailedTests) {
         this.peaks = peakApexBounds;
         this.minSignal = minSignal;
+        this.minFoldChange = minFoldChange;
         this.peakToFileToScan = new TreeMap<>();
+        this.peakToPepkeys = new HashMap<>();
         this.ionTypes = ions; //redundant
         Arrays.sort(this.cIonTypes = ions.toCharArray());
         this.binDiagMetrics = new BinDiagMetric[this.peaks[0].length];
@@ -51,6 +60,7 @@ public class DiagnosticPeakPicker {
 
         this.maxP = maxP;
         this.minRbc = minRbc;
+        this.minSpecDiff = minSpecDiff;
         this.twoTailedTests = twoTailedTests == 1 ? true : false;
     }
 
@@ -61,8 +71,7 @@ public class DiagnosticPeakPicker {
 
         for (String cf : mzMappings.keySet()) {
             try {
-                //System.out.println(cf);
-                String dgbinFname = cf + ".diagBIN";
+                String dgbinFname = PTMShepherd.normFName(cf + ".diagBIN");
                 DiagBINFile dbf = new DiagBINFile(executorService, nThreads, dgbinFname, false);
                 LinkedHashMap<Integer, Float> scanToDmass = dbf.getDmasses();
                 for (Integer scan : scanToDmass.keySet()) {
@@ -95,6 +104,55 @@ public class DiagnosticPeakPicker {
         System.out.printf("\t\tDone indexing data from %s (%d ms)\n", dataset, t2 - t1);
     }
 
+    public void addPepkeysToIndex(PSMFile pf) {
+        int dmassCol = pf.dMassCol;
+        int eValCol = pf.getColumn("Expectation");
+        int pepSeqCol = pf.getColumn("Peptide");
+        int chargeCol = pf.getColumn("Charge");
+        int modCol = pf.getColumn("Assigned Modifications");
+        int specCol = pf.getColumn("Spectrum");
+
+        for (int i = 0; i < pf.data.size(); i++) {
+            String[] sp = pf.data.get(i).split("\t");
+            String charge = sp[chargeCol];
+            String pepSeq = sp[pepSeqCol];
+            String[] specSp = sp[specCol].split("\\.");
+            String mzFile = specSp[0];
+            int scanNum = Integer.parseInt(specSp[specSp.length-2]);
+            String mods = sp[modCol];
+            float eVal = Float.parseFloat(sp[eValCol]);
+            float dmass = Float.parseFloat(sp[dmassCol]);
+            int peakIndx = this.locate.getIndex(dmass);
+            String pepKey = pepSeq + mods + charge;
+
+            if (peakIndx == -1)
+                continue;
+
+            if (!this.peakToPepkeys.containsKey(peakIndx))
+                this.peakToPepkeys.put(peakIndx, new HashMap<>());
+            if (!this.peakToPepkeys.get(peakIndx).containsKey(pepKey))
+                this.peakToPepkeys.get(peakIndx).put(pepKey, new Pepkey(mzFile, pepKey, eVal, scanNum));
+            else {
+                if (this.peakToPepkeys.get(peakIndx).get(pepKey).eVal > eVal)
+                    this.peakToPepkeys.get(peakIndx).put(pepKey, new Pepkey(mzFile, pepKey, eVal, scanNum));
+            }
+        }
+    }
+
+    public void filterPepkeys() {
+        this.peakToFileToScan = new TreeMap<>();
+
+        for (Integer peakIndx : this.peakToPepkeys.keySet()) {
+            this.peakToFileToScan.put(peakIndx, new TreeMap<>());
+            for (String pk : this.peakToPepkeys.get(peakIndx).keySet()) {
+                Pepkey tpk = this.peakToPepkeys.get(peakIndx).get(pk);
+                if (!this.peakToFileToScan.get(peakIndx).containsKey(tpk.mzFile + ".diagBIN"))
+                    this.peakToFileToScan.get(peakIndx).put(tpk.mzFile + ".diagBIN", new ArrayList<>());
+                this.peakToFileToScan.get(peakIndx).get(tpk.mzFile + ".diagBIN").add(tpk.scan);
+            }
+        }
+    }
+
     /* Send ions to BinDiagnosticMetric containers */
     public void process(ExecutorService executorService, int nThreads) throws Exception {
         /* Finds the peaks for each BinDiagnosticMetric container */
@@ -107,10 +165,12 @@ public class DiagnosticPeakPicker {
                     ArrayList<Integer> scanNums = new ArrayList<>();
                     for (Integer scan : this.peakToFileToScan.get(peakIndx).get(fname))
                         scanNums.add(scan);
-                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, false);
+                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, PTMShepherd.normFName(fname), false);
                     dgBin.loadDiagBinSpectra(executorService, nThreads, scanNums);
                     for (Integer scan : scanNums) {
                         DiagnosticRecord dr = dgBin.getScan(scan);
+                        if (dr == null)
+                            continue;
                         if (!dr.isMangled)
                             bdMetrics.addPSMToPeptideMap(dr);
                         else
@@ -167,7 +227,7 @@ public class DiagnosticPeakPicker {
             }
 
             /* Initialize peak testers */
-            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.twoTailedTests, this.spectraTol); // x is baseline, y is deltamasses
+            PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.minSpecDiff, this.minFoldChange, this.twoTailedTests, this.spectraTol); // x is baseline, y is deltamasses
             /* Add peaks to peak testers */
             Set<String> unifiedFileList = new HashSet();
             for (String fname : peakToFileToScan.get(peakIndx).keySet())
@@ -194,7 +254,7 @@ public class DiagnosticPeakPicker {
                             zeroScanNums.add(scan);
                         }
                     }
-                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, fname, false);
+                    DiagBINFile dgBin = new DiagBINFile(executorService, nThreads, PTMShepherd.normFName(fname), false);
                     dgBin.loadDiagBinSpectra(executorService, nThreads, scanNums);
 
                     /* Set up multithreading structures for peak bin, get diagnosticRecords, send to threads */
@@ -204,8 +264,12 @@ public class DiagnosticPeakPicker {
                         ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
                         int start = (peakScanNums.size() * i) / (factor * nThreads);
                         int end = (peakScanNums.size() * (i + 1)) / (factor * nThreads);
-                        for (int j = start; j < end; j++)
+                        for (int j = start; j < end; j++) {
+                            DiagnosticRecord dr = dgBin.getScan(peakScanNums.get(j));
+                            if (dr == null)
+                                continue;
                             localDrs.add(dgBin.getScan(peakScanNums.get(j)));
+                        }
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
                                         unifiedSquiggleIonPeakLists, spectraTol, pct, false, false)));  //todo tol
@@ -215,20 +279,26 @@ public class DiagnosticPeakPicker {
                         future.get();
 
                     /* Set up multithreading structures for decoy instance of peak bin, get DRs, send to threads */
+                    /*
                     futureList = new ArrayList<>(factor * nThreads);
                     for (int i = 0; i < factor * nThreads; i++) {
                         ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
                         int start = (peakScanNums.size() * i) / (factor * nThreads);
                         int end = (peakScanNums.size() * (i + 1)) / (factor * nThreads);
-                        for (int j = start; j < end; j++)
-                            localDrs.add(dgBin.getScan(peakScanNums.get(j)).clone());
+                        for (int j = start; j < end; j++) {
+                            DiagnosticRecord dr = dgBin.getScan(peakScanNums.get(j));
+                            if (dr == null)
+                                continue;
+                            localDrs.add(dr.clone());
+                        }
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
                                         unifiedSquiggleIonPeakLists, spectraTol, pct, false, true)));  //todo tol
                     }
+                    */
                     /* Get results */
-                    for (Future future : futureList)
-                        future.get();
+                    //for (Future future : futureList)
+                    //    future.get();
 
                     /* Set up multithreading structures for zero bin, get diagnosticRecords, send to threads */
                     futureList = new ArrayList<>(factor * nThreads);
@@ -236,8 +306,12 @@ public class DiagnosticPeakPicker {
                         ArrayList<DiagnosticRecord> localDrs = new ArrayList<>();
                         int start = (zeroScanNums.size() * i) / (factor * nThreads);
                         int end = (zeroScanNums.size() * (i + 1)) / (factor * nThreads);
-                        for (int j = start; j < end; j++)
+                        for (int j = start; j < end; j++) {
+                            DiagnosticRecord dr = dgBin.getScan(zeroScanNums.get(j));
+                            if (dr == null)
+                                continue;
                             localDrs.add(dgBin.getScan(zeroScanNums.get(j)));
+                        }
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
                                         unifiedSquiggleIonPeakLists, spectraTol, pct, true, false)));  //todo tol
@@ -270,8 +344,10 @@ public class DiagnosticPeakPicker {
     private void filterSpecBlock(ArrayList<DiagnosticRecord> localDrs, ArrayList<Double> unifiedImmPeakList, ArrayList<Double> unifiedCapYPeakList,
                                  HashMap<Character, ArrayList<Double>> unifiedSquiggleIonPeakLists, double tol, PeakCompareTester pct, boolean isControl, boolean isDecoy) {
         for (DiagnosticRecord dr : localDrs) {
-            if (isDecoy)
-                dr.makeDecoy();
+            if (dr == null)
+                continue;
+            //if (isDecoy)
+            //    dr.makeDecoy();
             dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol);
         }
         pct.addDrs(localDrs, isControl, isDecoy);
@@ -316,21 +392,188 @@ public class DiagnosticPeakPicker {
     }
 
     public void print(String fout) throws IOException {
+        /*
         PrintWriter out = new PrintWriter(new FileWriter(fout,false));
 
-        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\tp_value\tauc\tis_decoy\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tu_stat\tn_control\tn_test\n");
+        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
-            System.out.println(this.binDiagMetrics[i].peakApex);
-            System.out.println(i + "\t" + this.binDiagMetrics.length);
-            out.print(this.binDiagMetrics[i].toString());
+            out.print(this.binDiagMetrics[i].toString(false));
         }
 
         out.close();
+        */
+        PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
+
+        out2.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\t" +
+                "prop_mod_spectra\tmod_spectra_int\tremainder_propensity_odds_spectra\t" +
+                "prop_mod_ions\tprop_unmod_ions\t" +
+                "mod_ions_int\tunmod_ions_int\t" +
+                "e_value\tauc\n");
+        for (int i = 0; i < this.binDiagMetrics.length; i++) {
+            out2.print(this.binDiagMetrics[i].toString());
+        }
+
+        out2.close();
     }
 
-    private ArrayList<Integer> filterScanNums(ArrayList<Integer> scanNums, int maxScans) {
-        Collections.shuffle(scanNums);
-        ArrayList<Integer> scans = new ArrayList<>(scanNums.subList(0, maxScans));
-        return scans;
+    /* Initialize diagnostic profile */
+    public void initDiagProfRecs() {
+        for (int i = 0; i < this.binDiagMetrics.length; i++)
+            this.binDiagMetrics[i].initializeDiagProfRecs();
+    }
+
+    /* This function goes back into the scans to get PSM-level info on diagnostic ion propensity */
+    public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService) throws Exception {
+        /* Get PSM table headers for parsing */
+        int specCol = pf.getColumn("Spectrum");
+        int pepCol = pf.getColumn("Peptide");
+        int deltaCol = pf.dMassCol;
+        int modCol = pf.getColumn("Assigned Modifications");
+        int pepMassCol = pf.getColumn("Calculated Peptide Mass");
+
+        /* Map PSM lines to each fraction */
+        HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
+        for (int i = 0; i < pf.data.size(); i++) {
+            String[] sp = pf.data.get(i).split("\t");
+            String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
+            if (!mappings.containsKey(bn))
+                mappings.put(bn, new ArrayList<>());
+            mappings.get(bn).add(i);
+        }
+
+        /* Process spectral files one at a time */
+        for (String cf : mappings.keySet()) {
+            long t1 = System.currentTimeMillis();
+            mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+            mr.readFully();
+            long t2 = System.currentTimeMillis();
+
+            ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
+            /* set up parallelization blocks */
+            final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
+            int nBlocks = clines.size() / (BLOCKSIZE); //number of jobs submitted to queue
+            if (clines.size() % BLOCKSIZE != 0) //if there are missing scans, add one more block
+                nBlocks++;
+            ArrayList<Future> futureList = new ArrayList<>(nBlocks);
+
+            /* Process PSM chunks and add them to diagnosticRecords*/
+            for (int i = 0; i < nBlocks; i++) {
+                int startInd = i * BLOCKSIZE;
+                int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
+                ArrayList<String> cBlock = new ArrayList<>();
+                for (int j = startInd; j < endInd; j++)
+                    cBlock.add(pf.data.get(clines.get(j)));
+                futureList.add(executorService.submit(() -> extractIonsBlock(cBlock, specCol, pepCol, deltaCol, modCol, pepMassCol)));
+            }
+
+            /* Wait for all processes to finish */
+            for (Future future : futureList)
+                future.get();
+
+            long t3 = System.currentTimeMillis();
+            PTMShepherd.print(String.format("\t\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));
+        }
+
+    }
+
+    //HERE TODO HERE
+    public void extractIonsBlock(ArrayList<String> cBlock, int specCol, int pepCol, int deltaCol, int modCol, int pepMassCol) {
+        for (int i = 0; i < cBlock.size(); i++)
+            extractIonsLine(cBlock.get(i), specCol, pepCol, deltaCol, modCol, pepMassCol);
+    }
+
+    // Gets the intensities for diagnostic ions for a single PSM
+    public void extractIonsLine(String in, int specCol, int pepCol, int deltaCol, int modCol, int pepMassCol) {
+        // PSM metadata
+        String[] sp = in.split("\t");
+        String specName = sp[specCol];
+        int charge = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 1]);
+        String pepSeq = sp[pepCol];
+        String [] smods = sp[modCol].split(",");
+        float dmass = Float.parseFloat(sp[deltaCol]);
+        float pepMass = Float.parseFloat(sp[pepMassCol]);
+
+        int dmassIndx = locate.getIndex(dmass);
+        if (dmassIndx == -1)
+            return;
+
+        // Get spec
+        Spectrum spec = mr.getSpectrum(reNormName(specName));
+        spec.condition(100, 0.01);
+
+        // Find ions of interest
+        for (DiagnosticProfileRecord dpr : binDiagMetrics[dmassIndx].diagProfRecs) {
+            if (dpr.type.equals("imm")) {
+                double immInt = spec.findIon(dpr.adjustedMass, this.spectraTol);
+                if (immInt > 0.01) {
+                    dpr.nWithIon.incrementAndGet();
+                    dpr.wIonInt.addAndGet(immInt);
+                }
+                dpr.nTotal.incrementAndGet();
+            } else if (dpr.type.equals("Y")) {
+                double capYInt = spec.findIonNeutral(pepMass + dpr.adjustedMass, this.spectraTol, 1);
+                if (capYInt > 0.01) {
+                    dpr.nWithIon.incrementAndGet();
+                    dpr.wIonInt.addAndGet(capYInt);
+                }
+                dpr.nTotal.incrementAndGet();
+            } else {
+                int nUnshiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, 0.0f);
+                dpr.nUnshiftedIons.getAndAdd(nUnshiftedIons);
+                int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, dmass);
+                dpr.nShiftedIons.getAndAdd(nShiftedIons);
+            }
+        }
+    }
+
+    public String reNormName(String s) {
+        String[] sp = s.split("\\.");
+        int sn = Integer.parseInt(sp[1]);
+        //with charge state
+        //return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+        //without charge state
+        return String.format("%s.%d.%d", sp[0], sn, sn);
+    }
+
+    public float[] formatMods(String[] smods, String seq) {
+        float [] mods = new float[seq.length()];
+        Arrays.fill(mods, 0f);
+        for(int i = 0; i < smods.length; i++) {
+            smods[i] = smods[i].trim();
+            if (smods[i].length() == 0)
+                continue;
+            int p = smods[i].indexOf("(");
+            int q = smods[i].indexOf(")");
+            String spos = smods[i].substring(0, p).trim();
+            double mass = Double.parseDouble(smods[i].substring(p + 1, q).trim());
+            int pos = -1;
+            if (spos.equals("N-term"))
+                pos = 0;
+            else if (spos.equals("c"))
+                pos = mods.length - 1;
+            else
+                pos = Integer.parseInt(spos.substring(0, spos.length() - 1)) - 1;
+            mods[pos] += mass;
+        }
+        return mods;
+    }
+
+    private class Pepkey implements Comparable<Pepkey> {
+        public String mzFile;
+        public String pepkey;
+        public float eVal;
+        public int scan;
+
+        Pepkey(String mzFile, String pepkey, float eVal, int scan) {
+            this.mzFile = mzFile;
+            this.pepkey = pepkey;
+            this.eVal = eVal;
+            this.scan = scan;
+        }
+
+        @Override
+        public int compareTo(Pepkey p) {
+            return Float.valueOf(p.eVal).compareTo(this.eVal);
+        }
     }
 }

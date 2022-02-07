@@ -11,8 +11,8 @@ public class Spectrum implements Comparable<Spectrum> {
 	public int charge;
 	double precursorMass, rt;
 	double monoMass, targetMass;
-	float [] peakMZ;
-	float [] peakInt;
+	public float [] peakMZ;
+	public float [] peakInt;
 	double norm;
 	public String scanName;
 	public int msLevel;
@@ -338,6 +338,83 @@ public class Spectrum implements Comparable<Spectrum> {
 		return nB+nY;
 	}
 
+	public int getFrags(String seq, float [] mods, double ppmTol, String it, float dMass) {
+		int nB = 0, nY = 0;
+		int maxCharge = 1;
+
+		char ionType = it.charAt(0);
+
+		float [] aaMasses = AAMasses.monoisotopic_masses;
+		float [] fragTypeShifts = AAMasses.ionTypeShifts;
+
+		float cM = 0;
+		double tol;
+		int fP = 0;
+		int cLen = seq.length();
+
+		ArrayList<Character> nIonTypes = new ArrayList<>();
+		ArrayList<Character> cIonTypes = new ArrayList<>();
+
+		if (ionType == 'a')
+			nIonTypes.add('a');
+		if (ionType == 'b')
+			nIonTypes.add('b');
+		if (ionType == 'c')
+			nIonTypes.add('c');
+		if (ionType == 'x')
+			cIonTypes.add('x');
+		if (ionType == 'y')
+			cIonTypes.add('y');
+		if (ionType == 'z')
+			cIonTypes.add('z');
+
+		float nTermMass;
+		for (Character iType : nIonTypes) {
+			nTermMass = fragTypeShifts[iType - 'a'] + dMass;
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+				//double cmass = AAMasses.monoisotopic_nterm_mass;
+				double cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
+				fP = 0;
+				for (int i = 0; i < cLen - 1; i++) {
+					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
+					tol = cmass * (ppmTol / 1000000.0);
+					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+						fP++;
+					if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+						cM = peakInt[fP];
+					} else
+						cM = 0;
+					if (cM > 0) {
+						nB++;
+					}
+				}
+			}
+		}
+		float cTermMass;
+		for (Character iType : cIonTypes) {
+			cTermMass = fragTypeShifts[iType - 'x' + 3] + dMass;
+			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+				//double cmass = (AAMasses.monoisotopic_cterm_mass + (ccharge + 1) * AAMasses.monoisotopic_nterm_mass) / ccharge;
+				double cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+				fP = 0;
+				for (int i = 0; i < cLen - 1; i++) {
+					cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+					tol = cmass * (ppmTol / 1000000.0);
+					while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+						fP++;
+					if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+						cM = peakInt[fP];
+					} else
+						cM = 0;
+					if (cM > 0) {
+						nY++;
+					}
+				}
+			}
+		}
+		return nB+nY;
+	}
+
 	public double findIon(double ion, double ppmTol) {
 		double ppmRange = ppmTol * (1.0 / 1000000) * ion;
 		double max = ion + ppmRange;
@@ -433,8 +510,9 @@ public class Spectrum implements Comparable<Spectrum> {
 		return peaks;
 	}
 
-	public float[][] calcCapYPeaks(String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float tol) {
+	public float[][] calcCapYPeaks(String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float dmass, float tol) {
 		ArrayList<Float> knownPeaks = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, 0.0f);
+		knownPeaks.addAll(calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, dmass));
 		ArrayList<Peak> ps = new ArrayList<>();
 		int localMaxCharge = Math.min(this.charge, maxCharge);
 
@@ -490,7 +568,7 @@ public class Spectrum implements Comparable<Spectrum> {
 				for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
 					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
 					knownFrags.add(cmass);
-					if (dmass > 0.001) { //add fragments with mass shift to known fragments
+					if (Math.abs(dmass) > 0.001) { //add fragments with mass shift to known fragments
 						cmass += dmass / ccharge;
 						knownFrags.add(cmass);
 						cmass -= dmass / ccharge;

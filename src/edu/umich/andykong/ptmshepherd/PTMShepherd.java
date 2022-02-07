@@ -13,6 +13,7 @@ import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.MZBINFile;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.diagnosticanalysis.DiagnosticExtractor;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import edu.umich.andykong.ptmshepherd.glyco.*;
@@ -26,7 +27,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "1.2.6";
+ 	public static final String version = "2.0.0-RC1";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -428,7 +429,7 @@ public class PTMShepherd {
 		params.put("precursor_tol", "0.01"); //unimod peakpicking width collapse these two parameters to one (requires redefining precursor tol in peakannotation module)
 		params.put("precursor_maxCharge", "1");
 		//params.put("precursor_tol_ppm", "20.0"); //for use in mass offset and glyco modes
-		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
+
         params.put("mass_offsets", "");
         params.put("isotope_error", "0");
 
@@ -442,6 +443,7 @@ public class PTMShepherd {
 
 		params.put("compare_betweenRuns", "false");
 		params.put("annotation_file", "");
+		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
 
 		params.put("glyco_mode", "false");
 		params.put("cap_y_ions", "0,203.07937,349.137279,406.15874,568.21156,730.26438,892.3172");
@@ -464,9 +466,13 @@ public class PTMShepherd {
 		params.put("diagmine_filterIonTypes", "aby");
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
-		params.put("diagmine_minAuc", "0.6");
-		params.put("diagmine_minPeps", "5");
-		params.put("diagmine_twoTailedTests", "1");
+		params.put("diagmine_minAuc", "0.1");
+		params.put("diagmine_minSpecDiff", "0.30");
+		params.put("diagmine_minFoldChange", "3.0");
+		params.put("diagmine_diagMinFoldChange", "3.0");
+		params.put("diagmine_minPeps", "25");
+		params.put("diagmine_twoTailedTests", "0");
+		params.put("diagmine_printRedundantTests", "0");
 		params.put("diagmine_maxPsms", "1000");
 
 
@@ -822,7 +828,6 @@ public class PTMShepherd {
 		double [][] peakBounds = PeakSummary.readPeakBounds(peaksummary);
 		LocalizationProfile loc_global = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 		for(String ds : datasets.keySet()) {
-			out.println();
 			LocalizationProfile loc_current = new LocalizationProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO
 			SiteLocalization sl = new SiteLocalization(ds);
 			LocalizationProfile [] loc_targets = {loc_global, loc_current};
@@ -887,15 +892,29 @@ public class PTMShepherd {
 			out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
-					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Integer.parseInt(params.get("diagmine_twoTailedTests")));
+					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Double.parseDouble(params.get("diagmine_minFoldChange")),
+					Integer.parseInt(params.get("diagmine_twoTailedTests")));
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					//dpp.addFilesToIndex(ds, mzMap.get(ds), executorService, Integer.parseInt(getParam("threads")));
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					dpp.addPepkeysToIndex(pf);
+				}
+			}
+			dpp.filterPepkeys();
+			dpp.process(executorService, Integer.parseInt(getParam("threads")));
+			out.println("\tDone identifying candidate ions");
+			out.println("\tExtracting ions from spectra");
+			//TODO HERE
+			dpp.initDiagProfRecs();
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					dpp.addFilesToIndex(ds, mzMap.get(ds), executorService, Integer.parseInt(getParam("threads")));
+					dpp.diagIonsPSMs(pf, mzMap.get(ds), executorService);
 				}
 			}
-			dpp.process(executorService, Integer.parseInt(getParam("threads")));
 			dpp.print(normFName("global.diagmine.tsv"));
 			out.println("Done mining diagnostic ions");
 		}
@@ -1142,13 +1161,13 @@ public class PTMShepherd {
 			for(int i = 0; i < dsData.size(); i++) {
 				PTMShepherd.print("\tCaching data from " + ds);
 				PSMFile pf = new PSMFile(dsData.get(i)[0]);
-				rewriteMzDataToMzBin(pf, mzMap.get(ds));
+				rewriteMzDataToMzBin(pf, mzMap.get(ds), Integer.parseInt(params.get("spectra_condPeaks")), Float.parseFloat(params.get("spectra_condRatio")));
 				PTMShepherd.print("\tDone caching data from " + ds);
 			}
 		}
 	}
 
-	private static void rewriteMzDataToMzBin(PSMFile pf, HashMap<String, File> mzMappings) throws Exception {
+	private static void rewriteMzDataToMzBin(PSMFile pf, HashMap<String, File> mzMappings, int topNPeaks, float minPeakRatio) throws Exception {
 		// Get PSM scan num -> spectral file mapping
 		HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
 		int specCol = pf.getColumn("Spectrum");
@@ -1163,8 +1182,15 @@ public class PTMShepherd {
 		// Loop through spectral files -> indexed lines in PSM -> process each line
 		HashMap<Integer, String> linesWithoutSpectra = new HashMap<>();
 		for (String cf : mappings.keySet()) { //for file in relevant spectral files
+			// Check to see if an mzBIN_cache file was discovered
 			if (mzMappings.get(cf).toString().endsWith(".mzBIN_cache")) {
 				System.out.println("\tFound existing cached spectral data for " + cf);
+				continue;
+			}
+			// Check to see if mzBIN_cache file exists in output directory
+			else if (new File(normFName(cf + ".mzBIN_cache")).exists()) {
+				System.out.println("\tFound existing cached spectral data for " + cf);
+				mzMappings.put(cf, new File(normFName(cf + ".mzBIN_cache")));
 				continue;
 			}
 			long t1 = System.currentTimeMillis();
@@ -1179,6 +1205,7 @@ public class PTMShepherd {
 				String [] sp = line.split("\\t");
 				String specName = sp[specCol];
 				Spectrum spec =  mr.getSpectrum(reNormName(specName));
+				spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
 				if (spec == null)
 					linesWithoutSpectra.put(i, line);
 				else

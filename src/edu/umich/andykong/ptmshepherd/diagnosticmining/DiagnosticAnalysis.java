@@ -26,7 +26,7 @@ public class DiagnosticAnalysis {
     int specCol, pepCol, modPepCol, deltaCol, rtCol, intCol, pmassCol, modCol, pepMassCol;
     double condRatio;
     int minImmon = 0;
-    int maxImmon = 500;
+    int maxImmon = 10000;
     FastLocator locate;
     private ArrayList<DiagnosticRecord> diagnosticRecords;
     double [][] peaks; //[3][n] apex, left, right
@@ -72,6 +72,10 @@ public class DiagnosticAnalysis {
 
         /* Process spectral file one at a time */
         for (String cf : mappings.keySet()) {
+            if (new File(PTMShepherd.normFName(cf+".diagBIN")).exists()) {
+                System.out.println("\tFound existing cached diagnostic data for " + cf);
+                continue;
+            }
             long t1 = System.currentTimeMillis();
             /* Initialize new DiagnosticRecord list */
             this.diagnosticRecords = new ArrayList<>();
@@ -92,7 +96,7 @@ public class DiagnosticAnalysis {
             /* Process PSM chunks and add them to diagnosticRecords*/
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
-                int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size() - 1);
+                int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
                 ArrayList<String> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.data.get(clines.get(j)));
@@ -104,7 +108,7 @@ public class DiagnosticAnalysis {
                 future.get();
 
             /* Write results to DiagBINFile */
-            DiagBINFile diagBinFile = new DiagBINFile(this.diagnosticRecords, cf+".diagBIN", this.ionTypes);
+            DiagBINFile diagBinFile = new DiagBINFile(this.diagnosticRecords, PTMShepherd.normFName(cf+".diagBIN"), this.ionTypes);
             diagBinFile.writeDiagBinFile();
 
             long t3 = System.currentTimeMillis();
@@ -119,7 +123,9 @@ public class DiagnosticAnalysis {
 
         for (int i = 0; i < cBlock.size(); i++) {
             DiagnosticRecord dr = processLine(cBlock.get(i));
-            if (!dr.isMangled)
+            if (dr == null) // Spectrum not found
+                continue;
+            if (!dr.isMangled) // redundant?
                 diagnosticRecords.add(dr);
         }
 
@@ -148,7 +154,7 @@ public class DiagnosticAnalysis {
         /* Initialize DiagnosticRecord and add relevant data */
         DiagnosticRecord diagnosticRecord =  new DiagnosticRecord(spec, this.ionTypes, pepSeq, parseModifications(smods, pepSeq), dmass, charge);
         diagnosticRecord.setImmoniumPeaks(calcImmoniumPeaks(spec, this.minImmon, this.maxImmon, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, dmass, this.spectraTol)); //todo max charge
-        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, pepMass, this.spectraTol)); //todo max charge
+        diagnosticRecord.setCapYPeaks(calcCapYPeaks(spec, pepSeq, parseModifications(smods, pepSeq), this.filterIonTypes, 1, pepMass, dmass, this.spectraTol)); //todo max charge
         diagnosticRecord.setSquigglePeaks(calcSquigglePeaks(spec, this.spectraTol, pepSeq, smods, this.ionTypes, this.filterIonTypes, 1)); //todo max charge
 
         return diagnosticRecord;
@@ -181,8 +187,8 @@ public class DiagnosticAnalysis {
         return sb.substring(0, sb.length()-1);
     }
 
-    public float[][] calcCapYPeaks(Spectrum spec, String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float specTol) {
-        float[][] peaks = spec.calcCapYPeaks(seq, mods, filterIonTypes, maxCharge, pepMass, specTol);
+    public float[][] calcCapYPeaks(Spectrum spec, String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float dmass, float specTol) {
+        float[][] peaks = spec.calcCapYPeaks(seq, mods, filterIonTypes, maxCharge, pepMass, dmass, specTol);
         return peaks;
     }
 
