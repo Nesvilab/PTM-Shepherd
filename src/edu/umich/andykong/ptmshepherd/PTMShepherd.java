@@ -27,7 +27,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC1";
+ 	public static final String version = "2.0.0-RC4";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -461,14 +461,15 @@ public class PTMShepherd {
 		params.put("diagmine_filterIonTypes", "aby");
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
-		params.put("diagmine_minAuc", "0.1");
-		params.put("diagmine_minSpecDiff", "0.30");
+		params.put("diagmine_minAuc", "0.01");
+		params.put("diagmine_minSpecDiff", "0.25");
 		params.put("diagmine_minFoldChange", "3.0");
 		params.put("diagmine_diagMinFoldChange", "3.0");
 		params.put("diagmine_minPeps", "25");
 		params.put("diagmine_twoTailedTests", "0");
 		params.put("diagmine_printRedundantTests", "0");
 		params.put("diagmine_maxPsms", "1000");
+		params.put("diagmine_minIonsPerSpec", "2");
 
 
 		params.put("output_extended", "false");
@@ -877,8 +878,8 @@ public class PTMShepherd {
 			out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
-					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Double.parseDouble(params.get("diagmine_minFoldChange")),
-					Integer.parseInt(params.get("diagmine_twoTailedTests")));
+					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Double.parseDouble(params.get("diagmine_minFoldChange")), Integer.parseInt(params.get("diagmine_minIonsPerSpec")),
+					Integer.parseInt(params.get("diagmine_twoTailedTests")), Integer.parseInt(params.get("spectra_condPeaks")), Double.parseDouble(params.get("spectra_condRatio")));
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
@@ -1181,11 +1182,12 @@ public class PTMShepherd {
 				String [] sp = line.split("\\t");
 				String specName = sp[specCol];
 				Spectrum spec =  mr.getSpectrum(reNormName(specName));
-				spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
 				if (spec == null)
 					linesWithoutSpectra.put(i, line);
-				else
+				else {
+					spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
 					specs.add(spec);
+				}
 			}
 			long t3 = System.currentTimeMillis();
 			PTMShepherd.print(String.format("\t\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));

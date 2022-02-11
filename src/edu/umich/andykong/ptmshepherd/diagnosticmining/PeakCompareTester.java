@@ -265,12 +265,12 @@ public class PeakCompareTester {
             if (this.twoTailedTests == false) {
                 //System.out.println(propWIon + "\t" + wIonIntensityCont + "\t" + propWIonCont + "\t" + wIonIntensityCont);
                 //System.out.println(this.peakApex + "\t" + peak + "\t" + this.twoTailedTests + "\t" + foldChange + "\t" +this.diagMinFoldChange);
-                if (p <= this.maxP && foldChange >= this.diagMinFoldChange && specDiff >= this.minSpecDiff) {
+                if (p <= this.maxP && foldChange >= this.diagMinFoldChange && propWIon >= this.minSpecDiff) {
                     this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont,
                             u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
                 }
             } else {
-                if (p <= this.maxP && maxAbsFoldChange >= this.diagMinFoldChange && Math.abs(specDiff) >= this.minSpecDiff ) {
+                if (p <= this.maxP && maxAbsFoldChange >= this.diagMinFoldChange && propWIon >= this.minSpecDiff ) {
                     this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont,
                             u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
                 }
@@ -364,12 +364,12 @@ public class PeakCompareTester {
             double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
             double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
             if (this.twoTailedTests == false) {
-                if (p <= this.maxP && specDiff > this.minSpecDiff && foldChange >= this.minFoldChange) {
+                if (p <= this.maxP && propWIon > this.minSpecDiff && foldChange >= this.minFoldChange) {
                     this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                             this.capYX.get(peak).size(), this.capYY.get(peak).size()));
                 }
             } else {
-                if (p <= this.maxP && Math.abs(specDiff) > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) {
+                if (p <= this.maxP && propWIon > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) {
                     this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                             this.capYX.get(peak).size(), this.capYY.get(peak).size()));
                 }
@@ -471,12 +471,12 @@ public class PeakCompareTester {
                 double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
                 //if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
                 if (this.twoTailedTests == false) {
-                    if (p <= this.maxP && specDiff > this.minSpecDiff && foldChange >= this.minFoldChange) {
+                    if (p <= this.maxP && propWIon > this.minSpecDiff && foldChange >= this.minFoldChange) {
                         this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                                 this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                     }
                 } else {
-                    if (p <= this.maxP && Math.abs(specDiff) > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) {
+                    if (p <= this.maxP && propWIon > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) {
                         this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                                 this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                     }
@@ -659,7 +659,7 @@ public class PeakCompareTester {
             @Override
             public int compare(Test o1, Test o2) {
                 return Double.compare(o1.q, o2.q);
-            }
+            } // Sorting by most to least significant
         });
 
         int group = 1;
@@ -706,7 +706,7 @@ public class PeakCompareTester {
                     return firstComp;
 
                 double int1 = o1.propWIonTreat * o1.propWIonIntensity;
-                double int2 = o2.propWIonCont * o2.propWIonIntensityCont;
+                double int2 = o2.propWIonTreat * o2.propWIonIntensity;
                 return -1 * Double.compare(int1, int2);
             }
         });

@@ -160,8 +160,8 @@ public class BinDiagMetric {
             //this.tildeIons.get(i).smoothify(executorService, nThreads);
             long t2 = System.currentTimeMillis();
             //System.out.println("SquiggleAbund");
-            //this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
             this.tildeIons.get(i).findPeaks();
+            //this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
             long t3 = System.currentTimeMillis();
             this.tildeIons.get(i).clearMemory();
             //System.out.printf("Processing time (%d ms smoothing - %d ms peakpicking)\n", t2-t1, t3-t2);

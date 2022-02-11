@@ -135,9 +135,9 @@ public class DiagnosticHisto {
         PrintWriter out = new PrintWriter(new FileWriter(new File(fname)));
         out.printf("mass\theight\n");
         StringBuffer sb = new StringBuffer();
-        for (int i = 0; i < this.bins2.length(); i++) {
+        for (int i = 0; i < this.filteredHistoPeaks.size(); i++) {
             //System.out.printf("%.04f\t%.04f\n", binToMass(i), this.bins2.get(i));
-            out.printf("%.04f\t%.04f\n", binToMass(i), this.bins2.get(i));
+            out.printf("%.04f\t%.04f\n", this.filteredHistoPeaks.get(i).MZ, this.filteredHistoPeaks.get(i).Int);
         }
         out.close();
     }
@@ -280,6 +280,7 @@ public class DiagnosticHisto {
 
     public void findPeaks() {
         this.filteredPeaks = new ArrayList<>();
+        this.filteredHistoPeaks = new ArrayList<>();
 
         //double minVal = this.total.doubleValue() * this.minSignal; // Peak must be least 0.01 of total / cbins todo??
         double minVal = this.minSignal * this.nPepkeys * 100.0;
@@ -357,6 +358,7 @@ public class DiagnosticHisto {
 
         for (int i = 0; i < maxPeaks; i++) {
             this.filteredPeaks.add(peaks.get(i).MZ);
+            this.filteredHistoPeaks.add(new HistoPeak(peaks.get(i).MZ,peaks.get(i).Int));
             //this.filteredHistoPeaks.add(peaks.get(i));
             //System.out.println(peaks.get(i).MZ + "\t" + (peaks.get(i).Int / this.total));
         }
@@ -404,6 +406,7 @@ public class DiagnosticHisto {
         this.bins2 = null;
         this.smoothBins = null;
         this.smoothBins2 = null;
+        this.filteredHistoPeaks = null;
     }
 
 

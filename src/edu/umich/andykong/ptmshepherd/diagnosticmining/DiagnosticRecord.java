@@ -141,7 +141,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         }
     }
 
-    public void filterIons(ArrayList<Double> immMasses, ArrayList<Double> capYMasses, HashMap<Character, ArrayList<Double>> squigglePeaksMasses, double tol) {
+    public void filterIons(ArrayList<Double> immMasses, ArrayList<Double> capYMasses, HashMap<Character, ArrayList<Double>> squigglePeaksMasses, double tol, int minIonEvidence) {
         /* Initialize variables that hold data for Mann-Whitney-U */
         this.selectedImmoniumPeaks = new HashMap<>();
         this.selectedCapYPeaks = new HashMap<>();
@@ -157,7 +157,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
         for (Character c : squigglePeaksMasses.keySet()) {
             this.selectedSquigglePeaks.put(c, new HashMap<>());
-            double[][] selectSquigglePeaks = collectSquiggleIonIntsensities(squigglePeaksMasses.get(c), this.squigglePeaks.get(c), c, tol);
+            double[][] selectSquigglePeaks = collectSquiggleIonIntsensities(squigglePeaksMasses.get(c), this.squigglePeaks.get(c), c, tol, minIonEvidence);
             //for (int i = 0 ; i < selectSquigglePeaks.length; i++)
             //    selectSquigglePeaks[i][1] /= this.pepSeq.length();
             for (double[] peak : selectSquigglePeaks)
@@ -284,11 +284,11 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
     }
 
-    private double[][] collectSquiggleIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] fixedExpPeakList, char ionType, double tol) {
+    private double[][] collectSquiggleIonIntsensities(ArrayList<Double> searchKeyIonList, float[][] fixedExpPeakList, char ionType, double tol, int minIonEvidence) {
 
         double[][] selectedPeaks = new double[searchKeyIonList.size()][2];
         int [] selectedPeaksN = new int[searchKeyIonList.size()];
-        final int minEvidence = 2;
+        final int minEvidence = minIonEvidence;
         for (int i = 0; i < searchKeyIonList.size(); i++)
             selectedPeaks[i][0] = searchKeyIonList.get(i);
         Arrays.sort(selectedPeaks, new Comparator<double[]>() {

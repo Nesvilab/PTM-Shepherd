@@ -35,6 +35,7 @@ public class DiagnosticPeakPicker {
     double minRbc;
     double minSpecDiff;
     double minFoldChange;
+    int minIonEvidence;
     boolean twoTailedTests;
 
     HashMap<Integer, HashMap<String, Pepkey>> peakToPepkeys;
@@ -45,10 +46,11 @@ public class DiagnosticPeakPicker {
 
 
 
-    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, double minFoldChange, int twoTailedTests) {
+    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, double minFoldChange, int minIonEvidence, int twoTailedTests, int condPeaks, double condRatio) {
         this.peaks = peakApexBounds;
         this.minSignal = minSignal;
         this.minFoldChange = minFoldChange;
+        this.minIonEvidence = minIonEvidence;
         this.peakToFileToScan = new TreeMap<>();
         this.peakToPepkeys = new HashMap<>();
         this.ionTypes = ions; //redundant
@@ -57,6 +59,9 @@ public class DiagnosticPeakPicker {
         this.locate = new FastLocator(peakApexBounds, peakTol, precursorMassUnits);
         this.spectraTol = specTol;
         this.maxPrecursorCharge = maxPrecursorCharge;
+
+        this.condPeaks = condPeaks;
+        this.condRatio = condRatio;
 
         this.maxP = maxP;
         this.minRbc = minRbc;
@@ -348,7 +353,7 @@ public class DiagnosticPeakPicker {
                 continue;
             //if (isDecoy)
             //    dr.makeDecoy();
-            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol);
+            dr.filterIons(unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, tol, this.minIonEvidence);
         }
         pct.addDrs(localDrs, isControl, isDecoy);
     }
@@ -405,7 +410,7 @@ public class DiagnosticPeakPicker {
         PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
 
         out2.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\t" +
-                "prop_mod_spectra\tmod_spectra_int\tremainder_propensity_odds_spectra\t" +
+                "prop_mod_spectra\tmod_spectra_int\tremainder_propensity_spectra\t" +
                 "prop_mod_ions\tprop_unmod_ions\t" +
                 "mod_ions_int\tunmod_ions_int\t" +
                 "e_value\tauc\n");
@@ -499,7 +504,9 @@ public class DiagnosticPeakPicker {
 
         // Get spec
         Spectrum spec = mr.getSpectrum(reNormName(specName));
-        spec.condition(100, 0.01);
+        if (spec == null)
+            return;
+        spec.condition(this.condPeaks, this.condRatio);
 
         // Find ions of interest
         for (DiagnosticProfileRecord dpr : binDiagMetrics[dmassIndx].diagProfRecs) {
@@ -518,10 +525,12 @@ public class DiagnosticPeakPicker {
                 }
                 dpr.nTotal.incrementAndGet();
             } else {
-                int nUnshiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, 0.0f);
-                dpr.nUnshiftedIons.getAndAdd(nUnshiftedIons);
+                dpr.nTotal.incrementAndGet();
+                //int nUnshiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, 0.0f);
+                //dpr.nUnshiftedIons.getAndAdd(pepSeq.length());
                 int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, dmass);
                 dpr.nShiftedIons.getAndAdd(nShiftedIons);
+                dpr.pctCoverage.getAndAdd(nShiftedIons / (double) pepSeq.length());
             }
         }
     }

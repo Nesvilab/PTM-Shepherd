@@ -68,11 +68,11 @@ public class DiagnosticProfileRecord {
                             "%e\t%f\n",
                     this.peakApex, this.type, this.mass, this.adjustedMass, //basic stats
                     propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
-                    this.propWIonControlIonLevel, this.propWIonTreatIonLevel, //ion level stats for propensity
+                    this.propWIonTreatIonLevel, this.propWIonControlIonLevel, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
                     this.q, this.rbc); //selection stats
         } else {
-            float remainderOdds = (float) this.nShiftedIons.get() / (float) this.nUnshiftedIons.get();
+            float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
             newLine = String.format("%.04f\t%s\t%.04f\t%.04f\t" +
                             "\t\t%.02f\t" +
                             "%.02f\t%.02f\t" +
@@ -80,7 +80,7 @@ public class DiagnosticProfileRecord {
                             "%e\t%f\n",
                     this.peakApex, this.type, this.mass, this.adjustedMass, //basic stats
                     remainderOdds, //spectrum level stats
-                    this.propWIonControlIonLevel, this.propWIonTreatIonLevel, //ion level stats for propensity
+                    this.propWIonTreatIonLevel, this.propWIonControlIonLevel, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
                     this.q, this.rbc);
         }
