@@ -272,16 +272,6 @@ public class PSMFile {
 		for (String cpline : this.data) {
 			ArrayList<String> newLine = new ArrayList<>(Arrays.asList(cpline.split("\t")));
 			String pSpec = newLine.get(pSpecCol);
-			ArrayList<String> glyLine;
-			try {
-				glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
-			} catch (NullPointerException ex) {
-				// spectrum was not written to rawglyco file - can happen for spectra listed as 'missing' in other analyses. Use empty line to skip changing the PSM table
-				glyLine = new ArrayList<>();
-				for (int i=0; i < mergeFromCol + numColsToUse; i++) {
-					glyLine.add("");
-				}
-			}
 			if (!hasPreviousGlycoInfo) {
 				// add columns for glycan score and q-value before proceeding (for all lines, whether glycan-containing or not)
 				for (int i=0; i <= numColsToUse; i++) {
