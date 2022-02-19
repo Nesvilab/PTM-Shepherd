@@ -58,31 +58,37 @@ public class DiagnosticProfileRecord {
 
     public String toString() {
         String newLine;
-        if (this.type.equals("imm") || this.type.equals("Y")) {
+        if (this.type.equals("diagnostic") || this.type.equals("peptide")) {
             float propWIonSpectrumLevel = this.nWithIon.get() / (float) this.nTotal.get();
             float wIonIntensity = (float) (this.wIonInt.get() / this.nWithIon.get());
-            newLine = String.format("%.04f\t%s\t%.04f\t%.04f\t" +
-                            "%.02f\t%.02f\t\t" +
+            newLine = String.format("%.04f\t%s\t%.04f\t" +
+                            "\t" +
                             "%.02f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
-                            "%e\t%f\n",
-                    this.peakApex, this.type, this.mass, this.adjustedMass, //basic stats
-                    propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
-                    this.propWIonTreatIonLevel, this.propWIonControlIonLevel, //ion level stats for propensity
+                            "%f\n",
+                    this.peakApex, this.type, this.adjustedMass, //basic stats
+                    //propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
+                    this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
-                    this.q, this.rbc); //selection stats
+                    //this.q, this.rbc); //selection stats
+                    this.rbc);
         } else {
             float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
-            newLine = String.format("%.04f\t%s\t%.04f\t%.04f\t" +
-                            "\t\t%.02f\t" +
+            //System.out.println(peakApex + "\t" + adjustedMass);
+            //System.out.println(remainderOdds);
+            //System.out.println(pctCoverage.get());
+            //System.out.println(nTotal.get() + "\t" + nShiftedIons.get() + "\t" + nUnshiftedIons.get());
+            newLine = String.format("%.04f\t%s\t%.04f\t" +
+                            "%.02f\t" +
                             "%.02f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
-                            "%e\t%f\n",
-                    this.peakApex, this.type, this.mass, this.adjustedMass, //basic stats
+                            "%f\n",
+                    this.peakApex, this.type, this.adjustedMass, //basic stats
                     remainderOdds, //spectrum level stats
-                    this.propWIonTreatIonLevel, this.propWIonControlIonLevel, //ion level stats for propensity
+                    this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
-                    this.q, this.rbc);
+                    //this.q, this.rbc);
+                    this.rbc);
         }
         return newLine;
     }
