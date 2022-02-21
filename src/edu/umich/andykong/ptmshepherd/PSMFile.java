@@ -274,8 +274,8 @@ public class PSMFile {
 			String pSpec = newLine.get(pSpecCol);
 			if (!hasPreviousGlycoInfo) {
 				// add columns for glycan score and q-value before proceeding (for all lines, whether glycan-containing or not)
-				for (int i=0; i <= numColsToUse; i++) {
-					newLine.add(observedModCol + 1 + i, "\t");
+				for (int i=0; i < numColsToUse - 1; i++) {
+					newLine.add(observedModCol + 1 + i, "");
 				}
 			}
 
