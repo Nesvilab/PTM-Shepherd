@@ -586,10 +586,41 @@ public class PTMShepherd {
 			cct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")));
 		}
 
-		//Glyco analyses
+		// diagnostic ion extraction (original glyco/labile mode)
+		boolean extractDiagnosticIons = Boolean.parseBoolean(params.get("diag_extract_mode"));
+		if (extractDiagnosticIons) {
+			System.out.println("Beginning diagnostic ion extraction");
+			int numThreads = Integer.parseInt(params.get("threads"));
+			for (String ds : datasets.keySet()) {
+				DiagnosticExtractor da = new DiagnosticExtractor(ds);
+				if (da.isDiagnosticComplete()) {
+					print(String.format("\tDiagnostic extraction already done for dataset %s, skipping", ds));
+					continue;
+				}
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					da.extractDiagPSMs(pf, mzMap.get(ds), executorService, numThreads);
+				}
+				da.completeDiagnostic();
+			}
+			// calculate glycoprofile after all other diagnostic extraction analysis is done
+			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+			for (String ds : datasets.keySet()) {
+				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
+				DiagnosticExtractor da = new DiagnosticExtractor(ds);
+				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
+				da.updateGlycoProfiles(gaTargets);
+				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
+			}
+			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
+			System.out.println("Done with diagnostic ion extraction");
+		}
+
+		//Glycan assignment
 		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
 		if (glycoMode) {
-			System.out.println("Beginning glyco/labile analysis");
+			System.out.println("Beginning glycan assignment");
 			// parse glyco parameters and initialize database and ratio tables
 			Random randomGenerator = new Random(glycoRandomSeed);
 			ArrayList<GlycanResidue> adductList = StaticGlycoUtilities.parseGlycoAdductParam();
@@ -618,7 +649,7 @@ public class PTMShepherd {
 			// Glyco: first pass
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
-				if (ga.isDiagnosticComplete() && ga.isGlycoComplete()) {
+				if (ga.isGlycoComplete()) {
 					print(String.format("\tGlyco/labile analysis already done for dataset %s, skipping", ds));
 					continue;
 				}
@@ -633,7 +664,7 @@ public class PTMShepherd {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					ga.glycoPSMs(pf, mzMap.get(ds), executorService, numThreads);
 				}
-				ga.completeDiagnostic();
+				ga.completeGlyco();
 			}
 
 			// second pass: calculate glycan FDR and update results
@@ -656,7 +687,6 @@ public class PTMShepherd {
 					}
 					ga2.computeGlycanFDR(glycoFDR);
 
-					ga2.completeDiagnostic();
 					ga2.completeGlyco();
 				}
 
@@ -670,19 +700,8 @@ public class PTMShepherd {
 				}
 			}
 
-			// calculate glycoprofile after all other glyco analysis is done
-			GlycoProfile glyProGLobal = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-			for (String ds : datasets.keySet()) {
-				GlycoProfile glyProCurr = new GlycoProfile(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
-				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
-				GlycoProfile[] gaTargets = {glyProGLobal, glyProCurr};
-				ga.updateGlycoProfiles(gaTargets);
-				glyProCurr.writeProfile(PTMShepherd.normFName(ds + ".glycoprofile.txt"));
-			}
-			glyProGLobal.writeProfile(PTMShepherd.normFName("global.glycoprofile.txt"));
-
 			print("Created glyco reports");
-			print("Done with glyco/labile analysis\n");
+			print("Done with glycan assignment\n");
 		}
 
 		/* Make psm table IonQuant compatible */
