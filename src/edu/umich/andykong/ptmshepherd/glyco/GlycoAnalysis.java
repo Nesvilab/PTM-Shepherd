@@ -36,7 +36,6 @@ public class GlycoAnalysis {
     double defaultMassErrorAbsScore;
     Integer[] glycoIsotopes;
     double glycoPPMtol;
-    boolean runGlycanAssignment;
     public static final double DEFAULT_GLYCO_PPM_TOL = 50;
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
@@ -48,9 +47,8 @@ public class GlycoAnalysis {
     public double finalGlycoFDR;
 
     // Default constructor
-    public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
         this.dsName = dsName;
-        this.runGlycanAssignment = runGlycanAssignment;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
 
@@ -76,11 +74,7 @@ public class GlycoAnalysis {
         condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
 
         //write header
-        StringBuilder glycoHeader = new StringBuilder(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
-        if (runGlycanAssignment) {
-            glycoHeader.append("\tBest Glycan\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score");
-            glycoOut.println(glycoHeader + "\tFragments:");
-        }
+        glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + "\tBest Glycan\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score" + "\tFragments:");
 
         //get necessary col indices
         specCol = pf.getColumn("Spectrum");
@@ -470,16 +464,21 @@ public class GlycoAnalysis {
         massErrorWidth = fitParameters[2];
     }
 
-
+    /**
+     * Run glycan assignment for a single PSM line from the PSM table
+     * @param line String of a single PSM line
+     * @return result container
+     */
     public GlycanAssignmentResult processLine(String line) {
+        // get basic info
         String[] sp = line.split("\\t");
         String seq = sp[pepCol];
         float dmass = Float.parseFloat(sp[deltaCol]);
         float pepMass = Float.parseFloat(sp[pmassCol]);
         String specName = sp[specCol];
-
         GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(seq, dmass, pepMass, sp[modCol], specName);
 
+        // read spectrum and condition
         Spectrum spec = mr.getSpectrum(reNormName(specName));
         if (spec == null) {
             this.lineWithoutSpectra.add(reNormName(specName));
@@ -488,9 +487,8 @@ public class GlycoAnalysis {
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
-        if (runGlycanAssignment) {
-            glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
-        }
+        // do glycan assignment
+        glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
         return glycoResult;
     }
 

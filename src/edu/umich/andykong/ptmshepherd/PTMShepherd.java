@@ -662,24 +662,24 @@ public class PTMShepherd {
 			String glycoFDRParam = getParam("glyco_fdr");
 			double glycoFDR = glycoFDRParam.equals("") ? GlycoAnalysis.DEFAULT_GLYCO_FDR : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
 			boolean alreadyPrintedParams = false;
-			boolean runGlycanAssignment = getParam("assign_glycans").equals("") || Boolean.parseBoolean(getParam("assign_glycans"));		// default true
 			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
 			boolean writeGlycansToAssignedMods = getParam("put_glycans_to_assigned_mods").equals("") || Boolean.parseBoolean(getParam("put_glycans_to_assigned_mods"));	// default true
 			boolean removeGlycanDeltaMass = !getParam("remove_glycan_delta_mass").equals("") && Boolean.parseBoolean(getParam("remove_glycan_delta_mass"));	// default false
 			boolean printGlycoDecoys = !getParam("print_decoys").equals("") && Boolean.parseBoolean(getParam("print_decoys"));	// default false
-			String allowedLocRes = PTMShepherd.getParam("localization_allowed_res");
+			String allowedLocRes = getParam("localization_allowed_res");
 			int numThreads = Integer.parseInt(params.get("threads"));
+			boolean useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").equals("") && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
 
 			// Glyco: first pass
 			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, runGlycanAssignment, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 				if (ga.isGlycoComplete()) {
-					print(String.format("\tGlyco/labile analysis already done for dataset %s, skipping", ds));
+					print(String.format("\tGlyco analysis already done for dataset %s, skipping", ds));
 					continue;
 				}
 
 				// print params here to avoid printing if the analysis is already done/not being run
-				if (!alreadyPrintedParams && runGlycanAssignment) {
+				if (!alreadyPrintedParams) {
 					StaticGlycoUtilities.printGlycoParams(adductList, maxAdducts, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol, glycoFDR, printFullParams, nGlycan, allowedLocRes, decoyType, printGlycoDecoys, removeGlycanDeltaMass);
 					alreadyPrintedParams = true;
 				}
@@ -692,16 +692,17 @@ public class PTMShepherd {
 			}
 
 			// second pass: calculate glycan FDR and update results
-			if (runGlycanAssignment) {
-				for (String ds : datasets.keySet()) {
-					GlycoAnalysis ga = new GlycoAnalysis(ds, true, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
-					ga.computeGlycanFDR(glycoFDR);
+			for (String ds : datasets.keySet()) {
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+				ga.computeGlycanFDR(glycoFDR);
+
+				if (useGlycanFragmentProbs) {
 					// second pass - calculate fragment propensities, regenerate database, and re-run
 					HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs();
 					ArrayList<GlycanCandidate> propensityGlycanDB = StaticGlycoUtilities.updateGlycanDatabase(fragmentDB, glycoDatabase, randomGenerator, decoyType, glycoPPMtol, glycoIsotopes, glycoProbabilityTable, glycoOxoniumDatabase);
 
 					// run glyco PSM-level analysis with the new database
-					GlycoAnalysis ga2 = new GlycoAnalysis(ds, true, propensityGlycanDB, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
+					GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 					ga2.glycanMassBinMap = ga.glycanMassBinMap;
 					ga2.useFragmentSpecificProbs = true;
 					ArrayList<String[]> dsData = datasets.get(ds);
@@ -710,17 +711,16 @@ public class PTMShepherd {
 						ga2.glycoPSMs(pf, mzMap.get(ds), executorService, numThreads);
 					}
 					ga2.computeGlycanFDR(glycoFDR);
-
 					ga2.completeGlyco();
 				}
+			}
 
-				/* Save best glycan information from glyco report to psm tables */
-				for (String ds : datasets.keySet()) {
-					ArrayList<String[]> dsData = datasets.get(ds);
-					for (int i = 0; i < dsData.size(); i++) {
-						PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-						pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, writeGlycansToAssignedMods, nGlycan, allowedLocRes, removeGlycanDeltaMass, printGlycoDecoys);
-					}
+			/* Save best glycan information from glyco report to psm tables */
+			for (String ds : datasets.keySet()) {
+				ArrayList<String[]> dsData = datasets.get(ds);
+				for (int i = 0; i < dsData.size(); i++) {
+					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
+					pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, writeGlycansToAssignedMods, nGlycan, allowedLocRes, removeGlycanDeltaMass, printGlycoDecoys);
 				}
 			}
 
