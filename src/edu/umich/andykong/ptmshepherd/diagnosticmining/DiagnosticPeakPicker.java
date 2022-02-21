@@ -197,7 +197,7 @@ public class DiagnosticPeakPicker {
         //todo this should be functions
         for (Integer peakIndx : peakToFileToScan.keySet()) {
             /* Construct unified peaklists that will be used in downstream processes */
-            System.out.println("\nApex\t" + this.peaks[0][peakIndx]);
+            //System.out.println("\nApex\t" + this.peaks[0][peakIndx]);
 
             ArrayList<Double> unifiedImmPeakList = new ArrayList<>(binDiagMetrics[peakIndx].immoniumIons.filteredPeaks);
             ArrayList<Double> unifiedCapYPeakList = new ArrayList<>(binDiagMetrics[peakIndx].capYIons.filteredPeaks);
@@ -409,11 +409,11 @@ public class DiagnosticPeakPicker {
         */
         PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
 
-        out2.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\t" +
-                "prop_mod_spectra\tmod_spectra_int\tremainder_propensity_spectra\t" +
-                "prop_mod_ions\tprop_unmod_ions\t" +
-                "mod_ions_int\tunmod_ions_int\t" +
-                "e_value\tauc\n");
+        out2.print("peak_apex\tion_type\tdiagnostic_mass\t" +
+                "remainder_propensity\t" +
+                "percent_mod\tpercent_unmod\t" +
+                "avg_intensity_mod\tavg_intensity_unmod\t" +
+                "auc\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
             out2.print(this.binDiagMetrics[i].toString());
         }
@@ -526,11 +526,11 @@ public class DiagnosticPeakPicker {
                 dpr.nTotal.incrementAndGet();
             } else {
                 dpr.nTotal.incrementAndGet();
-                //int nUnshiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, 0.0f);
-                //dpr.nUnshiftedIons.getAndAdd(pepSeq.length());
-                int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, dmass);
-                dpr.nShiftedIons.getAndAdd(nShiftedIons);
-                dpr.pctCoverage.getAndAdd(nShiftedIons / (double) pepSeq.length());
+                int nUnshiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, 0.0f);
+                dpr.nUnshiftedIons.getAndAdd(pepSeq.length());
+                int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, (float)dpr.adjustedMass);
+                dpr.nShiftedIons.addAndGet(nShiftedIons);
+                dpr.pctCoverage.addAndGet(nShiftedIons / (double) pepSeq.length());
             }
         }
     }

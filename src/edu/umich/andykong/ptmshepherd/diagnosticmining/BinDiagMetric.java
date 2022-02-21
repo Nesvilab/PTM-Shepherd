@@ -139,7 +139,7 @@ public class BinDiagMetric {
         /* Free pepMap memory */
         this.peptideMap = null;
 
-        System.out.println("\nPeakApex:"+peakApex);
+        //System.out.println("\nPeakApex:"+peakApex);
 
         //this.immoniumIons.smoothify(executorService, nThreads);
         //this.capYIons.smoothify(executorService, nThreads);
@@ -243,13 +243,13 @@ public class BinDiagMetric {
             Test t = this.testResults.immoniumTests.get(i);
             if (!t.isIsotopeRep)
                 continue;
-            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "imm", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "diagnostic", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
         }
         for (int i = 0; i < this.testResults.capYTests.size(); i++) {
             Test t = this.testResults.capYTests.get(i);
             if (!t.isIsotopeRep)
                 continue;
-            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "Y", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "peptide", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
         }
         for (Character cIon : this.testResults.squigglesTests.keySet()) {
             for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
