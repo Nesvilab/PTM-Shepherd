@@ -51,7 +51,7 @@ public class GlycoAnalysis {
     public GlycoAnalysis(String dsName, boolean runGlycanAssignment, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
         this.dsName = dsName;
         this.runGlycanAssignment = runGlycanAssignment;
-        this.glycoFile = new File(PTMShepherd.normFName(dsName + ".rawglyco"));
+        this.glycoFile = new File(PTMShepherd.normFName(dsName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
 
         // init with default values, can be changed by params

@@ -33,7 +33,7 @@ public class DiagnosticExtractor {
 
     public DiagnosticExtractor(String dsName) {
         this.dsName = dsName;
-        this.rawDiagnosticFile = new File(PTMShepherd.normFName(dsName + ".diagnosticIons.tsv"));
+        this.rawDiagnosticFile = new File(PTMShepherd.normFName(dsName + PTMShepherd.diagIonsExtractName));
     }
 
 
