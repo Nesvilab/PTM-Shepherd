@@ -64,10 +64,7 @@ public class PTMShepherd {
 
 
 	public static String getParam(String key) {
-		if(params.containsKey(key))
-			return params.get(key);
-		else 
-			return "";
+		return params.getOrDefault(key, "");
 	}
 	public static void die(String s) {
 		System.err.println("Fatal error: " + s);
@@ -601,7 +598,7 @@ public class PTMShepherd {
 		}
 
 		// diagnostic ion extraction (original glyco/labile mode)
-		boolean extractDiagnosticIons = Boolean.parseBoolean(params.get("diag_extract_mode"));
+		boolean extractDiagnosticIons = Boolean.parseBoolean(params.get("diagextract_mode"));
 		if (extractDiagnosticIons) {
 			System.out.println("Beginning diagnostic ion extraction");
 			int numThreads = Integer.parseInt(params.get("threads"));
