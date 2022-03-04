@@ -15,13 +15,15 @@ public class SimRTProfile {
 	double [][] peaks;
 	double peakTol;
 	int precursorUnits;
+	boolean calcIntensity;
 	
-	public SimRTProfile(double [][] peakVals, double peakTol, int precursorUnits) {
+	public SimRTProfile(double [][] peakVals, double peakTol, int precursorUnits, boolean calcIntensity) {
 		this.masses = new double[peakVals[0].length];
 		for (int i = 0; i < peakVals[0].length; i++) {
 			this.masses[i] = peakVals[0][i];
 		}
 
+		this.calcIntensity = calcIntensity;
 		peaks = peakVals;
 
 		this.peakTol = peakTol;
@@ -29,13 +31,18 @@ public class SimRTProfile {
 		locate = new FastLocator(peaks, peakTol, precursorUnits);
 		records = new SimRTRecord[masses.length];
 		for(int i = 0; i < masses.length; i++)
-			records[i] = new SimRTRecord(masses[i], i);
+			records[i] = new SimRTRecord(masses[i], i, calcIntensity);
 	}
 	
 	public void writeProfile(String path) throws Exception {
 		PrintWriter out = new PrintWriter(new FileWriter(path));
-		out.printf("%s\t%s\t%s\t%s\t%s\t%s\n",
-				"peak","PSMs","similarity","similarity_(variance)","rt_shift", "rt_shift_(variance)");
+		if (calcIntensity) {
+			out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+					"peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)", "int_delta", "int_delta_(variance)");
+		} else {
+			out.printf("%s\t%s\t%s\t%s\t%s\t%s\n",
+					"peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)");
+		}
 		for(int i = 0; i < records.length; i++) {
 			out.println(records[i].toString());
 		}

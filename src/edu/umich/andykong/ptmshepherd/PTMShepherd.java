@@ -827,6 +827,7 @@ public class PTMShepherd {
 
 		//Perform similarity and RT annotation
 		print("Begin similarity and retention time annotation");
+		boolean calcIntensity = false;
 		for(String ds : datasets.keySet()) {
 			SimRTAnalysis sra = new SimRTAnalysis(ds);
 			if(sra.isComplete())
@@ -837,13 +838,14 @@ public class PTMShepherd {
 				sra.simrtPSMs(pf, mzMap.get(ds),Boolean.parseBoolean(params.get("compare_betweenRuns")));
 			}
 			sra.complete();
+			calcIntensity = sra.getCalcIntensity();
 		}
 		print("Done\n");
 
 		//SimRT summaries
-		SimRTProfile simrt_global = new SimRTProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO add units
+		SimRTProfile simrt_global = new SimRTProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units")), calcIntensity); //TODO add units
 		for(String ds : datasets.keySet()) {
-			SimRTProfile simrt_current = new SimRTProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units"))); //TODO add units
+			SimRTProfile simrt_current = new SimRTProfile(peakBounds, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units")), calcIntensity); //TODO add units
 			SimRTAnalysis sra = new SimRTAnalysis(ds);
 			SimRTProfile [] simrt_targets = {simrt_global, simrt_current};
 			sra.updateSimRTProfiles(simrt_targets);
@@ -908,11 +910,11 @@ public class PTMShepherd {
 		//Combine tables
 		out.println("Combining and cleaning reports");
 		CombinedTable gct = new CombinedTable("global");
-		gct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")));
+		gct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")), calcIntensity);
 		for (String ds : datasets.keySet()){
 			out.println("Writing combined table for dataset " + ds);
 			CombinedTable cct = new CombinedTable(ds);
-			cct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")));
+			cct.writeCombinedTable(Integer.parseInt(params.get("histo_intensity")), calcIntensity);
 		}
 
 		//Glyco analyses
@@ -1012,11 +1014,11 @@ public class PTMShepherd {
 			CombinedExperimentsSummary cs = new CombinedExperimentsSummary(normFName("combined_experiment_profile.tsv"));
 			cs.initializeExperimentSummary(normFName("global.profile.tsv"), Integer.parseInt(params.get("histo_intensity")));
 			cs.addLocalizationSummary(normFName("global.locprofile.txt"), "combined");
-			cs.addSimilarityRTSummary(normFName("global.simrtprofile.txt"), "combined");
+			cs.addSimilarityRTSummary(normFName("global.simrtprofile.txt"), "combined", calcIntensity);
 			for (String ds : datasets.keySet()) {
 				cs.addExperimentSummary(normFName(ds + ".profile.tsv"), ds);
 				cs.addLocalizationSummary(normFName(ds + ".locprofile.txt"), ds);
-				cs.addSimilarityRTSummary(normFName(ds+".simrtprofile.txt"), ds);
+				cs.addSimilarityRTSummary(normFName(ds+".simrtprofile.txt"), ds, calcIntensity);
 			}
 			cs.printFile();
 		}

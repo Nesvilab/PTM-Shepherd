@@ -131,11 +131,17 @@ public class CombinedExperimentsSummary {
     }
 
     /* Read simrt profile table to initialize data */
-    public void addSimilarityRTSummary(String fn, String ds) throws IOException {
+    public void addSimilarityRTSummary(String fn, String ds, boolean calcIntensity) throws IOException {
         BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
 
-        String[] colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
-                "rt_shift_(variance)"};
+        String[] colsToAdd;
+        if (calcIntensity) {
+            colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
+                    "rt_shift_(variance)", "int_delta", "int_delta_(variance)"};
+        } else {
+            colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
+                    "rt_shift_(variance)"};
+        }
 
         /* Add all new headers to new file */
         String[] curHeaders  = in.readLine().split("\t", -1);

@@ -21,6 +21,8 @@ public class SimRTAnalysis {
 	double ppmTol, condRatio, peakTol;
 	int condPeaks, precursorUnits;
 	int specCol, pepCol, modpepCol, chargeCol, deltaCol, rtCol, intCol;
+
+	boolean calcIntensity;
 	
 	static final int MAX_ZERO_COMPARE = 20;
 	
@@ -65,10 +67,6 @@ public class SimRTAnalysis {
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(simRTFile,true));
 
-		//Write header
-		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mod_Peptide","Shift","Is_Zero_Pep",
-				"rt_shift", "nZeroSpecs_RT_shift", "Avg_Sim", "Avg_ZeroSim", "nZeroSpecs_Sim");
-
 		specCol = pf.getColumn("Spectrum");
 		pepCol = pf.getColumn("Peptide");
 		modpepCol = pf.getColumn("Modified Peptide");
@@ -76,6 +74,18 @@ public class SimRTAnalysis {
 		deltaCol = pf.dMassCol;
 		rtCol = pf.getColumn("Retention");
 		intCol = pf.getColumn("Intensity");
+		calcIntensity = true;
+		if (intCol == -1)
+			calcIntensity = false;
+
+		//Write header
+		if (calcIntensity) {
+			out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "Spectrum", "Peptide", "Mod_Peptide", "Shift", "Is_Zero_Pep",
+					"rt_shift", "nZeroSpecs_RT_shift", "Avg_Sim", "Avg_ZeroSim", "nZeroSpecs_Sim", "Avg_IntChange", "nZeroSpecs_Int");
+		} else {
+			out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "Spectrum", "Peptide", "Mod_Peptide", "Shift", "Is_Zero_Pep",
+					"rt_shift", "nZeroSpecs_RT_shift", "Avg_Sim", "Avg_ZeroSim", "nZeroSpecs_Sim");
+		}
 		
 		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
@@ -117,12 +127,14 @@ public class SimRTAnalysis {
 		PTMShepherd.print(String.format("\tSpectral data read into memory (%d ms)", t2-t1));
 
 
-		//itialize these outside of run iteractions for inter run comparisons
+		//initialize these outside of run interactions for inter run comparisons
 		HashMap<String,ArrayList<Integer>> zTolLines = new HashMap<>();
 		HashMap<String,ArrayList<Spectrum>> zTolSpecs = new HashMap<>();
 		HashMap<String,ArrayList<Double>> zTolRT = new HashMap<>();
+		HashMap<String,ArrayList<Double>> zTolInt = new HashMap<>();
 		HashMap<String,Double> avgzSim = new HashMap<>(); //{modPep.charge:avg zero sim in bin}
 		HashMap<String,Double> avgzRT = new HashMap<>();
+		HashMap<String,Double> avgzInt = new HashMap<>();
 
 		//iterate and calculate similarity/retention time deltas for each file
 		//if inter run comparisons is turned on, this look will be broken after first iteration
@@ -137,8 +149,10 @@ public class SimRTAnalysis {
 				zTolLines = new HashMap<>();
 				zTolSpecs = new HashMap<>();
 				zTolRT = new HashMap<>();
+				zTolInt = new HashMap<>();
 				avgzSim = new HashMap<>(); //{modPep.charge:avg zero sim in bin}
 				avgzRT = new HashMap<>();
+				avgzInt = new HashMap<>();
 			}
 
 			//get zero bin data and calculate baselines
@@ -157,6 +171,12 @@ public class SimRTAnalysis {
 				if(!zTolRT.containsKey(key)) //structure {modpep:<rt>}
 					zTolRT.put(key, new ArrayList<>());
 				zTolRT.get(key).add(Double.parseDouble(crow[rtCol]));
+
+				if (calcIntensity) {
+					if (!zTolInt.containsKey(key)) //structure {modpep:<rt>}
+						zTolInt.put(key, new ArrayList<>());
+					zTolInt.get(key).add(Double.parseDouble(crow[intCol]));
+				}
 				
 				key += "." + crow[chargeCol]; //structure {modpep.charge:<spec line>}
 				if(!zTolLines.containsKey(key))
@@ -211,6 +231,17 @@ public class SimRTAnalysis {
 					rtsum += v;
 				avgzRT.put(pep, rtsum / rts.size());
 			}
+
+			//calculate zeroQuant
+			if (calcIntensity) {
+				for(String pep : zTolInt.keySet()) {
+					ArrayList<Double> ints = zTolInt.get(pep);
+					double intsum = 0;
+					for(double v : ints)
+						intsum += v;
+					avgzInt.put(pep, intsum / ints.size());
+				}
+			}
 			
 			//calculate metrics
 			for(int i = 0; i < clines.size(); i++) {
@@ -223,13 +254,21 @@ public class SimRTAnalysis {
 				if(crow[modpepCol].trim().length() != 0)
 					key = crow[modpepCol].trim();
 
-				int rtSize = 0, specSimSize = 0;
-				double rtDelta = -1e10;
-				double avgSim = -1e10, avgZeroSim = -1e10;
+				int rtSize = 0, specSimSize = 0, intSize = 0;
+				double rtDelta = -1e20;
+				double intDelta = -1e20;
+				double avgSim = -1e20, avgZeroSim = -1e20;
 				
 				if(zTolRT.containsKey(key)) { //calculated against average RT time
 					rtDelta = Double.parseDouble(crow[rtCol]) - avgzRT.get(key);
 					rtSize = zTolRT.get(key).size();
+				}
+
+				if (calcIntensity) {
+					if(zTolInt.containsKey(key)) { //calculated against average RT time
+						intDelta = Double.parseDouble(crow[intCol]) - avgzInt.get(key);
+						intSize = zTolInt.get(key).size();
+					}
 				}
 				
 				key += "." + crow[chargeCol]; //based on charge state
@@ -242,8 +281,13 @@ public class SimRTAnalysis {
 						specSimSize = zTolSpecs.get(key).size();
 					}
 				}
-				out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\n",crow[specCol],crow[pepCol],crow[modpepCol],crow[deltaCol],isZero?1:0,
-						rtDelta, rtSize, avgSim, avgZeroSim, specSimSize);
+				if (calcIntensity) {
+					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\t%.5f\t%d\n", crow[specCol], crow[pepCol], crow[modpepCol], crow[deltaCol], isZero ? 1 : 0,
+							rtDelta, rtSize, avgSim, avgZeroSim, specSimSize, intDelta, intSize);
+				} else {
+					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\n",crow[specCol],crow[pepCol],crow[modpepCol],crow[deltaCol],isZero?1:0,
+							rtDelta, rtSize, avgSim, avgZeroSim, specSimSize);
+				}
 			}
 			
 			out.flush();
@@ -282,5 +326,9 @@ public class SimRTAnalysis {
 	public double calculatePeakTol(double pepmass, double ppmtol, double modmass){
 		double peakTol = ((pepmass + modmass) / 1000000.0) * ppmtol;
 		return peakTol;
+	}
+
+	public boolean getCalcIntensity() {
+		return calcIntensity;
 	}
 }
