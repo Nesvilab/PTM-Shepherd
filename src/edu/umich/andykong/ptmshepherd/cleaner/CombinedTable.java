@@ -26,7 +26,7 @@ public class CombinedTable {
         this.fname = PTMShepherd.normFName(dataset + ".profile.tsv");
     }
 
-    public void writeCombinedTable(int useIntensities) throws IOException {
+    public void writeCombinedTable(int useIntensities, boolean calcIntensities) throws IOException {
         /* Process preaksummary.annotated.tsv file */
 
         /* Get headers that we're adding later */
@@ -42,6 +42,7 @@ public class CombinedTable {
         /* Get cols to add to beginning from peaksummary.annotated.tsv */
         String[] colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "PSMs", "peak_signal",
                     "percent_also_in_unmodified", "mapped_mass_1", "mapped_mass_2"};
+
 
         ArrayList<String> colsToAddLater = new ArrayList<>();
 
@@ -82,7 +83,11 @@ public class CombinedTable {
 
         /* Process *.simrtprofile.txt */
 
-        colsToAdd = new String[]{"similarity", "rt_shift"};
+        if (calcIntensities) {
+            colsToAdd = new String[]{"similarity", "rt_shift", "int_delta"};
+        } else {
+            colsToAdd = new String[]{"similarity", "rt_shift"};
+        }
 
         in = new BufferedReader(new FileReader(new File(
                 PTMShepherd.normFName(dataset + ".simrtprofile.txt"))));
