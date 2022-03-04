@@ -27,7 +27,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC5";
+ 	public static final String version = "2.0.0-RC6";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
