@@ -124,6 +124,18 @@ public class GlycanCandidate {
         this.hasFragmentProps = false;
     }
 
+    /**
+     * Empty candidate to avoid null pointers
+     */
+    public GlycanCandidate() {
+        this.Yfragments = new TreeMap<>();
+        this.oxoniumFragments = new TreeMap<>();
+        this.glycanComposition = new TreeMap<>();
+        this.isDecoy = false;
+        this.monoisotopicMass = 0;
+        this.hasFragmentProps = false;
+    }
+
     // Helper method for determining decoy masses for various decoy mass generation settings
     private double setMassHelper(int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator) {
         double mass;

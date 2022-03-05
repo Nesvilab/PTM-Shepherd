@@ -293,6 +293,8 @@ public class GlycoAnalysis {
             // skip non-glyco columns
             if (splits.length < bestGlycanCol + 1)
                 continue;
+            if (splits[bestGlycanCol].matches("ERROR"))
+                continue;
             String spectrumID = splits[gSpecCol];
             glyLines.put(spectrumID, splits);     // save full line for later editing/writing
             // only consider columns with actual glycan info
