@@ -145,10 +145,10 @@ public class BinDiagMetric {
         //this.capYIons.smoothify(executorService, nThreads);
         //System.out.println("ImmoniumAbund");
         this.immoniumIons.findPeaks();
-        this.immoniumIons.printHisto(peakApex+"_diag.tsv");
+        //this.immoniumIons.printHisto(peakApex+"_diag.tsv");
         //System.out.println("CapYAbund");
         this.capYIons.findPeaks();
-        this.capYIons.printHisto(peakApex+"_peptide.tsv");
+        //this.capYIons.printHisto(peakApex+"_peptide.tsv");
 
 
         this.immoniumIons.clearMemory();
@@ -161,7 +161,7 @@ public class BinDiagMetric {
             long t2 = System.currentTimeMillis();
             //System.out.println("SquiggleAbund");
             this.tildeIons.get(i).findPeaks();
-            this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
+            //this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
             long t3 = System.currentTimeMillis();
             this.tildeIons.get(i).clearMemory();
             //System.out.printf("Processing time (%d ms smoothing - %d ms peakpicking)\n", t2-t1, t3-t2);
