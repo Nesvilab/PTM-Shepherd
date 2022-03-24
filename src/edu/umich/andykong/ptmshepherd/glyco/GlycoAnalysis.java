@@ -274,6 +274,7 @@ public class GlycoAnalysis {
         int absScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan Score");
         int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Glycan");
         int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
+        int bestNextScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Target Score");
 
         if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
             PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
@@ -281,8 +282,11 @@ public class GlycoAnalysis {
 
         // read file, accumulating scores
         HashMap<String, Double> scoreMap = new HashMap<>();
+        ArrayList<GlycoScore> scoreDistribution = new ArrayList<>();
         int targets = 0;
         int decoys = 0;
+        int scoreDistTargets = 0;
+        int scoreDistDecoys = 0;
         while ((cgline = in.readLine()) != null) {
             if (cgline.equals("COMPLETE")) {
                 break;
@@ -308,9 +312,17 @@ public class GlycoAnalysis {
                 // detect if target or decoy and save score
                 if (splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
                     decoys++;
+                    // Best candidate was a decoy. Store both target and decoy scores, remembering that the decoy was top
+                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[absScoreCol]), true, spectrumID, true));
+                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[bestNextScoreCol]), false, spectrumID, false));
                 } else {
                     targets++;
+                    // Best candidate was a target. Store both target and decoy scores, remembering that the target was top
+                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[absScoreCol]), false, spectrumID, true));
+                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[bestNextScoreCol]), true, spectrumID, false));
                 }
+                scoreDistDecoys++;
+                scoreDistTargets++;
                 scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
             }
         }
@@ -318,19 +330,55 @@ public class GlycoAnalysis {
 
         PTMShepherd.print("Calculating Glycan FDR");
         // sort scoreMap in order of ascending score
+        scoreDistribution.sort(GlycoScore::compareTo);
+
+        double targetDecoyRatio;
+        double currentMinQ = 1;
+        double scoreThreshold = -10000;
+        HashMap<String, Double> qValMap = new HashMap<>();        // hashmap for saving q-values. NOTE: there are 2 score objects per spectrum, but only the one from the top candidate is used
+        boolean foundScoreThresh = false;
+        for (GlycoScore scoreObj : scoreDistribution) {
+            if (!scoreObj.isDecoy) {
+                scoreDistTargets--;
+            } else {
+                scoreDistDecoys--;
+            }
+            // compute TD ratio
+            targetDecoyRatio = (2 * scoreDistDecoys) / (double) (scoreDistDecoys + scoreDistTargets);
+            if (scoreDistDecoys > scoreDistTargets) {
+                targetDecoyRatio = 1.0;     // cap FDR at 1
+            } else if (scoreDistTargets == 0) {
+                targetDecoyRatio = 0.0;     // min FDR = 0. Using else-if with the above block so that if decoys are nonzero with 0 targets, FDR = 1
+            }
+
+            // compute q-value and save for later
+            double qval = Math.min(targetDecoyRatio, currentMinQ);
+            if (qval < currentMinQ){
+                currentMinQ = qval;
+            }
+            if (scoreObj.isFromTopCandidate) {
+                // save q-val only for top candidates
+                qValMap.put(scoreObj.spectrumID, qval);
+            }
+
+            // check for the score threshold that gives the requested FDR
+            if (!foundScoreThresh) {
+                if (targetDecoyRatio <= finalGlycoFDR) {
+                    // stop here, found cutoff
+                    scoreThreshold = scoreObj.score;
+                    PTMShepherd.print(String.format("\tFound score threshold of %.2f for %.1f%% FDR with %d targets and %d decoys from non-competitive analysis (%d total inputs)", scoreThreshold, targetDecoyRatio * 100, scoreDistTargets, scoreDistDecoys, scoreDistribution.size()));
+                    foundScoreThresh = true;
+                }
+            }
+        }
+
+
+        // sort scoreMap in order of ascending score
         List<Map.Entry<String, Double>> entries = new ArrayList<>(scoreMap.entrySet());
         entries.sort(Map.Entry.comparingByValue());
         Map<String, Double> sortedScoreMap = new LinkedHashMap<>();
         for (Map.Entry<String, Double> entry : entries) {
             sortedScoreMap.put(entry.getKey(), entry.getValue());
-        }
-        double targetDecoyRatio = decoys / (double) targets;
-        if (targetDecoyRatio < finalGlycoFDR) {
-            // not enough decoys to compute FDR - already above desired ratio. Do not update table
-            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%%, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
-            // only missed by a little, try reducing desired FDR to accomodate
-            finalGlycoFDR = targetDecoyRatio - (targetDecoyRatio * 0.1);
-            PTMShepherd.print(String.format("\tFDR reduced to %.2f pct due to limited decoys", finalGlycoFDR * 100));
         }
 
         /*
@@ -340,7 +388,6 @@ public class GlycoAnalysis {
             NOTE2: q-value is set to min(current FDR, FDR of all PSMs with lower score) to make it a step down rather than sawtooth shape
          */
         boolean foundThreshold = false;
-        double currentMinQ = 1;
         for (Map.Entry<String, Double> scoreEntry : sortedScoreMap.entrySet()) {
             String[] rawGlycoLine = glyLines.get(scoreEntry.getKey());
 
@@ -357,23 +404,19 @@ public class GlycoAnalysis {
             } else if (targets == 0) {
                 targetDecoyRatio = 0.0;     // min FDR = 0. Using else-if with the above block so that if decoys are nonzero with 0 targets, FDR = 1
             }
-            double qval = Math.min(targetDecoyRatio, currentMinQ);
-            if (qval < currentMinQ){
-                currentMinQ = qval;
-            }
+
             // Write q-value to output, and write q=1 for decoys
             if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
                 rawGlycoLine[qValCol] = "1";
             } else {
-                rawGlycoLine[qValCol] = String.format("%s", qval);
+                rawGlycoLine[qValCol] = String.format("%s", qValMap.get(rawGlycoLine[gSpecCol]));
             }
-            
             if (!foundThreshold) {
                 // still below the threshold: continue checking decoys/targets and appending 'failfdr'
-                if (targetDecoyRatio <= finalGlycoFDR) {
+                if (scoreEntry.getValue() >= scoreThreshold) {
                     // stop here, found cutoff
                     foundThreshold = true;
-                    PTMShepherd.print(String.format("\tConverged to %.1f%% FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
+                    PTMShepherd.print(String.format("\tUsed score threshold to obtain %.1f%% competitive FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
                 }
                 if (!rawGlycoLine[bestGlycanCol].contains("FailFDR")) {
                     // only add failFDR annotation once (prevents multiple writes on re-analyses)
@@ -589,39 +632,61 @@ public class GlycoAnalysis {
             output = String.format("\t%s\t%.4f\t", searchCandidates.get(bestCandidateIndex).toString(), absoluteScore);
 
             // if top glycan is a decoy, also write best target and best target score to subsequent columns
-            if (searchCandidates.get(bestCandidateIndex).isDecoy) {
-                glycoResult.isDecoyGlycan = true;
-                boolean foundTarget = false;
-                for (int bestIndex : sortedIndicesOfBestScores) {
-                    GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
-                    if (!nextCandidate.isDecoy) {
-                        // add the best target's information
-                        double bestTargetScore;
-                        if (useFragmentSpecificProbs) {
-                            bestTargetScore = computeAbsoluteScoreDynamic(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
-                        } else {
-                            bestTargetScore = computeAbsoluteScore(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
-                        }
-                        output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestTargetScore);
-                        foundTarget = true;
-                        glycoResult.bestTarget = nextCandidate;
-                        glycoResult.bestTargetScore = bestTargetScore;
-                        break;
-                    }
-                }
-                if (!foundTarget) {
-                    // no target candidates found (only matched to a decoy)
-                    output = output + "\tNo target matches\t";
-                }
-            } else {
-                glycoResult.isDecoyGlycan = false;
-                output = output + "\t\t";
-            }
+            boolean bestWasTarget = !searchCandidates.get(bestCandidateIndex).isDecoy;
+            glycoResult.isDecoyGlycan = !bestWasTarget;
+            output = getNextGlycanScore(bestWasTarget, glycoResult, massErrorWidth, meanMassError, searchCandidates, output, sortedIndicesOfBestScores);
         } else {
             output = "\tNo Matches\t\t\t\t";
         }
         glycoResult.glycanAssignmentString = output;
         return glycoResult;
+    }
+
+    /**
+     * Helper method to get output for next best glycan (i.e., best decoy if the top hit is a target and vice versa).
+     * Returns formatted output string handling various cases
+     * @param glycoResult
+     * @param massErrorWidth
+     * @param meanMassError
+     * @param searchCandidates
+     * @param output
+     * @param sortedIndicesOfBestScores
+     * @return
+     */
+    private String getNextGlycanScore(boolean bestWasTarget, GlycanAssignmentResult glycoResult, double massErrorWidth, double meanMassError, ArrayList<GlycanCandidate> searchCandidates, String output, int[] sortedIndicesOfBestScores) {
+        boolean foundNext = false;
+        for (int bestIndex : sortedIndicesOfBestScores) {
+            GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
+            // if Best hit was target, look for Next to be decoy and vice versa
+            if (nextCandidate.isDecoy == bestWasTarget) {
+                // add the next hit's information
+                double bestNextScore;
+                if (useFragmentSpecificProbs) {
+                    bestNextScore = computeAbsoluteScoreDynamic(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
+                } else {
+                    bestNextScore = computeAbsoluteScore(nextCandidate, glycoResult.deltaMass, massErrorWidth, meanMassError);
+                }
+                output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestNextScore);
+                foundNext = true;
+                if (bestWasTarget) {
+                    glycoResult.bestDecoy = nextCandidate;
+                    glycoResult.bestDecoyScore = bestNextScore;
+                } else {
+                    glycoResult.bestTarget = nextCandidate;
+                    glycoResult.bestTargetScore = bestNextScore;
+                }
+                break;
+            }
+        }
+        if (!foundNext) {
+            // no target candidates found (only matched to a decoy)
+            if (bestWasTarget) {
+                output = output + "\tNo decoy matches\t";
+            } else {
+                output = output + "\tNo target matches\t";
+            }
+        }
+        return output;
     }
 
     public double pairwiseCompareDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
@@ -1218,4 +1283,24 @@ public class GlycoAnalysis {
         return oxoniumDB;
     }
 
+}
+
+// Container for holding results for FDR score threshold calculation, compares on score
+class GlycoScore implements Comparable<GlycoScore> {
+    public final double score;
+    public final boolean isDecoy;
+    public String spectrumID;
+    public boolean isFromTopCandidate;
+
+    public GlycoScore(double score, boolean isDecoy, String spectrumID, boolean isFromTopCandidate) {
+        this.score = score;
+        this.isDecoy = isDecoy;
+        this.spectrumID = spectrumID;
+        this.isFromTopCandidate = isFromTopCandidate;
+    }
+
+    @Override
+    public int compareTo(GlycoScore o) {
+        return Double.compare(score, o.score);
+    }
 }
