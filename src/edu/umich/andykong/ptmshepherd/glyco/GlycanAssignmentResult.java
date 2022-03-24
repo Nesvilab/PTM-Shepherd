@@ -22,6 +22,8 @@ public class GlycanAssignmentResult {
     // Glycan Assignment results
     GlycanCandidate bestCandidate;
     GlycanCandidate bestTarget;
+    GlycanCandidate bestDecoy;
+    double bestDecoyScore;
     boolean isDecoyGlycan;
     double glycanScore;
     double bestTargetScore;
@@ -51,6 +53,7 @@ public class GlycanAssignmentResult {
         this.bestTargetScore = Double.NaN;
         this.bestTarget = new GlycanCandidate();
         this.bestCandidate = new GlycanCandidate();
+        this.bestDecoy = new GlycanCandidate();
     }
 
     /**
@@ -71,7 +74,12 @@ public class GlycanAssignmentResult {
         if (deltaMass > 3.5 || deltaMass < -1.5) {
             // main glycan results
             if (!isDecoyGlycan) {
-                sb.append(String.format("\t%s\t%.2f\t\t\t", bestCandidate, glycanScore));
+                // for target glycans, append best decoy as well
+                if (bestDecoy != null && !Double.isNaN(bestDecoyScore)) {
+                    sb.append(String.format("\t%s\t%.2f\t\t%s\t%.2f", bestCandidate, glycanScore, bestDecoy, bestDecoyScore));
+                } else {
+                    sb.append(String.format("\t%s\t%.2f\t\t%s\t", bestCandidate, glycanScore, "no decoy matches"));
+                }
             } else {
                 // for decoy glycans, append best target as well
                 if (bestTarget != null && !Double.isNaN(bestTargetScore)) {
