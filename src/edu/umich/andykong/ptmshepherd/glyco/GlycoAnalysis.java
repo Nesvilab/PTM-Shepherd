@@ -324,21 +324,33 @@ public class GlycoAnalysis {
                     PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
                     return;
                 }
-
-                // detect if target or decoy and save score
-                if (splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                    decoys++;
-                    // Best candidate was a decoy. Store both target and decoy scores, remembering that the decoy was top
-                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[absScoreCol]), true, spectrumID, true));
-                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[bestNextScoreCol]), false, spectrumID, false));
-                } else {
-                    targets++;
-                    // Best candidate was a target. Store both target and decoy scores, remembering that the target was top
-                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[absScoreCol]), false, spectrumID, true));
-                    scoreDistribution.add(new GlycoScore (Double.parseDouble(splits[bestNextScoreCol]), true, spectrumID, false));
+                // detect if target or decoy and save best candidate score. If no target/decoy was found, skip (empty score column)
+                boolean bestWasDecoy = splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy");
+                if (!splits[absScoreCol].matches("")) {
+                    double absScore = Double.parseDouble(splits[absScoreCol]);
+                    if (bestWasDecoy) {
+                        decoys++;
+                        scoreDistDecoys++;
+                        scoreDistribution.add(new GlycoScore (absScore, true, spectrumID, true));
+                    } else {
+                        targets++;
+                        scoreDistTargets++;
+                        scoreDistribution.add(new GlycoScore (absScore, false, spectrumID, true));
+                    }
                 }
-                scoreDistDecoys++;
-                scoreDistTargets++;
+                // parse next best score and save to target/decoy as appropriate
+                if (!splits[bestNextScoreCol].matches("")) {
+                    double nextScore = Double.parseDouble(splits[bestNextScoreCol]);
+                    if (bestWasDecoy) {
+                        // best candidate was a decoy, so next/opposite is target
+                        scoreDistTargets++;
+                        scoreDistribution.add(new GlycoScore(nextScore, false, spectrumID, false));
+                    } else {
+                        // best candidate was a target, so next/opposite is decoy
+                        scoreDistDecoys++;
+                        scoreDistribution.add(new GlycoScore(nextScore, true, spectrumID, false));
+                    }
+                }
                 scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
             }
         }
@@ -382,7 +394,7 @@ public class GlycoAnalysis {
                 if (targetDecoyRatio <= finalGlycoFDR) {
                     // stop here, found cutoff
                     scoreThreshold = scoreObj.score;
-                    PTMShepherd.print(String.format("\tFound score threshold of %.2f for %.1f%% FDR with %d targets and %d decoys from non-competitive analysis (%d total inputs)", scoreThreshold, targetDecoyRatio * 100, scoreDistTargets, scoreDistDecoys, scoreDistribution.size()));
+                    PTMShepherd.print(String.format("\tFound score threshold of %.2f for %.1f%% FDR with %d targets and %d decoys from non-competitive analysis", scoreThreshold, targetDecoyRatio * 100, scoreDistTargets, scoreDistDecoys));
                     foundScoreThresh = true;
                 }
             }
@@ -820,21 +832,33 @@ public class GlycoAnalysis {
                 output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestNextScore);
                 foundNext = true;
                 if (bestWasTarget) {
+                    // save best to target, next to decoy
                     glycoResult.bestDecoy = nextCandidate;
                     glycoResult.bestDecoyScore = bestNextScore;
+                    glycoResult.bestTarget = glycoResult.bestCandidate;
+                    glycoResult.bestTargetScore = glycoResult.glycanScore;
                 } else {
+                    // save best to decoy, next to target
                     glycoResult.bestTarget = nextCandidate;
                     glycoResult.bestTargetScore = bestNextScore;
+                    glycoResult.bestDecoy = glycoResult.bestCandidate;
+                    glycoResult.bestDecoyScore = glycoResult.glycanScore;
                 }
                 break;
             }
         }
         if (!foundNext) {
-            // no target candidates found (only matched to a decoy)
+            // no candidates of other type found
             if (bestWasTarget) {
                 output = output + "\tNo decoy matches\t";
+                glycoResult.bestDecoyScore = Double.NaN;
+                glycoResult.bestTarget = glycoResult.bestCandidate;
+                glycoResult.bestTargetScore = glycoResult.glycanScore;
             } else {
                 output = output + "\tNo target matches\t";
+                glycoResult.bestTargetScore = Double.NaN;
+                glycoResult.bestDecoy = glycoResult.bestCandidate;
+                glycoResult.bestDecoyScore = glycoResult.glycanScore;
             }
         }
         return output;
