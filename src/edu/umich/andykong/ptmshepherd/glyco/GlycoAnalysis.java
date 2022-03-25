@@ -356,7 +356,7 @@ public class GlycoAnalysis {
                 scoreDistDecoys--;
             }
             // compute TD ratio
-            targetDecoyRatio = (2 * scoreDistDecoys) / (double) (scoreDistDecoys + scoreDistTargets);
+            targetDecoyRatio = calculateFDR(scoreDistTargets, scoreDistDecoys);
             if (scoreDistDecoys > scoreDistTargets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (scoreDistTargets == 0) {
@@ -410,7 +410,7 @@ public class GlycoAnalysis {
                 targets--;
             }
             // compute TD ratio and q-val
-            targetDecoyRatio = decoys / (double) targets;
+            targetDecoyRatio = calculateFDR(targets, decoys);
             if (decoys > targets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (targets == 0) {
@@ -514,7 +514,7 @@ public class GlycoAnalysis {
         for (Map.Entry<String, Double> entry : entries) {
             sortedScoreMap.put(entry.getKey(), entry.getValue());
         }
-        double targetDecoyRatio = decoys / (double) targets;
+        double targetDecoyRatio = calculateFDR(targets, decoys);
         if (targetDecoyRatio < finalGlycoFDR) {
             // not enough decoys to compute FDR - already above desired ratio. Do not update table
             PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%%, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
@@ -541,7 +541,7 @@ public class GlycoAnalysis {
                 targets--;
             }
             // compute TD ratio and q-val
-            targetDecoyRatio = decoys / (double) targets;
+            targetDecoyRatio = calculateFDR(targets, decoys);
             if (decoys > targets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (targets == 0) {
@@ -583,6 +583,17 @@ public class GlycoAnalysis {
         }
         out.flush();
         out.close();
+    }
+
+    /**
+     * Calculate FDR from target and decoy counts
+     * @param targets target count
+     * @param decoys decoy count
+     * @return FDR
+     */
+    private double calculateFDR(int targets, int decoys){
+//        return (2 * decoys) / (double) (decoys + targets);
+        return decoys / (double) targets;
     }
 
     /**
