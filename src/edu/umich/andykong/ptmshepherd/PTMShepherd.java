@@ -669,6 +669,7 @@ public class PTMShepherd {
 			String allowedLocRes = getParam("localization_allowed_res");
 			int numThreads = Integer.parseInt(params.get("threads"));
 			boolean useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").equals("") && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
+			boolean useNewFDR = !getParam("use_new_glycan_fdr").equals("") && Boolean.parseBoolean(getParam("use_new_glycan_fdr"));	// default false
 
 			// Glyco: first pass
 			for (String ds : datasets.keySet()) {
@@ -694,7 +695,11 @@ public class PTMShepherd {
 			// second pass: calculate glycan FDR and update results
 			for (String ds : datasets.keySet()) {
 				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoDatabase, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
-				ga.computeGlycanFDR(glycoFDR);
+				if (useNewFDR) {
+					ga.computeGlycanFDR(glycoFDR);
+				} else {
+					ga.computeGlycanFDROld(glycoFDR);
+				}
 
 				if (useGlycanFragmentProbs) {
 					// second pass - calculate fragment propensities, regenerate database, and re-run
@@ -710,7 +715,11 @@ public class PTMShepherd {
 						PSMFile pf = new PSMFile(new File(dsDatum[0]));
 						ga2.glycoPSMs(pf, mzMap.get(ds), executorService, numThreads);
 					}
-					ga2.computeGlycanFDR(glycoFDR);
+					if (useNewFDR) {
+						ga2.computeGlycanFDR(glycoFDR);
+					} else {
+						ga2.computeGlycanFDROld(glycoFDR);
+					}
 					ga2.completeGlyco();
 				}
 			}
