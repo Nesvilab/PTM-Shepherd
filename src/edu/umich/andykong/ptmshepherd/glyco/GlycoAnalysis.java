@@ -454,6 +454,141 @@ public class GlycoAnalysis {
         out.close();
     }
 
+    public void computeGlycanFDROld(double glycoFDR) throws IOException {
+        finalGlycoFDR = glycoFDR;
+        BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
+
+        // read rawglyco file into map of spectrum index: full line (string)
+        LinkedHashMap<String, String[]> glyLines = new LinkedHashMap<>();   // linkedHashMap to preserve spectrum order
+        String cgline;
+
+        // detect headers
+        String[] headerSplits = in.readLine().split("\t");
+        int gSpecCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Spectrum");
+        int absScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan Score");
+        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Glycan");
+        int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
+
+        if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
+            PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
+        }
+
+        // read file, accumulating scores
+        HashMap<String, Double> scoreMap = new HashMap<>();
+        int targets = 0;
+        int decoys = 0;
+        while ((cgline = in.readLine()) != null) {
+            if (cgline.equals("COMPLETE")) {
+                break;
+            }
+            if (cgline.startsWith("ERROR"))
+                continue;
+            String[] splits = cgline.split("\t", -1);
+            // skip non-glyco columns
+            if (splits.length < bestGlycanCol + 1)
+                continue;
+            if (splits[bestGlycanCol].matches("ERROR"))
+                continue;
+            String spectrumID = splits[gSpecCol];
+            glyLines.put(spectrumID, splits);     // save full line for later editing/writing
+            // only consider columns with actual glycan info
+            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].toLowerCase(Locale.ROOT).matches("no matches")) {
+                if (!splits[qValCol].matches("")) {
+                    // glycan FDR already performed on this dataset - skip
+                    PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
+                    return;
+                }
+
+                // detect if target or decoy and save score
+                if (splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                    decoys++;
+                } else {
+                    targets++;
+                }
+                scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
+            }
+        }
+        in.close();
+
+        PTMShepherd.print("Calculating Glycan FDR");
+        // sort scoreMap in order of ascending score
+        List<Map.Entry<String, Double>> entries = new ArrayList<>(scoreMap.entrySet());
+        entries.sort(Map.Entry.comparingByValue());
+        Map<String, Double> sortedScoreMap = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> entry : entries) {
+            sortedScoreMap.put(entry.getKey(), entry.getValue());
+        }
+        double targetDecoyRatio = decoys / (double) targets;
+        if (targetDecoyRatio < finalGlycoFDR) {
+            // not enough decoys to compute FDR - already above desired ratio. Do not update table
+            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%%, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
+            // only missed by a little, try reducing desired FDR to accomodate
+            finalGlycoFDR = targetDecoyRatio - (targetDecoyRatio * 0.1);
+            PTMShepherd.print(String.format("\tFDR reduced to %.2f pct due to limited decoys", finalGlycoFDR * 100));
+        }
+
+        /*
+            Find threshold at which target/decoy ratio hits desired value and update rawglyco lines
+            NOTE: calculation is FDR <= desired ratio, so target/decoy counts updated AFTER the current PSM. This means the last
+            decoy passes FDR, and the last target has the correct FDR instead of 0/0
+            NOTE2: q-value is set to min(current FDR, FDR of all PSMs with lower score) to make it a step down rather than sawtooth shape
+         */
+        boolean foundThreshold = false;
+        double currentMinQ = 1;
+        for (Map.Entry<String, Double> scoreEntry : sortedScoreMap.entrySet()) {
+            String[] rawGlycoLine = glyLines.get(scoreEntry.getKey());
+
+            // update counts
+            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                decoys--;
+            } else {
+                targets--;
+            }
+            // compute TD ratio and q-val
+            targetDecoyRatio = decoys / (double) targets;
+            if (decoys > targets) {
+                targetDecoyRatio = 1.0;     // cap FDR at 1
+            } else if (targets == 0) {
+                targetDecoyRatio = 0.0;     // min FDR = 0. Using else-if with the above block so that if decoys are nonzero with 0 targets, FDR = 1
+            }
+            double qval = Math.min(targetDecoyRatio, currentMinQ);
+            if (qval < currentMinQ){
+                currentMinQ = qval;
+            }
+            // Write q-value to output, and write q=1 for decoys
+            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                rawGlycoLine[qValCol] = "1";
+            } else {
+                rawGlycoLine[qValCol] = String.format("%s", qval);
+            }
+
+            if (!foundThreshold) {
+                // still below the threshold: continue checking decoys/targets and appending 'failfdr'
+                if (targetDecoyRatio <= finalGlycoFDR) {
+                    // stop here, found cutoff
+                    foundThreshold = true;
+                    PTMShepherd.print(String.format("\tConverged to %.1f%% FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
+                }
+                if (!rawGlycoLine[bestGlycanCol].contains("FailFDR")) {
+                    // only add failFDR annotation once (prevents multiple writes on re-analyses)
+                    rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
+                }
+            }
+
+            // update the output text with the new info
+            glyLines.put(scoreEntry.getKey(), rawGlycoLine);
+        }
+
+        // write output back to rawglyco file
+        PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
+        out.println(String.join("\t", Arrays.asList(headerSplits)));
+        for (String[] glyLine : glyLines.values()) {
+            out.println(String.join("\t", Arrays.asList(glyLine)));
+        }
+        out.flush();
+        out.close();
+    }
+
     /**
      * Determine the width of mass errors in PSMs without delta mass to use for mass error probability
      * estimation. Returns the sigma of a Gaussian distribution fit to the mass errors of all PSMs without
