@@ -84,7 +84,7 @@ public class CombinedTable {
         /* Process *.simrtprofile.txt */
 
         if (calcIntensities) {
-            colsToAdd = new String[]{"similarity", "rt_shift", "int_delta"};
+            colsToAdd = new String[]{"similarity", "rt_shift", "int_log2fc"};
         } else {
             colsToAdd = new String[]{"similarity", "rt_shift"};
         }

@@ -38,6 +38,8 @@ public class DiagnosticPeakPicker {
     int minIonEvidence;
     boolean twoTailedTests;
 
+    String[] annotations;
+
     HashMap<Integer, HashMap<String, Pepkey>> peakToPepkeys;
     TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan;
 
@@ -46,7 +48,7 @@ public class DiagnosticPeakPicker {
 
 
 
-    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, double minFoldChange, int minIonEvidence, int twoTailedTests, int condPeaks, double condRatio) {
+    public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, double minFoldChange, int minIonEvidence, int twoTailedTests, int condPeaks, double condRatio, String[] annotations) {
         this.peaks = peakApexBounds;
         this.minSignal = minSignal;
         this.minFoldChange = minFoldChange;
@@ -67,6 +69,8 @@ public class DiagnosticPeakPicker {
         this.minRbc = minRbc;
         this.minSpecDiff = minSpecDiff;
         this.twoTailedTests = twoTailedTests == 1 ? true : false;
+
+        this.annotations = annotations;
     }
 
     /* Construct mass shift peak -> preprocessed file -> scan nums datastructure */
@@ -163,7 +167,7 @@ public class DiagnosticPeakPicker {
         /* Finds the peaks for each BinDiagnosticMetric container */
         for (Integer peakIndx : this.peakToFileToScan.keySet()) {
             double[] peakVals = new double[]{this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[2][peakIndx]};
-            BinDiagMetric bdMetrics = new BinDiagMetric(peakVals, this.ionTypes, this.spectraTol);
+            BinDiagMetric bdMetrics = new BinDiagMetric(peakVals, this.ionTypes, this.spectraTol, this.annotations[peakIndx]);
 
             for (String fname : this.peakToFileToScan.get(peakIndx).keySet()) {
                 try {
@@ -409,8 +413,9 @@ public class DiagnosticPeakPicker {
         */
         PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
 
-        out2.print("peak_apex\tion_type\tdiagnostic_mass\t" +
-                "remainder_propensity\t" +
+        out2.print("peak_apex\tmod_annotation\tion_type\t" +
+                "diagnostic_mass\t" +
+                "remainder_propensity\t" + "delta_diagnostic_mass\t" +
                 "percent_mod\tpercent_unmod\t" +
                 "avg_intensity_mod\tavg_intensity_unmod\t" +
                 "auc\n");

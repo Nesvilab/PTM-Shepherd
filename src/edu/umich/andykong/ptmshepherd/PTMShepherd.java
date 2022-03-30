@@ -54,7 +54,7 @@ public class PTMShepherd {
 	public static final String peakSummaryName = "peaksummary.tsv";
 	public static final String combinedTSVName = "combined.tsv";
 	public static final String combinedHistoName = "combined.histo";
-	public static final String glycoProfileName = ".glycoprofile.txt";
+	public static final String glycoProfileName = ".diagnosticProfile.txt";
 	public static final String rawLocalizeName = ".rawlocalize";
 	public static final String rawSimRTName = ".rawsimrt";
 	public static final String rawGlycoName = ".rawglyco";
@@ -200,8 +200,8 @@ public class PTMShepherd {
 		params.put("diagmine_maxP", "0.05");
 		params.put("diagmine_minAuc", "0.01");
 		params.put("diagmine_minSpecDiff", "0.25");
-		params.put("diagmine_minFoldChange", "3.0");
-		params.put("diagmine_diagMinFoldChange", "3.0");
+		params.put("diagmine_minFoldChange", "2.0");
+		params.put("diagmine_diagMinFoldChange", "2.0");
 		params.put("diagmine_minPeps", "25");
 		params.put("diagmine_twoTailedTests", "0");
 		params.put("diagmine_printRedundantTests", "0");
@@ -284,6 +284,9 @@ public class PTMShepherd {
 		}
 
 		init(args);
+
+		//TODO initialize program blocks here so that they can be accessed outside their modules and stored internally
+		PeakAnnotator pa = new PeakAnnotator();
 
 		if(!Boolean.parseBoolean(params.get("run_from_old"))) {
 			List<String> filesToDelete = Arrays.asList(peaksName,
@@ -452,7 +455,6 @@ public class PTMShepherd {
 		//Assign peak IDs
 		File peakannotated = new File(normFName(peakSummaryAnnotatedName));
 		if(!peakannotated.exists()) {
-			PeakAnnotator pa = new PeakAnnotator();
 			pa.init(params.get("varmod_masses"), params.get("annotation_file").trim());
 			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
 			print("Annotated summary table\n");
@@ -573,7 +575,7 @@ public class PTMShepherd {
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
 					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Double.parseDouble(params.get("diagmine_minFoldChange")), Integer.parseInt(params.get("diagmine_minIonsPerSpec")),
-					Integer.parseInt(params.get("diagmine_twoTailedTests")), Integer.parseInt(params.get("spectra_condPeaks")), Double.parseDouble(params.get("spectra_condRatio")));
+					Integer.parseInt(params.get("diagmine_twoTailedTests")), Integer.parseInt(params.get("spectra_condPeaks")), Double.parseDouble(params.get("spectra_condRatio")), pa.getPeakApexMappings());
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
@@ -586,7 +588,6 @@ public class PTMShepherd {
 			dpp.process(executorService, Integer.parseInt(getParam("threads")));
 			out.println("\tDone identifying candidate ions");
 			out.println("\tExtracting ions from spectra");
-			//TODO HERE
 			dpp.initDiagProfRecs();
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);

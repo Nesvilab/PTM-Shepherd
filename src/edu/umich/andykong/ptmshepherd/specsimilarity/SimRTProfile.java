@@ -38,7 +38,7 @@ public class SimRTProfile {
 		PrintWriter out = new PrintWriter(new FileWriter(path));
 		if (calcIntensity) {
 			out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-					"peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)", "int_delta", "int_delta_(variance)");
+					"peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)", "int_log2fc", "int_log2fc_(variance)");
 		} else {
 			out.printf("%s\t%s\t%s\t%s\t%s\t%s\n",
 					"peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)");

@@ -403,6 +403,29 @@ public class PeakAnnotator {
 		return massDiffAnnotations;
 	}
 
+	public String[] getPeakApexMappings() {
+		String[] singleColumnAnnotations = new String[this.modMappings[0].length];
+
+		String[][] tStringAnnos = new String[this.modMappings[0].length][this.modMappings.length];
+		for (int i  = 0; i < tStringAnnos.length; i++) {
+			for (int j = 0; j < tStringAnnos[i].length; j++)
+				tStringAnnos[i][j] = this.modMappings[j][i];
+		}
+
+		for (int i  = 0; i < tStringAnnos.length; i++) {
+			StringBuffer sb = new StringBuffer();
+			for (int j = 0; j < tStringAnnos[i].length; j++) {
+				if (!tStringAnnos[i][j].equals(""))
+					sb.append(tStringAnnos[i][j] + " + ");
+			}
+			if (sb.length() > 0)
+				sb.setLength(sb.length() - 3);
+			singleColumnAnnotations[i] = sb.toString();
+		}
+
+		return singleColumnAnnotations;
+	}
+
 	class MassDiffAnnotation implements Comparable<MassDiffAnnotation> {
 		String annotation;
 		double diff;

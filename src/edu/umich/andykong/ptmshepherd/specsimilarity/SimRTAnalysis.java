@@ -235,11 +235,10 @@ public class SimRTAnalysis {
 			//calculate zeroQuant
 			if (calcIntensity) {
 				for(String pep : zTolInt.keySet()) {
-					ArrayList<Double> ints = zTolInt.get(pep);
-					double intsum = 0;
-					for(double v : ints)
-						intsum += v;
-					avgzInt.put(pep, intsum / ints.size());
+					Variance ints = new Variance();
+					ints.update(zTolInt.get(pep));
+					//ints.logTransform();
+					avgzInt.put(pep, ints.getMedian());
 				}
 			}
 			
@@ -266,7 +265,7 @@ public class SimRTAnalysis {
 
 				if (calcIntensity) {
 					if(zTolInt.containsKey(key)) { //calculated against average RT time
-						intDelta = Double.parseDouble(crow[intCol]) - avgzInt.get(key);
+						intDelta = (Double.parseDouble(crow[intCol])) / (avgzInt.get(key));
 						intSize = zTolInt.get(key).size();
 					}
 				}

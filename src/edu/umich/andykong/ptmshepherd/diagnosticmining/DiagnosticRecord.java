@@ -343,8 +343,10 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         for (int i  = 0; i < selectedPeaksN.length; i++) {
             if (selectedPeaksN[i] < minEvidence)
                 selectedPeaks[i][1] = 0.0;
-            else
-                selectedPeaks[i][1] /= selectedPeaksN[i];
+            else {
+                continue; // TODO removed normalization to number of matched peaks, need to evaluate performance
+                //selectedPeaks[i][1] /= selectedPeaksN[i];
+            }
         }
 
         /*

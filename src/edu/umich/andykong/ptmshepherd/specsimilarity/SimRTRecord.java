@@ -51,13 +51,10 @@ public class SimRTRecord {
 		sb.append(String.format("\t%.1f\t%.0f", tmean, tvar));
 
 		if (calcIntensity) {
-			tmean = intensity.getMean();
+			intensity.logTransform();
+			double tmed = intensity.getMedian();
 			tvar = intensity.getVariance();
-			if (intensity.getMean() == 0.0)
-				tmean = Double.NaN;
-			if(intensity.getVariance() == 0.0)
-				tvar = Double.NaN;
-			sb.append(String.format("\t%7.1e\t%7.1e", tmean, tvar));
+			sb.append(String.format("\t%2.4e\t%2.4e", tmed, tvar));
 		}
 
 		return sb.toString();

@@ -137,7 +137,7 @@ public class CombinedExperimentsSummary {
         String[] colsToAdd;
         if (calcIntensity) {
             colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
-                    "rt_shift_(variance)", "int_delta", "int_delta_(variance)"};
+                    "rt_shift_(variance)", "int_log2fc", "int_log2fc_(variance)"};
         } else {
             colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
                     "rt_shift_(variance)"};

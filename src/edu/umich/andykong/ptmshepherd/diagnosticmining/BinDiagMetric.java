@@ -22,10 +22,11 @@ public class BinDiagMetric {
     public double ppmTol;
     public HashMap<String, ArrayList<DiagnosticRecord>> peptideMap;
     public PeakCompareTester testResults;
+    public String modName;
 
     ArrayList<DiagnosticProfileRecord> diagProfRecs;
 
-    public BinDiagMetric(double[] peakBounds, String ions, double ppmTol) {
+    public BinDiagMetric(double[] peakBounds, String ions, double ppmTol, String modName) {
         this.peakApex = peakBounds[0];
         this.leftBound = peakBounds[1];
         this.rightBound = peakBounds[2];
@@ -33,6 +34,7 @@ public class BinDiagMetric {
         this.binMinMax = new double[2+ions.length()][2];
         this.peptideMap = new HashMap<>();
         this.ppmTol = ppmTol;
+        this.modName = modName;
     }
 
     /* Build map of peptides so that each peptide (not PSM) can be weighted equally */
@@ -243,13 +245,13 @@ public class BinDiagMetric {
             Test t = this.testResults.immoniumTests.get(i);
             if (!t.isIsotopeRep)
                 continue;
-            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "diagnostic", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName, "diagnostic", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
         }
         for (int i = 0; i < this.testResults.capYTests.size(); i++) {
             Test t = this.testResults.capYTests.get(i);
             if (!t.isIsotopeRep)
                 continue;
-            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, "peptide", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName,"peptide", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
         }
         for (Character cIon : this.testResults.squigglesTests.keySet()) {
             for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
@@ -258,7 +260,7 @@ public class BinDiagMetric {
                     continue;
                 if (!t.isValid)
                     continue;
-                this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, Character.toString(cIon), t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+                this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName, Character.toString(cIon), t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
             }
         }
     }
