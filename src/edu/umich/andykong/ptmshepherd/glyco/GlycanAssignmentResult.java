@@ -33,7 +33,8 @@ public class GlycanAssignmentResult {
 
         // initialize placeholder values
         this.bestTargetScore = Double.NaN;
-        this.bestTarget = null;
+        this.bestTarget = new GlycanCandidate();
+        this.bestCandidate = new GlycanCandidate();
     }
 
     /**
@@ -45,6 +46,11 @@ public class GlycanAssignmentResult {
         StringBuilder sb = new StringBuilder();
         // initial spectrum data
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, peptide, assignedMods, pepMass, deltaMass));
+        if (glycanAssignmentString.matches("ERROR")) {
+            // spectrum not found - print ERROR
+            sb.append("\tERROR\n");
+            return sb.toString();
+        }
 
         if (deltaMass > 3.5 || deltaMass < -1.5) {
             // main glycan results

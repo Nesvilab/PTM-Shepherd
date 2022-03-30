@@ -478,38 +478,36 @@ public class PSMFile {
 
 		/* Update delta mass AND calc m/z columns */
 		if (removeGlycanDeltaMass) {
+			double prevDeltaMass = Double.parseDouble(newLine.get(deltaMassCol));
+			double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
+			double prevNeutralMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);
+			double prevCalcPeptideMass = Double.parseDouble(newLine.get(peptideCalcMassCol));
+			if (prevCalcPeptideMass - prevNeutralMass > 0.1 || prevCalcPeptideMass - prevNeutralMass < -0.1) {
+				PTMShepherd.print(String.format("Warning: corrupted PSM table, calc peptide neutral mass and m/z do not match! PSM: %s", newLine));
+			}
+
 			if (prevGlycanWritten) {
-				// A glycan was previously written to this line, and thus was subtracted from delta mass. Add it back, then subtract new glycan's mass
-				double correctedDelta = Double.parseDouble(newLine.get(deltaMassCol)) + previousGlycanMass;
-				if (correctedDelta - 2*previousGlycanMass < 10 && correctedDelta - 2*previousGlycanMass > -10) {
-					// a previous glycan was written, but the delta mass was not changed (i.e. full glycan mass still present in delta mass in psm table). No need to correct. +/- 10 to allow for isotope errors in delta mass
-					correctedDelta = Double.parseDouble(newLine.get(deltaMassCol));
+				// A glycan was previously written to this line, and thus may have been subtracted from delta mass and added to peptide calc mass and MZ.
+				// If DeltaMass was removed, add it back before subtracting new glycan's mass
+				double correctedDelta, correctedMass;
+				if (prevDeltaMass - previousGlycanMass < 10 && prevDeltaMass - previousGlycanMass > -10) {
+					// a previous glycan was written, but the delta mass was NOT changed (i.e. full glycan mass still present in delta mass in psm table). No need to correct. +/- 10 to allow for isotope errors in delta mass
+					correctedDelta = prevDeltaMass;
+					correctedMass = prevCalcPeptideMass;
+				} else {
+					// delta mass WAS changed before. Add back previous glycan mass prior to subtracting the new glycan (in case the assigned glycan has changed)
+					correctedDelta = prevDeltaMass + previousGlycanMass;
+					correctedMass = prevCalcPeptideMass - previousGlycanMass;
 				}
 				newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
+				newLine.set(peptideCalcMassCol, String.format("%.4f", correctedMass + glycanMass));
+				newLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) (correctedMass + glycanMass), charge)));
 
-				// Also correct calc m/z. A glycan was previously written, and thus its mass may have been added to calcMZ. Remove the old mass and add the new
-				double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
-				double prevNeutralMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);
-				double calcPeptideMass = Double.parseDouble(newLine.get(peptideCalcMassCol));
-				double pepMassMinusPrevGlyc = calcPeptideMass - previousGlycanMass;
-				if (prevNeutralMass - pepMassMinusPrevGlyc > -5 && prevNeutralMass - calcPeptideMass - previousGlycanMass < 5) {
-					// calc m/z had previous glycan mass added to it, so subtracting previous glycan mass from it equals 0 (+/- isotope errors)
-					// remove the previous glycan mass from the calcMZ before adding the new one
-					prevNeutralMass = prevNeutralMass - previousGlycanMass;
-				}
-				// previous mass either did not have previous glycan mass added OR it has already been removed above. Add glycan mass and correct the calc mz column
-				double newMZ = Spectrum.neutralMassToMZ((float) (prevNeutralMass + glycanMass), charge);
-				newLine.set(calcMZcol, String.format("%.4f", newMZ));
 			} else {
-				// subtract glycan mass from delta mass
-				double observedDelta = Double.parseDouble(newLine.get(deltaMassCol));
-				newLine.set(deltaMassCol, String.format("%.4f", observedDelta - glycanMass));
-
-				// add glycan mass to the calculated m/z column. Convert to neutral masses to avoid double-adding protons
-				double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
-				double peptideMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);
-				double newMZ = Spectrum.neutralMassToMZ((float) (peptideMass + glycanMass), charge);
-				newLine.set(calcMZcol, String.format("%.4f", newMZ));
+				// subtract glycan mass from delta mass, add to calc peptide mass and MZ
+				newLine.set(deltaMassCol, String.format("%.4f", prevDeltaMass - glycanMass));
+				newLine.set(peptideCalcMassCol, String.format("%.4f", prevCalcPeptideMass + glycanMass));
+				newLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) (prevCalcPeptideMass + glycanMass), charge)));
 			}
 		}
 		return newLine;
