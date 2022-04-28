@@ -397,8 +397,13 @@ public class PSMFile {
 		try {
 			glycanComp = StaticGlycoUtilities.parseGlycanString(glycanOnly);
 		} catch (Exception ex) {
-			// Not a glycan (PTM-S or Philosopher may put other string formats here) - ignore and continue
-			return newLine;
+			try {
+				// try old format in case of old PSM file
+				glycanComp = StaticGlycoUtilities.parseGlycanStringOld(glycanOnly);
+			} catch (Exception ex2) {
+				// Not a glycan (PTM-S or Philosopher may put other string formats here) - ignore and continue
+				return newLine;
+			}
 		}
 		double glycanMass = GlycanCandidate.computeMonoisotopicMass(glycanComp);
 

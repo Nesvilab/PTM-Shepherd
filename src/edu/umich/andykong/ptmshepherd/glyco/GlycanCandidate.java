@@ -362,7 +362,7 @@ public class GlycanCandidate {
      * @return string
      */
     public String toString() {
-        return toGlycanHash(glycanComposition, isDecoy);
+        return toGlycanHash(glycanComposition, monoisotopicMass, isDecoy);
     }
 
     public boolean containsResidueType(GlycanResidue residue) {
@@ -370,7 +370,7 @@ public class GlycanCandidate {
     }
 
     // Static helper for both glycan fragment and candidate
-    public static String toGlycanHash(Map<GlycanResidue, Integer> glycanComposition, boolean isDecoy) {
+    public static String toGlycanHash(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy) {
         StringBuilder stringBuilder = new StringBuilder();
         if (isDecoy) {
             stringBuilder.append("Decoy_");
@@ -379,15 +379,16 @@ public class GlycanCandidate {
         for (GlycanResidue residueKey : GlycanResidue.values()) {
 //        for (Map.Entry<GlycanResidue, Integer> residue : glycanComposition.entrySet()) {
             if (glycanComposition.getOrDefault(residueKey, 0) > 0) {
-                residues.add(String.format("%s-%d", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
+                residues.add(String.format("%s(%d)", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
             }
         }
-        stringBuilder.append(String.join("_", residues));
+        stringBuilder.append(String.join("", residues));
+        stringBuilder.append(String.format(" %% %.4f", mass));
         return stringBuilder.toString();
     }
 
     // Static helper for both glycan fragment and candidate
-    public static String toGlycanString(Map<GlycanResidue, Integer> glycanComposition, boolean isDecoy, double intensity) {
-        return String.format("%s~%.4f", toGlycanHash(glycanComposition, isDecoy), intensity);
+    public static String toGlycanString(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy, double intensity) {
+        return String.format("%s~%.4f", toGlycanHash(glycanComposition, mass, isDecoy), intensity);
     }
 }

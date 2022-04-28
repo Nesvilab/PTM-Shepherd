@@ -182,7 +182,7 @@ public class GlycanFragment {
     }
 
     public String toString() {
-        return GlycanCandidate.toGlycanString(requiredComposition, isDecoy, foundIntensity);
+        return GlycanCandidate.toGlycanString(requiredComposition, neutralMass,isDecoy, foundIntensity);
     }
 
     /**
@@ -191,7 +191,7 @@ public class GlycanFragment {
      * @return string of composition + decoy
      */
     public String toHashString() {
-        return GlycanCandidate.toGlycanHash(requiredComposition, isDecoy);
+        return GlycanCandidate.toGlycanHash(requiredComposition, neutralMass, isDecoy);
     }
 
     /**

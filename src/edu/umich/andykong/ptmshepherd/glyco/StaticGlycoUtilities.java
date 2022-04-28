@@ -76,7 +76,8 @@ public class StaticGlycoUtilities {
                 } else {
                     glycanName = line;
                 }
-                TreeMap<GlycanResidue, Integer> glycanComp = parseGlycanString(glycanName);
+                // todo: update internal databases to use new format
+                TreeMap<GlycanResidue, Integer> glycanComp = parseGlycanStringOld(glycanName);
                 // generate a new candidate from this composition and add to DB
                 GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
                 String compositionHash = candidate.toString();
@@ -336,12 +337,37 @@ public class StaticGlycoUtilities {
         }
     }
 
-    public static TreeMap<GlycanResidue, Integer> parseGlycanString(String glycanString) {
+    public static TreeMap<GlycanResidue, Integer> parseGlycanStringOld(String glycanString) {
         String[] splits = glycanString.split("_");
         TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
         // Read all residue counts into the composition container
         for (String split: splits) {
             String[] glycanSplits = split.split("-");
+            // todo: add error catching
+            GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
+            int count;
+            try {
+                count = Integer.parseInt(glycanSplits[1].trim());
+            } catch (ArrayIndexOutOfBoundsException ex) {
+                continue;   // decoy - will be filtered once FDR in place todo: remove this after fdr filtering adding
+            }
+            glycanComp.put(residue, count);
+        }
+        return glycanComp;
+    }
+
+    /**
+     * Updated for Byonic base format (Glyc1(#)Glyc2(#) ... % Mass)
+     * @param glycanString Byonic format glycan string
+     * @return composition map
+     */
+    public static TreeMap<GlycanResidue, Integer> parseGlycanString(String glycanString) {
+        String[] massSplits = glycanString.split(" % ");
+        String[] compositionSplits = massSplits[0].split("\\)");
+        TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
+        // Read all residue counts into the composition container
+        for (String split: compositionSplits) {
+            String[] glycanSplits = split.split("\\(");
             // todo: add error catching
             GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
             int count;
