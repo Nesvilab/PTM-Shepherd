@@ -1,3 +1,19 @@
+/*
+ *    Copyright 2022 University of Michigan
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
@@ -32,7 +48,6 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
     public HashMap<Character, HashMap<Double, Double>> selectedSquigglePeaks;
     public HashMap<Double, Integer> nSelectedImmoniumPeaks;
     public HashMap<Double, Integer> nSelectedCapYPeaks;
-    public HashMap<Character, HashMap<Double, Integer>> nSelectedSquigglePeaks;
     public int nPeaks;
     static double [] fact;
 
@@ -155,11 +170,30 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
         for (double[] peak : selectCapYPeaks)
             this.selectedCapYPeaks.put(peak[0], peak[1]);
 
+        // build combined ion list
+        int combinedSquigglePeaksSize = 0;
+        for (Character c : squigglePeaksMasses.keySet())
+            combinedSquigglePeaksSize += this.squigglePeaks.get(c).length;
+
+        ArrayList<Double> tmpCombinedSquigglePeakMasses = new ArrayList<>();
+        float[][] tmpCombinedSquigglePeaks = new float[combinedSquigglePeaksSize][3];
+        int startInd = 0;
+        for (Character c : squigglePeaksMasses.keySet()) {
+            tmpCombinedSquigglePeakMasses.addAll(squigglePeaksMasses.get(c));
+            for (int i = startInd; i < this.squigglePeaks.get(c).length; i++) {
+                tmpCombinedSquigglePeaks[i][0] = this.squigglePeaks.get(c)[i][0];
+                tmpCombinedSquigglePeaks[i][1] = this.squigglePeaks.get(c)[i][1];
+                tmpCombinedSquigglePeaks[i][2] = this.squigglePeaks.get(c)[i][2];
+                startInd++;
+            }
+        }
+
         for (Character c : squigglePeaksMasses.keySet()) {
             this.selectedSquigglePeaks.put(c, new HashMap<>());
-            double[][] selectSquigglePeaks = collectSquiggleIonIntsensities(squigglePeaksMasses.get(c), this.squigglePeaks.get(c), c, tol, minIonEvidence);
-            //for (int i = 0 ; i < selectSquigglePeaks.length; i++)
-            //    selectSquigglePeaks[i][1] /= this.pepSeq.length();
+            //todo evaluate combined ion lists
+            double[][] selectSquigglePeaks = collectSquiggleIonIntsensities(squigglePeaksMasses.get(c), tmpCombinedSquigglePeaks, c, tol, minIonEvidence);
+            //double[][] selectSquigglePeaks = collectSquiggleIonIntsensities(squigglePeaksMasses.get(c), this.squigglePeaks.get(c), c, tol, minIonEvidence);
+
             for (double[] peak : selectSquigglePeaks)
                 this.selectedSquigglePeaks.get(c).put(peak[0], peak[1]);
         }
@@ -243,7 +277,7 @@ public class DiagnosticRecord implements Comparable<DiagnosticRecord>  {
 
         int expPeaksIndx = 0;
         int maxExpPeaksIndx = expPeakList.length;
-        //System.out.println("***"); //todo tol over multiple charge states
+
         double unmodPrecMass = calcPrecursorMass(1); //todo charge states
 
         for (int i = 0; i < selectedPeaks.length; i++) {

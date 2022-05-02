@@ -1,3 +1,19 @@
+/*
+ *    Copyright 2022 University of Michigan
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package edu.umich.andykong.ptmshepherd;
 
 import java.nio.file.Files;
@@ -27,7 +43,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC9";
+ 	public static final String version = "2.0.0-RC10";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -267,6 +283,16 @@ public class PTMShepherd {
 		out.println();
 		out.printf("%s version %s",name,version);
 		out.println("(c) University of Michigan\n");
+		out.println("Copyright 2022 University of Michigan\n\n" +
+						"Licensed under the Apache License, Version 2.0 (the \"License\")\\;\n" +
+						"you may not use this file except in compliance with the License.\n" +
+						"You may obtain a copy of the License at\n\n" +
+						"\thttp://www.apache.org/licenses/LICENSE-2.0\n\n" +
+				"Unless required by applicable law or agreed to in writing, software\n" +
+				"distributed under the License is distributed on an \"AS IS\" BASIS,\n" +
+				"WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
+				"See the License for the specific language governing permissions and\n" +
+				"limitations under the License.\n\n");
 		out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
 		
 		if(args.length == 0) {
@@ -320,6 +346,11 @@ public class PTMShepherd {
 			}
 
 		}
+
+		//Create internal PSM lists
+		PTMShepherd.print("Finding and caching PSM data");
+		getMzDataMapping();
+		PTMShepherd.print("Done finding and caching PSM data");
 
 		//Get mzData mapping
 		PTMShepherd.print("Finding and caching spectral data");

@@ -1,3 +1,19 @@
+/*
+ *    Copyright 2022 University of Michigan
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package edu.umich.andykong.ptmshepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
@@ -696,5 +712,54 @@ public class PSMFile {
     	String[] splits = mod.split("\\(");
     	String[] massSplits = splits[1].split("\\)");
     	return Double.parseDouble(massSplits[0]);
+	}
+
+	public void writeToPsmCache(File cacheFname, ArrayList<Double> varModMasses) throws FileNotFoundException {
+		PrintWriter out = new PrintWriter(cacheFname);
+
+		/* Write the new header */
+		out.println(String.join("\t", this.headers));
+
+		/* For each line in the file, modify accordingly */
+		for (int i = 0; i < this.data.size(); i++) {
+			ArrayList<String> sp = new ArrayList<>(Arrays.asList(this.data.get(i).split("\t")));
+			//Shift variable mod info into delta mass
+			if (varModMasses.size() > 0) {
+				double oldDmass = Double.parseDouble(sp.get(this.dMassCol));
+				double newDmass = oldDmass;
+				double oldPepmass = Double.parseDouble(sp.get(getColumn("Calculated Peptide Mass")));
+				double newPepmass = oldPepmass;
+				String[] oldAssignedMods = sp.get(getColumn("Assigned Modifications")).split(",");
+				ArrayList<String> newAssignedMods = new ArrayList<>(Arrays.asList(oldAssignedMods));
+				ArrayList<Integer> dropMods = new ArrayList<>();
+				for (int j = 0; j < oldAssignedMods.length; j++) {
+					System.out.println(oldAssignedMods[j]);
+					String modStr = oldAssignedMods[j];
+					int p = modStr.indexOf("(");
+					int q = modStr.indexOf(")");
+					double modMass = Double.parseDouble(modStr.substring(p + 1, q).trim());
+					for (int k = 0; k < varModMasses.size(); k++) {
+						if (Math.abs(modMass - varModMasses.get(k)) < 0.001) {
+							dropMods.add(j);
+							newDmass += modMass;
+							newPepmass -= modMass;
+							break;
+						}
+					}
+				}
+				for (int k = dropMods.size() - 1; k > 0; k--)
+					newAssignedMods.remove(k);
+				// reassign adjusted values
+				sp.set(this.deltaMassCol, Double.toString(newDmass));
+				sp.set(getColumn("Calculated Peptide Mass"), Double.toString(newPepmass));
+				sp.set(getColumn("Assigned Modifications"), String.join(", ", newAssignedMods));
+				sp.add(Double.toString(oldDmass));
+				sp.add(Double.toString(oldPepmass));
+				sp.add(String.join(", ", newAssignedMods));
+			}
+			out.println(this.data.get(i));
+		}
+
+		out.close();
 	}
 }
