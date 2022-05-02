@@ -362,6 +362,8 @@ public class StaticGlycoUtilities {
      * @return composition map
      */
     public static TreeMap<GlycanResidue, Integer> parseGlycanString(String glycanString) {
+        glycanString = glycanString.replace("FailFDR_", "");
+        glycanString = glycanString.replace("Decoy_", "");
         String[] massSplits = glycanString.split(" % ");
         String[] compositionSplits = massSplits[0].split("\\)");
         TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
