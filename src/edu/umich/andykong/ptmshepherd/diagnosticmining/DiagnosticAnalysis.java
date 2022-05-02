@@ -20,11 +20,8 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
-import edu.umich.andykong.ptmshepherd.core.MZBINFile;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import umich.ms.fileio.filetypes.mzxml.MZXMLFile;
-
-import java.io.*;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;

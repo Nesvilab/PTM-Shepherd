@@ -16,10 +16,17 @@
 
 package edu.umich.andykong.ptmshepherd.core;
 
-import edu.umich.andykong.ptmshepherd.PTMShepherd;
+import static edu.umich.andykong.ptmshepherd.core.AAMasses.protMass;
 
-import java.lang.reflect.Array;
-import java.util.*;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Floats;
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import umich.ms.fileio.filetypes.mzbin.MZBINFile;
 
 public class Spectrum implements Comparable<Spectrum> {
 
@@ -70,6 +77,25 @@ public class Spectrum implements Comparable<Spectrum> {
 				fact[i] = (float)(fact[i-1] + Math.log(i));
 		}
 		basePeakInt = findBasePeakInt();
+	}
+
+	public Spectrum(MZBINFile.MZBINSpectrum s, String runName) {
+		scanNum = s.scanNum;
+		scanName = runName + "." + this.scanNum + "." + this.scanNum + "." + s.charge;
+		charge = s.charge;
+		msLevel = s.msLevel;
+		rt = s.retentionTime;
+		precursorMass = s.selectedMz;
+		monoMass = s.selectedMz;
+		targetMass = s.isolatedMz;
+		peakMZ = Floats.toArray(Doubles.asList(s.peakMZ));
+		peakInt = s.peakInt;
+		basePeakInt = s.basePeakInt;
+		norm = -1;
+	}
+
+	public MZBINFile.MZBINSpectrum toMZBINSpectrum() {
+		return new MZBINFile.MZBINSpectrum(scanNum, scanName, peakMZ.length, (float) rt, (float) precursorMass, msLevel, charge, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, precursorMass, 0, 0, Doubles.toArray(Floats.asList(peakMZ)), peakInt);
 	}
 
 	public String toString() {
@@ -480,7 +506,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	 * @return
 	 */
 	public static float neutralMassToMZ(float neutralMass, int charge) {
-		return (neutralMass + charge * AAMasses.protMass) / (float) charge;
+		return (neutralMass + charge * protMass) / (float) charge;
 	}
 
 	/**
@@ -490,7 +516,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	 * @return
 	 */
 	public static float mzToNeutralMass(float mz, int charge) {
-		return (mz - AAMasses.protMass) * charge;
+		return (mz - protMass) * charge;
 	}
 
 	public float[][] calcImmoniumPeaks(int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass, float tol) { //todo I don't think these mins and maxes are very well informed

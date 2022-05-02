@@ -16,29 +16,57 @@
 
 package edu.umich.andykong.ptmshepherd;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.io.*;
-import java.util.concurrent.*;
-import java.util.Random;
+import static java.lang.System.out;
 
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedExperimentsSummary;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
-import edu.umich.andykong.ptmshepherd.core.MZBINFile;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.diagnosticanalysis.DiagnosticExtractor;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
-import edu.umich.andykong.ptmshepherd.glyco.*;
-import edu.umich.andykong.ptmshepherd.localization.*;
-import edu.umich.andykong.ptmshepherd.peakpicker.*;
-import edu.umich.andykong.ptmshepherd.specsimilarity.*;
-
-import static java.lang.System.out;
-import static java.util.concurrent.Executors.newFixedThreadPool;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidateFragments;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanFragmentDescriptor;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
+import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
+import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
+import edu.umich.andykong.ptmshepherd.glyco.ProbabilityTables;
+import edu.umich.andykong.ptmshepherd.glyco.StaticGlycoUtilities;
+import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
+import edu.umich.andykong.ptmshepherd.peakpicker.Histogram;
+import edu.umich.andykong.ptmshepherd.peakpicker.MS2Counts;
+import edu.umich.andykong.ptmshepherd.peakpicker.ModSummary;
+import edu.umich.andykong.ptmshepherd.peakpicker.PeakAnnotator;
+import edu.umich.andykong.ptmshepherd.peakpicker.PeakPicker;
+import edu.umich.andykong.ptmshepherd.peakpicker.PeakSummary;
+import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTAnalysis;
+import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTProfile;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Random;
+import java.util.StringTokenizer;
+import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import umich.ms.fileio.filetypes.mzbin.MZBINFile;
+import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 
 public class PTMShepherd {
 
@@ -947,7 +975,7 @@ public class PTMShepherd {
 			long t1 = System.currentTimeMillis();
 			//System.out.println(cf);
 			MXMLReader mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
-			ArrayList<Spectrum> specs = new ArrayList<>(); // Holds parsed spectra
+			ArrayList<MZBINSpectrum> specs = new ArrayList<>(); // Holds parsed spectra
 			mr.readFully();
 			long t2 = System.currentTimeMillis();
 			ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
@@ -960,12 +988,12 @@ public class PTMShepherd {
 					linesWithoutSpectra.put(i, line);
 				else {
 					spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
-					specs.add(spec);
+					specs.add(spec.toMZBINSpectrum());
 				}
 			}
 			long t3 = System.currentTimeMillis();
 			PTMShepherd.print(String.format("\t\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
-			MZBINFile mzbinFile = new MZBINFile(new File(normFName(cf + mzBinFilename)), specs, "", "");
+			MZBINFile mzbinFile = new MZBINFile(normFName(cf + mzBinFilename), specs, "", "");
 			mzbinFile.writeMZBIN();
 			mzMappings.put(cf, new File(normFName(cf + mzBinFilename)));
 		}
