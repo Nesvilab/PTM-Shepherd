@@ -230,6 +230,8 @@ public class GlycoAnalysis {
             // Determine the fragment likelihoods based on all PSMs for this entry
             HashMap<String, Integer> YCounts = new HashMap<>();
             HashMap<String, Integer> OxCounts = new HashMap<>();
+            HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
+            HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
             ArrayList<GlycanCandidate> allPSMsWithThisGlycan = glycanEntry.getValue();
             // skip generating fragment information for glycans with too few PSMs to get reasonable values
             if (allPSMsWithThisGlycan.size() < MIN_GLYCO_PSMS_FOR_BOOTSTRAP) {
@@ -242,11 +244,25 @@ public class GlycoAnalysis {
                     int count = YCounts.getOrDefault(fragmentHash, 0);
                     count++;
                     YCounts.put(fragmentHash, count);
+                    if (YInts.containsKey(fragmentHash)) {
+                        YInts.get(fragmentHash).add(inputGlycan.Yfragments.get(fragmentHash).expectedIntensity);
+                    } else {
+                        ArrayList<Double> newList = new ArrayList<>();
+                        newList.add(inputGlycan.Yfragments.get(fragmentHash).expectedIntensity);
+                        YInts.put(fragmentHash, newList);
+                    }
                 }
                 for (String fragmentHash : inputGlycan.oxoniumFragments.keySet()) {
                     int count = OxCounts.getOrDefault(fragmentHash, 0);
                     count++;
                     OxCounts.put(fragmentHash, count);
+                    if (OxInts.containsKey(fragmentHash)) {
+                        OxInts.get(fragmentHash).add(inputGlycan.oxoniumFragments.get(fragmentHash).expectedIntensity);
+                    } else {
+                        ArrayList<Double> newList = new ArrayList<>();
+                        newList.add(inputGlycan.oxoniumFragments.get(fragmentHash).expectedIntensity);
+                        OxInts.put(fragmentHash, newList);
+                    }
                 }
             }
 
@@ -262,8 +278,27 @@ public class GlycoAnalysis {
                 OxFragmentProps.put(fragmentEntry.getKey(), fragmentEntry.getValue() / (double) allPSMsWithThisGlycan.size());
             }
 
+            // save intensities
+            // todo: test median vs average
+            HashMap<String, Double> yFragmentIntensities = new HashMap<>();
+            for (Map.Entry<String, ArrayList<Double>> fragmentEntry : YInts.entrySet()) {
+                double[] intensities = new double[fragmentEntry.getValue().size()];
+                for (int i=0; i < fragmentEntry.getValue().size(); i++) {
+                    intensities[i] = fragmentEntry.getValue().get(i);
+                }
+                yFragmentIntensities.put(fragmentEntry.getKey(), Arrays.stream(intensities).average().orElse(0));
+            }
+            HashMap<String, Double> OxFragmentIntensities = new HashMap<>();
+            for (Map.Entry<String, ArrayList<Double>> fragmentEntry : OxInts.entrySet()) {
+                double[] intensities = new double[fragmentEntry.getValue().size()];
+                for (int i=0; i < fragmentEntry.getValue().size(); i++) {
+                    intensities[i] = fragmentEntry.getValue().get(i);
+                }
+                OxFragmentIntensities.put(fragmentEntry.getKey(), Arrays.stream(intensities).average().orElse(0));
+            }
+
             // save determined propensities to the output container
-            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentProps, OxFragmentProps);
+            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentProps, OxFragmentProps, yFragmentIntensities, OxFragmentIntensities);
             glycanCandidateFragmentsMap.put(glycanEntry.getKey(), fragmentInfo);
         }
         return glycanCandidateFragmentsMap;
@@ -875,11 +910,18 @@ public class GlycoAnalysis {
         return output;
     }
 
-    public double pairwiseCompareDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
+    /**
+     * Updated propensity score calculator. Intended use: sumLogRatio * this score gives final score.
+     * Uses min propensity param to adjust for min propensity
+     * @param glycan1 glycan candidate
+     * @param deltaMass delta mass bin in question
+     * @return double between min glycan propensity and 1
+     */
+    public double computeGlycanPropensityScore(GlycanCandidate glycan1, double deltaMass) {
+        double minGlycProp = 0.1;   //todo: param
         // determine the overall likelihood priors of these glycans given the observed delta mass
         int glyc1Count = 0;
-        int glyc2Count = 0;
-        int totalGlycCount = 0;
+        int totalGlycCountInBin = 0;
         HashMap<String, Integer> emptyMap = new HashMap<>();
         // count glycans in this delta mass bin and nearby allowed bins
         for (int isotope : glycoIsotopes) {
@@ -888,41 +930,26 @@ public class GlycoAnalysis {
             if (glycanCountMap.size() > 0) {
                 // count instances of glycan 1, glycan 2, and all glycans
                 glyc1Count = glyc1Count + glycanCountMap.getOrDefault(glycan1.toString(), 0);
-                glyc2Count = glyc2Count + glycanCountMap.getOrDefault(glycan2.toString(), 0);
                 for (int glycanCount : glycanCountMap.values()) {
-                    totalGlycCount += glycanCount;
+                    totalGlycCountInBin += glycanCount;
                 }
             }
         }
-        double propGlycan1 = glyc1Count / (double) totalGlycCount;
-        double propGlycan2 = glyc2Count / (double) totalGlycCount;
-        if (propGlycan1 == 0 || propGlycan2 == 0) {
-            // ignore glycan proportion data if either is 0. todo: Could instead set some minimum value (empirically determined)?
-            propGlycan1 = 1;
-            propGlycan2 = 1;
-        }
 
+        double propGlycan1 = glyc1Count / (double) totalGlycCountInBin;
+        double propScore = (1 - minGlycProp) * propGlycan1 + minGlycProp;       // normalize to between minGlycProp and 1.0
+        return propScore;
+    }
+
+    public double pairwiseCompareDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
-        for (GlycanFragment fragment1 : glycan1.Yfragments.values()) {
-            double probRatio;
-            if (fragment1.isAllowedFragment(glycan2)) {
-                GlycanFragment fragment2 = glycan2.Yfragments.get(fragment1.toHashString());
-                probRatio = computeFragmentPairwiseScore(fragment1, fragment2, propGlycan1, propGlycan2);
-            } else {
-                // fragment only possible for glycan 1, use glycan 1 only estimate
-                probRatio = computeFragmentAbsoluteScore(fragment1, propGlycan1);
-            }
-            sumLogRatio += Math.log(probRatio);
-        }
-        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
-        for (GlycanFragment fragment : glycan2.Yfragments.values()) {
-            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan2);
-            sumLogRatio -= Math.log(probRatio);
-        }
+
+        // Y ions
+        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.Yfragments, glycan2.Yfragments, glycan2);
 
         // oxonium ions
-        sumLogRatio += pairwiseCompareOxoDynamic(glycan1, glycan2, propGlycan1, propGlycan2);
+        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan2);
 
         // mass and isotope error
         sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
@@ -931,30 +958,29 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Compute sum log probability ratios for the compared glycans for a particular fragment type. Does NOT
-     * normalize fragment miss rate. Allows fragment specific probabilities.
+     * Compute sum log probability ratios for the compared glycans for a particular fragment type.
      *
-     * @param glycan1       candidate 1
+     * @param fragmentsMap1 Fragments from candidate 1
+     * @param fragmentsMap2 Fragments from candidate 2
      * @param glycan2       candidate 2
      * @return sum log probability with normalization included
      */
-    public double pairwiseCompareOxoDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double propGlycan1, double propGlycan2) {
+    public double pairwiseCompareFragmentsDynamic(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan2) {
         double sumLogRatio = 0;
-
-        for (GlycanFragment fragment1 : glycan1.oxoniumFragments.values()) {
+        for (GlycanFragment fragment1 : fragmentsMap1.values()) {
             double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
-                GlycanFragment fragment2 = glycan2.oxoniumFragments.get(fragment1.toHashString());
-                probRatio = computeFragmentPairwiseScore(fragment1, fragment2, propGlycan1, propGlycan2);
+                GlycanFragment fragment2 = fragmentsMap2.get(fragment1.toHashString());
+                probRatio = computeFragmentPairwiseScore(fragment1, fragment2);
             } else {
-                // fragment only possible for glycan 1, use glycan 1 only (absolute) estimate
-                probRatio = computeFragmentAbsoluteScore(fragment1, propGlycan1);
+                // fragment only possible for glycan 1, use glycan 1 only estimate
+                probRatio = computeFragmentAbsoluteScore(fragment1);
             }
             sumLogRatio += Math.log(probRatio);
         }
-        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method
-        for (GlycanFragment fragment : glycan2.oxoniumFragments.values()) {
-            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan2);
+        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
+        for (GlycanFragment fragment : fragmentsMap2.values()) {
+            double probRatio = computeFragmentAbsoluteScore(fragment);
             sumLogRatio -= Math.log(probRatio);
         }
         return sumLogRatio;
@@ -971,33 +997,15 @@ public class GlycoAnalysis {
      */
     public double computeAbsoluteScoreDynamic(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
         double sumLogRatio = 0;
-        // determine the overall likelihood priors of these glycans given the observed delta mass
-        int glycCount = 0;
-        int totalGlycCount = 0;
-        HashMap<String, Integer> emptyMap = new HashMap<>();
-        // count glycans in this delta mass bin and nearby allowed bins
-        for (int isotope : glycoIsotopes) {
-            int massBin = (int) Math.floor(deltaMass + isotope);
-            HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
-            if (glycanCountMap.size() > 0) {
-                // count instances of glycan 1, glycan 2, and all glycans
-                glycCount = glycCount + glycanCountMap.getOrDefault(bestGlycan.toString(), 0);
-                for (int glycanCount : glycanCountMap.values()) {
-                    totalGlycCount += glycanCount;
-                }
-            }
-        }
-        // ignore glycan proportion data if it's 0. todo: Could instead set some minimum value (empirically determined)?
-        double propGlycan = glycCount == 0 ? 1 : glycCount / (double) totalGlycCount;
 
         // Y ions
         for (GlycanFragment fragment : bestGlycan.Yfragments.values()) {
-            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan);
+            double probRatio = computeFragmentAbsoluteScore(fragment);
             sumLogRatio += Math.log(probRatio);
         }
         // oxonium ions
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
-            double probRatio = computeFragmentAbsoluteScore(fragment, propGlycan);
+            double probRatio = computeFragmentAbsoluteScore(fragment);
             sumLogRatio += Math.log(probRatio);
         }
 
@@ -1020,40 +1028,34 @@ public class GlycoAnalysis {
      * Helper for computing absolute score of Y or oxonium fragment lists
      * @param fragment1 fragment from glycan 1
      * @param fragment2 fragment from glycan 2
-     * @param propGlycan1 proportion of this glycan in the mass bin
-     * @param propGlycan2 proportion of this glycan in the mass bin
      * @return ratio of fragment probs
      */
-    public double computeFragmentPairwiseScore(GlycanFragment fragment1, GlycanFragment fragment2, double propGlycan1, double propGlycan2) {
+    public double computeFragmentPairwiseScore(GlycanFragment fragment1, GlycanFragment fragment2) {
         double probRatio;
         if (fragment1.foundIntensity > 0) {
             // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-            probRatio = fragment1.propensity * propGlycan1 / (fragment2.propensity * propGlycan2);
+            probRatio = fragment1.ruleProbabilities[0] * computePropensityRatio(fragment1, fragment2);
+            // todo: optional, test multiplying by intensity ratio (obs/exp) for fragment1 only
         } else {
             // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-            probRatio = (1 - fragment1.propensity) * propGlycan1 / ((1 - fragment2.propensity) * propGlycan2);
+            probRatio = fragment1.ruleProbabilities[1] * computePropensityRatio(fragment1, fragment2);
         }
         return probRatio;
     }
 
     /**
-     * Helper for computing absolute score of Y or oxonium fragment lists
+     * Helper for computing absolute score of Y or oxonium fragments. Uses empirical probability for this fragment
+     * type and weights it by intensity vs expected
      * @param fragment fragment to consider
-     * @param propGlycan proportion of this glycan in the mass bin
      * @return sum log ratio of fragment probs
      */
-    public double computeFragmentAbsoluteScore(GlycanFragment fragment, double propGlycan) {
-        double probRatio;
+    public double computeFragmentAbsoluteScore(GlycanFragment fragment) {
+        double probRatio = 0;
         if (fragment.foundIntensity > 0) {
-            // "hit": fragment found in spectrum. Prob ratio is inverse of the miss probability in the absence of another glycan to compare against
-            probRatio = 1 / ((1 - fragment.propensity) * propGlycan);
-            // cap probRatio to prevent high-propensity fragments from going to infinity
-            if (probRatio > MAX_PROB_RATIO_ABSOLUTE) {
-                probRatio = MAX_PROB_RATIO_ABSOLUTE;
-            }
+            double intensityRatio = computeIntensityRatio(fragment);
+            probRatio = fragment.ruleProbabilities[0] * intensityRatio;     // found in spectrum - ion supports this glycan
         } else {
-            // "miss": fragment not found. Compute prob of glycan given absence of this ion. Miss propensity = 1 - hit propensity
-            probRatio = (1 - fragment.propensity) * propGlycan;
+            probRatio = fragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
         }
         return probRatio;
     }
@@ -1319,6 +1321,26 @@ public class GlycoAnalysis {
             sumLogRatio += Math.log(defaultMassErrorAbsScore / massDist);      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
         }
         return sumLogRatio;
+    }
+
+    /**
+     * Compute propensity adjustment for fragments in common between candidates. Caps it so that low-propensity fragments being found
+     * can't reduce the score (same as is done for intensity ratio). Assumes both propensities are non-zero!
+     * @param fragment1
+     * @param fragment2
+     * @return
+     */
+    public double computePropensityRatio(GlycanFragment fragment1, GlycanFragment fragment2) {
+        double propensityRatio;
+        if (fragment1.propensity > 0 && fragment2.propensity > 0) {
+            propensityRatio = fragment1.propensity / fragment2.propensity;
+            propensityRatio = Math.sqrt(propensityRatio);   // todo: param, test
+        } else {
+            // ignore if no propensity present for this fragment
+            // todo: use all-glycan fragment lookup in this case?
+            propensityRatio = 1;
+        }
+        return propensityRatio;
     }
 
     /**

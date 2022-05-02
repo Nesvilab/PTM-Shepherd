@@ -23,10 +23,15 @@ import java.util.HashMap;
  */
 public class GlycanCandidateFragments {
     HashMap<String, Double> yFragmentProps;
+    HashMap<String, Double> yFragmentIntensities;
     HashMap<String, Double> OxFragmentProps;
+    HashMap<String, Double> OxFragmentIntensities;
 
-    public GlycanCandidateFragments(HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps) {
+
+    public GlycanCandidateFragments(HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, HashMap<String, Double> yFragmentIntensities, HashMap<String, Double> OxFragmentIntensities) {
         this.yFragmentProps = yFragmentProps;
         this.OxFragmentProps = OxFragmentProps;
+        this.yFragmentIntensities = yFragmentIntensities;
+        this.OxFragmentIntensities = OxFragmentIntensities;
     }
 }
