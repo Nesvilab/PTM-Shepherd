@@ -143,7 +143,7 @@ public class StaticGlycoUtilities {
             if (fragmentDB.containsKey(currentGlycanHash)) {
                 // We have fragment ion info for this candidate - use it to generate the new candidate
                 GlycanCandidateFragments fragmtInfo = fragmentDB.get(currentGlycanHash);
-                newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, fragmtInfo.yFragmentProps, fragmtInfo.OxFragmentProps, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, randomGenerator, glycoOxoniumDatabase);
+                newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, fragmtInfo, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, randomGenerator, glycoOxoniumDatabase);
             } else {
                 // this candidate lacks any fragment info (not found in bootstrapping or other DB) - initialize a new candidate with default probabilities
                 newCandidate = new GlycanCandidate(oldCandidate.glycanComposition, oldCandidate.isDecoy, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);

@@ -39,11 +39,12 @@ public class GlycanFragment {
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, Map<String, Double> fragmentPropensities, boolean isDecoy, Random randomGenerator) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, Map<String, Double> fragmentPropensities, Map<String, Double> fragmentIntensities, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
         this.propensity = fragmentPropensities.getOrDefault(this.toHashString(), 0.0);
+        this.expectedIntensity = fragmentIntensities.getOrDefault(this.toHashString(), 0.0);
         if (isDecoy) {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         } else {
