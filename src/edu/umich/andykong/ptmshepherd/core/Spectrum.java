@@ -90,8 +90,14 @@ public class Spectrum implements Comparable<Spectrum> {
 		targetMass = s.isolatedMz;
 		peakMZ = Floats.toArray(Doubles.asList(s.peakMZ));
 		peakInt = s.peakInt;
-		basePeakInt = s.basePeakInt;
+		basePeakInt = findBasePeakInt();
 		norm = -1;
+		if(fact == null) {
+			fact = new float[128];
+			fact[0] = 0;
+			for(int i = 1; i < 128; i++)
+				fact[i] = (float)(fact[i-1] + Math.log(i));
+		}
 	}
 
 	public MZBINFile.MZBINSpectrum toMZBINSpectrum() {
