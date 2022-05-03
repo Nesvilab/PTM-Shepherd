@@ -43,19 +43,19 @@ public class Spectrum implements Comparable<Spectrum> {
 	public double averageIonMass;
 	public double basePeakInt;
 	
-	static float [] fact;
+	static final float [] fact;
+	static {
+		fact = new float[128];
+		fact[0] = 0;
+		for(int i = 1; i < 128; i++)
+			fact[i] = (float)(fact[i-1] + Math.log(i));
+	}
 
 	//this constructor parses batmass compatible filetypes
 	public Spectrum(int nfrags) {
 		peakMZ = new float[nfrags];
 		peakInt = new float[nfrags];
 		norm = -1;
-		if(fact == null) {
-			fact = new float[128];
-			fact[0] = 0;
-			for(int i = 1; i < 128; i++)
-				fact[i] = (float)(fact[i-1] + Math.log(i));
-		}
 		basePeakInt = findBasePeakInt();
 	}
 
@@ -70,12 +70,6 @@ public class Spectrum implements Comparable<Spectrum> {
 		peakInt = peakint;
 		msLevel = mslevel;
 		norm = -1;
-		if(fact == null) {
-			fact = new float[128];
-			fact[0] = 0;
-			for(int i = 1; i < 128; i++)
-				fact[i] = (float)(fact[i-1] + Math.log(i));
-		}
 		basePeakInt = findBasePeakInt();
 	}
 
@@ -92,12 +86,6 @@ public class Spectrum implements Comparable<Spectrum> {
 		peakInt = s.peakInt;
 		basePeakInt = findBasePeakInt();
 		norm = -1;
-		if(fact == null) {
-			fact = new float[128];
-			fact[0] = 0;
-			for(int i = 1; i < 128; i++)
-				fact[i] = (float)(fact[i-1] + Math.log(i));
-		}
 	}
 
 	public MZBINFile.MZBINSpectrum toMZBINSpectrum() {
