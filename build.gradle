@@ -43,7 +43,7 @@ sourceSets {
             srcDirs = ['src']
          }
         resources {
-            srcDirs = ['resources']
+            srcDirs = ['resources', 'src', 'test-resources']
             include "**/*.txt"
         }
     }
