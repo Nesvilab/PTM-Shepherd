@@ -41,9 +41,10 @@ public class GlycanCandidate {
      */
     public GlycanCandidate(String glycanStr, String[] parsedFragmentInfo){
         glycanComposition = StaticGlycoUtilities.parseGlycanString(glycanStr);
+        monoisotopicMass = computeMonoisotopicMass(glycanComposition);
+
         Yfragments = new TreeMap<>();
         oxoniumFragments = new TreeMap<>();
-
         for (String fragment : parsedFragmentInfo) {
             String[] typeSplits = fragment.split("~");
             // string format is [type]~[composition]~[intensity]
@@ -112,6 +113,7 @@ public class GlycanCandidate {
         // initialize fragments for this candidate
         initializeYFragmentsFromProps(fragmentInfo, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+        updateOxoniums(fragmentInfo);
         this.hasFragmentProps = true;
     }
 
@@ -135,7 +137,8 @@ public class GlycanCandidate {
         }
         this.oxoniumFragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> entry : oxoniumFragments.entrySet()) {
-            this.oxoniumFragments.put(entry.getKey(), new GlycanFragment(entry.getValue().requiredComposition, entry.getValue().ruleProbabilities, entry.getValue().isDecoy, entry.getValue().neutralMass, entry.getValue().expectedIntensity, entry.getValue().propensity));        }
+            this.oxoniumFragments.put(entry.getKey(), new GlycanFragment(entry.getValue().requiredComposition, entry.getValue().ruleProbabilities, entry.getValue().isDecoy, entry.getValue().neutralMass, entry.getValue().expectedIntensity, entry.getValue().propensity));
+        }
         this.hasFragmentProps = false;
     }
 
@@ -285,6 +288,18 @@ public class GlycanCandidate {
             newFragments.put(newFragment.toHashString(), newFragment);
         }
         return newFragments;
+    }
+
+    /**
+     * Take initialized oxonium ions (from initializeOxoniumFragments) and update them with propensity and intensity
+     * information from the provided fragment info database
+     * @param fragmentInfo fragment info container
+     */
+    private void updateOxoniums(GlycanCandidateFragments fragmentInfo) {
+        for (Map.Entry<String, GlycanFragment> fragmentEntry : oxoniumFragments.entrySet()) {
+            fragmentEntry.getValue().propensity = fragmentInfo.OxFragmentProps.getOrDefault(fragmentEntry.getKey(), 0.0);
+            fragmentEntry.getValue().expectedIntensity = fragmentInfo.OxFragmentProps.getOrDefault(fragmentEntry.getKey(), 0.0);
+        }
     }
 
     /**

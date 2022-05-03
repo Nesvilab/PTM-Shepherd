@@ -95,9 +95,7 @@ public class StaticGlycoUtilities {
                             // deep copy the original composition and add the adduct to it
                             TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
 
-                            for (Map.Entry<GlycanResidue, Integer> previousResidue : glycanComp.entrySet()) {
-                                adductComp.put(previousResidue.getKey(), previousResidue.getValue());
-                            }
+                            adductComp.putAll(glycanComp);
                             adductComp.put(adduct, numAdducts);
 
                             GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);

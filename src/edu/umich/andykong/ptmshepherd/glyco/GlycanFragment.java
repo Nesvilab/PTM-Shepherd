@@ -43,12 +43,11 @@ public class GlycanFragment {
         this.requiredComposition = requiredComposition;
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
+        this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         this.propensity = fragmentPropensities.getOrDefault(this.toHashString(), 0.0);
         this.expectedIntensity = fragmentIntensities.getOrDefault(this.toHashString(), 0.0);
         if (isDecoy) {
-            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
-        } else {
-            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
+            this.neutralMass = this.neutralMass + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         }
     }
 
