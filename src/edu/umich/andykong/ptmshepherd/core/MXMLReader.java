@@ -58,6 +58,19 @@ public class MXMLReader {
 		else
 			return specName;
 	}
+	// strip off the charge state from spec name of format name.scanNum.scanNum.charge
+	public static String stripChargeState(String specName) {
+		String [] sp = specName.split("\\.");
+		if(sp.length == 4) {
+			StringBuilder sb = new StringBuilder();
+			for (int i=0; i < sp.length - 1; i++) {
+				sb.append(sp[i]).append(".");
+			}
+			return sb.toString();
+		}
+		else
+			return specName;
+	}
 	
 	public MXMLReader(File f, int threads) {
 		this.f = f;
@@ -94,19 +107,19 @@ public class MXMLReader {
 			readFully(source);
 			for(int i = 0; i < specs.length; i++) {
 				specsByName.put(specs[i].scanName, specs[i]);
-				specsByStrippedName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
 			}
 		} else if (mgfSource == null) {
 			readAsMzBIN(mzbinSource);
 			for(int i = 0; i < specs.length; i++){
 				specsByName.put(specs[i].scanName, specs[i]);
-				specsByStrippedName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
 			}
 		} else {
 			readAsFraggerMGF(mgfSource);
 			for(int i = 0; i < specs.length; i++) {
 				specsByName.put(specs[i].scanName, specs[i]);
-				specsByStrippedName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
 			}
 		}
 	}

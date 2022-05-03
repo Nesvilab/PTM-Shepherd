@@ -21,7 +21,7 @@ import java.util.*;
 
 import edu.umich.andykong.ptmshepherd.*;
 import edu.umich.andykong.ptmshepherd.core.*;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormNameWithCharge;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import org.apache.commons.math3.linear.SparseFieldMatrix;
 
 
@@ -141,7 +141,7 @@ public class SiteLocalization {
 		//for(int k = 0; k < mr.specs.length; k++) {
 		//	System.out.println(mr.specs[k].scanName + "\t" + reNormName(specName));
 		//}
-		Spectrum spec = mr.getSpectrum(reNormNameWithCharge(specName));
+		Spectrum spec = mr.getSpectrum(reNormName(specName));
 		//System.out.println(mr.specs.length);
 
 		boolean [] allowedPoses = parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));

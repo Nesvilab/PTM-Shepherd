@@ -21,7 +21,7 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormNameWithCharge;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -159,7 +159,7 @@ public class DiagnosticAnalysis {
         float pepMass = Float.parseFloat(sp[pmassCol]);
 
         /* Prep spec and normalize to base peak */
-        Spectrum spec = mr.getSpectrum(reNormNameWithCharge(specName));
+        Spectrum spec = mr.getSpectrum(reNormName(specName));
         if (spec != null)
             spec.conditionOptNorm(condPeaks, condRatio, true);
         else

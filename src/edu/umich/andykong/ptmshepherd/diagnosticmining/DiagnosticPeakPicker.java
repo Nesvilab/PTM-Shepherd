@@ -21,7 +21,7 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormNameWithCharge;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import sun.reflect.generics.tree.Tree;
 import umich.ms.datatypes.lcmsrun.Hash;
 
@@ -525,7 +525,7 @@ public class DiagnosticPeakPicker {
             return;
 
         // Get spec
-        Spectrum spec = mr.getSpectrum(reNormNameWithCharge(specName));
+        Spectrum spec = mr.getSpectrum(reNormName(specName));
         if (spec == null)
             return;
         spec.condition(this.condPeaks, this.condRatio);

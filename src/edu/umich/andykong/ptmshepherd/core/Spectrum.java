@@ -17,6 +17,7 @@
 package edu.umich.andykong.ptmshepherd.core;
 
 import static edu.umich.andykong.ptmshepherd.core.AAMasses.protMass;
+import static edu.umich.andykong.ptmshepherd.core.MXMLReader.stripChargeState;
 
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
@@ -61,7 +62,7 @@ public class Spectrum implements Comparable<Spectrum> {
 
 	//this constructor parses MZBin files and MGF files
 	public Spectrum(String scanname, int scannum, int z, int mslevel, double precursormass, double rettime, float[] peakmz, float[] peakint) {
-		scanName = scanname;
+		scanName = stripChargeState(scanname);
 		scanNum = scannum;
 		charge = z;
 		precursorMass = precursormass;
@@ -75,7 +76,7 @@ public class Spectrum implements Comparable<Spectrum> {
 
 	public Spectrum(MZBINFile.MZBINSpectrum s, String runName) {
 		scanNum = s.scanNum;
-		scanName = runName + "." + this.scanNum + "." + this.scanNum + "." + s.charge;
+		scanName = runName + "." + this.scanNum + "." + this.scanNum;
 		charge = s.charge;
 		msLevel = s.msLevel;
 		rt = s.retentionTime;
