@@ -21,6 +21,7 @@ import java.util.*;
 
 import edu.umich.andykong.ptmshepherd.*;
 import edu.umich.andykong.ptmshepherd.core.*;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormNameWithCharge;
 import org.apache.commons.math3.linear.SparseFieldMatrix;
 
 
@@ -38,16 +39,7 @@ public class SiteLocalization {
 		this.dsName = dsName;
 		this.localizationFile = new File(PTMShepherd.normFName(dsName+".rawlocalize"));
 	}
-	
-	public String reNormName(String s) {
-		String [] sp = s.split("\\.");
-		int sn = Integer.parseInt(sp[1]);
-		//with charge state
-		//return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
-		//without charge state
-		//System.out.println("Searching for " + String.format("%s.%d.%d",sp[0],sn,sn));
-		return String.format("%s.%d.%d",sp[0],sn,sn);
-	}
+
 	
 	public boolean isComplete() throws Exception {
 		if(localizationFile.exists()) {
@@ -149,7 +141,7 @@ public class SiteLocalization {
 		//for(int k = 0; k < mr.specs.length; k++) {
 		//	System.out.println(mr.specs[k].scanName + "\t" + reNormName(specName));
 		//}
-		Spectrum spec = mr.getSpectrum(reNormName(specName));
+		Spectrum spec = mr.getSpectrum(reNormNameWithCharge(specName));
 		//System.out.println(mr.specs.length);
 
 		boolean [] allowedPoses = parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));

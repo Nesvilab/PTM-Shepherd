@@ -25,6 +25,7 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormNameWithCharge;
 import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
 import java.util.List;
 
@@ -46,15 +47,7 @@ public class SimRTAnalysis {
 		this.dsName = dsName;
 		this.simRTFile = new File(PTMShepherd.normFName(dsName+".rawsimrt"));
 	}
-	
-	public String reNormName(String s) {
-		String [] sp = s.split("\\.");
-		int sn = Integer.parseInt(sp[1]);
-		//with charge state
-		//return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
-		//without charge state
-		return String.format("%s.%d.%d",sp[0],sn,sn);
-	}
+
 	
 	public boolean isComplete() throws Exception {
 		if(simRTFile.exists()) {
@@ -211,14 +204,14 @@ public class SimRTAnalysis {
 				for(int i = 0; i < nComp; i++) {
 					String [] crow = pf.data.get(relLines.get(i)).split("\t");
 					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
-					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(reNormName(crow[specCol])));
+					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(reNormNameWithCharge(crow[specCol])));
 				}
 				
 				double zSimSum = 0;
 				totalLines += relLines.size();
 				for(int i = 0; i < relLines.size(); i++) {
 					String [] crow = pf.data.get(relLines.get(i)).split("\t");
-					String specNormName = reNormName(crow[specCol]);
+					String specNormName = reNormNameWithCharge(crow[specCol]);
 					//System.out.println(specNormName);
 					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
 					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(specNormName);
@@ -289,7 +282,7 @@ public class SimRTAnalysis {
 				key += "." + crow[chargeCol]; //based on charge state
 				if(zTolSpecs.containsKey(key)) {
 					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
-					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(reNormName(crow[specCol]));
+					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(reNormNameWithCharge(crow[specCol]));
 					if(cspec != null) {
 						avgSim = cspec.averageSimilarity(zTolSpecs.get(key), ppmTol); //all v all comparison
 						avgZeroSim = avgzSim.get(key);

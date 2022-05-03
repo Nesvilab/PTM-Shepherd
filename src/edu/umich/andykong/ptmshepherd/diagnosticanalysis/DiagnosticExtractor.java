@@ -22,7 +22,7 @@ import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormNameWithCharge;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -183,9 +183,9 @@ public class DiagnosticExtractor {
 
         diagnosticResultString.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, seq, sp[modCol], pepMass, dmass));
 
-        Spectrum spec = mr.getSpectrum(reNormName(specName));
+        Spectrum spec = mr.getSpectrum(reNormNameWithCharge(specName));
         if (spec == null) {
-            this.lineWithoutSpectra.add(reNormName(specName));
+            this.lineWithoutSpectra.add(reNormNameWithCharge(specName));
             return "ERROR";
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);

@@ -1071,9 +1071,13 @@ public class PTMShepherd {
 	public static String reNormName(String s) {
 		String[] sp = s.split("\\.");
 		int sn = Integer.parseInt(sp[1]);
-		//with charge state
-		//return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
 		//without charge state
 		return String.format("%s.%d.%d", sp[0], sn, sn);
+	}
+	public static String reNormNameWithCharge(String s) {
+		String[] sp = s.split("\\.");
+		int sn = Integer.parseInt(sp[1]);
+		//with charge state
+		return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
 	}
 }
