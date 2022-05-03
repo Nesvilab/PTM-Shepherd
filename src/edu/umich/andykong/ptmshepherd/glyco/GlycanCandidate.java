@@ -260,46 +260,13 @@ public class GlycanCandidate {
      */
     public void initializeOxoniumFragments(HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
         this.oxoniumFragments = new TreeMap<>();
-        // HexNAc, Hex oxoniums
-
-        // NeuAc
-        if (this.glycanComposition.get(GlycanResidue.NeuAc) > 0) {
-            if (this.isDecoy) {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.NeuAc, true, glycoOxoniumDatabase, randomGenerator));
-            } else {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.NeuAc, false, glycoOxoniumDatabase, randomGenerator));
-            }
-        }
-        // NeuGc
-        if (this.glycanComposition.get(GlycanResidue.NeuGc) > 0) {
-            if (this.isDecoy) {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.NeuGc, true, glycoOxoniumDatabase, randomGenerator));
-            } else {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.NeuGc, false, glycoOxoniumDatabase, randomGenerator));
-            }
-        }
-        // Phospho-Hex
-        if (this.glycanComposition.get(GlycanResidue.Phospho) > 0) {
-            if (this.isDecoy) {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.Phospho, true, glycoOxoniumDatabase, randomGenerator));
-            } else {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.Phospho, false, glycoOxoniumDatabase, randomGenerator));
-            }
-        }
-        // Sulfo
-        if (this.glycanComposition.get(GlycanResidue.Sulfo) > 0) {
-            if (this.isDecoy) {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.Sulfo, true, glycoOxoniumDatabase, randomGenerator));
-            } else {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.Sulfo, false, glycoOxoniumDatabase, randomGenerator));
-            }
-        }
-        // dHex
-        if (this.glycanComposition.get(GlycanResidue.dHex) > 0) {
-            if (this.isDecoy) {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.dHex, true, glycoOxoniumDatabase, randomGenerator));
-            } else {
-                oxoniumFragments.putAll(makeOxoniums(GlycanResidue.dHex, false, glycoOxoniumDatabase, randomGenerator));
+        for (GlycanResidue residue : GlycanResidue.values()) {
+            if (this.glycanComposition.get(residue) > 0) {
+                if (this.isDecoy) {
+                    oxoniumFragments.putAll(makeOxoniums(residue, true, glycoOxoniumDatabase, randomGenerator));
+                } else {
+                    oxoniumFragments.putAll(makeOxoniums(residue, false, glycoOxoniumDatabase, randomGenerator));
+                }
             }
         }
     }
@@ -312,7 +279,7 @@ public class GlycanCandidate {
      */
     private TreeMap<String, GlycanFragment> makeOxoniums(GlycanResidue residue, boolean isDecoy, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
         TreeMap<String, GlycanFragment> newFragments = new TreeMap<>();
-        ArrayList<GlycanFragmentDescriptor> oxoniumIonDescriptors = glycoOxoniumDatabase.get(residue);
+        ArrayList<GlycanFragmentDescriptor> oxoniumIonDescriptors = glycoOxoniumDatabase.getOrDefault(residue, new ArrayList<>());
         for (GlycanFragmentDescriptor fragmentDescriptor : oxoniumIonDescriptors) {
             GlycanFragment newFragment = new GlycanFragment(fragmentDescriptor.requiredComposition, fragmentDescriptor.ruleProbabilies, fragmentDescriptor.massShift, isDecoy, randomGenerator);
             newFragments.put(newFragment.toHashString(), newFragment);
