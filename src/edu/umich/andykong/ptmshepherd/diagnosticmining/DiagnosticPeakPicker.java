@@ -21,6 +21,7 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import sun.reflect.generics.tree.Tree;
 import umich.ms.datatypes.lcmsrun.Hash;
 
@@ -573,14 +574,6 @@ public class DiagnosticPeakPicker {
         }
     }
 
-    public String reNormName(String s) {
-        String[] sp = s.split("\\.");
-        int sn = Integer.parseInt(sp[1]);
-        //with charge state
-        //return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
-        //without charge state
-        return String.format("%s.%d.%d", sp[0], sn, sn);
-    }
 
     public float[] formatMods(String[] smods, String seq) {
         float [] mods = new float[seq.length()];

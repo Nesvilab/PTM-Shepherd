@@ -20,11 +20,9 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
-import edu.umich.andykong.ptmshepherd.core.MZBINFile;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import umich.ms.fileio.filetypes.mzxml.MZXMLFile;
-
-import java.io.*;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -180,14 +178,6 @@ public class DiagnosticAnalysis {
         this.diagnosticRecords.addAll(diagnosticRecordsBlock);
     }
 
-    public String reNormName(String s) {
-        String[] sp = s.split("\\.");
-        int sn = Integer.parseInt(sp[1]);
-        //with charge state
-        //return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
-        //without charge state
-        return String.format("%s.%d.%d", sp[0], sn, sn);
-    }
 
     public float[][] calcImmoniumPeaks(Spectrum spec, int min, int max, String seq, float[] mods, String filterIonTypes, int maxCharge, float dmass, float specTol) {
         float[][] peaks = spec.calcImmoniumPeaks(min, max, seq, mods, filterIonTypes, maxCharge, dmass, specTol);

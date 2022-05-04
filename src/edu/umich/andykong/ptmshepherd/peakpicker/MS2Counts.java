@@ -16,16 +16,17 @@
 
 package edu.umich.andykong.ptmshepherd.peakpicker;
 
-import java.io.*;
-import java.util.*;
-
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MSFMGFFile;
-import edu.umich.andykong.ptmshepherd.core.MZBINFile;
-import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import java.io.File;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import umich.ms.datatypes.LCMSDataSubset;
 import umich.ms.datatypes.scan.IScan;
 import umich.ms.datatypes.scancollection.impl.ScanCollectionDefault;
+import umich.ms.fileio.filetypes.mzbin.MZBINFile;
+import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 import umich.ms.fileio.filetypes.mzml.MZMLFile;
 import umich.ms.fileio.filetypes.mzxml.MZXMLFile;
 import umich.ms.fileio.filetypes.thermo.ThermoRawFile;
@@ -89,16 +90,16 @@ public class MS2Counts {
 				File tempMzbF = new File(tempMzbFp);
 				if (tempMzbF.exists()) {
 					//String f = tempMzbFp;
-					MZBINFile source = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), tempMzbFp, true);
+					MZBINFile source = new MZBINFile(Integer.parseInt(PTMShepherd.getParam("threads")), tempMzbFp, true);
 				} else {
 					System.out.println("Cannot read .d files without associated .mzBIN");
 					System.exit(1);
 				}
 			} else if (ext.equals("mzBIN")) {
 				try {
-					MZBINFile source = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f.getAbsolutePath(), true);
-					for (Spectrum spec : source.specs) {
-						if (spec.msLevel == 2) {
+					MZBINFile source = new MZBINFile(Integer.parseInt(PTMShepherd.getParam("threads")), f.getAbsolutePath(), true);
+					for (MZBINSpectrum mzbinSpectrum : source.specs) {
+						if (mzbinSpectrum.msLevel == 2) {
 							count++;
 						}
 					}

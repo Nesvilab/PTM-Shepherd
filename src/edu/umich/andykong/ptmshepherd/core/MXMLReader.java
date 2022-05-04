@@ -16,20 +16,21 @@
 
 package edu.umich.andykong.ptmshepherd.core;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
-
-import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import umich.ms.datatypes.LCMSDataSubset;
 import umich.ms.datatypes.scan.IScan;
 import umich.ms.datatypes.scancollection.impl.ScanCollectionDefault;
 import umich.ms.datatypes.spectrum.ISpectrum;
 import umich.ms.fileio.filetypes.LCMSDataSource;
+import umich.ms.fileio.filetypes.mzbin.MZBINFile;
+import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 import umich.ms.fileio.filetypes.mzml.MZMLFile;
 import umich.ms.fileio.filetypes.mzxml.MZXMLFile;
 import umich.ms.fileio.filetypes.thermo.ThermoRawFile;
@@ -57,6 +58,19 @@ public class MXMLReader {
 		else
 			return specName;
 	}
+	// strip off the charge state from spec name of format name.scanNum.scanNum.charge
+	public static String stripChargeState(String specName) {
+		String [] sp = specName.split("\\.");
+		if(sp.length == 4) {
+			StringBuilder sb = new StringBuilder();
+			for (int i=0; i < sp.length - 1; i++) {
+				sb.append(sp[i]).append(".");
+			}
+			return sb.toString();
+		}
+		else
+			return specName;
+	}
 	
 	public MXMLReader(File f, int threads) {
 		this.f = f;
@@ -80,7 +94,7 @@ public class MXMLReader {
 		} else if (fn.endsWith(".raw")) {
 			source = new ThermoRawFile(f.getAbsolutePath());
 		} else if (fn.endsWith(".mzbin") || fn.endsWith(".mzbin_cache")) {
-			mzbinSource = new MZBINFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+			mzbinSource = new MZBINFile(Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
 		}
 		if ((mzbinSource == null) && (mgfSource == null) && (source == null)) {
 			System.out.println("Cannot read mzFile with unrecognized extension: " + f.getName());
@@ -93,19 +107,19 @@ public class MXMLReader {
 			readFully(source);
 			for(int i = 0; i < specs.length; i++) {
 				specsByName.put(specs[i].scanName, specs[i]);
-				specsByStrippedName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
 			}
 		} else if (mgfSource == null) {
 			readAsMzBIN(mzbinSource);
 			for(int i = 0; i < specs.length; i++){
 				specsByName.put(specs[i].scanName, specs[i]);
-				specsByStrippedName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
 			}
 		} else {
 			readAsFraggerMGF(mgfSource);
 			for(int i = 0; i < specs.length; i++) {
 				specsByName.put(specs[i].scanName, specs[i]);
-				specsByStrippedName.put(specs[i].scanName, specs[i]);
+				specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
 			}
 		}
 	}
@@ -121,7 +135,7 @@ public class MXMLReader {
 		ScanCollectionDefault scans = new ScanCollectionDefault();
 		scans.setDataSource(source);
 		scans.loadData(LCMSDataSubset.MS2_WITH_SPECTRA);
-		TreeMap<Integer,IScan> num2scan = scans.getMapNum2scan();
+		TreeMap<Integer, IScan> num2scan = scans.getMapNum2scan();
 		Set<Map.Entry<Integer, IScan>> scanEntries = num2scan.entrySet();
 
 		ArrayList<Spectrum> cspecs = new ArrayList<Spectrum>();
@@ -174,19 +188,19 @@ public class MXMLReader {
 	}
 
 	//400ngHeLaosmoothCE20-52lowguessSRIG450easy4_30tbl1_0NOexp12scansi_A1_01_3366.109793.109793.2
-	private void readAsMzBIN(MZBINFile mf) throws Exception {
-		ArrayList cspecs = new ArrayList<Spectrum>();
-		for (Spectrum spectrum : mf.specs) {
-			if (spectrum.msLevel == 2)
-				cspecs.add(spectrum);
+	private void readAsMzBIN(MZBINFile mf) {
+		List<Spectrum> cspecs = new ArrayList<>();
+		for (MZBINSpectrum mzbinSpectrum : mf.specs) {
+			if (mzbinSpectrum.msLevel == 2)
+				cspecs.add(new Spectrum(mzbinSpectrum, mf.runName));
 		}
 		nSpecs =  cspecs.size();
 		specs = new Spectrum[nSpecs];
 		cspecs.toArray(specs);
 	}
 
-	private void readAsFraggerMGF(MSFMGFFile mf) throws Exception {
-		ArrayList cspecs = new ArrayList<Spectrum>();
+	private void readAsFraggerMGF(MSFMGFFile mf) {
+		List<Spectrum> cspecs = new ArrayList<>();
 		for (Spectrum spectrum : mf.specs) {
 			if (spectrum.msLevel == 2)
 				cspecs.add(spectrum);
