@@ -113,8 +113,7 @@ public class GlycanCandidate {
 
         // initialize fragments for this candidate
         initializeYFragmentsFromProps(oldCandidate.Yfragments, fragmentInfo, randomGenerator);
-        initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
-        updateOxoniums(fragmentInfo);
+        initializeOxoniumFragmentsFromProps(oldCandidate.oxoniumFragments, fragmentInfo, randomGenerator);
         this.hasFragmentProps = true;
     }
 
@@ -200,8 +199,8 @@ public class GlycanCandidate {
             GlycanFragment origFrag = originalFragEntry.getValue();
             if (fragmentInfo.yFragmentProps.containsKey(originalFragEntry.getKey())) {
                 // have propensity/intensity info for this fragment - read from input fragmentInfo
-                expectedIntensity = fragmentInfo.yFragmentIntensities.getOrDefault(origFrag.toHashString(), 0.0 );
-                propensity = fragmentInfo.yFragmentProps.getOrDefault(origFrag.toHashString(), 0.0 );
+                expectedIntensity = fragmentInfo.yFragmentIntensities.get(origFrag.toHashString());
+                propensity = fragmentInfo.yFragmentProps.get(origFrag.toHashString());
             } else {
                 // no added info - copy the original
                 expectedIntensity = origFrag.expectedIntensity;
@@ -209,6 +208,34 @@ public class GlycanCandidate {
             }
             GlycanFragment newFragment = new GlycanFragment(origFrag.requiredComposition, origFrag.ruleProbabilities, origFrag.isDecoy, origFrag.neutralMass, expectedIntensity, propensity);
             this.Yfragments.put(originalFragEntry.getKey(), newFragment);
+        }
+    }
+
+    /**
+     * Init new oxonium ions based on the original candidate's ions, updating expected intensity/propensity if found
+     * in the provided fragmentInfo container. Same logic as for Y ions
+     * @param originalOxos original candidate's oxonium fragment map
+     * @param fragmentInfo fragmt info container
+     * @param randomGenerator the run's random generator
+     */
+    public void initializeOxoniumFragmentsFromProps(TreeMap<String, GlycanFragment> originalOxos, GlycanCandidateFragments fragmentInfo, Random randomGenerator) {
+        // Initialize a new oxonium fragment for each in the input map, adding propensity/intensity from the fragmentInfo container
+        this.oxoniumFragments = new TreeMap<>();
+        for (Map.Entry<String, GlycanFragment> originalFragEntry : originalOxos.entrySet()) {
+            double expectedIntensity;
+            double propensity;
+            GlycanFragment origFrag = originalFragEntry.getValue();
+            if (fragmentInfo.OxFragmentProps.containsKey(originalFragEntry.getKey())) {
+                // have propensity/intensity info for this fragment - read from input fragmentInfo
+                expectedIntensity = fragmentInfo.OxFragmentIntensities.get(origFrag.toHashString());
+                propensity = fragmentInfo.OxFragmentProps.get(origFrag.toHashString());
+            } else {
+                // no added info - copy the original
+                expectedIntensity = origFrag.expectedIntensity;
+                propensity = origFrag.propensity;
+            }
+            GlycanFragment newFragment = new GlycanFragment(origFrag.requiredComposition, origFrag.ruleProbabilities, origFrag.isDecoy, origFrag.neutralMass, expectedIntensity, propensity);
+            this.oxoniumFragments.put(originalFragEntry.getKey(), newFragment);
         }
     }
 
