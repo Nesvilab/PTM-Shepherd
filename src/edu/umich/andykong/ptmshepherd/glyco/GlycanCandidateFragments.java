@@ -34,4 +34,12 @@ public class GlycanCandidateFragments {
         this.yFragmentIntensities = yFragmentIntensities;
         this.OxFragmentIntensities = OxFragmentIntensities;
     }
+
+    // empty constructor for candidates without fragment info
+    public GlycanCandidateFragments() {
+        this.yFragmentProps = new HashMap<>();
+        this.OxFragmentProps = new HashMap<>();
+        this.yFragmentIntensities = new HashMap<>();
+        this.OxFragmentIntensities = new HashMap<>();
+    }
 }

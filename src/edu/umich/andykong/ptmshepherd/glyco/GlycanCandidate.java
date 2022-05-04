@@ -90,18 +90,19 @@ public class GlycanCandidate {
     }
 
     /**
-     * Constructor for a new glycan candidate for a second search using fragment propensities
-     * @param inputGlycanComp composition map
-     * @param isDecoy bool
+     * Constructor for a new glycan candidate for a second search using fragment propensities, initialized from a
+     * candidate from the first search. Making a new container and fragments to avoid threading issues, but passing
+     * original probabilities where propensities not found.
+     * @param oldCandidate original search candidate to use as model
      * @param decoyType type of decoy (0 - 3)
      * @param glycoPPMtol MS1 tolerance
      * @param glycoIsotopes possible isotope errors
      * @param fragmentInfo input propensities and intensities for fragment ions
      * @param randomGenerator random object for randomizing masses if needed
      */
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, GlycanCandidateFragments fragmentInfo, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
-        this.glycanComposition = inputGlycanComp;
-        this.isDecoy = isDecoy;
+    public GlycanCandidate(GlycanCandidate oldCandidate, GlycanCandidateFragments fragmentInfo, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+        this.glycanComposition = oldCandidate.glycanComposition;
+        this.isDecoy = oldCandidate.isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
         for (GlycanResidue residue : GlycanResidue.values()){
             if (!this.glycanComposition.containsKey(residue)) {
@@ -111,7 +112,7 @@ public class GlycanCandidate {
         this.monoisotopicMass = setMassHelper(decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
 
         // initialize fragments for this candidate
-        initializeYFragmentsFromProps(fragmentInfo, randomGenerator);
+        initializeYFragmentsFromProps(oldCandidate.Yfragments, fragmentInfo, randomGenerator);
         initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
         updateOxoniums(fragmentInfo);
         this.hasFragmentProps = true;
@@ -185,39 +186,29 @@ public class GlycanCandidate {
     }
 
     /**
-     * Initialize array of all fragment ions to search for this candidate. Candidate has
-     * fragment Ys up to the max HexNAc, Hex, and dHex present. Decoy fragments are generated for decoy candidates.
+     * Initialize array of all fragment ions to search for this candidate using the original candidate's fragments as a template.
+     * Decoy fragments are generated for decoy candidates.
      * Fragment propensities are used for all fragments found in the bootstrap/input data (specified in the input map)
      * and fragments lacking any input are assumed to have 0 input propensity.
      */
-    public void initializeYFragmentsFromProps(GlycanCandidateFragments fragmentInfo, Random randomGenerator) {
-        // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
+    public void initializeYFragmentsFromProps(TreeMap<String, GlycanFragment> originalYs, GlycanCandidateFragments fragmentInfo, Random randomGenerator) {
+        // Initialize a new Y fragment for each in the input map, adding propensity/intensity from the fragmentInfo container
         this.Yfragments = new TreeMap<>();
-        for (int hexnac = 0; hexnac <= this.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
-            for (int hex = 0; hex <= this.glycanComposition.get(GlycanResidue.Hex); hex++) {
-                if (!(hexnac == 0 && hex == 0)) {
-                    // todo: option or remove
-                    if (hexnac == 0 && this.glycanComposition.get(GlycanResidue.HexNAc) > 0) {
-                        // do not generate non-HexNAc containing Y ions for compositions that have HexNAc
-                        continue;
-                    }
-                    // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
-                    Map<GlycanResidue, Integer> composition = new HashMap<>();
-                    composition.put(GlycanResidue.HexNAc, hexnac);
-                    composition.put(GlycanResidue.Hex, hex);
-                    GlycanFragment fragment = new GlycanFragment(composition, fragmentInfo.yFragmentProps, fragmentInfo.yFragmentIntensities, this.isDecoy, randomGenerator);
-                    Yfragments.put(fragment.toHashString(), fragment);
-                }
-                for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
-                    // add dHex fragments (if allowed)
-                    Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
-                    dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
-                    dHexcomposition.put(GlycanResidue.Hex, hex);
-                    dHexcomposition.put(GlycanResidue.dHex, dHex);
-                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, fragmentInfo.yFragmentProps, fragmentInfo.yFragmentIntensities, this.isDecoy, randomGenerator);
-                    Yfragments.put(dHexfragment.toHashString(), dHexfragment);
-                }
+        for (Map.Entry<String, GlycanFragment> originalFragEntry : originalYs.entrySet()) {
+            double expectedIntensity;
+            double propensity;
+            GlycanFragment origFrag = originalFragEntry.getValue();
+            if (fragmentInfo.yFragmentProps.containsKey(originalFragEntry.getKey())) {
+                // have propensity/intensity info for this fragment - read from input fragmentInfo
+                expectedIntensity = fragmentInfo.yFragmentIntensities.getOrDefault(origFrag.toHashString(), 0.0 );
+                propensity = fragmentInfo.yFragmentProps.getOrDefault(origFrag.toHashString(), 0.0 );
+            } else {
+                // no added info - copy the original
+                expectedIntensity = origFrag.expectedIntensity;
+                propensity = origFrag.propensity;
             }
+            GlycanFragment newFragment = new GlycanFragment(origFrag.requiredComposition, origFrag.ruleProbabilities, origFrag.isDecoy, origFrag.neutralMass, expectedIntensity, propensity);
+            this.Yfragments.put(originalFragEntry.getKey(), newFragment);
         }
     }
 
