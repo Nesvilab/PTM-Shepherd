@@ -73,8 +73,8 @@ public class GlycanFragment {
     public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
-        // propensity default is 1 - miss probRatio to generate equivalent scoring in new system
-        this.propensity = 1 - ruleProbabilities[1];
+        this.propensity = 0;
+        this.expectedIntensity = 0;
         this.foundIntensity = 0;
         this.isDecoy = isDecoy;
         if (isDecoy) {
@@ -94,11 +94,10 @@ public class GlycanFragment {
     public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
-        // propensity default is 1 - miss probRatio to generate equivalent scoring in new system
-        this.propensity = 1 - ruleProbabilities[1];
+        this.propensity = 0;
         this.foundIntensity = 0;
         if (ruleProbabilities.length == 2) {
-            this.expectedIntensity = -1;    // not provided, set to negative value to ignore
+            this.expectedIntensity = 0;    // not provided, set to negative value to ignore
         } else {
             this.expectedIntensity = ruleProbabilities[2];   // 3rd value is expected intensity
         }
