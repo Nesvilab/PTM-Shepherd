@@ -715,6 +715,7 @@ public class PTMShepherd {
 			int numThreads = Integer.parseInt(params.get("threads"));
 			boolean useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").equals("") && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
 			boolean useNewFDR = !getParam("use_new_glycan_fdr").equals("") && Boolean.parseBoolean(getParam("use_new_glycan_fdr"));	// default false
+			double defaultProp = getParam("glyco_default_propensity").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
 
 			// Glyco: first pass
 			for (String ds : datasets.keySet()) {
@@ -755,6 +756,7 @@ public class PTMShepherd {
 					GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoProbabilityTable, glycoYnorm, absScoreErrorParam, glycoIsotopes, glycoPPMtol);
 					ga2.glycanMassBinMap = ga.glycanMassBinMap;
 					ga2.useFragmentSpecificProbs = true;
+					ga2.defaultPropensity = defaultProp;
 					ArrayList<String[]> dsData = datasets.get(ds);
 					for (String[] dsDatum : dsData) {
 						PSMFile pf = new PSMFile(new File(dsDatum[0]));

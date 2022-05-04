@@ -61,6 +61,8 @@ public class GlycoAnalysis {
     public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;
     public static final int MAX_PROB_RATIO_ABSOLUTE = 10;
     public double finalGlycoFDR;
+    public double defaultPropensity;
+    public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;
 
     // Default constructor
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
@@ -1025,7 +1027,9 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Helper for computing absolute score of Y or oxonium fragment lists
+     * Compute propensity-specific score for fragment ion that is NOT unique (i.e., shared between two candidates).
+     * Score is the ratio of the propensities for the two candidates, positive towards candidate 1 if found in the
+     * spectrum or towards candidate 2 if not.
      * @param fragment1 fragment from glycan 1
      * @param fragment2 fragment from glycan 2
      * @return ratio of fragment probs
@@ -1034,11 +1038,11 @@ public class GlycoAnalysis {
         double probRatio;
         if (fragment1.foundIntensity > 0) {
             // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-            probRatio = fragment1.ruleProbabilities[0] * computePropensityRatio(fragment1, fragment2);
+            probRatio = computePropensityRatio(fragment1, fragment2);
             // todo: optional, test multiplying by intensity ratio (obs/exp) for fragment1 only
         } else {
             // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-            probRatio = fragment1.ruleProbabilities[1] * computePropensityRatio(fragment1, fragment2);
+            probRatio = computePropensityRatio(fragment2, fragment1);
         }
         return probRatio;
     }
@@ -1332,13 +1336,23 @@ public class GlycoAnalysis {
      */
     public double computePropensityRatio(GlycanFragment fragment1, GlycanFragment fragment2) {
         double propensityRatio;
-        if (fragment1.propensity > 0 && fragment2.propensity > 0) {
-            propensityRatio = fragment1.propensity / fragment2.propensity;
-            propensityRatio = Math.sqrt(propensityRatio);   // todo: param, test
+        if (fragment1.propensity > 0) {
+            if (fragment2.propensity > 0) {
+                propensityRatio = fragment1.propensity / fragment2.propensity;
+                propensityRatio = Math.sqrt(propensityRatio);   // todo: param, test
+            }  else {
+                // only propensity for fragment 1 - score against default min prop (if prop > min prop)
+                propensityRatio = fragment1.propensity > defaultPropensity ? fragment1.propensity / defaultPropensity : 1;
+            }
         } else {
-            // ignore if no propensity present for this fragment
-            // todo: use all-glycan fragment lookup in this case?
-            propensityRatio = 1;
+            if (fragment2.propensity > 0) {
+                // only propensity for fragment 2 - score against default min prop as a negative for candidate 1
+                propensityRatio = fragment2.propensity > defaultPropensity ? defaultPropensity / fragment2.propensity : 1;
+            } else {
+                // ignore if no propensity present for this fragment
+                // todo: use all-glycan fragment lookup in this case?
+                propensityRatio = 1;
+            }
         }
         return propensityRatio;
     }
