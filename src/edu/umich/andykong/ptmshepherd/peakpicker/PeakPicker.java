@@ -26,7 +26,7 @@ public class PeakPicker {
 
 	public double [][] peaks;
 	public double [] peakCenters;
-	public final static double c13Mass = 1.003355; //1.00235
+	public final static double c13Mass = 1.00235;
 	
 	public static double nzr(double a, double b) {
 		if(b == 0)
@@ -60,7 +60,7 @@ public class PeakPicker {
 
 		boolean offsetMode = false;
 		double[] mos = new double[0];
-		if(massOffsets.contains("/")){ //todo make this an excplicit parameter
+		if(massOffsets.contains("/")){ //todo make this an explicit parameter
 			offsetMode = true;
 		}
 
@@ -233,4 +233,7 @@ public class PeakPicker {
 
 	}
 
+	public double[][] getPeaks() {
+		return this.peaks;
+	}
 }

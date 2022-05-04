@@ -47,7 +47,7 @@ public class DiagnosticProfileRecord {
     AtomicDouble pctCoverageUnmod; // running sum of unshifted ions
     //TODO add intensities?
 
-    public DiagnosticProfileRecord (double peakApex, String modName, String type, double mass, double adjustedMass, double q,
+    public DiagnosticProfileRecord(double peakApex, String modName, String type, double mass, double adjustedMass, double q,
                                     double rbc, double propWIonTreat, double propWIonCont,
                                     double propWIonIntensityTreat, double propWIonIntensityCont) {
         this.peakApex = peakApex;

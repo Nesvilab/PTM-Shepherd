@@ -128,7 +128,7 @@ public class SiteLocalization {
 						String.join("\n\t", linesWithoutSpectra.subList(0, previewSize)));
 			}
 
-			PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
+			PTMShepherd.print(String.format("\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));
 		}
 		out.close();
 	}

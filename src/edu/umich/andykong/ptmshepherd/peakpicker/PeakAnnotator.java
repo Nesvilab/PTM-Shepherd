@@ -271,26 +271,20 @@ public class PeakAnnotator {
 			addMod(vModNames.get(i), vModMasses.get(i));
 		}
 
-		//System.out.println("*"+modSourcePath+"*");
 		BufferedReader in;
 		if (modSourcePath.equals("") || modSourcePath.toLowerCase().trim().equals("unimod")) {
 			modSource = "unimod_20210623.txt";
 			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 		} else if (modSourcePath.toLowerCase().trim().equals("common")) {
 			modSource = "common_mods_20200813.txt";
-			//System.out.println(modSource);
 			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 		} else if (modSourcePath.toLowerCase().trim().equals("glyco")) {
 			modSource = "glyco_mods_20210127.txt";
 			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 		} else {
-			//System.out.println("*"+modSource+"*");
 			modSource = modSourcePath.trim();
-			//System.out.println("*"+modSource+"*");
-			in = new BufferedReader(new FileReader(new File(modSource)));
+			in = new BufferedReader(new FileReader(modSource));
 		}
-
-		//BufferedReader in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 
 		String cline;
 		//add isotopic peaks to modification list

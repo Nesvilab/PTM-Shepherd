@@ -43,7 +43,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC10";
+ 	public static final String version = "2.0.0-RC11";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -75,6 +75,7 @@ public class PTMShepherd {
 	public static final String rawSimRTName = ".rawsimrt";
 	public static final String rawGlycoName = ".rawglyco";
 	public static final String modSummaryName = ".modsummary.tsv";
+	public static final String diagBinFilename = ".diagBIN";
 	public static final String diagMineName = ".diagmine.tsv";
 	public static final String diagIonsExtractName = ".diagnosticIons.tsv";
 
@@ -189,7 +190,7 @@ public class PTMShepherd {
 		params.put("spectra_maxfragcharge", "2");//todo
 		params.put("spectra_maxPrecursorCharge", "4");
 
-		params.put("compare_betweenRuns", "false");
+		params.put("compare_betweenRuns", "true");
 		params.put("annotation_file", "");
 		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
 
@@ -281,10 +282,9 @@ public class PTMShepherd {
 	public static void main(String [] args) throws Exception {
 		Locale.setDefault(new Locale("en","US"));
 		out.println();
-		out.printf("%s version %s",name,version);
-		out.println("(c) University of Michigan\n");
-		out.println("Copyright 2022 University of Michigan\n\n" +
-						"Licensed under the Apache License, Version 2.0 (the \"License\")\\;\n" +
+		out.printf("%s version %s\n",name,version);
+		out.println("(c) 2022 University of Michigan\n\n" +
+						"Licensed under the Apache License, Version 2.0 (the \"License\");\n" +
 						"you may not use this file except in compliance with the License.\n" +
 						"You may obtain a copy of the License at\n\n" +
 						"\thttp://www.apache.org/licenses/LICENSE-2.0\n\n" +
@@ -292,7 +292,7 @@ public class PTMShepherd {
 				"distributed under the License is distributed on an \"AS IS\" BASIS,\n" +
 				"WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
 				"See the License for the specific language governing permissions and\n" +
-				"limitations under the License.\n\n");
+				"limitations under the License.\n");
 		out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
 		
 		if(args.length == 0) {
@@ -344,18 +344,17 @@ public class PTMShepherd {
 				Path p = Paths.get(outputPath + dsTmp + ext).toAbsolutePath().normalize();
 				deleteFile(p, true);
 			}
-
+			print("");
 		}
 
 		//Create internal PSM lists
-		PTMShepherd.print("Finding and caching PSM data");
+		print("Finding and caching PSM data");
 		getMzDataMapping();
-		PTMShepherd.print("Done finding and caching PSM data");
-
+		print("Done finding and caching PSM data");
 		//Get mzData mapping
-		PTMShepherd.print("Finding and caching spectral data");
+		print("Finding and caching spectral data");
 		getMzDataMapping();
-		PTMShepherd.print("Done finding and caching spectral data");
+		print("Done finding and caching spectral data\n");
 		
 		//Count MS2 scans
 		for(String ds : datasets.keySet()) {
@@ -462,7 +461,7 @@ public class PTMShepherd {
 				Integer.parseInt(params.get("peakpicking_mass_units")), Double.parseDouble(params.get("peakpicking_width")),
 				Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 		pp.writeTSV(new File(normFName(peaksName)));
-		print("Picked top " + Integer.parseInt(params.get("peakpicking_topN")) + " peaks\n");
+		print("Picked top " + pp.getPeaks().length + " peaks");
 
 		//PSM assignment
 		File peaksummary = new File(normFName(peakSummaryName));
@@ -489,7 +488,7 @@ public class PTMShepherd {
 			pa.init(params.get("varmod_masses"), params.get("annotation_file").trim());
 			pa.annotateTSV(peaksummary, peakannotated, params.get("mass_offsets"), params.get("isotope_error"), Double.parseDouble(params.get("annotation_tol")));
 			print("Annotated summary table\n");
-			print("Mapping modifications back into PSM lists");
+			print("Mapping modifications back into PSM lists\n");
 			for(String ds : datasets.keySet()) {
 				ArrayList<String []> dsData = datasets.get(ds);
 				for(int i = 0; i < dsData.size(); i++) {
@@ -503,23 +502,10 @@ public class PTMShepherd {
 			File modSummary = new File(normFName(globalName + modSummaryName));
 			ModSummary ms = new ModSummary(peakannotated, datasets.keySet());
 			ms.toFile(modSummary);
-			print("Created modification summary");
+			print("Created modification summary\n");
 		}
-
-		//Mod-centric quantification
-
-		/* todo fix modsummary table, include in same block as peakannotated file
-		File modSummary = new File(normFName("global.modsummary.tsv"));
-		if(!modSummary.exists()) {
-			ModSummary ms = new ModSummary(peakannotated, datasets.keySet());
-			ms.toFile(modSummary);
-			print("Created modification summary");
-		}
-		*/
-
 
 		//Localization analysis
-
 		//Perform initial annotation
 		print("Begin localization annotation");
 		for(String ds : datasets.keySet()) {
@@ -582,7 +568,7 @@ public class PTMShepherd {
 		//Diagnostic mining
 		boolean diagMineMode = Boolean.parseBoolean(params.get("diagmine_mode"));
 		if (diagMineMode) {
-			out.println("Beginning mining diagnostic ions");
+			out.println("Beginning diagnostic ion mining");
 			long t1 = System.currentTimeMillis();
 			double peakBoundaries[][] = PeakSummary.readPeakBounds(peaksummary);
 			for (String ds : datasets.keySet()) {
@@ -602,7 +588,6 @@ public class PTMShepherd {
 				long t2 = System.currentTimeMillis();
 				out.printf("\tDone preprocessing dataset %s - %d ms total\n", ds, t2-t1);
 			}
-			out.println("\tBuilding ion histograms");
 			DiagnosticPeakPicker dpp = new DiagnosticPeakPicker(Double.parseDouble(getParam("diagmine_minSignal")), peakBoundaries, Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")), params.get("diagmine_ionTypes"),Float.parseFloat(params.get("spectra_tol")), Integer.parseInt(params.get("precursor_maxCharge")),
 					Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Double.parseDouble(params.get("diagmine_minFoldChange")), Integer.parseInt(params.get("diagmine_minIonsPerSpec")),
@@ -615,6 +600,7 @@ public class PTMShepherd {
 					dpp.addPepkeysToIndex(pf);
 				}
 			}
+			out.println("\tIdentifying candidate ions");
 			dpp.filterPepkeys();
 			dpp.process(executorService, Integer.parseInt(getParam("threads")));
 			out.println("\tDone identifying candidate ions");
@@ -628,7 +614,7 @@ public class PTMShepherd {
 				}
 			}
 			dpp.print(normFName(globalName + diagMineName));
-			out.println("Done mining diagnostic ions");
+			out.println("Done mining diagnostic ions\n");
 		}
 
 		// diagnostic ion extraction (original glyco/labile mode)
@@ -659,7 +645,7 @@ public class PTMShepherd {
 				glyProCurr.writeProfile(PTMShepherd.normFName(ds + glycoProfileName));
 			}
 			glyProGLobal.writeProfile(PTMShepherd.normFName(globalName + glycoProfileName));
-			System.out.println("Done with diagnostic ion extraction");
+			System.out.println("Done with diagnostic ion extraction\n");
 		}
 
 		//Combine tables
@@ -818,7 +804,7 @@ public class PTMShepherd {
 		if(!Boolean.parseBoolean(params.get("output_extended"))) {
 			// delete dataset files with specific extensions
 			extsToDelete = Arrays
-					.asList(rawLocalizeName, rawSimRTName, rawGlycoName, histoName);
+					.asList(rawLocalizeName, rawSimRTName, rawGlycoName, histoName, diagBinFilename, mzBinFilename);
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -935,17 +921,16 @@ public class PTMShepherd {
 		for (String cf : mappings.keySet()) { //for file in relevant spectral files
 			// Check to see if an mzBIN_cache file was discovered
 			if (mzMappings.get(cf).toString().endsWith(mzBinFilename)) {
-				System.out.println("\tFound existing cached spectral data for " + cf);
+				System.out.println("\t\tFound existing cached spectral data for " + cf);
 				continue;
 			}
 			// Check to see if mzBIN_cache file exists in output directory
 			else if (new File(normFName(cf + mzBinFilename)).exists()) {
-				System.out.println("\tFound existing cached spectral data for " + cf);
+				System.out.println("\t\tFound existing cached spectral data for " + cf);
 				mzMappings.put(cf, new File(normFName(cf + mzBinFilename)));
 				continue;
 			}
 			long t1 = System.currentTimeMillis();
-			//System.out.println(cf);
 			MXMLReader mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
 			ArrayList<Spectrum> specs = new ArrayList<>(); // Holds parsed spectra
 			mr.readFully();

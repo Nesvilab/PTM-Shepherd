@@ -89,7 +89,7 @@ public class DiagnosticAnalysis {
         /* Process spectral file one at a time */
         for (String cf : mappings.keySet()) {
             if (new File(PTMShepherd.normFName(cf+".diagBIN")).exists()) {
-                System.out.println("\tFound existing cached diagnostic data for " + cf);
+                System.out.println("\t\tFound existing cached diagnostic data for " + cf);
                 continue;
             }
             long t1 = System.currentTimeMillis();

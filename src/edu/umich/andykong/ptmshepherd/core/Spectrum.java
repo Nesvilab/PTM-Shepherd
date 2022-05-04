@@ -530,6 +530,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	}
 
 	public float[][] calcCapYPeaks(String seq, float[] mods, String filterIonTypes, int maxCharge, float pepMass, float dmass, float tol) {
+		double minPeptideIon = -250.0;
 		ArrayList<Float> knownPeaks = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, 0.0f);
 		knownPeaks.addAll(calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, dmass));
 		ArrayList<Peak> ps = new ArrayList<>();
@@ -550,7 +551,10 @@ public class Spectrum implements Comparable<Spectrum> {
 				//if (Math.abs(peakMZ[i] - adjPepMass < 0.01))
 				//	skipFlag = true;
 				if (skipFlag == false)
-					ps.add(new Peak((float)((peakMZ[i] - adjPepMass) * z), peakInt[i], (float)absTol));
+					if ((peakMZ[i] - adjPepMass) < minPeptideIon)
+						ps.add(new Peak((float)((peakMZ[i] - adjPepMass) * z), 0, (float)absTol));
+					else
+						ps.add(new Peak((float)((peakMZ[i] - adjPepMass) * z), peakInt[i], (float)absTol));
 			}
 		}
 		float[][] peaks =  new float[ps.size()][3];
@@ -615,118 +619,6 @@ public class Spectrum implements Comparable<Spectrum> {
 		return knownFrags;
 	}
 
-	public HashMap<Character, float[][]> safeold_calcSquigglePeaks(float ppmTol, String seq, float[] mods, String ionTypes, int maxCharge) { //todo max charge? //todo min max boundaries?
-		HashMap<Character, float[][]> squigglePeaks = new HashMap<>();
-
-		ArrayList<Character> nIonTypes = new ArrayList<>();
-		ArrayList<Character> cIonTypes = new ArrayList<>();
-
-		for (int i = 0; i < ionTypes.length(); i++) {
-			char curIonType = ionTypes.charAt(i);
-			if (curIonType == 'a' || curIonType == 'b' || curIonType == 'c')
-				nIonTypes.add(curIonType);
-			else if (curIonType == 'x' || curIonType == 'y' || curIonType == 'z')
-				cIonTypes.add(curIonType);
-		}
-
-		ArrayList<Peak> ps = new ArrayList<>();
-
-		//float iB = 0.0f, iY = 0.0f;
-		//int nB = 0, nY = 0;
-		//int maxCharge = (charge==2)?1:2;
-		float [] aaMasses = AAMasses.monoisotopic_masses;
-		float [] fragTypeShifts = AAMasses.ionTypeShifts;
-        //float[][] tempPeaks;
-		int cLen = seq.length();
-
-
-		//todo see if removing known frags helps .... it helps ish??
-		ArrayList<Float> knownFrags = new ArrayList<>();
-		/* float nTermMass;
-		for (Character iType : nIonTypes) {
-			ps = new ArrayList<>();
-			nTermMass = fragTypeShifts[iType - 'a'];
-			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
-				float cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
-				for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
-					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
-					knownFrags.add(cmass);
-				}
-			}
-		}
-		float cTermMass;
-		for (Character iType : cIonTypes) {
-			ps = new ArrayList<>();
-			cTermMass = fragTypeShifts[iType - 'x' + 3];
-			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
-				float cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
-				for (int i = 0; i < cLen - 1; i++) {
-					cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
-					knownFrags.add(cmass);
-				}
-			}
-		}
-
-		 */
-		float nTermMass;
-		for (Character iType : nIonTypes) {
-		    ps = new ArrayList<>();
-			nTermMass = fragTypeShifts[iType - 'a'];
-			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
-			    float cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
-				for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
-					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
-					for (int j = 0; j < peakMZ.length; j++) {//loop through peaks in spectrum
-						//This block will remove known fragments
-						/*
-						boolean badFlag = false;
-						for (int k = 0; k < knownFrags.size(); k++) {
-							if (Math.abs(peakMZ[j] - knownFrags.get(k)) < 0.001) {
-								badFlag = true;
-								break;
-							}
-						}
-						if (!badFlag)
-						 */
-							ps.add(new Peak(peakMZ[j] - cmass, peakInt[j]));
-						//ps.add(new Peak(peakMZ[j] - cmass, peakInt[j] / (i + 1)));
-					}
-                }
-			}
-			squigglePeaks.put(iType, peaksToArray(ps));
-		}
-
-		float cTermMass;
-		for (Character iType : cIonTypes) {
-            ps = new ArrayList<>();
-			cTermMass = fragTypeShifts[iType - 'x' + 3];
-			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
-                float cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
-                for (int i = 0; i < cLen - 1; i++) {
-                    cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
-                    for (int j = 0; j < peakMZ.length; j++) {//loop through peaks in spectrum
-                    	//This block will remove known fragments
-                    /*
-						boolean badFlag = false;
-						for (int k = 0; k < knownFrags.size(); k++) {
-							if (Math.abs(peakMZ[j] - knownFrags.get(k)) < 0.001) {
-								badFlag = true;
-								break;
-							}
-						}
-						if (!badFlag)
-
-                     */
-							ps.add(new Peak(peakMZ[j] - cmass, peakInt[j]));
-						//ps.add(new Peak(peakMZ[j] - cmass, peakInt[j] / (i + 1)));
-					}
-                }
-            }
-            squigglePeaks.put(iType, peaksToArray(ps));
-		}
-		return squigglePeaks;
-	}
-
 	public HashMap<Character, float[][]> calcSquigglePeaks(float ppmTol, String seq, float[] mods, String ionTypes, String filterIonTypes, int maxCharge) { //todo max charge? //todo min max boundaries?
 		HashMap<Character, float[][]> squigglePeaks = new HashMap<>();
 
@@ -734,6 +626,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		ArrayList<Character> cIonTypes = new ArrayList<>();
 
 		this.averageFragMass = new double[ionTypes.length()];
+		double minSquiggleIon = -250.0;
 		int iTypeIndx = 0;
 
 		for (int i = 0; i < ionTypes.length(); i++) {
@@ -746,47 +639,11 @@ public class Spectrum implements Comparable<Spectrum> {
 
 		ArrayList<Peak> ps = new ArrayList<>();
 
-		//float iB = 0.0f, iY = 0.0f;
-		//int nB = 0, nY = 0;
-		//int maxCharge = (charge==2)?1:2;
 		float [] aaMasses = AAMasses.monoisotopic_masses;
 		float [] fragTypeShifts = AAMasses.ionTypeShifts;
-		//float[][] tempPeaks;
 		int cLen = seq.length();
 
-		//int normFac;
-		//if (PTMShepherd.getParam("squiggle_norm").equals("1"))
-		//	normFac = 1;
-		//else
-		//normFac = cLen;
-		//normFac = 1;
-
 		ArrayList<Float> knownFrags = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, 0.0f);
-		/*
-		for (Character iType : nIonTypes) {
-			ps = new ArrayList<>();
-			nTermMass = fragTypeShifts[iType - 'a'];
-			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
-				float cmass = AAMasses.monoisotopic_nterm_mass + nTermMass; //todo is this appropriate for multiple charge states??
-				for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
-					cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
-					knownFrags.add(cmass);
-				}
-			}
-		}
-
-		for (Character iType : cIonTypes) {
-			ps = new ArrayList<>();
-			cTermMass = fragTypeShifts[iType - 'x' + 3];
-			for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
-				float cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
-				for (int i = 0; i < cLen - 1; i++) {
-					cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
-					knownFrags.add(cmass);
-				}
-			}
-		}
-		*/
 
 		float nTermMass;
 		for (Character iType : nIonTypes) {
@@ -794,26 +651,27 @@ public class Spectrum implements Comparable<Spectrum> {
 			nTermMass = fragTypeShifts[iType - 'a'];
 			for (int j = 0; j < peakMZ.length; j++) {
 				boolean skipFlag = false;
-				double trueTol = ppmTol * peakMZ[j] / 1000000;
+				float trueTol = ppmTol * peakMZ[j] / (float)1000000;
 				for (Float ion : knownFrags) {
 					if (Math.abs(peakMZ[j] - ion) < trueTol) {
 						skipFlag = true;
 						break;
 					}
 				}
-				//if (skipFlag)
-				//	continue;
 				ArrayList<Peak> cPeaksNaked = new ArrayList<>();
-				//ArrayList<Peak> cPeaksDmass = new ArrayList<>();
 				for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
 					float cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
 					for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
 						cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
 						if (skipFlag)
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, (float)trueTol));
+							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, trueTol));
 						else {
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], (float)trueTol));
-							this.averageFragMass[iTypeIndx] += peakMZ[j];
+							if (peakMZ[j] - cmass < minSquiggleIon)
+								cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, trueTol));
+							else {
+								cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], trueTol));
+								this.averageFragMass[iTypeIndx] += peakMZ[j];
+							}
 						}
 						//cPeaksDmass.add(new Peak(peakMZ[j] - (cmass + dmass), peakInt[j]));
 					}
@@ -840,7 +698,7 @@ public class Spectrum implements Comparable<Spectrum> {
 			cTermMass = fragTypeShifts[iType - 'x' + 3];
 			for (int j = 0; j < peakMZ.length; j++) {
 				boolean skipFlag = false;
-				float trueTol = ppmTol * peakMZ[j] / 1000000;
+				float trueTol = ppmTol * peakMZ[j] / (float) 1000000;
 				for (Float ion : knownFrags) {
 					if (Math.abs(peakMZ[j] - ion) < trueTol) {
 						skipFlag = true;
@@ -857,8 +715,12 @@ public class Spectrum implements Comparable<Spectrum> {
 						if (skipFlag)
 							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, trueTol));
 						else {
-							cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], trueTol));
-							this.averageFragMass[iTypeIndx] += peakMZ[j];
+							if (peakMZ[j] - cmass < minSquiggleIon)
+								cPeaksNaked.add(new Peak(peakMZ[j] - cmass, 0, trueTol));
+							else {
+								cPeaksNaked.add(new Peak(peakMZ[j] - cmass, peakInt[j], trueTol));
+								this.averageFragMass[iTypeIndx] += peakMZ[j];
+							}
 						}
 					}
 				}

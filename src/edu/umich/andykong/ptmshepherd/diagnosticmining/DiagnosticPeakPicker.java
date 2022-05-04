@@ -58,10 +58,12 @@ public class DiagnosticPeakPicker {
 
     HashMap<Integer, HashMap<String, Pepkey>> peakToPepkeys;
     TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan;
+    TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> filteredPeakToFileToScan;
 
     double[][] peaks; //[3][n] apex, left, right
     BinDiagMetric[] binDiagMetrics;
 
+    private static final long seed = 123456;
 
 
     public DiagnosticPeakPicker(double minSignal, double[][] peakApexBounds, double peakTol, int precursorMassUnits, String ions, float specTol, int maxPrecursorCharge, double maxP, double minRbc, double minSpecDiff, double minFoldChange, int minIonEvidence, int twoTailedTests, int condPeaks, double condRatio, String[] annotations) {
@@ -180,6 +182,7 @@ public class DiagnosticPeakPicker {
 
     /* Send ions to BinDiagnosticMetric containers */
     public void process(ExecutorService executorService, int nThreads) throws Exception {
+        PTMShepherd.print("\t\tBuilding feature histograms");
         /* Finds the peaks for each BinDiagnosticMetric container */
         for (Integer peakIndx : this.peakToFileToScan.keySet()) {
             double[] peakVals = new double[]{this.peaks[0][peakIndx], this.peaks[1][peakIndx], this.peaks[2][peakIndx]};
@@ -212,10 +215,11 @@ public class DiagnosticPeakPicker {
 
         /* Tests the peaks in each BinDiagnosticMetric container against zero bin */
         int zeroBin = this.locate.getIndex(0.0);
-        TreeMap<Integer, TreeMap<String, ArrayList<Integer>>> peakToFileToScan = filterScanNums(this.MAXSCANS);
+        this.filteredPeakToFileToScan = filterScanNums(this.MAXSCANS);
 
+        PTMShepherd.print("\t\tTesting histogram peaks for significance");
         //todo this should be functions
-        for (Integer peakIndx : peakToFileToScan.keySet()) {
+        for (Integer peakIndx : this.filteredPeakToFileToScan.keySet()) {
             /* Construct unified peaklists that will be used in downstream processes */
             //System.out.println("\nApex\t" + this.peaks[0][peakIndx]);
 
@@ -255,9 +259,9 @@ public class DiagnosticPeakPicker {
             PeakCompareTester pct = new PeakCompareTester(this.peaks[0][peakIndx], unifiedImmPeakList, unifiedCapYPeakList, unifiedSquiggleIonPeakLists, this.maxP, this.minRbc, this.minSpecDiff, this.minFoldChange, this.twoTailedTests, this.spectraTol); // x is baseline, y is deltamasses
             /* Add peaks to peak testers */
             Set<String> unifiedFileList = new HashSet();
-            for (String fname : peakToFileToScan.get(peakIndx).keySet())
+            for (String fname : this.filteredPeakToFileToScan.get(peakIndx).keySet())
                 unifiedFileList.add(fname);
-            for (String fname : peakToFileToScan.get(zeroBin).keySet())
+            for (String fname : this.filteredPeakToFileToScan.get(zeroBin).keySet())
                 unifiedFileList.add(fname);
 
             /* Add all bin-wise values to PeakCompareTester, then test */
@@ -267,14 +271,14 @@ public class DiagnosticPeakPicker {
                     ArrayList<Integer> scanNums = new ArrayList<>();
                     ArrayList<Integer> peakScanNums = new ArrayList<>();
                     ArrayList<Integer> zeroScanNums = new ArrayList<>();
-                    if (peakToFileToScan.get(peakIndx).containsKey(fname)) {
-                        for (Integer scan : peakToFileToScan.get(peakIndx).get(fname)) {
+                    if (this.filteredPeakToFileToScan.get(peakIndx).containsKey(fname)) {
+                        for (Integer scan : this.filteredPeakToFileToScan.get(peakIndx).get(fname)) {
                             scanNums.add(scan);
                             peakScanNums.add(scan);
                         }
                     }
-                    if (peakToFileToScan.get(zeroBin).containsKey(fname)) {
-                        for (Integer scan : peakToFileToScan.get(zeroBin).get(fname)) {
+                    if (this.filteredPeakToFileToScan.get(zeroBin).containsKey(fname)) {
+                        for (Integer scan : this.filteredPeakToFileToScan.get(zeroBin).get(fname)) {
                             scanNums.add(scan);
                             zeroScanNums.add(scan);
                         }
@@ -400,7 +404,7 @@ public class DiagnosticPeakPicker {
                     fileToScan.add(new FileScanTuple(file, scan));
                 }
             }
-            Collections.shuffle(fileToScan);
+            Collections.shuffle(fileToScan, new Random(this.seed));
 
             TreeMap<String, ArrayList<Integer>> filteredFileToScan = new TreeMap<>();
             for (int i = 0; i < Math.min(maxScans, fileToScan.size()); i++) {
@@ -417,16 +421,17 @@ public class DiagnosticPeakPicker {
     }
 
     public void print(String fout) throws IOException {
-        /*
-        PrintWriter out = new PrintWriter(new FileWriter(fout,false));
+        boolean debug = true;
+        if (debug) {
+            PrintWriter out = new PrintWriter(new FileWriter(fout + "_debug", false));
 
-        out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
-        for (int i = 0; i < this.binDiagMetrics.length; i++) {
-            out.print(this.binDiagMetrics[i].toString(false));
+            out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
+            for (int i = 0; i < this.binDiagMetrics.length; i++) {
+                out.print(this.binDiagMetrics[i].toString(true));
+            }
+
+            out.close();
         }
-
-        out.close();
-        */
         PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
 
         out2.print("peak_apex\tmod_annotation\tion_type\t" +
@@ -468,6 +473,7 @@ public class DiagnosticPeakPicker {
         }
 
         /* Process spectral files one at a time */
+        //TODO HERE make sure this is only applying to the representative ions
         for (String cf : mappings.keySet()) {
             long t1 = System.currentTimeMillis();
             mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
@@ -502,7 +508,6 @@ public class DiagnosticPeakPicker {
 
     }
 
-    //HERE TODO HERE
     public void extractIonsBlock(ArrayList<String> cBlock, int specCol, int pepCol, int deltaCol, int modCol, int pepMassCol) {
         for (int i = 0; i < cBlock.size(); i++)
             extractIonsLine(cBlock.get(i), specCol, pepCol, deltaCol, modCol, pepMassCol);
@@ -513,15 +518,26 @@ public class DiagnosticPeakPicker {
         // PSM metadata
         String[] sp = in.split("\t");
         String specName = sp[specCol];
+        String cf = specName.split("\\.")[0] + ".diagBIN";
         int charge = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 1]);
+        int scanNum = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 2]);
         String pepSeq = sp[pepCol];
         String [] smods = sp[modCol].split(",");
         float dmass = Float.parseFloat(sp[deltaCol]);
         float pepMass = Float.parseFloat(sp[pepMassCol]);
 
+        // Make sure PSM falls into PTMS MS1 bin
         int dmassIndx = locate.getIndex(dmass);
         if (dmassIndx == -1)
             return;
+
+        // Make sure PSM is one of the pre-selected representative ion PSMs
+        if (filteredPeakToFileToScan.get(dmassIndx).containsKey(cf)) {
+            if (!filteredPeakToFileToScan.get(dmassIndx).get(cf).contains(scanNum))
+                return;
+        } else {
+            return;
+        }
 
         // Get spec
         Spectrum spec = mr.getSpectrum(reNormName(specName));
@@ -552,6 +568,7 @@ public class DiagnosticPeakPicker {
                 int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, (float)dpr.adjustedMass);
                 dpr.nShiftedIons.addAndGet(nShiftedIons);
                 dpr.pctCoverage.addAndGet(nShiftedIons / (double) pepSeq.length());
+                //dpr.pctCoverage.addAndGet(nShiftedIons / (double) (nUnshiftedIons + nShiftedIons));
             }
         }
     }

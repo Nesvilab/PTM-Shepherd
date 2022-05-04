@@ -140,8 +140,7 @@ public class SimRTAnalysis {
 			multiMr.put(cf, mr);
 		}
 		long t2 = System.currentTimeMillis();
-		PTMShepherd.print(String.format("\tSpectral data read into memory (%d ms)", t2-t1));
-
+		PTMShepherd.print(String.format("\tSpectral data read into memory (%d ms reading)", t2-t1));
 
 		//initialize these outside of run interactions for inter run comparisons
 		HashMap<String,ArrayList<Integer>> zTolLines = new HashMap<>();
@@ -309,10 +308,10 @@ public class SimRTAnalysis {
 			long t4 = System.currentTimeMillis();
 
 			if (interRunComparisons) {
-				PTMShepherd.print(String.format("\tProcessed - %d (%d ms)", clines.size(), t4-t3));
+				PTMShepherd.print(String.format("\tProcessed - %d lines (%d ms processing)", clines.size(), t4-t3));
 				break;
 			}
-			PTMShepherd.print(String.format("\t%s - %d (%d ms)", cf, clines.size(), t4-t3));
+			PTMShepherd.print(String.format("\t%s - %d lines (%d ms processing)", cf, clines.size(), t4-t3));
 		}
 		
 		out.close();
