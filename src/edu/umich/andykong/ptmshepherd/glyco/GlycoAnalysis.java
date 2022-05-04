@@ -948,10 +948,10 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Y ions
-        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.Yfragments, glycan2.Yfragments, glycan2);
+        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
 
         // oxonium ions
-        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan2);
+        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
 
         // mass and isotope error
         sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
@@ -967,7 +967,7 @@ public class GlycoAnalysis {
      * @param glycan2       candidate 2
      * @return sum log probability with normalization included
      */
-    public double pairwiseCompareFragmentsDynamic(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan2) {
+    public double pairwiseCompareFragmentsDynamic(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan1, GlycanCandidate glycan2) {
         double sumLogRatio = 0;
         for (GlycanFragment fragment1 : fragmentsMap1.values()) {
             double probRatio;
@@ -982,8 +982,10 @@ public class GlycoAnalysis {
         }
         // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
         for (GlycanFragment fragment : fragmentsMap2.values()) {
-            double probRatio = computeFragmentAbsoluteScore(fragment);
-            sumLogRatio -= Math.log(probRatio);
+            if (!fragment.isAllowedFragment(glycan1)) {
+                double probRatio = computeFragmentAbsoluteScore(fragment);
+                sumLogRatio -= Math.log(probRatio);
+            }
         }
         return sumLogRatio;
     }
