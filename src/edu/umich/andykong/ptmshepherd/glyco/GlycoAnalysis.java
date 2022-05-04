@@ -972,7 +972,7 @@ public class GlycoAnalysis {
         for (GlycanFragment fragment1 : fragmentsMap1.values()) {
             double probRatio;
             if (fragment1.isAllowedFragment(glycan2)) {
-                GlycanFragment fragment2 = fragmentsMap2.get(fragment1.toHashString());
+                GlycanFragment fragment2 = fragmentsMap2.get(fragment1.hash);
                 probRatio = computeFragmentPairwiseScore(fragment1, fragment2);
             } else {
                 // fragment only possible for glycan 1, use glycan 1 only estimate
@@ -1490,13 +1490,14 @@ public class GlycoAnalysis {
                 GlycanResidue residue = GlycanMasses.glycoNames.get(splits[0].trim().toLowerCase(Locale.ROOT));
                 TreeMap<GlycanResidue, Integer> ionComposition = StaticGlycoUtilities.parseGlycanStringOld(splits[1]);
                 double massShift = Double.parseDouble(splits[2]);
+                String comment = splits.length > 3 ? splits[3] : "";
 
                 // Add to existing list if present or create new list if residue type not seen yet
                 if (oxoniumDB.containsKey(residue)) {
-                    oxoniumDB.get(residue).add(new GlycanFragmentDescriptor(ionComposition, probabilityTable.rulesByResidue.get(residue), massShift));
+                    oxoniumDB.get(residue).add(new GlycanFragmentDescriptor(ionComposition, probabilityTable.rulesByResidue.get(residue), massShift, comment));
                 } else {
                     ArrayList<GlycanFragmentDescriptor> residueList = new ArrayList<>();
-                    residueList.add(new GlycanFragmentDescriptor(ionComposition, probabilityTable.rulesByResidue.get(residue), massShift));
+                    residueList.add(new GlycanFragmentDescriptor(ionComposition, probabilityTable.rulesByResidue.get(residue), massShift, comment));
                     oxoniumDB.put(residue, residueList);
                 }
             }

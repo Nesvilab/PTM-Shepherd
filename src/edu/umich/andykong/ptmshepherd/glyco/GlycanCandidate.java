@@ -51,10 +51,10 @@ public class GlycanCandidate {
             if (typeSplits[0].matches("Y")) {
                 // Y ion
                 GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]));
-                Yfragments.put(newFragment.toHashString(), newFragment);
+                Yfragments.put(newFragment.hash, newFragment);
             } else if (typeSplits[0].matches("Ox")) {
                 GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]));
-                oxoniumFragments.put(newFragment.toHashString(), newFragment);
+                oxoniumFragments.put(newFragment.hash, newFragment);
             } else {
                 // invalid
             }
@@ -133,11 +133,11 @@ public class GlycanCandidate {
         this.monoisotopicMass = monoisotopicMass;
         this.Yfragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> entry : yfragments.entrySet()) {
-            this.Yfragments.put(entry.getKey(), new GlycanFragment(entry.getValue().requiredComposition, entry.getValue().ruleProbabilities, entry.getValue().isDecoy, entry.getValue().neutralMass, entry.getValue().expectedIntensity, entry.getValue().propensity));
+            this.Yfragments.put(entry.getKey(), new GlycanFragment(entry.getValue()));
         }
         this.oxoniumFragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> entry : oxoniumFragments.entrySet()) {
-            this.oxoniumFragments.put(entry.getKey(), new GlycanFragment(entry.getValue().requiredComposition, entry.getValue().ruleProbabilities, entry.getValue().isDecoy, entry.getValue().neutralMass, entry.getValue().expectedIntensity, entry.getValue().propensity));
+            this.oxoniumFragments.put(entry.getKey(), new GlycanFragment(entry.getValue()));
         }
         this.hasFragmentProps = false;
     }
@@ -199,14 +199,14 @@ public class GlycanCandidate {
             GlycanFragment origFrag = originalFragEntry.getValue();
             if (fragmentInfo.yFragmentProps.containsKey(originalFragEntry.getKey())) {
                 // have propensity/intensity info for this fragment - read from input fragmentInfo
-                expectedIntensity = fragmentInfo.yFragmentIntensities.get(origFrag.toHashString());
-                propensity = fragmentInfo.yFragmentProps.get(origFrag.toHashString());
+                expectedIntensity = fragmentInfo.yFragmentIntensities.get(origFrag.hash);
+                propensity = fragmentInfo.yFragmentProps.get(origFrag.hash);
             } else {
                 // no added info - copy the original
                 expectedIntensity = origFrag.expectedIntensity;
                 propensity = origFrag.propensity;
             }
-            GlycanFragment newFragment = new GlycanFragment(origFrag.requiredComposition, origFrag.ruleProbabilities, origFrag.isDecoy, origFrag.neutralMass, expectedIntensity, propensity);
+            GlycanFragment newFragment = new GlycanFragment(origFrag, expectedIntensity, propensity);
             this.Yfragments.put(originalFragEntry.getKey(), newFragment);
         }
     }
@@ -227,14 +227,14 @@ public class GlycanCandidate {
             GlycanFragment origFrag = originalFragEntry.getValue();
             if (fragmentInfo.OxFragmentProps.containsKey(originalFragEntry.getKey())) {
                 // have propensity/intensity info for this fragment - read from input fragmentInfo
-                expectedIntensity = fragmentInfo.OxFragmentIntensities.get(origFrag.toHashString());
-                propensity = fragmentInfo.OxFragmentProps.get(origFrag.toHashString());
+                expectedIntensity = fragmentInfo.OxFragmentIntensities.get(origFrag.hash);
+                propensity = fragmentInfo.OxFragmentProps.get(origFrag.hash);
             } else {
                 // no added info - copy the original
                 expectedIntensity = origFrag.expectedIntensity;
                 propensity = origFrag.propensity;
             }
-            GlycanFragment newFragment = new GlycanFragment(origFrag.requiredComposition, origFrag.ruleProbabilities, origFrag.isDecoy, origFrag.neutralMass, expectedIntensity, propensity);
+            GlycanFragment newFragment = new GlycanFragment(origFrag, expectedIntensity, propensity);
             this.oxoniumFragments.put(originalFragEntry.getKey(), newFragment);
         }
     }
@@ -259,7 +259,7 @@ public class GlycanCandidate {
                     composition.put(GlycanResidue.HexNAc, hexnac);
                     composition.put(GlycanResidue.Hex, hex);
                     GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, this.isDecoy, randomGenerator);
-                    Yfragments.put(fragment.toHashString(), fragment);
+                    Yfragments.put(fragment.hash, fragment);
                 }
                 for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
                     // add dHex fragments (if allowed)
@@ -268,7 +268,7 @@ public class GlycanCandidate {
                     dHexcomposition.put(GlycanResidue.Hex, hex);
                     dHexcomposition.put(GlycanResidue.dHex, dHex);
                     GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, this.isDecoy, randomGenerator);
-                    Yfragments.put(dHexfragment.toHashString(), dHexfragment);
+                    Yfragments.put(dHexfragment.hash, dHexfragment);
                 }
             }
         }
@@ -302,8 +302,8 @@ public class GlycanCandidate {
         TreeMap<String, GlycanFragment> newFragments = new TreeMap<>();
         ArrayList<GlycanFragmentDescriptor> oxoniumIonDescriptors = glycoOxoniumDatabase.getOrDefault(residue, new ArrayList<>());
         for (GlycanFragmentDescriptor fragmentDescriptor : oxoniumIonDescriptors) {
-            GlycanFragment newFragment = new GlycanFragment(fragmentDescriptor.requiredComposition, fragmentDescriptor.ruleProbabilies, fragmentDescriptor.massShift, isDecoy, randomGenerator);
-            newFragments.put(newFragment.toHashString(), newFragment);
+            GlycanFragment newFragment = new GlycanFragment(fragmentDescriptor.requiredComposition, fragmentDescriptor.ruleProbabilies, fragmentDescriptor.massShift, isDecoy, randomGenerator, fragmentDescriptor.comment);
+            newFragments.put(newFragment.hash, newFragment);
         }
         return newFragments;
     }
@@ -361,33 +361,11 @@ public class GlycanCandidate {
      * @return string
      */
     public String toString() {
-        return toGlycanHash(glycanComposition, monoisotopicMass, isDecoy);
+        return GlycanFragment.toGlycanString(glycanComposition, monoisotopicMass, isDecoy);
     }
 
     public boolean containsResidueType(GlycanResidue residue) {
         return glycanComposition.containsKey(residue);
     }
 
-    // Static helper for both glycan fragment and candidate
-    public static String toGlycanHash(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy) {
-        StringBuilder stringBuilder = new StringBuilder();
-        if (isDecoy) {
-            stringBuilder.append("Decoy_");
-        }
-        ArrayList<String> residues = new ArrayList<>();
-        for (GlycanResidue residueKey : GlycanResidue.values()) {
-//        for (Map.Entry<GlycanResidue, Integer> residue : glycanComposition.entrySet()) {
-            if (glycanComposition.getOrDefault(residueKey, 0) > 0) {
-                residues.add(String.format("%s(%d)", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
-            }
-        }
-        stringBuilder.append(String.join("", residues));
-        stringBuilder.append(String.format(" %% %.4f", mass));
-        return stringBuilder.toString();
-    }
-
-    // Static helper for both glycan fragment and candidate
-    public static String toGlycanString(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy, double intensity) {
-        return String.format("%s~%.4f", toGlycanHash(glycanComposition, mass, isDecoy), intensity);
-    }
 }

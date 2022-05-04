@@ -1,8 +1,8 @@
 # Residue requirement	Ion Composition	Mass adjustment	Comment
-NeuAc	NeuAc-1	-18.0106	NeuAc-H2O
+NeuAc	NeuAc-1	-18.0106	-H2O
 NeuAc	NeuAc-1	0	
 NeuAc	HexNAc-1_Hex-1_NeuAc-1	0	
-NeuGc	NeuGc-1	-18.0106	NeuGc-H2O
+NeuGc	NeuGc-1	-18.0106	-H2O
 NeuGc	NeuGc-1	0	
 NeuGc	HexNAc-1_Hex-1_NeuGc-1	0	
 Phospho	Hex-1_Phospho-1	0	

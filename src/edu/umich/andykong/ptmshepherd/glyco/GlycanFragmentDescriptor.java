@@ -26,10 +26,12 @@ public class GlycanFragmentDescriptor {
     Map<GlycanResidue, Integer> requiredComposition;    // composition of this fragment ion
     double[] ruleProbabilies;                           // set of rule probabilities to use for this fragment
     double massShift;                                   // mass shift between composition mass and fragment mass (e.g., for loss of H2O in oxonium ions)
+    String comment;                                     // comment describing mass shift
 
-    public GlycanFragmentDescriptor(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilies, double massShift) {
+    public GlycanFragmentDescriptor(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilies, double massShift, String comment) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilies = ruleProbabilies;
         this.massShift = massShift;
+        this.comment = comment;
     }
 }

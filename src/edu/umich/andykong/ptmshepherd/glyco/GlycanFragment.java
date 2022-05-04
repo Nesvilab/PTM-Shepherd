@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Random;
 
@@ -32,24 +33,9 @@ public class GlycanFragment {
     boolean isDecoy;
     public static final double MAX_DECOY_FRAGMENT_SHIFT_DA = 20;
     double propensity;      // for fragment-specific probability calculations only
+    String hash;
+    String compositionComment;      // needed for cases with duplicate compositions (like oxonium ions with non-standard masses from fragmentation)
 
-    /**
-     * Constructor for propensity/bootstrapped analysis, replaces rule probs with propensity
-     * @param fragmentPropensities fragment propensity map (fragment hashstring : propensity) from previous/bootstrap data
-     * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
-     * @param randomGenerator the single random number generator instance
-     */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, Map<String, Double> fragmentPropensities, Map<String, Double> fragmentIntensities, boolean isDecoy, Random randomGenerator) {
-        this.requiredComposition = requiredComposition;
-        this.foundIntensity = 0;
-        this.isDecoy = isDecoy;
-        this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
-        this.propensity = fragmentPropensities.getOrDefault(this.toHashString(), 0.0);
-        this.expectedIntensity = fragmentIntensities.getOrDefault(this.toHashString(), 0.0);
-        if (isDecoy) {
-            this.neutralMass = this.neutralMass + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
-        }
-    }
 
     /**
      * Fragment info constructor for fragments from the glycofrags file
@@ -62,6 +48,8 @@ public class GlycanFragment {
         this.isDecoy = false;
         this.foundIntensity = 0;
         this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
+        this.compositionComment = "";
+        this.hash = toFragmentHash();
     }
 
     /**
@@ -82,6 +70,8 @@ public class GlycanFragment {
         } else {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         }
+        this.compositionComment = "";
+        this.hash = toFragmentHash();
     }
 
     /**
@@ -91,7 +81,7 @@ public class GlycanFragment {
      * @param neutralMassShift neutral mass shift of the fragment relative to its composition (e.g., for H2O losses from oxonium ions)
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator, String compComment) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.propensity = 0;
@@ -107,25 +97,41 @@ public class GlycanFragment {
         } else {
             this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift;
         }
+        this.compositionComment = compComment;
+        this.hash = toFragmentHash();
     }
 
     /**
      * Constructor for generating new Fragments for searching. Needed to avoid carrying intensity over from one
      * object to another when searching in multiple threads. Intended to copy all basic info from another
-     * fragment and sets intensity to 0.
-     * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
-     * @param ruleProbabilities probabilities to use
-     * @param isDecoy decoy status
-     * @param exactMass mass of a fragment (i.e., fragment.neutralMass)
+     * fragment and sets found intensity to 0.
+     * @param baseFragment Fragment to copy from
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, double exactMass, double expectedIntensity, double propensity) {
-        this.requiredComposition = requiredComposition;
-        this.ruleProbabilities = ruleProbabilities;
-        this.isDecoy = isDecoy;
-        this.neutralMass = exactMass;
+    public GlycanFragment(GlycanFragment baseFragment) {
+        this.requiredComposition = baseFragment.requiredComposition;
+        this.ruleProbabilities = baseFragment.ruleProbabilities;
+        this.isDecoy = baseFragment.isDecoy;
+        this.neutralMass = baseFragment.neutralMass;
+        this.foundIntensity = 0;
+        this.expectedIntensity = baseFragment.expectedIntensity;
+        this.propensity = baseFragment.propensity;
+        this.compositionComment = baseFragment.compositionComment;
+        this.hash = baseFragment.hash;
+    }
+    /**
+     * Constructor for 2nd pass search for new Fragment with provided intensity and propensity
+     * @param baseFragment Fragment to copy from
+     */
+    public GlycanFragment(GlycanFragment baseFragment, double expectedIntensity, double propensity) {
+        this.requiredComposition = baseFragment.requiredComposition;
+        this.ruleProbabilities = baseFragment.ruleProbabilities;
+        this.isDecoy = baseFragment.isDecoy;
+        this.neutralMass = baseFragment.neutralMass;
         this.foundIntensity = 0;
         this.expectedIntensity = expectedIntensity;
         this.propensity = propensity;
+        this.compositionComment = baseFragment.compositionComment;
+        this.hash = baseFragment.hash;
     }
 
     /**
@@ -180,17 +186,53 @@ public class GlycanFragment {
         return true;
     }
 
+    /**
+     * Output format for printing to .rawglyco file
+     */
     public String toString() {
-        return GlycanCandidate.toGlycanString(requiredComposition, neutralMass,isDecoy, foundIntensity);
+        return String.format("%s~%.4f", toGlycanString(requiredComposition, neutralMass, isDecoy), foundIntensity);
+    }
+
+    /**
+     * Composition-only identifier method, to allow decoys with same comp but different masses to be matched (e.g.,
+     * neutral loss oxonium ions)
+     * @return string of composition + decoy
+     */
+    public String toFragmentHash() {
+        return toGlycanCompString(requiredComposition, isDecoy, compositionComment);
+    }
+
+    /**
+     * Hash string is dependent on comp and comments only, not mass. NOTE: should be checked for duplicates in
+     * the case of neutral losses (e.g. oxonium ions)
+     * @param glycanComposition composition
+     * @param isDecoy decoy status
+     * @param comment optional string to append to distinguish between same composition but different fragment (e.g. NLs)
+     * @return string
+     */
+    public static String toGlycanCompString(Map<GlycanResidue, Integer> glycanComposition, boolean isDecoy, String comment) {
+        StringBuilder stringBuilder = new StringBuilder();
+        if (isDecoy) {
+            stringBuilder.append("Decoy_");
+        }
+        ArrayList<String> residues = new ArrayList<>();
+        for (GlycanResidue residueKey : GlycanResidue.values()) {
+            if (glycanComposition.getOrDefault(residueKey, 0) > 0) {
+                residues.add(String.format("%s(%d)", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
+            }
+        }
+        stringBuilder.append(String.join("", residues));
+        stringBuilder.append(comment);
+        return stringBuilder.toString();
     }
 
     /**
      * Generate a string suitable for detecting duplicate fragments (same required composition and decoy status).
      * Basically same as toString, but without intensity.
-     * @return string of composition + decoy
+     * @return string of composition + decoy + mass
      */
-    public String toHashString() {
-        return GlycanCandidate.toGlycanHash(requiredComposition, neutralMass, isDecoy);
+    public static String toGlycanString(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy) {
+        return GlycanFragment.toGlycanCompString(glycanComposition, isDecoy, "") + String.format(" %% %.4f", mass);
     }
 
     /**
