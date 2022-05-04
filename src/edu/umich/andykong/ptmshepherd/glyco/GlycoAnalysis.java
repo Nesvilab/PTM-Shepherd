@@ -804,7 +804,7 @@ public class GlycoAnalysis {
             }
 
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
-            for (int i = 0; i <= bestCandidateIndex; i++) {
+            for (int i = 0; i < bestCandidateIndex; i++) {
                 if (useFragmentSpecificProbs) {
                     scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
                 } else {
