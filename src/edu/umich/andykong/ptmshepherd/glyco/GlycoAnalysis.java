@@ -1038,13 +1038,17 @@ public class GlycoAnalysis {
      */
     public double computeFragmentPairwiseScore(GlycanFragment fragment1, GlycanFragment fragment2) {
         double probRatio;
-        if (fragment1.foundIntensity > 0) {
-            // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-            probRatio = computePropensityRatio(fragment1, fragment2);
-            // todo: optional, test multiplying by intensity ratio (obs/exp) for fragment1 only
+        if (fragment1.propensity > 0 && fragment2.propensity > 0) {
+            if (fragment1.foundIntensity > 0) {
+                // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
+                probRatio = computePropensityRatio(fragment1, fragment2);
+                // todo: optional, test multiplying by intensity ratio (obs/exp) for fragment1 only
+            } else {
+                // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
+                probRatio = computePropensityRatio(fragment2, fragment1);
+            }
         } else {
-            // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-            probRatio = computePropensityRatio(fragment2, fragment1);
+            probRatio = 1;
         }
         return probRatio;
     }
