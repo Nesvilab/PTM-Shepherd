@@ -16,7 +16,6 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
-import java.util.TreeMap;
 
 public class GlycanAssignmentResult {
     // Glycan Assignment results
@@ -28,8 +27,7 @@ public class GlycanAssignmentResult {
     double glycanScore;
     double bestTargetScore;
     double glycanQval;
-    TreeMap<GlycanFragment, Float> glycanFragments;     // might not be needed since candidate remembers its fragment intensities...
-    
+
     // Basic PSM info (prior to PTM-S)
     String peptide;
     float deltaMass;
@@ -39,8 +37,7 @@ public class GlycanAssignmentResult {
 
     // old-style results strings for printing diagnostic, glycan outputs
     String glycanAssignmentString;
-    String diagnosticResultString;
-
+    public static final String NO_GLYCAN_RESULT_STR = "No Glycan Matched";
 
     public GlycanAssignmentResult(String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {
         this.peptide = peptide;
@@ -68,6 +65,12 @@ public class GlycanAssignmentResult {
         if (glycanAssignmentString.matches("ERROR")) {
             // spectrum not found - print ERROR
             sb.append("\tERROR\n");
+            return sb.toString();
+        }
+        if (glycanAssignmentString.contains(NO_GLYCAN_RESULT_STR)) {
+            // no matching glycans found - leave result empty
+            sb.append(glycanAssignmentString);
+            sb.append("\n");
             return sb.toString();
         }
 

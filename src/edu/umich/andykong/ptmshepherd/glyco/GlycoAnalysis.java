@@ -355,7 +355,7 @@ public class GlycoAnalysis {
             String spectrumID = splits[gSpecCol];
             glyLines.put(spectrumID, splits);     // save full line for later editing/writing
             // only consider columns with actual glycan info
-            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].toLowerCase(Locale.ROOT).matches("no matches")) {
+            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
                 if (!splits[qValCol].matches("")) {
                     // glycan FDR already performed on this dataset - skip
                     PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
@@ -550,7 +550,7 @@ public class GlycoAnalysis {
             String spectrumID = splits[gSpecCol];
             glyLines.put(spectrumID, splits);     // save full line for later editing/writing
             // only consider columns with actual glycan info
-            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].toLowerCase(Locale.ROOT).matches("no matches")) {
+            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
                 if (!splits[qValCol].matches("")) {
                     // glycan FDR already performed on this dataset - skip
                     PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
@@ -861,7 +861,7 @@ public class GlycoAnalysis {
             glycoResult.isDecoyGlycan = !bestWasTarget;
             output = getNextGlycanScore(bestWasTarget, glycoResult, massErrorWidth, meanMassError, searchCandidates, output, sortedIndicesOfBestScores);
         } else {
-            output = "\tNo Matches\t\t\t\t";
+            output = String.format("\t%s\t\t\t\t", GlycanAssignmentResult.NO_GLYCAN_RESULT_STR);
         }
         glycoResult.glycanAssignmentString = output;
         return glycoResult;

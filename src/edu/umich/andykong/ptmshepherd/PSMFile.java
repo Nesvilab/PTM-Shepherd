@@ -406,6 +406,11 @@ public class PSMFile {
 			}
 		}
 		double glycanMass = GlycanCandidate.computeMonoisotopicMass(glycanComp);
+		if (glycanMass == 0) {
+			// do not edit entry if no matches found to the delta mass
+			editPSMGlycoEntry = false;
+			removeGlycanDeltaMass = false;
+		}
 
 		/* Get glycan location */
 		int glycanLocation = readMSFraggerGlycanLocation(newLine, fraggerLocCol, peptideCol, nGlycan, allowedResidues);
