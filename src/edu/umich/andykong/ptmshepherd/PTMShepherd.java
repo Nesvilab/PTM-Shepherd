@@ -709,7 +709,7 @@ public class PTMShepherd {
 			boolean alreadyPrintedParams = false;
 			boolean printFullParams = !getParam("print_full_glyco_params").equals("") && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
 			boolean writeGlycansToAssignedMods = getParam("put_glycans_to_assigned_mods").equals("") || Boolean.parseBoolean(getParam("put_glycans_to_assigned_mods"));	// default true
-			boolean removeGlycanDeltaMass = !getParam("remove_glycan_delta_mass").equals("") && Boolean.parseBoolean(getParam("remove_glycan_delta_mass"));	// default false
+			boolean removeGlycanDeltaMass = getParam("remove_glycan_delta_mass").equals("") || Boolean.parseBoolean(getParam("remove_glycan_delta_mass"));	// default true
 			boolean printGlycoDecoys = !getParam("print_decoys").equals("") && Boolean.parseBoolean(getParam("print_decoys"));	// default false
 			String allowedLocRes = getParam("localization_allowed_res");
 			int numThreads = Integer.parseInt(params.get("threads"));
