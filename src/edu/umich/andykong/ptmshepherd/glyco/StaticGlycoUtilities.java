@@ -70,14 +70,26 @@ public class StaticGlycoUtilities {
             String line;
             while ((line = in.readLine()) != null) {
                 String glycanName;
-                if (line.contains("\t")) {
-                    // default database includes mass in addition to glycan name - ignore mass and only take name
-                    glycanName = line.split("\t")[0];
+                TreeMap<GlycanResidue, Integer> glycanComp;
+                // handle new and old formats
+                if (line.contains("%%") || line.contains("(")) {
+                    if (line.contains("%%")) {
+                        // default database includes mass in addition to glycan name - ignore mass and only take name
+                        glycanName = line.split("%%")[0];
+                    } else {
+                        glycanName = line;
+                    }
+                    glycanComp = parseGlycanString(glycanName);
                 } else {
-                    glycanName = line;
+                    if (line.contains("\t")) {
+                        // default database includes mass in addition to glycan name - ignore mass and only take name
+                        glycanName = line.split("\t")[0];
+                    } else {
+                        glycanName = line;
+                    }
+                    glycanComp = parseGlycanStringOld(glycanName);
                 }
                 // todo: update internal databases to use new format
-                TreeMap<GlycanResidue, Integer> glycanComp = parseGlycanStringOld(glycanName);
                 // generate a new candidate from this composition and add to DB
                 GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
                 String compositionHash = candidate.toString();
