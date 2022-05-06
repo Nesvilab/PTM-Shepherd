@@ -503,7 +503,16 @@ public class GlycoAnalysis {
         out.close();
     }
 
-    public void computeGlycanFDROld(double glycoFDR) throws IOException {
+    /**
+     * Basic competitive FDR calculation (original method). Each spectrum is either a target or decoy, sort scores
+     * in ascending order and find score threshold for provided FDR. Returns True if FDR calc completed or False
+     * if there were not enough decoys to reach the given FDR threshold.
+     * @param glycoFDR desired FDR ratio
+     * @param changeFDR if true, override FDR if not enough decoys found instead of returning (restore original v1 behavior)
+     * @return true if successful, false if not enough decoys
+     * @throws IOException
+     */
+    public boolean computeGlycanFDROld(double glycoFDR, boolean changeFDR) throws IOException {
         finalGlycoFDR = glycoFDR;
         BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
 
@@ -545,7 +554,7 @@ public class GlycoAnalysis {
                 if (!splits[qValCol].matches("")) {
                     // glycan FDR already performed on this dataset - skip
                     PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
-                    return;
+                    return true;
                 }
 
                 // detect if target or decoy and save score
@@ -570,10 +579,14 @@ public class GlycoAnalysis {
         double targetDecoyRatio = calculateFDR(targets, decoys);
         if (targetDecoyRatio < finalGlycoFDR) {
             // not enough decoys to compute FDR - already above desired ratio. Do not update table
-            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%%, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
-            // only missed by a little, try reducing desired FDR to accomodate
-            finalGlycoFDR = targetDecoyRatio - (targetDecoyRatio * 0.1);
-            PTMShepherd.print(String.format("\tFDR reduced to %.2f pct due to limited decoys", finalGlycoFDR * 100));
+            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%% with basic method, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
+            if (!changeFDR) {
+                return false;
+            } else {
+                // only missed by a little, try reducing desired FDR to accomodate
+                finalGlycoFDR = targetDecoyRatio - (targetDecoyRatio * 0.1);
+                PTMShepherd.print(String.format("\tFDR reduced to %.2f pct due to limited decoys", finalGlycoFDR * 100));
+            }
         }
 
         /*
@@ -636,6 +649,7 @@ public class GlycoAnalysis {
         }
         out.flush();
         out.close();
+        return true;
     }
 
     /**
