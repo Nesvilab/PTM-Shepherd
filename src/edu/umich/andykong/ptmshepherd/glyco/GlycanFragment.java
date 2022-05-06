@@ -35,14 +35,14 @@ public class GlycanFragment {
     double propensity;      // for fragment-specific probability calculations only
     String hash;
     String compositionComment;      // needed for cases with duplicate compositions (like oxonium ions with non-standard masses from fragmentation)
-
+    FragType fragType;
 
     /**
      * Fragment info constructor for fragments from the glycofrags file
      * @param glycanStr string to parse for composition
      * @param expectedIntensity observed relative intensity todo: might be able to remove this if not using later
      */
-    public GlycanFragment(String glycanStr, double expectedIntensity) {
+    public GlycanFragment(String glycanStr, double expectedIntensity, FragType fragType) {
         this.requiredComposition = StaticGlycoUtilities.parseGlycanString(glycanStr);
         this.expectedIntensity = expectedIntensity;
         this.isDecoy = false;
@@ -50,6 +50,7 @@ public class GlycanFragment {
         this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
         this.compositionComment = "";
         this.hash = toFragmentHash();
+        this.fragType = fragType;
     }
 
     /**
@@ -58,7 +59,7 @@ public class GlycanFragment {
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, Random randomGenerator) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, Random randomGenerator, FragType fragType) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.propensity = 0;
@@ -72,6 +73,7 @@ public class GlycanFragment {
         }
         this.compositionComment = "";
         this.hash = toFragmentHash();
+        this.fragType = fragType;
     }
 
     /**
@@ -81,7 +83,7 @@ public class GlycanFragment {
      * @param neutralMassShift neutral mass shift of the fragment relative to its composition (e.g., for H2O losses from oxonium ions)
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator, String compComment) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator, String compComment, FragType fragType) {
         this.requiredComposition = requiredComposition;
         this.ruleProbabilities = ruleProbabilities;
         this.propensity = 0;
@@ -99,6 +101,7 @@ public class GlycanFragment {
         }
         this.compositionComment = compComment;
         this.hash = toFragmentHash();
+        this.fragType = fragType;
     }
 
     /**
@@ -117,6 +120,7 @@ public class GlycanFragment {
         this.propensity = baseFragment.propensity;
         this.compositionComment = baseFragment.compositionComment;
         this.hash = baseFragment.hash;
+        this.fragType = baseFragment.fragType;
     }
     /**
      * Constructor for 2nd pass search for new Fragment with provided intensity and propensity
@@ -132,6 +136,7 @@ public class GlycanFragment {
         this.propensity = propensity;
         this.compositionComment = baseFragment.compositionComment;
         this.hash = baseFragment.hash;
+        this.fragType = baseFragment.fragType;
     }
 
     /**
@@ -246,4 +251,9 @@ public class GlycanFragment {
         return 1 + random * (maxShift - 1);                 // between 1 and maxShift
     }
 
+    // Type of GlycanFragment
+    public enum FragType {
+        Y,
+        Ox
+    }
 }

@@ -1062,7 +1062,8 @@ public class GlycoAnalysis {
     public double computeFragmentAbsoluteScore(GlycanFragment fragment) {
         double probRatio = 0;
         if (fragment.foundIntensity > 0) {
-            double intensityRatio = computeIntensityRatio(fragment);
+            // only compute fragment intensity ratio for oxonium ions, not Y
+            double intensityRatio = fragment.fragType == GlycanFragment.FragType.Ox ? computeIntensityRatio(fragment) : 1.0;
             probRatio = fragment.ruleProbabilities[0] * intensityRatio;     // found in spectrum - ion supports this glycan
         } else {
             probRatio = fragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
