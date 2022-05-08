@@ -22,16 +22,11 @@ import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
-import sun.reflect.generics.tree.Tree;
-import umich.ms.datatypes.lcmsrun.Hash;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DiagnosticPeakPicker {
     String dsName;
@@ -568,8 +563,9 @@ public class DiagnosticPeakPicker {
                 dpr.nUnshiftedIons.getAndAdd(pepSeq.length());
                 int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, (float)dpr.adjustedMass);
                 dpr.nShiftedIons.addAndGet(nShiftedIons);
-                dpr.pctCoverage.addAndGet(nShiftedIons / (double) pepSeq.length());
-                //dpr.pctCoverage.addAndGet(nShiftedIons / (double) (nUnshiftedIons + nShiftedIons));
+                //dpr.pctCoverage.addAndGet(nShiftedIons / (double) pepSeq.length());
+                if (nUnshiftedIons + nShiftedIons != 0)
+                    dpr.pctCoverage.addAndGet(2 * nShiftedIons / (double) (nUnshiftedIons + nShiftedIons));
             }
         }
     }

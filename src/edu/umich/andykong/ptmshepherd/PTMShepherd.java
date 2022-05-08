@@ -213,8 +213,8 @@ public class PTMShepherd {
 		params.put("spectra_tol", "20.0"); //unugsed //todo
 		params.put("spectra_mass_units", "1"); //unused //todo
 		params.put("spectra_ppmtol", "20.0"); //obvious, used in localization and simrt
-		params.put("spectra_condPeaks", "100"); //
-		params.put("spectra_condRatio", "0.01");
+		params.put("spectra_condPeaks", "200"); //
+		params.put("spectra_condRatio", "0.00001");
 		params.put("spectra_maxfragcharge", "2");//todo
 		params.put("spectra_maxPrecursorCharge", "4");
 
@@ -246,7 +246,13 @@ public class PTMShepherd {
 		params.put("diagmine_minAuc", "0.01");
 		params.put("diagmine_minSpecDiff", "0.25");
 		params.put("diagmine_minFoldChange", "2.0");
+		params.put("diagmine_pepMinSpecDiff", "0.25"); //todo
+		params.put("diagmine_pepMinFoldChange", "2.0"); //todo
 		params.put("diagmine_diagMinFoldChange", "2.0");
+		params.put("diagmine_diagMinSpecDiff", "0.25"); //todo
+		params.put("diagmine_fragMinSpecDiff", "0.25"); //todo
+		params.put("diagmine_fragMinPropensity", "0.25");//todo
+		params.put("diagmine_fragMinFoldChange", "2.0"); //todo
 		params.put("diagmine_minPeps", "25");
 		params.put("diagmine_twoTailedTests", "0");
 		params.put("diagmine_printRedundantTests", "0");
