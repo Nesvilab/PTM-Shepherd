@@ -726,6 +726,7 @@ public class PTMShepherd {
 			int numThreads = Integer.parseInt(params.get("threads"));
 			boolean useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").equals("") && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
 			boolean useNewFDR = getParam("use_new_glycan_fdr").equals("") || Boolean.parseBoolean(getParam("use_new_glycan_fdr"));	// default true
+			boolean useNonCompFDR = getParam("use_noncomp_glycan_fdr").equals("") || Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default true
 			double defaultProp = getParam("glyco_default_propensity").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
 
 			// Glyco: first pass
@@ -755,9 +756,15 @@ public class PTMShepherd {
 				if (!useNewFDR) {
 					ga.computeGlycanFDROld(glycoFDR,true);
 				} else {
-					boolean firstFDRsuccess = ga.computeGlycanFDROld(glycoFDR, false);
-					if (!firstFDRsuccess) {
+					if (useNonCompFDR) {
+						ga.useNonCompFDR = true;
 						ga.computeGlycanFDR(glycoFDR);
+					} else {
+						boolean firstFDRsuccess = ga.computeGlycanFDROld(glycoFDR, false);
+						if (!firstFDRsuccess) {
+							ga.useNonCompFDR = true;
+							ga.computeGlycanFDR(glycoFDR);
+						}
 					}
 				}
 
@@ -779,9 +786,15 @@ public class PTMShepherd {
 					if (!useNewFDR) {
 						ga2.computeGlycanFDROld(glycoFDR, true);
 					} else {
-						boolean firstFDRsuccess2 = ga2.computeGlycanFDROld(glycoFDR, false);
-						if (!firstFDRsuccess2) {
+						if (useNonCompFDR) {
+							ga2.useNonCompFDR = true;
 							ga2.computeGlycanFDR(glycoFDR);
+						} else {
+							boolean firstFDRsuccess2 = ga2.computeGlycanFDROld(glycoFDR, false);
+							if (!firstFDRsuccess2) {
+								ga2.useNonCompFDR = true;
+								ga2.computeGlycanFDR(glycoFDR);
+							}
 						}
 					}
 					ga2.completeGlyco();

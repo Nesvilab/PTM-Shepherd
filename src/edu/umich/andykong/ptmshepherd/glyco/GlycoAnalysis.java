@@ -63,6 +63,7 @@ public class GlycoAnalysis {
     public double finalGlycoFDR;
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;
+    public boolean useNonCompFDR;
 
     // Default constructor
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
@@ -659,8 +660,11 @@ public class GlycoAnalysis {
      * @return FDR
      */
     private double calculateFDR(int targets, int decoys){
-//        return (2 * decoys) / (double) (decoys + targets);
-        return decoys / (double) targets;
+        if (useNonCompFDR) {
+            return (2 * decoys) / (double) (decoys + targets);
+        } else {
+            return decoys / (double) targets;
+        }
     }
 
     /**
