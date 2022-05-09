@@ -192,8 +192,8 @@ public class GlycoAnalysis {
         String currentLine;
         while ((currentLine = in.readLine()) != null) {
             String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
-            // only read lines with glycan info (after column 5)
-            if (splits.length > 5) {
+            // only read lines with glycan info (after column 5, don't include lines with no glycan matched (entry in 5, but nothing after))
+            if (splits.length > 6) {
                 String glycanString = splits[glycanCol];
                 boolean isDecoy = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
                 String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
