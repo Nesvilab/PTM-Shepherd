@@ -962,10 +962,14 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Y ions
-        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+        if (normYions) {
+            sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+        } else {
+            sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+        }
 
         // oxonium ions
-        sumLogRatio += pairwiseCompareFragmentsDynamic(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
+        sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
 
         // mass and isotope error
         sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
@@ -981,7 +985,46 @@ public class GlycoAnalysis {
      * @param glycan2       candidate 2
      * @return sum log probability with normalization included
      */
-    public double pairwiseCompareFragmentsDynamic(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan1, GlycanCandidate glycan2) {
+    public double pairwiseCompareDynamicNormed(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan1, GlycanCandidate glycan2) {
+        double sumLogRatio = 0;
+        double unique1score = 0;
+        double unique2score = 0;
+        int unique1count = 0;
+        int unique2count = 0;
+        for (GlycanFragment fragment1 : fragmentsMap1.values()) {
+            double probRatio;
+            if (fragment1.isAllowedFragment(glycan2)) {
+                GlycanFragment fragment2 = fragmentsMap2.get(fragment1.hash);
+                probRatio = computeFragmentPairwiseScore(fragment1, fragment2);
+                sumLogRatio += Math.log(probRatio);
+            } else {
+                // fragment only possible for glycan 1, use glycan 1 only estimate
+                probRatio = computeFragmentAbsoluteScore(fragment1);
+                unique1score += Math.log(probRatio);
+                unique1count++;
+            }
+        }
+        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
+        for (GlycanFragment fragment : fragmentsMap2.values()) {
+            if (!fragment.isAllowedFragment(glycan1)) {
+                double probRatio = computeFragmentAbsoluteScore(fragment);
+                unique2score += Math.log(probRatio);
+                unique2count++;
+            }
+        }
+        sumLogRatio += unique1score / Math.sqrt(unique1count) - unique2score / Math.sqrt(unique2count);
+        double testOld = sumLogRatio + unique1score - unique2score;
+        return sumLogRatio;
+    }
+    /**
+     * Compute sum log probability ratios for the compared glycans for a particular fragment type.
+     *
+     * @param fragmentsMap1 Fragments from candidate 1
+     * @param fragmentsMap2 Fragments from candidate 2
+     * @param glycan2       candidate 2
+     * @return sum log probability with normalization included
+     */
+    public double pairwiseCompareDynamicNotNorm(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan1, GlycanCandidate glycan2) {
         double sumLogRatio = 0;
         for (GlycanFragment fragment1 : fragmentsMap1.values()) {
             double probRatio;
@@ -1021,6 +1064,10 @@ public class GlycoAnalysis {
             double probRatio = computeFragmentAbsoluteScore(fragment);
             sumLogRatio += Math.log(probRatio);
         }
+        if (normYions) {
+            sumLogRatio = sumLogRatio / Math.sqrt(bestGlycan.Yfragments.size());
+        }
+
         // oxonium ions
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
             double probRatio = computeFragmentAbsoluteScore(fragment);
