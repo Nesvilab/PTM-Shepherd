@@ -1074,13 +1074,23 @@ public class GlycoAnalysis {
      * @return sum log ratio of fragment probs
      */
     public double computeFragmentAbsoluteScore(GlycanFragment fragment) {
-        double probRatio = 0;
+        double probRatio;
         if (fragment.foundIntensity > 0) {
             // only compute fragment intensity ratio for oxonium ions, not Y
             double intensityRatio = fragment.fragType == GlycanFragment.FragType.Ox ? computeIntensityRatio(fragment) : 1.0;
             probRatio = fragment.ruleProbabilities[0] * intensityRatio;     // found in spectrum - ion supports this glycan
         } else {
-            probRatio = fragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
+            if (fragment.fragType == GlycanFragment.FragType.Y) {
+                if (fragment.propensity > 0) {
+                    // Weight misses by propensity (if known), so that unlikely Y ions don't over-penalize a reasonable glycan
+                    // formula sets range from prob = 1 as prop -> 0 to prob = ruleprobs[1] as prop -> 1
+                    probRatio = 1 - fragment.propensity * (1 - fragment.ruleProbabilities[1]);
+                } else {
+                    probRatio = fragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
+                }
+            } else {
+                probRatio = fragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
+            }
         }
         return probRatio;
     }
