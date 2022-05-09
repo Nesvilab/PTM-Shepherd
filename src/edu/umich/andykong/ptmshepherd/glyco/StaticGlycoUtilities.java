@@ -67,57 +67,73 @@ public class StaticGlycoUtilities {
             HashMap<String, Boolean> glycansInDB = new HashMap<>();
             // parse decoy param
 
-            String line;
-            while ((line = in.readLine()) != null) {
+            String readline;
+            while ((readline = in.readLine()) != null) {
                 String glycanName;
                 TreeMap<GlycanResidue, Integer> glycanComp;
-                // handle new and old formats
-                if (line.contains("%%") || line.contains("(")) {
-                    if (line.contains("%%")) {
-                        // default database includes mass in addition to glycan name - ignore mass and only take name
-                        glycanName = line.split("%%")[0];
-                    } else {
-                        glycanName = line;
-                    }
-                    glycanComp = parseGlycanString(glycanName);
+                String[] lineSplits;
+                // handle csv and tsv inputs that may contain multiple entries per line
+                if (readline.contains(",")) {
+                    lineSplits = readline.split(",");
+                } else if (readline.contains("\t") && readline.contains("%")) {
+                    lineSplits = readline.split("\t");
                 } else {
-                    if (line.contains("\t")) {
-                        // default database includes mass in addition to glycan name - ignore mass and only take name
-                        glycanName = line.split("\t")[0];
-                    } else {
-                        glycanName = line;
-                    }
-                    glycanComp = parseGlycanStringOld(glycanName);
+                    lineSplits = new String[]{readline};
                 }
-                // todo: update internal databases to use new format
-                // generate a new candidate from this composition and add to DB
-                GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                String compositionHash = candidate.toString();
-                // prevent addition of duplicates if user has them in database
-                if (!glycansInDB.containsKey(compositionHash)) {
-                    glycanDB.add(candidate);
-                    glycansInDB.put(compositionHash, Boolean.TRUE);
-                    // also add a decoy for this composition
-                    GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                    glycanDB.add(decoy);
 
-                    // add adducts from adduct list to each composition
-                    for (GlycanResidue adduct : adductList) {
-                        for (int numAdducts = 1; numAdducts <= maxAdducts; numAdducts++) {
-                            // deep copy the original composition and add the adduct to it
-                            TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
+                // parse glycans
+                for (String line : lineSplits) {
+                    // handle new and old formats
+                    if (line.contains("%") || line.contains("(")) {
+                        if (line.contains("%")) {
+                            // default database includes mass in addition to glycan name - ignore mass and only take name
+                            glycanName = line.split("%")[0];
+                        } else {
+                            glycanName = line;
+                        }
+                        glycanComp = parseGlycanString(glycanName);
+                    } else {
+                        if (line.contains("\t")) {
+                            // default database includes mass in addition to glycan name - ignore mass and only take name
+                            glycanName = line.split("\t")[0];
+                        } else {
+                            glycanName = line;
+                        }
+                        glycanComp = parseGlycanStringOld(glycanName);
+                    }
+                    if (glycanComp.size() == 0) {
+                        continue;
+                    }
 
-                            adductComp.putAll(glycanComp);
-                            adductComp.put(adduct, numAdducts);
+                    // generate a new candidate from this composition and add to DB
+                    GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                    String compositionHash = candidate.toString();
+                    // prevent addition of duplicates if user has them in database
+                    if (!glycansInDB.containsKey(compositionHash)) {
+                        glycanDB.add(candidate);
+                        glycansInDB.put(compositionHash, Boolean.TRUE);
+                        // also add a decoy for this composition
+                        GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                        glycanDB.add(decoy);
 
-                            GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                            String adductCompositionHash = adductCandidate.toString();
-                            if (!glycansInDB.containsKey(adductCompositionHash)) {
-                                glycanDB.add(adductCandidate);
-                                glycansInDB.put(adductCompositionHash, Boolean.TRUE);
-                                // also add a decoy for this composition
-                                GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
-                                glycanDB.add(adductDecoy);
+                        // add adducts from adduct list to each composition
+                        for (GlycanResidue adduct : adductList) {
+                            for (int numAdducts = 1; numAdducts <= maxAdducts; numAdducts++) {
+                                // deep copy the original composition and add the adduct to it
+                                TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
+
+                                adductComp.putAll(glycanComp);
+                                adductComp.put(adduct, numAdducts);
+
+                                GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                                String adductCompositionHash = adductCandidate.toString();
+                                if (!glycansInDB.containsKey(adductCompositionHash)) {
+                                    glycanDB.add(adductCandidate);
+                                    glycansInDB.put(adductCompositionHash, Boolean.TRUE);
+                                    // also add a decoy for this composition
+                                    GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                                    glycanDB.add(adductDecoy);
+                                }
                             }
                         }
                     }
@@ -375,13 +391,12 @@ public class StaticGlycoUtilities {
         // Read all residue counts into the composition container
         for (String split: compositionSplits) {
             String[] glycanSplits = split.split("\\(");
-            // todo: add error catching
             GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
             int count;
             try {
                 count = Integer.parseInt(glycanSplits[1].trim());
             } catch (ArrayIndexOutOfBoundsException ex) {
-                continue;   // decoy - will be filtered once FDR in place todo: remove this after fdr filtering adding
+                continue;   // empty string or incorrect format - ignore
             }
             glycanComp.put(residue, count);
         }

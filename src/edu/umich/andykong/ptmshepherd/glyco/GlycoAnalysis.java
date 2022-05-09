@@ -1568,7 +1568,7 @@ public class GlycoAnalysis {
                     continue;
                 String[] splits = line.split("\t");
                 GlycanResidue residue = GlycanMasses.glycoNames.get(splits[0].trim().toLowerCase(Locale.ROOT));
-                TreeMap<GlycanResidue, Integer> ionComposition = StaticGlycoUtilities.parseGlycanStringOld(splits[1]);
+                TreeMap<GlycanResidue, Integer> ionComposition = StaticGlycoUtilities.parseGlycanString(splits[1]);
                 double massShift = Double.parseDouble(splits[2]);
                 String comment = splits.length > 3 ? splits[3] : "";
 

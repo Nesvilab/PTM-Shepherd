@@ -1,16 +1,16 @@
 # Residue requirement	Ion Composition	Mass adjustment	Comment
-NeuAc	NeuAc-1	-18.0106	-H2O
-NeuAc	NeuAc-1	0	
-NeuAc	HexNAc-1_Hex-1_NeuAc-1	0	
-NeuGc	NeuGc-1	-18.0106	-H2O
-NeuGc	NeuGc-1	0	
-NeuGc	HexNAc-1_Hex-1_NeuGc-1	0	
-Phospho	Hex-1_Phospho-1	0	
-Phospho	Hex-2_Phospho-1	0	
-Phospho	Hex-2_Phospho-2	0	
-Sulfo	HexNAc-1_Sulfo-1	0	
-Sulfo	HexNAc-1_Hex-1_Sulfo-1	0	
-Sulfo	HexNAc-2_Hex-2_Sulfo-1	0	
-dHex	HexNAc-1_dHex-1	0
-dHex	HexNAc-1_Hex-1_dHex-1	0
-dHex	HexNAc-2_dHex-1	0
+NeuAc	NeuAc(1)	-18.0106	-H2O
+NeuAc	NeuAc(1)	0	
+NeuAc	HexNAc(1)Hex(1)NeuAc(1)	0	
+NeuGc	NeuGc(1)	-18.0106	-H2O
+NeuGc	NeuGc(1)	0	
+NeuGc	HexNAc(1)Hex(1)NeuGc(1)	0	
+Phospho	Hex(1)Phospho(1)	0	
+Phospho	Hex(2)Phospho(1)	0	
+Phospho	Hex(2)Phospho(2)	0	
+Sulfo	HexNAc(1)Sulfo(1)	0	
+Sulfo	HexNAc(1)Hex(1)Sulfo(1)	0	
+Sulfo	HexNAc(2)Hex(2)Sulfo(1)	0	
+dHex	HexNAc(1)dHex(1)	0
+dHex	HexNAc(1)Hex(1)dHex(1)	0
+dHex	HexNAc(2)dHex(1)	0
