@@ -417,7 +417,7 @@ public class DiagnosticPeakPicker {
     }
 
     public void print(String fout) throws IOException {
-        boolean debug = true;
+        boolean debug = false;
         if (debug) {
             PrintWriter out = new PrintWriter(new FileWriter(fout + "_debug", false));
 
@@ -428,8 +428,8 @@ public class DiagnosticPeakPicker {
 
             out.close();
         }
-        PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
 
+        PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
         out2.print("peak_apex\tmod_annotation\tion_type\t" +
                 "diagnostic_mass\t" +
                 "remainder_propensity\t" + "delta_diagnostic_mass\t" +
@@ -439,7 +439,6 @@ public class DiagnosticPeakPicker {
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
             out2.print(this.binDiagMetrics[i].toString());
         }
-
         out2.close();
     }
 
@@ -468,8 +467,7 @@ public class DiagnosticPeakPicker {
             mappings.get(bn).add(i);
         }
 
-        /* Process spectral files one at a time */
-        //TODO HERE make sure this is only applying to the representative ions
+        // Process spectral files one at a time
         for (String cf : mappings.keySet()) {
             long t1 = System.currentTimeMillis();
             mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
@@ -565,7 +563,7 @@ public class DiagnosticPeakPicker {
                 dpr.nShiftedIons.addAndGet(nShiftedIons);
                 //dpr.pctCoverage.addAndGet(nShiftedIons / (double) pepSeq.length());
                 if (nUnshiftedIons + nShiftedIons != 0)
-                    dpr.pctCoverage.addAndGet(2 * nShiftedIons / (double) (nUnshiftedIons + nShiftedIons));
+                    dpr.pctCoverage.addAndGet(nShiftedIons / (double) (nUnshiftedIons + nShiftedIons));
             }
         }
     }

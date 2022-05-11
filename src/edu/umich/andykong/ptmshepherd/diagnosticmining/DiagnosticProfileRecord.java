@@ -17,6 +17,7 @@
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,7 +46,6 @@ public class DiagnosticProfileRecord {
     AtomicInteger nUnshiftedIons;
     AtomicDouble pctCoverage; // running sum of shifted ions
     AtomicDouble pctCoverageUnmod; // running sum of unshifted ions
-    //TODO add intensities?
 
     public DiagnosticProfileRecord(double peakApex, String modName, String type, double mass, double adjustedMass, double q,
                                     double rbc, double propWIonTreat, double propWIonCont,
@@ -107,6 +107,8 @@ public class DiagnosticProfileRecord {
                     this.rbc);
         } else {
             float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
+            if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity")))
+                return "";
             double remainderDelta = this.peakApex - this.adjustedMass;
             newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
                             "%.02f\t%.04f\t" +
@@ -114,7 +116,7 @@ public class DiagnosticProfileRecord {
                             "%.02f\t%.02f\t" +
                             "%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
-                    remainderOdds, remainderDelta, //spectrum level stats
+                    remainderOdds * 100.0, remainderDelta, //ion level stats
                     this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
                     //this.q, this.rbc);

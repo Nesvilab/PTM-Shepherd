@@ -42,7 +42,7 @@ public class DiagnosticHisto {
     AtomicDoubleArray smoothBins2;
     double min;
     double max;
-    int buffersize = 5; //pads endings to mirror internal bins
+    final int BUFFERSIZE = 5; //pads endings to mirror internal bins
 
     int smoothFactor;
     double smoothFactorScale; //multiplying by inverse speeds up math
@@ -62,8 +62,8 @@ public class DiagnosticHisto {
 
     public DiagnosticHisto (double peakApex, double mn, double mx, double binWidth, double minSignal, double ppmTol, double normMass, int nPepkeys) {
         this.peakApex = peakApex;
-        this.min = (int) mn - buffersize;
-        this.max = (int) mx + buffersize;
+        this.min = (int) mn - BUFFERSIZE;
+        this.max = (int) mx + BUFFERSIZE;
         this.total = new AtomicDouble();
         this.totalSpecs = new AtomicDouble();
         this.nPepkeys = nPepkeys;

@@ -71,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC12";
+ 	public static final String version = "2.0.0-RC14";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -213,7 +213,7 @@ public class PTMShepherd {
 		params.put("spectra_tol", "20.0"); //unugsed //todo
 		params.put("spectra_mass_units", "1"); //unused //todo
 		params.put("spectra_ppmtol", "20.0"); //obvious, used in localization and simrt
-		params.put("spectra_condPeaks", "200"); //
+		params.put("spectra_condPeaks", "150"); //
 		params.put("spectra_condRatio", "0.00001");
 		params.put("spectra_maxfragcharge", "2");//todo
 		params.put("spectra_maxPrecursorCharge", "4");
@@ -239,20 +239,20 @@ public class PTMShepherd {
 		params.put("iontype_z", "0");
 
 		params.put("diagmine_mode", "false");
-		params.put("diagmine_minSignal", "0.1");
+		params.put("diagmine_minSignal", "0.001");
 		params.put("diagmine_filterIonTypes", "aby");
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
 		params.put("diagmine_minAuc", "0.01");
 		params.put("diagmine_minSpecDiff", "0.25");
 		params.put("diagmine_minFoldChange", "2.0");
-		params.put("diagmine_pepMinSpecDiff", "0.25"); //todo
-		params.put("diagmine_pepMinFoldChange", "2.0"); //todo
-		params.put("diagmine_diagMinFoldChange", "2.0");
-		params.put("diagmine_diagMinSpecDiff", "0.25"); //todo
-		params.put("diagmine_fragMinSpecDiff", "0.25"); //todo
-		params.put("diagmine_fragMinPropensity", "0.25");//todo
-		params.put("diagmine_fragMinFoldChange", "2.0"); //todo
+		params.put("diagmine_pepMinSpecDiff", "0.25");
+		params.put("diagmine_pepMinFoldChange", "3.0");
+		params.put("diagmine_diagMinFoldChange", "3.0");
+		params.put("diagmine_diagMinSpecDiff", "0.25");
+		params.put("diagmine_fragMinSpecDiff", "0.15");
+		params.put("diagmine_fragMinPropensity", "0.125");
+		params.put("diagmine_fragMinFoldChange", "3.0");
 		params.put("diagmine_minPeps", "25");
 		params.put("diagmine_twoTailedTests", "0");
 		params.put("diagmine_printRedundantTests", "0");
@@ -348,6 +348,12 @@ public class PTMShepherd {
 		//TODO initialize program blocks here so that they can be accessed outside their modules and stored internally
 		PeakAnnotator pa = new PeakAnnotator();
 
+		//Get mzData mapping
+		print("Finding spectral data");
+		getMzDataMapping();
+		print("Done finding spectral data\n");
+
+		//After knowing where all files should be, remove ones from old runs
 		if(!Boolean.parseBoolean(params.get("run_from_old"))) {
 			List<String> filesToDelete = Arrays.asList(peaksName,
 				peakSummaryAnnotatedName, peakSummaryName, combinedTSVName);
@@ -361,10 +367,12 @@ public class PTMShepherd {
 			List<String> extsToDelete = Arrays
 					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoName, modSummaryName);
 			for (String ds : datasets.keySet()) {
-				//System.out.println("Writing combined table for dataset " + ds);
-				//CombinedTable.writeCombinedTable(ds);
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
+					deleteFile(p, true);
+				}
+				for (String mzFile : mzMap.get(ds).keySet()) {
+					Path p = Paths.get(normFName(mzFile + diagBinFilename)).toAbsolutePath().normalize();
 					deleteFile(p, true);
 				}
 			}
@@ -381,14 +389,11 @@ public class PTMShepherd {
 			print("");
 		}
 
-		//Create internal PSM lists
-		print("Finding and caching PSM data");
-		getMzDataMapping();
-		print("Done finding and caching PSM data");
-		//Get mzData mapping
-		print("Finding and caching spectral data");
-		getMzDataMapping();
-		print("Done finding and caching spectral data\n");
+		// Cache spectral data
+		print("Caching spectral data");
+		rewriteDataToMzBin();
+		print("Done caching spectral data\n");
+
 		
 		//Count MS2 scans
 		for(String ds : datasets.keySet()) {
@@ -404,8 +409,7 @@ public class PTMShepherd {
 						PSMFile pf = new PSMFile(tpf);
 						counts = pf.getMS2Counts();
 					}
-				}
-				else if (params.get("histo_normalizeTo").equals("scans")) {
+				} else if (params.get("histo_normalizeTo").equals("scans")) {
 					for (String crun : mzMap.get(ds).keySet()) {
 						File tf = mzMap.get(ds).get(crun);
 						int cnt = MS2Counts.countMS2Scans(tf, Integer.parseInt(params.get("threads")));
@@ -435,7 +439,8 @@ public class PTMShepherd {
 					die("Invalid MS2 counts for run " + crun + " in dataset " + ds);
 			}
 			datasetMS2.put(ds, sumMS2);
-			print("\t" + datasetMS2.get(ds) +" MS2 scans present in dataset " + ds + "\n");
+			print("\t" + datasetMS2.get(ds) +" MS2 scans present in dataset " + ds);
+			print("Done counting MS2 scans for dataset " + ds + "\n");
 		}
 
 		//Generate histograms
@@ -477,7 +482,7 @@ public class PTMShepherd {
 			}
 			combined.writeHistogram(combinedHisto);
 			combined.writeCombinedTSV(new File(normFName(combinedTSVName)));
-			print("Created combined histogram!\n");
+			print("Done creating combined histogram\n");
 		} else
 			print("Combined histogram found\n");
 
@@ -486,7 +491,7 @@ public class PTMShepherd {
 		if (peaks.exists()) {
 			print("Deleting old peaks.tsv file at: " + peaks.toString() + "\n");
 		}
-		print("Running peak picking\n");
+		print("Running peak picking");
 		Histogram combined = Histogram.readHistogram(combinedHisto);
 		PeakPicker pp = new PeakPicker();
 		pp.pickPeaks(combined.getOffsets(), combined.histo, Double.parseDouble(params.get("peakpicking_promRatio")),
@@ -495,7 +500,7 @@ public class PTMShepherd {
 				Integer.parseInt(params.get("peakpicking_mass_units")), Double.parseDouble(params.get("peakpicking_width")),
 				Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 		pp.writeTSV(new File(normFName(peaksName)));
-		print("Picked top " + pp.getPeaks().length + " peaks");
+		print("\tPicked top " + pp.getPeaks().length + " peaks");
 
 		//PSM assignment
 		File peaksummary = new File(normFName(peakSummaryName));
@@ -513,8 +518,9 @@ public class PTMShepherd {
 				ps.commit(ds,datasetMS2.get(ds));
 			}
 			ps.writeTSVSummary(peaksummary);
-			print("Created summary table\n");
+			print("\tCreated summary table");
 		}
+		print("Done running peak picking\n");
 
 		//Assign peak IDs
 		File peakannotated = new File(normFName(peakSummaryAnnotatedName));
@@ -828,6 +834,9 @@ public class PTMShepherd {
 		if (Boolean.parseBoolean(params.get("output_extended"))) {
 			moveFileFromExtendedDir(normFName(globalName + profileName));
 			moveFileFromExtendedDir(normFName(globalName + modSummaryName));
+			moveFileFromExtendedDir(normFName(globalName + diagMineName));
+			moveFileFromExtendedDir(normFName(globalName + diagIonsExtractName));
+
 		}
 
 		List<String> filesToDelete = Arrays.asList(normFName(peaksName), normFName(peakSummaryAnnotatedName),
@@ -861,6 +870,10 @@ public class PTMShepherd {
 				//CombinedTable.writeCombinedTable(ds);
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
+					deleteFile(p, true);
+				}
+				for (String mzFile : mzMap.get(ds).keySet()) {
+					Path p = Paths.get(normFName(mzFile + mzBinFilename)).toAbsolutePath().normalize();
 					deleteFile(p, true);
 				}
 			}
@@ -945,7 +958,13 @@ public class PTMShepherd {
 					die("In dataset \""+ds+"\" could not find mzData for run " +  crun);
 				}
 			}
-			// Rewrite mzData to MZBIN files
+		}
+	}
+
+	// Rewrite mzData to MZBIN files
+	private static void rewriteDataToMzBin() throws Exception {
+		for(String ds : datasets.keySet()) {
+			ArrayList<String []> dsData = datasets.get(ds);
 			for(int i = 0; i < dsData.size(); i++) {
 				PTMShepherd.print("\tCaching data from " + ds);
 				PSMFile pf = new PSMFile(dsData.get(i)[0]);

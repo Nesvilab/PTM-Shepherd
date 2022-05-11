@@ -68,9 +68,17 @@ public class PeakCompareTester {
     double minRbc;
     double minSpecDiff;
     double minFoldChange;
-    double diagMinFoldChange;
     boolean twoTailedTests;
     int minPeps;
+
+    double diagMinFoldChange;
+    double diagMinSpecDiff;
+    double pepMinFoldChange;
+    double pepMinSpecDiff;
+    double fragMinFoldChange;
+    double fragMinSpecDiff;
+    double fragMinPropensity;
+
 
     double specTol;
 
@@ -120,11 +128,18 @@ public class PeakCompareTester {
         this.minRbc = minRbc;
         this.minSpecDiff = minSpecDiff;
         this.twoTailedTests = twoTailedTests;
-        this.diagMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_diagMinFoldChange"));
-        this.minFoldChange = minFoldChange;
         this.minPeps = Integer.parseInt(PTMShepherd.getParam("diagmine_minPeps"));
-
         this.specTol = specTol;
+
+        this.diagMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_diagMinFoldChange"));
+        this.diagMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_diagMinSpecDiff"));
+        this.pepMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_pepMinFoldChange"));
+        this.pepMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_pepMinSpecDiff"));
+        this.fragMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinFoldChange"));
+        this.fragMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinSpecDiff"));
+        this.fragMinPropensity = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinFoldChange"));
+        this.minFoldChange = minFoldChange;
+
     }
 
     public synchronized void addDrs(ArrayList<DiagnosticRecord> drs, boolean isControl, boolean isDecoy) {
@@ -274,240 +289,194 @@ public class PeakCompareTester {
             double wIonIntensity = calcWIonIntensity(this.immoniumY.get(peak), this.nTreatPsms);
             double propWIonCont = calcProportionWIon(this.immoniumX.get(peak), this.nControlPsms);
             double wIonIntensityCont = calcWIonIntensity(this.immoniumX.get(peak), this.nControlPsms);
-            //double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
-            double specDiff = propWIon;// - propWIonCont;//, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
             double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
             double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
             if (this.twoTailedTests == false) {
-                //System.out.println(propWIon + "\t" + wIonIntensityCont + "\t" + propWIonCont + "\t" + wIonIntensityCont);
-                //System.out.println(this.peakApex + "\t" + peak + "\t" + this.twoTailedTests + "\t" + foldChange + "\t" +this.diagMinFoldChange);
-                if (p <= this.maxP && foldChange >= this.diagMinFoldChange && propWIon >= this.minSpecDiff) {
+                if (p <= this.maxP && foldChange >= this.diagMinFoldChange && propWIon >= this.diagMinSpecDiff) {
                     this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont,
                             u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
                 }
             } else {
-                if (p <= this.maxP && maxAbsFoldChange >= this.diagMinFoldChange && propWIon >= this.minSpecDiff ) {
+                if (p <= this.maxP && maxAbsFoldChange >= this.diagMinFoldChange && propWIon >= this.diagMinSpecDiff ) {
                     this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont,
                             u2, this.immoniumX.get(peak).size(), this.immoniumY.get(peak).size()));
                 }
             }
         }
-        for (Double peak : this.immoniumX.keySet()) {
-            if (this.immoniumX.get(peak).size() < this.minPeps || this.immoniumDecoy.get(peak).size() < this.minPeps)
-                continue;
-            //double[] x = this.immoniumX.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
-            //double[] y = this.immoniumDecoy.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
-            double[] x = this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray();//.filter(i -> i > 0.0).toArray();
-            double[] y = this.immoniumDecoy.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
-            double p = mwu.mannWhitneyUTest(x, y);
-            double u2 = mwu.mannWhitneyU2(x, y);
-            /*
-            double p;
-            double u2;
-            if (x.length > 1 && y.length > 1) {
-                p = tTest.tTest(x, y);
-                u2 = tTest.t(x, y);
-            } else {
-                p = 1;
-                u2 = 0;
-            }
-            */
-            //double rankBiserCorr = Math.abs((2.0 * uStat / (this.immoniumX.get(peak).size() * this.immoniumY.get(peak).size())) - 1);
-            long n1n2 = (long)x.length * (long)y.length;
-            double rankBiserCorr = u2 / (n1n2);
-            //double rankBiserCorr = 1;
-            double u1 = n1n2 - u2;
-            boolean greaterThan = u2 > u1 ? true : false;
-            if (this.twoTailedTests == false)
-                p = convertP(p, greaterThan);
-            p *= this.immoniumX.size();
-            double propWIon = calcProportionWIon(this.immoniumDecoy.get(peak), this.nTreatPsms);
-            double wIonIntensity = calcWIonIntensity(this.immoniumDecoy.get(peak), this.nTreatPsms);
-            double propWIonCont = calcProportionWIon(this.immoniumX.get(peak), this.nControlPsms);
-            double wIonIntensityCont = calcWIonIntensity(this.immoniumX.get(peak), this.nControlPsms);
-            double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
-            if (this.twoTailedTests == false) {
-                if (p <= this.maxP && (rankBiserCorr - 0.5) >= this.minRbc) {
-                    this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
-                            this.immoniumX.get(peak).size(), this.immoniumDecoy.get(peak).size()));
-                }
-            } else {
-                if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
-                    this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
-                            this.immoniumX.get(peak).size(), this.immoniumDecoy.get(peak).size()));
-                }
-            }
-
-            //System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
-        }
+//        for (Double peak : this.immoniumX.keySet()) {
+//            if (this.immoniumX.get(peak).size() < this.minPeps || this.immoniumDecoy.get(peak).size() < this.minPeps)
+//                continue;
+//            //double[] x = this.immoniumX.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
+//            //double[] y = this.immoniumDecoy.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
+//            double[] x = this.immoniumX.get(peak).stream().mapToDouble(i -> i).toArray();//.filter(i -> i > 0.0).toArray();
+//            double[] y = this.immoniumDecoy.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
+//            double p = mwu.mannWhitneyUTest(x, y);
+//            double u2 = mwu.mannWhitneyU2(x, y);
+//            /*
+//            double p;
+//            double u2;
+//            if (x.length > 1 && y.length > 1) {
+//                p = tTest.tTest(x, y);
+//                u2 = tTest.t(x, y);
+//            } else {
+//                p = 1;
+//                u2 = 0;
+//            }
+//            */
+//            //double rankBiserCorr = Math.abs((2.0 * uStat / (this.immoniumX.get(peak).size() * this.immoniumY.get(peak).size())) - 1);
+//            long n1n2 = (long)x.length * (long)y.length;
+//            double rankBiserCorr = u2 / (n1n2);
+//            //double rankBiserCorr = 1;
+//            double u1 = n1n2 - u2;
+//            boolean greaterThan = u2 > u1 ? true : false;
+//            if (this.twoTailedTests == false)
+//                p = convertP(p, greaterThan);
+//            p *= this.immoniumX.size();
+//            double propWIon = calcProportionWIon(this.immoniumDecoy.get(peak), this.nTreatPsms);
+//            double wIonIntensity = calcWIonIntensity(this.immoniumDecoy.get(peak), this.nTreatPsms);
+//            double propWIonCont = calcProportionWIon(this.immoniumX.get(peak), this.nControlPsms);
+//            double wIonIntensityCont = calcWIonIntensity(this.immoniumX.get(peak), this.nControlPsms);
+//            double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
+//            if (this.twoTailedTests == false) {
+//                if (p <= this.maxP && (rankBiserCorr - 0.5) >= this.minRbc) {
+//                    this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
+//                            this.immoniumX.get(peak).size(), this.immoniumDecoy.get(peak).size()));
+//                }
+//            } else {
+//                if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
+//                    this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
+//                            this.immoniumX.get(peak).size(), this.immoniumDecoy.get(peak).size()));
+//                }
+//            }
+//
+//            //System.out.printf("Immonium %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
+//        }
 
         this.capYTests = new ArrayList<>();
         for (Double peak : this.capYX.keySet()) {
             if (this.capYX.get(peak).size() < this.minPeps || this.capYY.get(peak).size() < this.minPeps)
                 continue;
-            double[] x = this.capYX.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
-            double[] y = this.capYY.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
-            //double[] x = this.capYX.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
-            //double[] y = this.capYY.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
+            double[] x = this.capYX.get(peak).stream().mapToDouble(i -> i).toArray();
+            double[] y = this.capYY.get(peak).stream().mapToDouble(i -> i).toArray();
             double p = mwu.mannWhitneyUTest(x, y);
             double u2 = mwu.mannWhitneyU2(x, y);
-            /*
-            double p;
-            double u2;
-            if (x.length > 1 && y.length > 1) {
-                p = tTest.tTest(x, y);
-                u2 = tTest.t(x, y);
-            } else {
-                p = 1;
-                u2 = 0;
-            }
-            */
+
             long n1n2 = (long)x.length * (long)y.length;
             double rankBiserCorr = u2 / (n1n2);
-            //double rankBiserCorr = 1;
             double u1 = n1n2 - u2;
             boolean greaterThan = u2 > u1 ? true : false;
             if (this.twoTailedTests == false)
                 p = convertP(p, greaterThan);
-            //double rankBiserCorr = Math.abs((2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1);
             p *= this.capYX.size();
             double propWIon = calcProportionWIon(this.capYY.get(peak), this.nTreatPsms);
             double wIonIntensity = calcWIonIntensity(this.capYY.get(peak), this.nTreatPsms);
             double propWIonCont = calcProportionWIon(this.capYX.get(peak), this.nControlPsms);
             double wIonIntensityCont = calcWIonIntensity(this.capYX.get(peak), this.nControlPsms);
-            //double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
             double specDiff = propWIon;
             double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
             double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
             if (this.twoTailedTests == false) {
-                if (p <= this.maxP && propWIon > this.minSpecDiff && foldChange >= this.minFoldChange) {
+                if (p <= this.maxP && propWIon > this.pepMinSpecDiff && foldChange >= this.pepMinFoldChange) {
                     this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                             this.capYX.get(peak).size(), this.capYY.get(peak).size()));
                 }
             } else {
-                if (p <= this.maxP && propWIon > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) {
+                if (p <= this.maxP && propWIon > this.pepMinSpecDiff && maxAbsFoldChange >= this.pepMinFoldChange) {
                     this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                             this.capYX.get(peak).size(), this.capYY.get(peak).size()));
                 }
             }
-            //System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
         }
-        for (Double peak : this.capYX.keySet()) {
-            if (this.capYX.get(peak).size() < this.minPeps || this.capYDecoy.get(peak).size() < this.minPeps)
-                continue;
-            //double[] x = this.capYX.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
-            //double[] y = this.capYDecoy.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
-            double[] x = this.capYX.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
-            double[] y = this.capYDecoy.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
-            double p = mwu.mannWhitneyUTest(x, y);
-            double u2 = mwu.mannWhitneyU2(x, y);
-            /*
-            double p;
-            double u2;
-            if (x.length > 1 && y.length > 1) {
-                p = tTest.tTest(x, y);
-                u2 = tTest.t(x, y);
-            } else {
-                p = 1;
-                u2 = 0;
-            }
-            */
-            long n1n2 = (long) x.length * (long) y.length;
-            double rankBiserCorr = u2 / (n1n2);
-            //double rankBiserCorr = 1;
-            double u1 = n1n2 - u2;
-            boolean greaterThan = u2 > u1 ? true : false;
-            if (this.twoTailedTests == false)
-                p = convertP(p, greaterThan);
-            //double rankBiserCorr = Math.abs((2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1);
-            p *= this.capYX.size();
-            double propWIon = calcProportionWIon(this.capYDecoy.get(peak), this.nTreatPsms);
-            double wIonIntensity = calcWIonIntensity(this.capYDecoy.get(peak), this.nTreatPsms);
-            double propWIonCont = calcProportionWIon(this.capYX.get(peak), this.nControlPsms);
-            double wIonIntensityCont = calcWIonIntensity(this.capYX.get(peak), this.nControlPsms);
-            double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
-            if (this.twoTailedTests == false) {
-                if (p <= this.maxP && (rankBiserCorr - 0.5) >= this.minRbc) {
-                    this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
-                            this.capYX.get(peak).size(), this.capYDecoy.get(peak).size()));
-                }
-            } else {
-                if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
-                    this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
-                            this.capYX.get(peak).size(), this.capYDecoy.get(peak).size()));
-                }
-            }
-            //System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
-        }
+//        for (Double peak : this.capYX.keySet()) {
+//            if (this.capYX.get(peak).size() < this.minPeps || this.capYDecoy.get(peak).size() < this.minPeps)
+//                continue;
+//            //double[] x = this.capYX.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
+//            //double[] y = this.capYDecoy.get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
+//            double[] x = this.capYX.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
+//            double[] y = this.capYDecoy.get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
+//            double p = mwu.mannWhitneyUTest(x, y);
+//            double u2 = mwu.mannWhitneyU2(x, y);
+//            /*
+//            double p;
+//            double u2;
+//            if (x.length > 1 && y.length > 1) {
+//                p = tTest.tTest(x, y);
+//                u2 = tTest.t(x, y);
+//            } else {
+//                p = 1;
+//                u2 = 0;
+//            }
+//            */
+//            long n1n2 = (long) x.length * (long) y.length;
+//            double rankBiserCorr = u2 / (n1n2);
+//            //double rankBiserCorr = 1;
+//            double u1 = n1n2 - u2;
+//            boolean greaterThan = u2 > u1 ? true : false;
+//            if (this.twoTailedTests == false)
+//                p = convertP(p, greaterThan);
+//            //double rankBiserCorr = Math.abs((2.0 * uStat / (this.capYX.get(peak).size() * this.capYY.get(peak).size())) - 1);
+//            p *= this.capYX.size();
+//            double propWIon = calcProportionWIon(this.capYDecoy.get(peak), this.nTreatPsms);
+//            double wIonIntensity = calcWIonIntensity(this.capYDecoy.get(peak), this.nTreatPsms);
+//            double propWIonCont = calcProportionWIon(this.capYX.get(peak), this.nControlPsms);
+//            double wIonIntensityCont = calcWIonIntensity(this.capYX.get(peak), this.nControlPsms);
+//            double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
+//            if (this.twoTailedTests == false) {
+//                if (p <= this.maxP && (rankBiserCorr - 0.5) >= this.minRbc) {
+//                    this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
+//                            this.capYX.get(peak).size(), this.capYDecoy.get(peak).size()));
+//                }
+//            } else {
+//                if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
+//                    this.capYTests.add(new Test(peakApex, peak, p, rankBiserCorr, true, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
+//                            this.capYX.get(peak).size(), this.capYDecoy.get(peak).size()));
+//                }
+//            }
+//            //System.out.printf("CapY %.04f\t%e\t%f\n", peak, p, rankBiserCorr);
+//        }
 
         this.squigglesTests = new HashMap<>();
         for (Character c : this.squigglesX.keySet()) {
             this.squigglesTests.put(c, new ArrayList<>());
-            //String fname = this.peakApex + "_" + c + "sig_cles.tsv";
-            //PrintWriter out = new PrintWriter(new FileWriter(new File(fname)));
-            //out.printf("mass\tp\trbc\n");
-            //System.out.println("Squiggle"+c);
             for (Double peak : this.squigglesX.get(c).keySet()) {
                 if (this.squigglesX.get(c).get(peak).size() < this.minPeps || this.squigglesY.get(c).get(peak).size() < this.minPeps)
                     continue;
-                //double[] x = this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
-                //double[] y = this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).filter(i -> i > 0.0).toArray();
-                double[] x = this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
-                double[] y = this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).toArray();//filter(i -> i > 0.0).toArray();
+                double[] x = this.squigglesX.get(c).get(peak).stream().mapToDouble(i -> i).toArray();
+                double[] y = this.squigglesY.get(c).get(peak).stream().mapToDouble(i -> i).toArray();
                 double p = mwu.mannWhitneyUTest(x, y);
                 double u2 = mwu.mannWhitneyU2(x, y);
-                /*
-                double p;
-                double u2;
-                if (x.length > 1 && y.length > 1) {
-                    p = tTest.tTest(x, y);
-                    u2 = tTest.t(x, y);
-                } else {
-                    p = 1;
-                    u2 = 0;
-                }
-                */
                 long n1n2 = (long)x.length * (long)y.length;
                 double rankBiserCorr = u2 / (n1n2);
-                //double rankBiserCorr = 1;
                 double u1 = n1n2 - u2;
                 boolean greaterThan = u2 > u1 ? true : false;
                 if (this.twoTailedTests == false)
                     p = convertP(p, greaterThan);
-                //double rankBiserCorr = Math.abs((2.0 * uStat / (this.squigglesX.get(c).get(peak).size() * this.squigglesY.get(c).get(peak).size())) - 1);
-                //out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
                 p *= this.squigglesX.get(c).size();
+
                 double propWIon = calcProportionWIon(this.squigglesY.get(c).get(peak), this.nTreatPsms);
                 double wIonIntensity = calcWIonIntensity(this.squigglesY.get(c).get(peak), this.nTreatPsms);
                 double propWIonCont = calcProportionWIon(this.squigglesX.get(c).get(peak), this.nControlPsms);
                 double wIonIntensityCont = calcWIonIntensity(this.squigglesX.get(c).get(peak), this.nControlPsms);
-                //double specDiff = Math.max(propWIon - propWIonCont, (propWIon*wIonIntensityCont - propWIonCont*wIonIntensityCont) / 100.0);
+
                 double specDiff = propWIon;
                 double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
                 double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
-                //if (p <= this.maxP && Math.abs(rankBiserCorr - 0.5) >= this.minRbc) {
+
                 if (this.twoTailedTests == false) {
-                    if (p <= this.maxP && propWIon > this.minSpecDiff && foldChange >= this.minFoldChange) {
+                    if (p <= this.maxP && propWIon > this.fragMinSpecDiff && foldChange >= this.fragMinFoldChange) {
                         this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                                 this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                     }
                 } else {
-                    if (p <= this.maxP && propWIon > this.minSpecDiff && maxAbsFoldChange >= this.minFoldChange) {
+                    if (p <= this.maxP && propWIon > this.fragMinSpecDiff && maxAbsFoldChange >= this.fragMinFoldChange) {
                         this.squigglesTests.get(c).add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont, u2,
                                 this.squigglesX.get(c).get(peak).size(), this.squigglesY.get(c).get(peak).size()));
                     }
                 }
-                        //if (p * this.squigglesX.get(c).get(peak).size() < 0.05 && rankBiserCorr > 0.5)
-                        //System.out.printf("%.04f\t%e\t%f\n", peak, p, rankBiserCorr);
             }
-            //out.close();
         }
         for (Character c : this.squigglesX.keySet()) {
-            //this.squigglesTests.put(c, new ArrayList<>());
-            //String fname = this.peakApex + "_" + c + "sig_cles.tsv";
-            //PrintWriter out = new PrintWriter(new FileWriter(new File(fname)));
-            //out.printf("mass\tp\trbc\n");
-            //System.out.println("Squiggle"+c);
+
             for (Double peak : this.squigglesX.get(c).keySet()) {
                 if (this.squigglesX.get(c).get(peak).size() < this.minPeps || this.squigglesDecoy.get(c).get(peak).size() < this.minPeps)
                     continue;
@@ -569,7 +538,7 @@ public class PeakCompareTester {
         //System.out.println("squiggle");
         for (Character c : this.squigglesTests.keySet()) {
             collapseTests(this.squigglesTests.get(c), 0.05, true); //todo tol
-            findRemainderMassesCutoff(this.squigglesTests.get(c), 0.05);
+            //findRemainderMassesCutoff(this.squigglesTests.get(c), 0.05);
             calibrateTests(this.squigglesTests.get(c), 0.05, true);
             findRemainderMassesCutoff(this.squigglesTests.get(c), 0.05);
         }
@@ -600,7 +569,7 @@ public class PeakCompareTester {
 
     /* Converts two-tailed p-value to one-tailed p-value
     * Hipparchus only provides a two-tailed version of MWU
-    * Currently using two-tailed tests for everything due to inconsistencies in one-tailed test
+    * Currently using two-tailed tests for everything
     * */
     private double convertP(double oldPVal, boolean greaterThan) {
         double p;

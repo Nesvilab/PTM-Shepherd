@@ -84,7 +84,7 @@ public class BinDiagMetric {
             int nDrs = this.peptideMap.get(pepKey).size();
             int pepLen = 0;
             for (DiagnosticRecord dr : this.peptideMap.get(pepKey)) {
-                pepLen = dr.pepSeq.length();
+                pepLen = dr.pepSeq.length() - 1;
                 int binMinMaxIndx = 0;
                 for (int i = 0; i < dr.immoniumPeaks.length; i++) {
                     float mz = dr.immoniumPeaks[i][0]; // Cycle through mz vals
@@ -113,7 +113,7 @@ public class BinDiagMetric {
                         if (mz > this.binMinMax[binMinMaxIndx][1])
                             this.binMinMax[binMinMaxIndx][1] = mz;
                     }
-                    avgFrag[h] += (dr.calcAvgFragTol(ionType, 1) / nDrs) / nPepKeys; //todo charge states
+                    avgFrag[h] += (dr.calcAvgFragTol(ionType, 1) / nDrs) / nPepKeys;
                 }
             }
             avgPepLen += (double) pepLen / nPepKeys;
@@ -250,7 +250,8 @@ public class BinDiagMetric {
         /* Format tests */
         for (int i = 0; i < this.diagProfRecs.size(); i++) {
             String newLine = this.diagProfRecs.get(i).toString();
-            newLines.append(newLine);
+            if (!newLine.equals(""))
+                newLines.append(newLine);
         }
         return newLines.toString();
     }

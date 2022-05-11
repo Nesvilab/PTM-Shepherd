@@ -662,7 +662,7 @@ public class Spectrum implements Comparable<Spectrum> {
 
 		float [] aaMasses = AAMasses.monoisotopic_masses;
 		float [] fragTypeShifts = AAMasses.ionTypeShifts;
-		int cLen = seq.length();
+		int cLen = seq.length() - 1;
 
 		ArrayList<Float> knownFrags = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, 0.0f);
 
@@ -770,7 +770,6 @@ public class Spectrum implements Comparable<Spectrum> {
 			peakArr[i][0] = peaks.get(i).MZ;
 			peakArr[i][1] = peaks.get(i).Int;
 			peakArr[i][2] = peaks.get(i).Tol;
-			//System.out.println(peakArr[i][0] + "\t" + peakArr[i][1] + peakArr[i][2]);
 		}
 		return peakArr;
 	}
