@@ -640,7 +640,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		return knownFrags;
 	}
 
-	public HashMap<Character, float[][]> calcSquigglePeaks(float ppmTol, String seq, float[] mods, String ionTypes, String filterIonTypes, int maxCharge) { //todo max charge? //todo min max boundaries?
+	public HashMap<Character, float[][]> calcSquigglePeaks(float ppmTol, String seq, float[] mods, String ionTypes, String filterIonTypes, int maxCharge) {
 		HashMap<Character, float[][]> squigglePeaks = new HashMap<>();
 
 		ArrayList<Character> nIonTypes = new ArrayList<>();
@@ -658,11 +658,11 @@ public class Spectrum implements Comparable<Spectrum> {
 				cIonTypes.add(curIonType);
 		}
 
-		ArrayList<Peak> ps = new ArrayList<>();
+		ArrayList<Peak> ps;
 
 		float [] aaMasses = AAMasses.monoisotopic_masses;
 		float [] fragTypeShifts = AAMasses.ionTypeShifts;
-		int cLen = seq.length() - 1;
+		int cLen = seq.length();
 
 		ArrayList<Float> knownFrags = calculatePeptideFragments(seq, mods, filterIonTypes, maxCharge, 0.0f);
 
@@ -694,20 +694,10 @@ public class Spectrum implements Comparable<Spectrum> {
 								this.averageFragMass[iTypeIndx] += peakMZ[j];
 							}
 						}
-						//cPeaksDmass.add(new Peak(peakMZ[j] - (cmass + dmass), peakInt[j]));
 					}
 				}
-				//System.out.println(iType+"\t"+ps.size()+"\t"+cPeaksNaked.size());
-
-				//Collections.sort(cPeaksNaked);
-				//Collections.sort(cPeaksDmass);
-				for(int i = 0; i < cPeaksNaked.size(); i++) {
+				for(int i = 0; i < cPeaksNaked.size(); i++)
 					ps.add(cPeaksNaked.get(i));
-					//cPeaksDmass.get(i).lossToRemainder(dmass);
-					//ps.add(cPeaksDmass.get(i));
-				}
-				//for (Peak p : cPeaks)
-				//	System.out.println(p.MZ + "\t" + p.Int);
 			}
 			squigglePeaks.put(iType, peaksWTolToArray(ps));
 			iTypeIndx++;
@@ -726,8 +716,6 @@ public class Spectrum implements Comparable<Spectrum> {
 						break;
 					}
 				}
-				//if (skipFlag)
-				//	continue;
 				ArrayList<Peak> cPeaksNaked = new ArrayList<>();
 				for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
 					float cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
@@ -745,7 +733,6 @@ public class Spectrum implements Comparable<Spectrum> {
 						}
 					}
 				}
-
 				for(int i = 0; i < cPeaksNaked.size(); i++)
 					ps.add(cPeaksNaked.get(i));
 			}

@@ -71,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC14";
+ 	public static final String version = "2.0.0-RC15";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -258,7 +258,6 @@ public class PTMShepherd {
 		params.put("diagmine_printRedundantTests", "0");
 		params.put("diagmine_maxPsms", "1000");
 		params.put("diagmine_minIonsPerSpec", "2");
-
 
 		params.put("output_extended", "false");
 		params.put("output_path", "");
