@@ -726,7 +726,7 @@ public class PTMShepherd {
 			int numThreads = Integer.parseInt(params.get("threads"));
 			boolean useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").equals("") && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
 			boolean useNewFDR = getParam("use_new_glycan_fdr").equals("") || Boolean.parseBoolean(getParam("use_new_glycan_fdr"));	// default true
-			boolean useNonCompFDR = getParam("use_noncomp_glycan_fdr").equals("") || Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default true
+			boolean useNonCompFDR = !getParam("use_noncomp_glycan_fdr").equals("") && Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default false
 			double defaultProp = getParam("glyco_default_propensity").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
 
 			// Glyco: first pass
