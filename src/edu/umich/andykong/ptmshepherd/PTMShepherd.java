@@ -243,7 +243,7 @@ public class PTMShepherd {
 		params.put("diagmine_filterIonTypes", "aby");
 		params.put("diagmine_ionTypes", "by");
 		params.put("diagmine_maxP", "0.05");
-		params.put("diagmine_minAuc", "0.01");
+		params.put("diagmine_minAuc", "0.01"); //todo deprecated
 		params.put("diagmine_minSpecDiff", "0.25");
 		params.put("diagmine_minFoldChange", "2.0");
 		params.put("diagmine_pepMinSpecDiff", "0.25");

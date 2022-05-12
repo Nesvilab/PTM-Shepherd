@@ -200,8 +200,8 @@ public class BinDiagMetric {
                 continue;
             if (!printNonReps && !t.isIsotopeRep)
                 continue;
-            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
+            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q,
                     t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
                     t.propWIonIntensity, t.propWIonIntensityCont,
                     t.n1, t.n2);
@@ -215,8 +215,8 @@ public class BinDiagMetric {
                 continue;
             if (!printNonReps && !t.isIsotopeRep)
                 continue;
-            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
+            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q,
                     t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
                     t.propWIonIntensity, t.propWIonIntensityCont,
                     t.n1, t.n2);
@@ -233,8 +233,8 @@ public class BinDiagMetric {
                     continue;
                 if (!printNonReps && !t.isValid)
                     continue;
-                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
-                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc,
+                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q,
                         t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
                         t.propWIonIntensity, t.propWIonIntensityCont,
                         t.n1, t.n2);

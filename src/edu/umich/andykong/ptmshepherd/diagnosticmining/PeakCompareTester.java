@@ -543,10 +543,6 @@ public class PeakCompareTester {
             findRemainderMassesCutoff(this.squigglesTests.get(c), 0.05);
         }
 
-
-
-
-
         /* clear out most of memory */
         clearMemory();
 
@@ -555,14 +551,14 @@ public class PeakCompareTester {
         if (debug) {
             Collections.sort(this.immoniumTests);
             for (Test t : this.immoniumTests)
-                System.out.printf("Immonium %.04f\t%e\t%f\t%.04f\t%b\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.isDecoy, t.n1, t.n2);
+                System.out.printf("Immonium %.04f\t%e\t%.04f\t%b\t%d\t%d\n", t.mass, t.q, t.u, t.isDecoy, t.n1, t.n2);
             Collections.sort(this.capYTests);
             for (Test t : this.capYTests)
-                System.out.printf("CapY %.04f\t%e\t%f\t%.04f\t%b\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.isDecoy, t.n1, t.n2);
+                System.out.printf("CapY %.04f\t%e\t%.04f\t%b\t%d\t%d\n", t.mass, t.q, t.u, t.isDecoy, t.n1, t.n2);
             for (Character c : this.squigglesTests.keySet()) {
                 Collections.sort(this.squigglesTests.get(c));
                 for (Test t : this.squigglesTests.get(c))
-                    System.out.printf("Squiggle %.04f\t%e\t%f\t%.04f\t%b\t%d\t%d\n", t.mass, t.q, t.rbc, t.u, t.isDecoy, t.n1, t.n2);
+                    System.out.printf("Squiggle %s %.04f\t%e\t%.04f\t%b\t%d\t%d\n", Character.toString(c), t.mass, t.q, t.u, t.isDecoy, t.n1, t.n2);
             }
         }
     }
@@ -611,7 +607,6 @@ public class PeakCompareTester {
             if (tests.get(i).group > 0)
                 continue;
             tests.get(i).group = group;
-            //System.out.println(tests.get(i).mass);
             for (int j = i + 1; j < tests.size(); j++) {
                 if (tests.get(j).group > 0)
                     continue;
@@ -989,7 +984,7 @@ class Test implements Comparable<Test> {
     }
 
     public String toString() {
-        return String.format("%.04f\t%e\t%f\t%.04f\t%b\t%d\t%d", this.mass, this.q, this.rbc, this.u, this.isDecoy, this.n1, this.n2);
+        return String.format("%.04f\t%e\t%.04f\t%b\t%d\t%d", this.mass, this.q, this.u, this.isDecoy, this.n1, this.n2);
     }
 
     @Override
