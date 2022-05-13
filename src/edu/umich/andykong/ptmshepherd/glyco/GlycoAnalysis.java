@@ -58,11 +58,11 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
-    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;
+    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;      // todo: param
     public static final int MAX_PROB_RATIO_ABSOLUTE = 10;
     public double finalGlycoFDR;
     public double defaultPropensity;
-    public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;
+    public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
     public boolean useNonCompFDR;
 
     // Default constructor
@@ -976,7 +976,7 @@ public class GlycoAnalysis {
         sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
 
         // mass and isotope error
-        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
+        sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
 
         return sumLogRatio;
     }
@@ -1079,17 +1079,7 @@ public class GlycoAnalysis {
         }
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
-        float iso1 = (float) (deltaMass - bestGlycan.monoisotopicMass);
-        int roundedIso1 = Math.round(iso1);
-        double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(0);
-        sumLogRatio += Math.log(isotopeProbRatio);
-        if (! (probabilityTable.massProbScaling == 0)) {
-            // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
-            double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
-            double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
-            double massDist = Math.abs(massStDevs1) * probabilityTable.massProbScaling;
-            sumLogRatio += Math.log(defaultMassErrorAbsScore / massDist);      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
-        }
+        sumLogRatio += computeMassIsoScoreAbs(bestGlycan, deltaMass, massErrorWidth, meanMassError);
         return sumLogRatio;
     }
 
@@ -1165,7 +1155,7 @@ public class GlycoAnalysis {
         sumLogRatio += pairwiseCompareOxoStatic(glycan1, glycan2);
 
         // isotope and mass errors
-        sumLogRatio += determineIsotopeAndMassErrorProbs(glycan1, glycan2, deltaMass, meanMassError);
+        sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
 
         return sumLogRatio;
     }
@@ -1281,7 +1271,7 @@ public class GlycoAnalysis {
      * @param meanMassError  mean mass error of non-delta mass peptides
      * @return probability ratio (glycan 1 over 2)
      */
-    public double determineIsotopeAndMassErrorProbs(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
+    public double computeMassIsoScorePairwise(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
         // Determine isotopes
         float iso1 = (float) (deltaMass - glycan1.monoisotopicMass);
         int roundedIso1 = Math.round(iso1);
@@ -1305,9 +1295,9 @@ public class GlycoAnalysis {
             double massStDevs2 = massError2 - meanMassError;
             if (Math.abs(massStDevs2) < minMassError)
                 massStDevs2 = minMassError;
-            massProbRatio = Math.abs(massStDevs2 / massStDevs1) * probabilityTable.massProbScaling;     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
+            massProbRatio = Math.abs(massStDevs2 / massStDevs1);     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
         }
-        return Math.log(isotopeProbRatio) + Math.log(massProbRatio);
+        return Math.log(isotopeProbRatio) + Math.log(massProbRatio) * probabilityTable.massProbScaling;
     }
 
     /**
@@ -1395,16 +1385,21 @@ public class GlycoAnalysis {
         sumLogRatio += computeOxoAbsoluteScore(bestGlycan);
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
+        sumLogRatio += computeMassIsoScoreAbs(bestGlycan, deltaMass, massErrorWidth, meanMassError);
+        return sumLogRatio;
+    }
+
+    private double computeMassIsoScoreAbs(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
         float iso1 = (float) (deltaMass - bestGlycan.monoisotopicMass);
         int roundedIso1 = Math.round(iso1);
         double isotopeProbRatio = probabilityTable.isotopeProbTable.get(roundedIso1) / probabilityTable.isotopeProbTable.get(0);
-        sumLogRatio += Math.log(isotopeProbRatio);
+        double sumLogRatio = Math.log(isotopeProbRatio);
         if (! (probabilityTable.massProbScaling == 0)) {
             // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
             double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
             double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
-            double massDist = Math.abs(massStDevs1) * probabilityTable.massProbScaling;
-            sumLogRatio += Math.log(defaultMassErrorAbsScore / massDist);      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
+            double massDist = Math.abs(massStDevs1);
+            sumLogRatio += Math.log(defaultMassErrorAbsScore / massDist) * probabilityTable.massProbScaling;      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
         }
         return sumLogRatio;
     }
