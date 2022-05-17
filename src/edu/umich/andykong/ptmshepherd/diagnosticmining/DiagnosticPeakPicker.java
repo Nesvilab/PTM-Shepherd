@@ -417,11 +417,11 @@ public class DiagnosticPeakPicker {
     }
 
     public void print(String fout) throws IOException {
-        boolean debug = false;
+        boolean debug = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printDebugFile"));
         if (debug) {
             PrintWriter out = new PrintWriter(new FileWriter(fout + "_debug", false));
 
-            out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
+            out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
             for (int i = 0; i < this.binDiagMetrics.length; i++) {
                 out.print(this.binDiagMetrics[i].toString(true));
             }
@@ -434,7 +434,7 @@ public class DiagnosticPeakPicker {
                 "mass\t" +
                 "remainder_propensity\t" + "delta_mod_mass\t" +
                 "percent_mod\tpercent_unmod\t" +
-                "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\n");
+                "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\tauc\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
             out2.print(this.binDiagMetrics[i].toString());
         }

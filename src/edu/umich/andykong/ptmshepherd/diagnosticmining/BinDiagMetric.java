@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 
 import java.io.IOException;
@@ -159,14 +160,17 @@ public class BinDiagMetric {
 
         //System.out.println("\nPeakApex:"+peakApex);
 
+        boolean printHistos = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printHistos"));
         //this.immoniumIons.smoothify(executorService, nThreads);
         //this.capYIons.smoothify(executorService, nThreads);
         //System.out.println("ImmoniumAbund");
         this.immoniumIons.findPeaks();
-        //this.immoniumIons.printHisto(peakApex+"_diag.tsv");
+        if (printHistos)
+            this.immoniumIons.printHisto(peakApex+"_diag.tsv");
         //System.out.println("CapYAbund");
         this.capYIons.findPeaks();
-        //this.capYIons.printHisto(peakApex+"_peptide.tsv");
+        if (printHistos)
+            this.capYIons.printHisto(peakApex+"_peptide.tsv");
 
 
         this.immoniumIons.clearMemory();
@@ -179,7 +183,8 @@ public class BinDiagMetric {
             long t2 = System.currentTimeMillis();
             //System.out.println("SquiggleAbund");
             this.tildeIons.get(i).findPeaks();
-            //this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
+            if (printHistos)
+                this.tildeIons.get(i).printHisto(this.peakApex + "_" + this.ionTypes.charAt(i) + ".tsv");
             long t3 = System.currentTimeMillis();
             this.tildeIons.get(i).clearMemory();
             //System.out.printf("Processing time (%d ms smoothing - %d ms peakpicking)\n", t2-t1, t3-t2);
@@ -200,8 +205,8 @@ public class BinDiagMetric {
                 continue;
             if (!printNonReps && !t.isIsotopeRep)
                 continue;
-            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q,
+            String newLine = String.format("%.04f\tdiagnostic\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
                     t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
                     t.propWIonIntensity, t.propWIonIntensityCont,
                     t.n1, t.n2);
@@ -215,8 +220,8 @@ public class BinDiagMetric {
                 continue;
             if (!printNonReps && !t.isIsotopeRep)
                 continue;
-            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
-                    this.peakApex, t.mass, t.adjustedMass, t.q,
+            String newLine = String.format("%.04f\tY\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                    this.peakApex, t.mass, t.adjustedMass, t.q, t.rbc,
                     t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
                     t.propWIonIntensity, t.propWIonIntensityCont,
                     t.n1, t.n2);
@@ -233,8 +238,8 @@ public class BinDiagMetric {
                     continue;
                 if (!printNonReps && !t.isValid)
                     continue;
-                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
-                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q,
+                String newLine = String.format("%.04f\t%c\t%.04f\t%.04f\t%e\t%f\t%.02f\t%.02f\t%.02f\t%.02f\t%d\t%d\n",
+                        this.peakApex, cIon, t.mass, t.adjustedMass, t.q, t.rbc,
                         t.propWIonTreat, Double.isNaN(t.propWIonCont) ? 0 : t.propWIonCont,
                         t.propWIonIntensity, t.propWIonIntensityCont,
                         t.n1, t.n2);

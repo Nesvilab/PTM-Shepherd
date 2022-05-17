@@ -79,13 +79,9 @@ public class PeakCompareTester {
     double fragMinSpecDiff;
     double fragMinPropensity;
 
-
     double specTol;
 
-    public PeakCompareTester(ArrayList<Double> xVals, ArrayList<Double> yVals) {
-        this.x = xVals.stream().mapToDouble(i -> i).toArray();
-        this.y = yVals.stream().mapToDouble(i -> i).toArray();
-    }
+    boolean debug;
 
     public PeakCompareTester(double peakApex, ArrayList<Double> unifImm, ArrayList<Double> unifCapY, HashMap<Character, ArrayList<Double>> unifSquig, double maxP, double minRbc, double minSpecDiff, double minFoldChange, boolean twoTailedTests, double specTol) {
         this.peakApex = peakApex;
@@ -140,6 +136,7 @@ public class PeakCompareTester {
         this.fragMinPropensity = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinFoldChange"));
         this.minFoldChange = minFoldChange;
 
+        this.debug = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printDebug"));
     }
 
     public synchronized void addDrs(ArrayList<DiagnosticRecord> drs, boolean isControl, boolean isDecoy) {
@@ -201,10 +198,8 @@ public class PeakCompareTester {
         //immoniumXN = {peak : <values>}
         for (String pepKey : pepMap.keySet()) {
             for (DiagnosticRecord dr : pepMap.get(pepKey)) { // This is only n = 1, can be fixed
-                for (Double peak : dr.selectedImmoniumPeaks.keySet()) {
+                for (Double peak : dr.selectedImmoniumPeaks.keySet())
                     imm.get(peak).add(dr.selectedImmoniumPeaks.get(peak));
-                    //System.out.println(pepKey + "\t" + dr.selectedImmoniumPeaks.get(peak));
-                }
                 for (Double peak : dr.selectedCapYPeaks.keySet())
                     capY.get(peak).add(dr.selectedCapYPeaks.get(peak));
                 for (Character c : dr.selectedSquigglePeaks.keySet()) {
@@ -213,12 +208,6 @@ public class PeakCompareTester {
                 }
             }
         }
-
-        //System.out.println(immN.size());
-        //for (Double peak : immN.keySet()) {
-        //    System.out.println(peak + "\t" + immN.get(peak).size());
-        //    System.out.println(immN.get(peak));
-        //}
 
     }
 
@@ -267,7 +256,6 @@ public class PeakCompareTester {
     public void performTests() throws IOException {
         collapseHashMaps();
         MannWhitneyUTest mwu = new MannWhitneyUTest();
-        TTest tTest = new TTest();
 
         this.immoniumTests = new ArrayList<>();
         for (Double peak : this.immoniumX.keySet()) {
@@ -291,6 +279,9 @@ public class PeakCompareTester {
             double wIonIntensityCont = calcWIonIntensity(this.immoniumX.get(peak), this.nControlPsms);
             double foldChange = calcFoldChange(propWIon, wIonIntensity, propWIonCont, wIonIntensityCont);
             double maxAbsFoldChange = Math.max(foldChange, Math.pow(foldChange, -1));
+
+            if (debug)
+                System.out.println(peakApex + "\t" + peak + "\t" + foldChange + "\t" + propWIon);
             if (this.twoTailedTests == false) {
                 if (p <= this.maxP && foldChange >= this.diagMinFoldChange && propWIon >= this.diagMinSpecDiff) {
                     this.immoniumTests.add(new Test(peakApex, peak, p, rankBiserCorr, false, propWIon, propWIonCont, wIonIntensity, wIonIntensityCont,
@@ -547,7 +538,7 @@ public class PeakCompareTester {
         clearMemory();
 
         //Print all tests
-        boolean debug = false;
+
         if (debug) {
             Collections.sort(this.immoniumTests);
             for (Test t : this.immoniumTests)
@@ -764,7 +755,6 @@ public class PeakCompareTester {
                     resCounts[i]['i' - 'a'] = 0;
                 }
 
-
                 //Adjust mass by res mass if it is very prevalent
                 /*
                 for (int i  = 0; i < resCounts2.length; i++) {
@@ -773,7 +763,6 @@ public class PeakCompareTester {
                     }
                 }
                 */
-
 
                 for (int i = 0; i < resCounts.length; i++) {
                     for (int j = 0; j < resCounts[i].length; j++) {

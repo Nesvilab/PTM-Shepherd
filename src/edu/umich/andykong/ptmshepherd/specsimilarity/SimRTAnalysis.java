@@ -224,11 +224,11 @@ public class SimRTAnalysis {
 			}
 
 			if (!linesWithoutSpectra.isEmpty()) {
-				System.out.printf("Could not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), totalLines,
+				System.out.printf("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), totalLines,
 						100.0*((double)linesWithoutSpectra.size()/totalLines));
 				int previewSize = Math.min(linesWithoutSpectra.size(), 5);
-				System.out.printf("Showing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
-						String.join("\n\t", linesWithoutSpectra.subList(0, previewSize)));
+				System.out.printf("\tShowing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
+						String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize)));
 			}
 			
 			//calculate zeroRT

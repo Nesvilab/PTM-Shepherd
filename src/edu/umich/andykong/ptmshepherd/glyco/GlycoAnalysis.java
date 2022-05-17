@@ -151,11 +151,11 @@ public class GlycoAnalysis {
         glycoOut.close();
 
         if (!linesWithoutSpectra.isEmpty()) {
-            PTMShepherd.print(String.format("Could not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), this.totalLines,
+            PTMShepherd.print(String.format("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), this.totalLines,
                     100.0*((double)linesWithoutSpectra.size()/this.totalLines)));
             int previewSize = Math.min(linesWithoutSpectra.size(), 5);
-            PTMShepherd.print(String.format("Showing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
-                    String.join("\n\t", linesWithoutSpectra.subList(0, previewSize))));
+            PTMShepherd.print(String.format("\tShowing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
+                    String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize))));
         }
     }
 

@@ -83,13 +83,13 @@ public class DiagnosticProfileRecord {
                             "\t\t" +
                             "%.02f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
-                            "%f\n",
+                            "%f\t%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
                     //propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
                     this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
                     //this.q, this.rbc); //selection stats
-                    foldChange);
+                    foldChange, this.rbc);
         } else if (this.type.equals("peptide")) {
             double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
             double foldChange = (this.propWIonTreatIonLevel *  this.wIonIntTreatIonLevel) /
@@ -99,12 +99,12 @@ public class DiagnosticProfileRecord {
                             "\t%.04f\t" +
                             "%.02f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
-                            "%f\n",
+                            "%f\t%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
                     remainderDelta, //lost mass stats
                     this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
-                    foldChange);
+                    foldChange, this.rbc);
         } else {
             float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
             if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity")))
@@ -117,12 +117,12 @@ public class DiagnosticProfileRecord {
                             "%.02f\t%.04f\t" +
                             "%.02f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
-                            "%f\n",
+                            "%f\t%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
                     remainderOdds * 100.0, remainderDelta, //ion level stats
                     this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
-                    foldChange);
+                    foldChange, this.rbc);
         }
         return newLine;
     }
