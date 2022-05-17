@@ -75,6 +75,14 @@ public class DiagnosticProfileRecord {
 
     public String toString() {
         String newLine;
+
+        // Optionally remove isotopic peaks
+        boolean printIsos = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printIsotopes"));
+        if (!printIsos) {
+            if (this.modName.contains("isotopic peak"))
+                return "";
+        }
+
         if (this.type.equals("diagnostic")) {
             double foldChange = (this.propWIonTreatIonLevel *  this.wIonIntTreatIonLevel) /
                     (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
@@ -96,7 +104,7 @@ public class DiagnosticProfileRecord {
                     (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
             foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
             newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
-                            "\t%.04f\t" +
+                            "%.04f\t\t" +
                             "%.02f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
                             "%f\t%f\n",
@@ -107,19 +115,19 @@ public class DiagnosticProfileRecord {
                     foldChange, this.rbc);
         } else {
             float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
-            if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity")))
+            if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity"))) //todo this should be calculated and filtered elsewhere
                 return "";
             double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
             double foldChange = (this.propWIonTreatIonLevel *  this.wIonIntTreatIonLevel) /
                     (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
             foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
             newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
-                            "%.02f\t%.04f\t" +
+                            "%.04f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
                             "%f\t%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
-                    remainderOdds * 100.0, remainderDelta, //ion level stats
+                    remainderDelta, remainderOdds * 100.0, //ion level stats
                     this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
                     foldChange, this.rbc);

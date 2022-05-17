@@ -431,8 +431,8 @@ public class DiagnosticPeakPicker {
 
         PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
         out2.print("peak_apex\tmod_annotation\tion_type\t" +
-                "mass\t" +
-                "remainder_propensity\t" + "delta_mod_mass\t" +
+                "mass\t" + "delta_mod_mass\t" +
+                "remainder_propensity\t" +
                 "percent_mod\tpercent_unmod\t" +
                 "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\tauc\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {

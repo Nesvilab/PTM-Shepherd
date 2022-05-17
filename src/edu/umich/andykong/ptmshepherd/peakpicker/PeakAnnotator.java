@@ -300,8 +300,8 @@ public class PeakAnnotator {
 		}
 
 		while((cline = in.readLine())!= null) {
-			String [] sp = cline.split("\\t");
-			addMod(sp[0],Double.parseDouble(sp[1]));
+			String [] sp = cline.split("\\t | %");
+			addMod(sp[0].trim(),Double.parseDouble(sp[1].trim()));
 		}
 
 		in.close();

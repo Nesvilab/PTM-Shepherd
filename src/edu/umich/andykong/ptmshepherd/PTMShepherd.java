@@ -71,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC18";
+ 	public static final String version = "2.0.0-RC19";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -261,6 +261,7 @@ public class PTMShepherd {
 		params.put("diagmine_printHistos", "false");
 		params.put("diagmine_printDebug", "false");
 		params.put("diagmine_printDebugFile", "false");
+		params.put("diagmine_printIsotopes", "false");
 
 		params.put("output_extended", "false");
 		params.put("output_path", "");
@@ -319,7 +320,8 @@ public class PTMShepherd {
 		Locale.setDefault(new Locale("en","US"));
 		out.println();
 		out.printf("%s version %s\n",name,version);
-		out.println("(c) 2022 University of Michigan\n\n" +
+		out.println("(c) 2022 University of Michigan\n");
+				/*
 						"Licensed under the Apache License, Version 2.0 (the \"License\");\n" +
 						"you may not use this file except in compliance with the License.\n" +
 						"You may obtain a copy of the License at\n\n" +
@@ -329,6 +331,7 @@ public class PTMShepherd {
 				"WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
 				"See the License for the specific language governing permissions and\n" +
 				"limitations under the License.\n");
+				 */
 		out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
 		
 		if(args.length == 0) {
