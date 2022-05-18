@@ -360,7 +360,6 @@ public class PTMShepherd {
 
 		//After knowing where all files should be, remove ones from old runs
 		if(!Boolean.parseBoolean(params.get("run_from_old"))) {
-			print("Cleaning***");
 			List<String> filesToDelete = Arrays.asList(peaksName,
 				peakSummaryAnnotatedName, peakSummaryName, combinedTSVName);
 			for (String f : filesToDelete) {
@@ -374,7 +373,6 @@ public class PTMShepherd {
 			List<String> extsToDelete = Arrays
 					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoName, modSummaryName);
 			for (String ds : datasets.keySet()) {
-				print("Cleaning*********");
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
 					deleteFile(p, true);
