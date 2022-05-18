@@ -71,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC20";
+ 	public static final String version = "2.0.0-RC21";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -360,11 +360,13 @@ public class PTMShepherd {
 
 		//After knowing where all files should be, remove ones from old runs
 		if(!Boolean.parseBoolean(params.get("run_from_old"))) {
+			print("Cleaning***");
 			List<String> filesToDelete = Arrays.asList(peaksName,
 				peakSummaryAnnotatedName, peakSummaryName, combinedTSVName);
-
 			for (String f : filesToDelete) {
+				System.out.println(f);
 				Path p = Paths.get(normFName(f)).toAbsolutePath().normalize();
+				System.out.println(p);
 				deleteFile(p, true);
 			}
 
@@ -372,6 +374,7 @@ public class PTMShepherd {
 			List<String> extsToDelete = Arrays
 					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoName, modSummaryName);
 			for (String ds : datasets.keySet()) {
+				print("Cleaning*********");
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
 					deleteFile(p, true);
