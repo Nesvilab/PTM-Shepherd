@@ -115,7 +115,7 @@ public class DiagnosticProfileRecord {
                     foldChange, this.rbc);
         } else {
             float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
-            if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity"))) //todo this should be calculated and filtered elsewhere
+            if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity")) / 100.0) //todo this should be calculated and filtered elsewhere
                 return "";
             double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
             double foldChange = (this.propWIonTreatIonLevel *  this.wIonIntTreatIonLevel) /

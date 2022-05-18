@@ -128,11 +128,11 @@ public class PeakCompareTester {
         this.specTol = specTol;
 
         this.diagMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_diagMinFoldChange"));
-        this.diagMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_diagMinSpecDiff"));
+        this.diagMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_diagMinSpecDiff")) / 100.0;
         this.pepMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_pepMinFoldChange"));
-        this.pepMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_pepMinSpecDiff"));
+        this.pepMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_pepMinSpecDiff")) / 100.0;
         this.fragMinFoldChange = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinFoldChange"));
-        this.fragMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinSpecDiff"));
+        this.fragMinSpecDiff = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinSpecDiff")) / 100.0;
         this.fragMinPropensity = Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinFoldChange"));
         this.minFoldChange = minFoldChange;
 

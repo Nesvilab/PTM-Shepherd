@@ -71,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0-RC19";
+ 	public static final String version = "2.0.0-RC20";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -246,22 +246,22 @@ public class PTMShepherd {
 		params.put("diagmine_minAuc", "0.01"); //todo deprecated
 		params.put("diagmine_minSpecDiff", "0.25"); //todo deprecated
 		params.put("diagmine_minFoldChange", "2.0"); //todo deprecated
-		params.put("diagmine_pepMinSpecDiff", "0.25");
+		params.put("diagmine_pepMinSpecDiff", "25.0");
 		params.put("diagmine_pepMinFoldChange", "3.0");
 		params.put("diagmine_diagMinFoldChange", "3.0");
-		params.put("diagmine_diagMinSpecDiff", "0.25");
-		params.put("diagmine_fragMinSpecDiff", "0.15");
-		params.put("diagmine_fragMinPropensity", "0.125");
+		params.put("diagmine_diagMinSpecDiff", "25.0");
+		params.put("diagmine_fragMinSpecDiff", "15.0");
+		params.put("diagmine_fragMinPropensity", "12.5");
 		params.put("diagmine_fragMinFoldChange", "3.0");
 		params.put("diagmine_minPeps", "25");
 		params.put("diagmine_twoTailedTests", "0");
-		params.put("diagmine_printRedundantTests", "0");
 		params.put("diagmine_maxPsms", "1000");
 		params.put("diagmine_minIonsPerSpec", "2");
 		params.put("diagmine_printHistos", "false");
 		params.put("diagmine_printDebug", "false");
 		params.put("diagmine_printDebugFile", "false");
 		params.put("diagmine_printIsotopes", "false");
+		params.put("diagmine_printRedundantTests", "0");
 
 		params.put("output_extended", "false");
 		params.put("output_path", "");
