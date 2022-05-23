@@ -267,13 +267,13 @@ public class BinDiagMetric {
             Test t = this.testResults.immoniumTests.get(i);
             if (!t.isIsotopeRep)
                 continue;
-            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName, "diagnostic", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName, "diagnostic", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.n1, t.n2));
         }
         for (int i = 0; i < this.testResults.capYTests.size(); i++) {
             Test t = this.testResults.capYTests.get(i);
             if (!t.isIsotopeRep)
                 continue;
-            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName,"peptide", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+            this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName,"peptide", t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.n1, t.n2));
         }
         for (Character cIon : this.testResults.squigglesTests.keySet()) {
             for (int i = 0; i < this.testResults.squigglesTests.get(cIon).size(); i++) {
@@ -282,7 +282,7 @@ public class BinDiagMetric {
                     continue;
                 if (!t.isValid)
                     continue;
-                this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName, Character.toString(cIon), t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont));
+                this.diagProfRecs.add(new DiagnosticProfileRecord(this.peakApex, this.modName, Character.toString(cIon), t.mass, t.adjustedMass, t.q, t.rbc, t.propWIonTreat, t.propWIonCont, t.propWIonIntensity, t.propWIonIntensityCont, t.n1, t.n2));
             }
         }
     }

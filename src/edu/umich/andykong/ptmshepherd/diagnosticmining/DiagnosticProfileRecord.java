@@ -33,6 +33,8 @@ public class DiagnosticProfileRecord {
     double propWIonControlIonLevel;
     double wIonIntTreatIonLevel;
     double wIonIntContIonLevel;
+    long nMod;
+    long nUnmod;
 
     // For immonium and Y ions
     AtomicInteger nTotal;
@@ -49,7 +51,8 @@ public class DiagnosticProfileRecord {
 
     public DiagnosticProfileRecord(double peakApex, String modName, String type, double mass, double adjustedMass, double q,
                                     double rbc, double propWIonTreat, double propWIonCont,
-                                    double propWIonIntensityTreat, double propWIonIntensityCont) {
+                                    double propWIonIntensityTreat, double propWIonIntensityCont,
+                                   long nMod, long nUnmod) {
         this.peakApex = peakApex;
         this.modName = modName;
         this.type = type;
@@ -57,6 +60,8 @@ public class DiagnosticProfileRecord {
         this.adjustedMass = adjustedMass;
         this.q = q;
         this.rbc = rbc;
+        this.nMod = nMod;
+        this.nUnmod = nUnmod;
 
         this.propWIonTreatIonLevel = propWIonTreat;
         this.propWIonControlIonLevel = propWIonCont;
