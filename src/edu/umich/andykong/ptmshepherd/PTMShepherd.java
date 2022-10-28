@@ -71,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.0";
+ 	public static final String version = "2.0.1";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -282,10 +282,7 @@ public class PTMShepherd {
 			String ckey = it.next();
 			params.put(ckey, overrides.get(ckey));
 		}
-		
-		//assertions
-//		if(!params.containsKey("database"))
-//			die("no database specified!");
+
 		if(datasets.size() == 0)
 			die("no datasets specified!");
 		if(datasets.containsKey(combinedName))
@@ -309,7 +306,7 @@ public class PTMShepherd {
 	private static void printAnnotationFiles() throws Exception {
 		extractFile("peakpicker/glyco_mods_20210127.txt", "glyco_annotation.txt");
 		extractFile("peakpicker/common_mods_20200813.txt", "common_mods_annotation.txt");
-		extractFile("peakpicker/unimod_20191002.txt", "unimod_annotation.txt");
+		extractFile("peakpicker/unimod_20221028.txt", "unimod_annotation.txt");
 	}
 
 	private static void printConfigFiles() throws Exception {
@@ -321,17 +318,6 @@ public class PTMShepherd {
 		out.println();
 		out.printf("%s version %s\n",name,version);
 		out.println("(c) 2022 University of Michigan\n");
-				/*
-						"Licensed under the Apache License, Version 2.0 (the \"License\");\n" +
-						"you may not use this file except in compliance with the License.\n" +
-						"You may obtain a copy of the License at\n\n" +
-						"\thttp://www.apache.org/licenses/LICENSE-2.0\n\n" +
-				"Unless required by applicable law or agreed to in writing, software\n" +
-				"distributed under the License is distributed on an \"AS IS\" BASIS,\n" +
-				"WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
-				"See the License for the specific language governing permissions and\n" +
-				"limitations under the License.\n");
-				 */
 		out.printf("Using Java %s on %dMB memory\n\n", System.getProperty("java.version"),(int)(Runtime.getRuntime().maxMemory()/Math.pow(2, 20)));
 		
 		if(args.length == 0) {
@@ -363,9 +349,7 @@ public class PTMShepherd {
 			List<String> filesToDelete = Arrays.asList(peaksName,
 				peakSummaryAnnotatedName, peakSummaryName, combinedTSVName);
 			for (String f : filesToDelete) {
-				System.out.println(f);
 				Path p = Paths.get(normFName(f)).toAbsolutePath().normalize();
-				System.out.println(p);
 				deleteFile(p, true);
 			}
 

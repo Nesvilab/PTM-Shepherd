@@ -164,13 +164,14 @@ public class PSMFile {
 
 	public static void getMappings(File path, HashMap<String,File> mappings, HashSet<String> runNames) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
-			datTypes.put("mgf", 4);
-			datTypes.put("mzBIN_cache", 5);
-			datTypes.put("mzBIN", 3);
-			datTypes.put("mzML", 2);
-			datTypes.put("mzXML", 2);
-			datTypes.put("raw", 1);
+		datTypes.put("mgf", 4);
+		datTypes.put("mzBIN_cache", 7);
+		datTypes.put("mzBIN", 3);
+		datTypes.put("mzML", 2);
+		datTypes.put("mzXML", 2);
+		datTypes.put("raw", 1);
 
+		int fileScore = 0;
 		if(path.isDirectory()) {		
 			File [] ls = path.listFiles();
 			//get mapping for each file
@@ -179,10 +180,14 @@ public class PSMFile {
 			}
 		} else {
 			String [] ns = splitName(path.getName());
-			if (ns[0].contains("_calibrated"))
+			if (ns[0].contains("_calibrated")) {
+				fileScore += 6;
 				ns[0] = ns[0].substring(0, ns[0].indexOf("_calibrated"));
-			else if (ns[0].contains("_uncalibrated"))
+			}
+			else if (ns[0].contains("_uncalibrated")) {
+				fileScore += 5;
 				ns[0] = ns[0].substring(0, ns[0].indexOf("_uncalibrated"));
+			}
 			if (!runNames.contains(ns[0]))
 				return;
 			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN") || ns[1].equals("mgf")) || ns[1].equals("mzBIN_cache")) {
@@ -191,7 +196,8 @@ public class PSMFile {
 				else {
 					File storedPath = mappings.get(ns[0]);
 					String[] storedNs = splitName(storedPath.getName());
-					if (datTypes.get(ns[1]) > datTypes.get(storedNs[1]))
+					fileScore += datTypes.get(ns[1]);
+					if (fileScore > datTypes.get(storedNs[1]))
 						mappings.put(ns[0], path);
 				}
 			}
