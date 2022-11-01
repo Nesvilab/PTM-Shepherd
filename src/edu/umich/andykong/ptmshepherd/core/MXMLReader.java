@@ -106,8 +106,8 @@ public class MXMLReader {
 		if (mzbinSource == null && mgfSource == null) { //if filetype is not mzBin
 			readFully(source);
 			for(int i = 0; i < specs.length; i++) {
-				specsByName.put(specs[i].scanName, specs[i]);
-				specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
+				specsByName.put(removeCalTag(specs[i].scanName), specs[i]);
+				specsByStrippedName.put(removeCalTag(stripChargeState(specs[i].scanName)), specs[i]);
 			}
 		} else if (mgfSource == null) {
 			readAsMzBIN(mzbinSource);
@@ -210,6 +210,14 @@ public class MXMLReader {
 		cspecs.toArray(specs);
 	}
 
+	private String removeCalTag(String scanName) {
+		if (scanName.contains("_calibrated"))
+			return scanName.replace("_calibrated", "");
+		else if (scanName.contains("_uncalibrated"))
+			return scanName.replace("_uncalibrated", "");
+		else
+			return scanName;
+	}
 	/*
 	private void readAsMzBIN(ExecutorService executorService) throws Exception {
 		ArrayList scans = new ArrayList<>();
