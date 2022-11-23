@@ -332,8 +332,9 @@ public class PSMFile {
 					newLine.set(observedModCol + 1, glycanScore);
 					newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
 					int charge = Integer.parseInt(newLine.get(chargeCol));
-					newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge, writeGlycansToAssignedMods);
-
+					if (writeGlycansToAssignedMods) {
+						newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge, writeGlycansToAssignedMods);
+					}
 				}
 			}
 			out.println(String.join("\t", newLine));
