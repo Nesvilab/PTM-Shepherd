@@ -84,7 +84,7 @@ public class PTMShepherd {
 	private static final long glycoRandomSeed = 1364955171;
 
 	// filenames for output files
-	public static final String outputDirName = "ptm-shepherd_extended_output/";
+	public static final String outputDirName = "ptm-shepherd-output/";
 	public static final String globalName = "global";
 	public static final String combinedName = "combined";
 	public static final String mzBinFilename = ".mzBIN_cache";
@@ -298,7 +298,7 @@ public class PTMShepherd {
 		else
 			outputPath = params.get("output_path");
 
-		makeOutputDir(outputPath, Boolean.parseBoolean(params.get("output_extended")));
+		makeOutputDir(outputPath);
 
 		executorService = Executors.newFixedThreadPool(Integer.parseInt(params.get("threads")));
 	}
@@ -833,15 +833,6 @@ public class PTMShepherd {
 			cs.printFile();
 		}
 
-		/* Move main tables out of extended subfolder */
-		if (Boolean.parseBoolean(params.get("output_extended"))) {
-			moveFileFromExtendedDir(normFName(globalName + profileName));
-			moveFileFromExtendedDir(normFName(globalName + modSummaryName));
-			moveFileFromExtendedDir(normFName(globalName + diagMineName));
-			moveFileFromExtendedDir(normFName(globalName + diagIonsExtractName));
-
-		}
-
 		List<String> filesToDelete = Arrays.asList(normFName(peaksName), normFName(peakSummaryAnnotatedName),
 				normFName(peakSummaryName), normFName(combinedTSVName), normFName(combinedHistoName));
 		//delete redundant files
@@ -895,6 +886,13 @@ public class PTMShepherd {
 				deleteFile(p, true);
 			}
 
+		}
+		// delete diagBin files even if not extended output
+		for (String ds : datasets.keySet()) {
+			for (String mzFile : mzMap.get(ds).keySet()) {
+				Path p = Paths.get(normFName(mzFile + diagBinFilename)).toAbsolutePath().normalize();
+				deleteFile(p, true);
+			}
 		}
 
 		for (String crc : cacheFiles) {
@@ -1050,12 +1048,7 @@ public class PTMShepherd {
 
 	/* This method adds the output directory path to file strings */
 	public static String normFName(String fpath) {
-		String newFPath;
-		if (Boolean.parseBoolean(params.get("output_extended")))
-			newFPath = new String(outputPath + outputDirName + fpath);
-		else
-			newFPath = new String(outputPath + fpath);
-		return newFPath;
+		return outputPath + outputDirName + fpath;
 	}
 
 	/* This method will move main files out of subdirectory and into main directory */
@@ -1080,17 +1073,17 @@ public class PTMShepherd {
 	}
 
 	/* Makes output directory */
-	public static void makeOutputDir(String dpath, boolean extendedOutput) throws Exception {
+	public static void makeOutputDir(String dpath) throws Exception {
 		try {
 			if (!dpath.equals("")) {
 				File dir = new File(dpath);
 				if (!dir.exists())
 					dir.mkdirs();
-				if (extendedOutput) {
-					File eoDir = new File(dpath + outputDirName);
-					if (!eoDir.exists())
-						eoDir.mkdir();
-				}
+
+				File eoDir = new File(dpath + outputDirName);
+				if (!eoDir.exists())
+					eoDir.mkdirs();
+
 			}
 		} catch (Exception e) {
 			out.println("Error creating output directory. Terminating.");
