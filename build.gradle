@@ -93,6 +93,7 @@ shadowJar {
     exclude '**/*.html'
     exclude '**/OSGI-OPT/'
     archiveClassifier = null
+    mergeServiceFiles() // https://stackoverflow.com/a/73349585
 }
 
 task packageWithDeps(group: 'ptm-shepherd') {
