@@ -106,6 +106,7 @@ public class PTMShepherd {
 	public static final String diagBinFilename = ".diagBIN";
 	public static final String diagMineName = ".diagmine.tsv";
 	public static final String diagIonsExtractName = ".diagnosticIons.tsv";
+	public static final String glycoMassListName = "glyco_masses_list.txt";
 
 
 	public static String getParam(String key) {
@@ -704,6 +705,8 @@ public class PTMShepherd {
 			Integer[] glycoIsotopes = StaticGlycoUtilities.parseGlycoIsotopesParam();
 			boolean nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
 			glycoDatabase = StaticGlycoUtilities.parseGlycanDatabase(getParam("glycodatabase"), adductList, maxAdducts, randomGenerator, decoyType, glycoPPMtol, glycoIsotopes, glycoProbabilityTable, glycoOxoniumDatabase, nGlycan);
+			String glycoMassFilePath = normFName(glycoMassListName);
+			StaticGlycoUtilities.writeGlycanMassList(glycoDatabase, glycoMassFilePath);
 			boolean glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
 			double absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_ABS_SCORE_BASE : Double.parseDouble(getParam("glyco_abs_score_base"));
 			String glycoFDRParam = getParam("glyco_fdr");

@@ -31,6 +31,23 @@ import java.util.*;
 public class StaticGlycoUtilities {
 
     /**
+     * Write a list of masses for all glycan candidates to pass to IonQuant. Format is one mass per line.
+     * @param glycanDB list of glycan candidates (whole glycan database)
+     * @param outputPath where to save the file
+     */
+    public static void writeGlycanMassList(ArrayList<GlycanCandidate> glycanDB, String outputPath) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(outputPath));
+        for (GlycanCandidate candidate : glycanDB) {
+            if (candidate.isDecoy) {
+                continue;       // do not write decoy masses to list - only target masses are reported in PSM table, even if decoy is assigned
+            }
+            out.write(String.format("%.4f\n",candidate.monoisotopicMass));
+        }
+        out.flush();
+        out.close();
+    }
+
+    /**
      * Parse input glycan database file. Formatting: 1 glycan per line, "Residue1-count_Residue2-count_...\n"
      * @param inputPath path to input file
      * @param glycoIsotopes
