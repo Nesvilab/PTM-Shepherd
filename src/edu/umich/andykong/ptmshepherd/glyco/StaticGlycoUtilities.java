@@ -381,15 +381,7 @@ public class StaticGlycoUtilities {
         // Read all residue counts into the composition container
         for (String split: splits) {
             String[] glycanSplits = split.split("-");
-            // todo: add error catching
-            GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
-            int count;
-            try {
-                count = Integer.parseInt(glycanSplits[1].trim());
-            } catch (ArrayIndexOutOfBoundsException ex) {
-                continue;   // decoy - will be filtered once FDR in place todo: remove this after fdr filtering adding
-            }
-            glycanComp.put(residue, count);
+            parserHelper(glycanComp, glycanSplits[0], glycanSplits[1], glycanString);
         }
         return glycanComp;
     }
@@ -408,16 +400,32 @@ public class StaticGlycoUtilities {
         // Read all residue counts into the composition container
         for (String split: compositionSplits) {
             String[] glycanSplits = split.split("\\(");
-            GlycanResidue residue = GlycanMasses.glycoNames.get(glycanSplits[0].trim().toLowerCase(Locale.ROOT));
-            int count;
-            try {
-                count = Integer.parseInt(glycanSplits[1].trim());
-            } catch (ArrayIndexOutOfBoundsException ex) {
-                continue;   // empty string or incorrect format - ignore
-            }
-            glycanComp.put(residue, count);
+            parserHelper(glycanComp, glycanSplits[0], glycanSplits[1], glycanString);
         }
         return glycanComp;
+    }
+
+    /**
+     * Helper for parsing glycan compositions with error checking. NOTE: ignores unknown glycan residues, but continues
+     * assembling the rest of the composition, leading to altered compositions when unknowns are present
+     * @param glycanComp
+     * @param residueStr
+     * @param countStr
+     * @param glycanString
+     */
+    private static void parserHelper(TreeMap<GlycanResidue, Integer> glycanComp, String residueStr, String countStr, String glycanString) {
+        GlycanResidue residue = GlycanMasses.glycoNames.get(residueStr.trim().toLowerCase(Locale.ROOT));
+        if (residue == null) {
+            PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", residueStr, glycanString));
+            return;
+        }
+        int count;
+        try {
+            count = Integer.parseInt(countStr.trim());
+        } catch (ArrayIndexOutOfBoundsException ex) {
+            return;   // empty string or incorrect format - ignore
+        }
+        glycanComp.put(residue, count);
     }
 
     /**
