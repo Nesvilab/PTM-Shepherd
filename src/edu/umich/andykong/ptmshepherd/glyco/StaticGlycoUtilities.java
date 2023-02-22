@@ -24,11 +24,28 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Organization - putting a bunch of glyco-specific utilities here rather than cluttering the main PTM-S.java
  */
 public class StaticGlycoUtilities {
+
+    private static final Pattern numberPattern = Pattern.compile("[0-9]");
+    private static final Pattern pGlycoPattern = Pattern.compile("[AGFHNP]");
+    private static final HashMap<String, GlycanResidue> pGlycoTokenMap;    // map pGlyco tokens to our internal Glycan strings
+    static
+    {
+        pGlycoTokenMap = new HashMap<>();
+        pGlycoTokenMap.put("A", GlycanResidue.NeuAc);
+        pGlycoTokenMap.put("G", GlycanResidue.NeuGc);
+        pGlycoTokenMap.put("F", GlycanResidue.dHex);
+        pGlycoTokenMap.put("H", GlycanResidue.Hex);
+        pGlycoTokenMap.put("N", GlycanResidue.HexNAc);
+        pGlycoTokenMap.put("P", GlycanResidue.Phospho);
+    }
+
 
     /**
      * Write a list of masses for all glycan candidates to pass to IonQuant. Format is one mass per line.
@@ -56,6 +73,7 @@ public class StaticGlycoUtilities {
     public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, boolean nGlycan) {
         // read input glycan database or default database if none provided
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
+        DatabaseType dbType;
         try {
             BufferedReader in;
             if (inputPath.equals("")) {
@@ -67,6 +85,7 @@ public class StaticGlycoUtilities {
                     defaultDB = "glyco_mods_N-O_20211025.txt";
                 }
                 in = new BufferedReader(new InputStreamReader(PeakAnnotator.class.getResourceAsStream(defaultDB)));
+                dbType = DatabaseType.byonic;   // internal DBs are in Byonic format
             } else {
                 Path path = null;
                 try {
@@ -79,6 +98,10 @@ public class StaticGlycoUtilities {
                     PTMShepherd.die(String.format("Glycan database file does not exist: [%s]", inputPath));
                 }
                 in = new BufferedReader(new FileReader(path.toFile()));
+                dbType = detectDBtype(path);
+                if (dbType == DatabaseType.unknown) {
+                    PTMShepherd.die(String.format("Error: could not detect glycan database type for file %s. Please check the formatting and file path", path));
+                }
             }
 
             HashMap<String, Boolean> glycansInDB = new HashMap<>();
@@ -86,38 +109,30 @@ public class StaticGlycoUtilities {
 
             String readline;
             while ((readline = in.readLine()) != null) {
-                String glycanName;
-                TreeMap<GlycanResidue, Integer> glycanComp;
                 String[] lineSplits;
-                // handle csv and tsv inputs that may contain multiple entries per line
-                if (readline.contains(",")) {
-                    lineSplits = readline.split(",");
-                } else if (readline.contains("\t") && readline.contains("%")) {
-                    lineSplits = readline.split("\t");
+                if (!(dbType == DatabaseType.pGlyco)) {
+                    // handle csv and tsv inputs that may contain multiple entries per line
+                    if (readline.contains(",")) {
+                        lineSplits = readline.split(",");
+                    } else if (readline.contains("\t") && readline.contains("%")) {
+                        lineSplits = readline.split("\t");
+                    } else {
+                        lineSplits = new String[]{readline};
+                    }
                 } else {
-                    lineSplits = new String[]{readline};
+                    // single line only for pGlyco
+                    lineSplits = new String[] {readline};
                 }
 
                 // parse glycans
                 for (String line : lineSplits) {
-                    // handle new and old formats
-                    if (line.contains("%") || line.contains("(")) {
-                        if (line.contains("%")) {
-                            // default database includes mass in addition to glycan name - ignore mass and only take name
-                            glycanName = line.split("%")[0];
-                        } else {
-                            glycanName = line;
-                        }
-                        glycanComp = parseGlycanString(glycanName);
+                    TreeMap<GlycanResidue, Integer> glycanComp;
+                    if (dbType == DatabaseType.pGlyco) {
+                        glycanComp = parsePGlycoGlycan(line);
                     } else {
-                        if (line.contains("\t")) {
-                            // default database includes mass in addition to glycan name - ignore mass and only take name
-                            glycanName = line.split("\t")[0];
-                        } else {
-                            glycanName = line;
-                        }
-                        glycanComp = parseGlycanStringOld(glycanName);
+                        glycanComp = parseDefaultGlycan(line);
                     }
+
                     if (glycanComp.size() == 0) {
                         continue;
                     }
@@ -191,6 +206,116 @@ public class StaticGlycoUtilities {
         return newGlycoDB;
     }
 
+    /**
+     * Parse new (Byonic) or old PTM-Shepherd format glycan from String
+     * @param line
+     * @return
+     */
+    private static TreeMap<GlycanResidue, Integer> parseDefaultGlycan(String line) {
+        TreeMap<GlycanResidue, Integer> glycanComp;
+        String glycanName;
+        // handle new and old formats
+        if (line.contains("%") || line.contains("(")) {
+            if (line.contains("%")) {
+                // default database includes mass in addition to glycan name - ignore mass and only take name
+                glycanName = line.split("%")[0];
+            } else {
+                glycanName = line;
+            }
+            glycanComp = parseGlycanString(glycanName);
+        } else {
+            if (line.contains("\t")) {
+                // default database includes mass in addition to glycan name - ignore mass and only take name
+                glycanName = line.split("\t")[0];
+            } else {
+                glycanName = line;
+            }
+            glycanComp = parseGlycanStringOld(glycanName);
+        }
+        return glycanComp;
+    }
+
+    /**
+     * Parse pGlyco glycan from String
+     * @param line
+     * @return
+     */
+    private static TreeMap<GlycanResidue, Integer> parsePGlycoGlycan(String line) {
+        TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
+
+        // skip empty lines and lines without a glycan structure
+        if (!line.contains("(")) {
+            return glycanComp;
+        }
+
+        // parse glycans from tokens
+        line = line.replace("Hp", "H(P");      // remove double characters, if present
+        Matcher matcher = pGlycoPattern.matcher(line);
+        boolean valid = true;
+        while(matcher.find()) {
+            String glycanToken = matcher.group();
+            if (pGlycoTokenMap.containsKey(glycanToken)) {
+                GlycanResidue residue = pGlycoTokenMap.get(glycanToken);
+                if (glycanComp.containsKey(residue)) {
+                    glycanComp.put(residue, glycanComp.get(residue) + 1);
+                } else {
+                    glycanComp.put(residue, 1);
+                }
+
+            } else {
+                PTMShepherd.print(String.format("Invalid token %s in line %s during glycan database parsing. This glycan will be skipped", glycanToken, line));
+                valid = false;
+                break;
+            }
+        }
+        if (!valid) {
+            glycanComp = new TreeMap<>();
+        }
+        return glycanComp;
+    }
+
+    /**
+     * Peek at first line(s) of the database file and determine what type it is for parsing
+     * @param databasePath reader
+     * @return db type
+     */
+    public static DatabaseType detectDBtype(Path databasePath) throws IOException {
+        BufferedReader in = new BufferedReader(new FileReader(databasePath.toFile()));
+        String line;
+        int i = 0;
+        while ((line = in.readLine()) != null) {
+            if (i == 0) {
+                // headers are not required, but may be present
+                if (line.contains("#") || line.contains("\\\\")) {
+                    i++;
+                    continue;
+                }
+                // pGlyco header is of format "N,H,F,...". This won't always detect it if only N and H types are present
+                if (line.contains("N,") && line.contains("H,")) {
+                    return DatabaseType.pGlyco;
+                }
+            } else {
+                // non-header line
+                if (line.contains("%")) {
+                    return DatabaseType.byonic;
+                } else {
+                    if (line.contains("-")) {
+                        return DatabaseType.oldPTMShepherd;
+                    } else {
+                        // pGlyco format has no numbers, byonic format has
+                        Matcher matcher = numberPattern.matcher(line);
+                        if (matcher.find()) {
+                            return DatabaseType.byonic;
+                        } else {
+                            return DatabaseType.pGlyco;
+                        }
+                    }
+                }
+            }
+            i++;
+        }
+        return DatabaseType.unknown;
+    }
 
     /**
      * Read the desired adducts from the parameters file.
@@ -395,7 +520,7 @@ public class StaticGlycoUtilities {
         glycanString = glycanString.replace("FailFDR_", "");
         glycanString = glycanString.replace("Decoy_", "");
         String[] massSplits = glycanString.split(" % ");
-        String[] compositionSplits = massSplits[0].split("\\)");
+        String[] compositionSplits = massSplits[0].trim().split("\\)");
         TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
         // Read all residue counts into the composition container
         for (String split: compositionSplits) {
