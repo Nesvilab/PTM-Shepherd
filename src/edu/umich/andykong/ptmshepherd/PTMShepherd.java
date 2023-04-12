@@ -265,6 +265,7 @@ public class PTMShepherd {
 		params.put("diagmine_printRedundantTests", "0");
 
 		params.put("output_extended", "false");
+		params.put("output_extended_diagmine", "false");
 		params.put("output_path", "");
 		params.put("run_from_old", "false");
 		params.put("max_adducts", "1");
@@ -890,11 +891,13 @@ public class PTMShepherd {
 			}
 
 		}
-		// delete diagBin files even if not extended output
-		for (String ds : datasets.keySet()) {
-			for (String mzFile : mzMap.get(ds).keySet()) {
-				Path p = Paths.get(normFName(mzFile + diagBinFilename)).toAbsolutePath().normalize();
-				deleteFile(p, true);
+		// delete diagbin files even if output extended is on (hidden parameter to keep them due to processing time)
+		if (!Boolean.parseBoolean(params.get("output_extended_diagmine"))) {
+			for (String ds : datasets.keySet()) {
+				for (String mzFile : mzMap.get(ds).keySet()) {
+					Path p = Paths.get(normFName(mzFile + diagBinFilename)).toAbsolutePath().normalize();
+					deleteFile(p, true);
+				}
 			}
 		}
 

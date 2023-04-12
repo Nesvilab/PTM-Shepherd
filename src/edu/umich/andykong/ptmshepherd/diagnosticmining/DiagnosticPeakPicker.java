@@ -434,6 +434,7 @@ public class DiagnosticPeakPicker {
                 "mass\t" + "delta_mod_mass\t" +
                 "remainder_propensity\t" +
                 "percent_mod\tpercent_unmod\t" +
+                "avg_charge\t" +
                 "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\tauc\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
             out2.print(this.binDiagMetrics[i].toString());
@@ -540,14 +541,15 @@ public class DiagnosticPeakPicker {
 
         // Find ions of interest
         for (DiagnosticProfileRecord dpr : binDiagMetrics[dmassIndx].diagProfRecs) {
-            if (dpr.type.equals("imm")) {
+            if (dpr.type.equals("diagnostic")) {
                 double immInt = spec.findIon(dpr.adjustedMass, this.spectraTol);
                 if (immInt > 0.01) {
                     dpr.nWithIon.incrementAndGet();
+                    dpr.zSum.addAndGet(charge);
                     dpr.wIonInt.addAndGet(immInt);
                 }
                 dpr.nTotal.incrementAndGet();
-            } else if (dpr.type.equals("Y")) {
+            } else if (dpr.type.equals("peptide")) {
                 double capYInt = spec.findIonNeutral(pepMass + dpr.adjustedMass, this.spectraTol, 1);
                 if (capYInt > 0.01) {
                     dpr.nWithIon.incrementAndGet();

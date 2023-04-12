@@ -42,6 +42,7 @@ public class DiagnosticProfileRecord {
     AtomicDouble wIonInt; // running sum
     AtomicDouble nWithIonZb;
     AtomicDouble wIonIntZb;
+    AtomicInteger zSum; // running sum of charge state to be averaged later
 
     // For remainder masses
     AtomicInteger nShiftedIons;
@@ -76,6 +77,8 @@ public class DiagnosticProfileRecord {
         this.nUnshiftedIons = new AtomicInteger();
         this.pctCoverage = new AtomicDouble();
         this.pctCoverageUnmod = new AtomicDouble();
+
+        this.zSum = new AtomicInteger();
     }
 
     public String toString() {
@@ -95,11 +98,13 @@ public class DiagnosticProfileRecord {
             newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
                             "\t\t" +
                             "%.02f\t%.02f\t" +
+                            "%.04f\t" +
                             "%.02f\t%.02f\t" +
                             "%f\t%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
                     //propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
                     this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
+                    (float) this.zSum.get() / (float) this.nWithIon.get(), //average charge
                     this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
                     //this.q, this.rbc); //selection stats
                     foldChange, this.rbc);
@@ -111,6 +116,7 @@ public class DiagnosticProfileRecord {
             newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
                             "%.04f\t\t" +
                             "%.02f\t%.02f\t" +
+                            "\t" +
                             "%.02f\t%.02f\t" +
                             "%f\t%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
@@ -129,6 +135,7 @@ public class DiagnosticProfileRecord {
             newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
                             "%.04f\t%.02f\t" +
                             "%.02f\t%.02f\t" +
+                            "\t" +
                             "%.02f\t%.02f\t" +
                             "%f\t%f\n",
                     this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
