@@ -81,7 +81,7 @@ public class DiagnosticProfileRecord {
         this.zSum = new AtomicInteger();
     }
 
-    public String toString() {
+    public String toString(int printAuc) {
         String newLine;
 
         // Optionally remove isotopic peaks
@@ -91,59 +91,117 @@ public class DiagnosticProfileRecord {
                 return "";
         }
 
-        if (this.type.equals("diagnostic")) {
-            double foldChange = (this.propWIonTreatIonLevel *  this.wIonIntTreatIonLevel) /
-                    (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
-            foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
-            newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
-                            "\t\t" +
-                            "%.02f\t%.02f\t" +
-                            "%.04f\t" +
-                            "%.02f\t%.02f\t" +
-                            "%f\t%f\n",
-                    this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
-                    //propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
-                    this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
-                    (float) this.zSum.get() / (float) this.nWithIon.get(), //average charge
-                    this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
-                    //this.q, this.rbc); //selection stats
-                    foldChange, this.rbc);
-        } else if (this.type.equals("peptide")) {
-            double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
-            double foldChange = (this.propWIonTreatIonLevel *  this.wIonIntTreatIonLevel) /
-                    (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
-            foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
-            newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
-                            "%.04f\t\t" +
-                            "%.02f\t%.02f\t" +
-                            "\t" +
-                            "%.02f\t%.02f\t" +
-                            "%f\t%f\n",
-                    this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
-                    remainderDelta, //lost mass stats
-                    this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
-                    this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
-                    foldChange, this.rbc);
-        } else {
-            float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
-            if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity")) / 100.0) //todo this should be calculated and filtered elsewhere
-                return "";
-            double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
-            double foldChange = (this.propWIonTreatIonLevel *  this.wIonIntTreatIonLevel) /
-                    (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
-            foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
-            newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
-                            "%.04f\t%.02f\t" +
-                            "%.02f\t%.02f\t" +
-                            "\t" +
-                            "%.02f\t%.02f\t" +
-                            "%f\t%f\n",
-                    this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
-                    remainderDelta, remainderOdds * 100.0, //ion level stats
-                    this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
-                    this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
-                    foldChange, this.rbc);
+        if (printAuc == 1) {
+            if (this.type.equals("diagnostic")) {
+                double foldChange = (this.propWIonTreatIonLevel * this.wIonIntTreatIonLevel) /
+                        (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
+                foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
+                newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
+                                "\t\t" +
+                                "%.02f\t%.02f\t" +
+                                "%.04f\t" +
+                                "%.02f\t%.02f\t" +
+                                "%f\t%f\n",
+                        this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
+                        //propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
+                        this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
+                        (float) this.zSum.get() / (float) this.nWithIon.get(), //average charge
+                        this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
+                        //this.q, this.rbc); //selection stats
+                        foldChange, this.rbc);
+            } else if (this.type.equals("peptide")) {
+                double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
+                double foldChange = (this.propWIonTreatIonLevel * this.wIonIntTreatIonLevel) /
+                        (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
+                foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
+                newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
+                                "%.04f\t\t" +
+                                "%.02f\t%.02f\t" +
+                                "\t" +
+                                "%.02f\t%.02f\t" +
+                                "%f\t%f\n",
+                        this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
+                        remainderDelta, //lost mass stats
+                        this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
+                        this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
+                        foldChange, this.rbc);
+            } else {
+                float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
+                if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity")) / 100.0) //todo this should be calculated and filtered elsewhere
+                    return "";
+                double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
+                double foldChange = (this.propWIonTreatIonLevel * this.wIonIntTreatIonLevel) /
+                        (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
+                foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
+                newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
+                                "%.04f\t%.02f\t" +
+                                "%.02f\t%.02f\t" +
+                                "\t" +
+                                "%.02f\t%.02f\t" +
+                                "%f\t%f\n",
+                        this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
+                        remainderDelta, remainderOdds * 100.0, //ion level stats
+                        this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
+                        this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
+                        foldChange, this.rbc);
+            }
+            return newLine;
         }
-        return newLine;
+        else {
+            if (this.type.equals("diagnostic")) {
+                double foldChange = (this.propWIonTreatIonLevel * this.wIonIntTreatIonLevel) /
+                        (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
+                foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
+                newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
+                                "\t\t" +
+                                "%.02f\t%.02f\t" +
+                                "%.04f\t" +
+                                "%.02f\t%.02f\t" +
+                                "%f\n",
+                        this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
+                        //propWIonSpectrumLevel, wIonIntensity, //spectrum level stats
+                        this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
+                        (float) this.zSum.get() / (float) this.nWithIon.get(), //average charge
+                        this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
+                        //this.q, this.rbc); //selection stats
+                        foldChange);
+            } else if (this.type.equals("peptide")) {
+                double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
+                double foldChange = (this.propWIonTreatIonLevel * this.wIonIntTreatIonLevel) /
+                        (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
+                foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
+                newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
+                                "%.04f\t\t" +
+                                "%.02f\t%.02f\t" +
+                                "\t" +
+                                "%.02f\t%.02f\t" +
+                                "%f\n",
+                        this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
+                        remainderDelta, //lost mass stats
+                        this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
+                        this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
+                        foldChange);
+            } else {
+                float remainderOdds = (float) this.pctCoverage.get() / (float) this.nTotal.get();
+                if (remainderOdds < Double.parseDouble(PTMShepherd.getParam("diagmine_fragMinPropensity")) / 100.0) //todo this should be calculated and filtered elsewhere
+                    return "";
+                double remainderDelta = -1.0 * (this.peakApex - this.adjustedMass);
+                double foldChange = (this.propWIonTreatIonLevel * this.wIonIntTreatIonLevel) /
+                        (this.propWIonControlIonLevel * this.wIonIntContIonLevel);
+                foldChange = (foldChange > 100.0) ? 100.0 : foldChange;
+                newLine = String.format("%.04f\t%s\t%s\t%.04f\t" +
+                                "%.04f\t%.02f\t" +
+                                "%.02f\t%.02f\t" +
+                                "\t" +
+                                "%.02f\t%.02f\t" +
+                                "%f\n",
+                        this.peakApex, this.modName, this.type, this.adjustedMass, //basic stats
+                        remainderDelta, remainderOdds * 100.0, //ion level stats
+                        this.propWIonTreatIonLevel * 100.0, this.propWIonControlIonLevel * 100.0, //ion level stats for propensity
+                        this.wIonIntTreatIonLevel, this.wIonIntContIonLevel, //ion level stats for intensity
+                        foldChange);
+            }
+            return newLine;
+        }
     }
 }

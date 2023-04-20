@@ -318,7 +318,7 @@ public class DiagnosticPeakPicker {
                         }
                         futureList.add(executorService.submit(() ->
                                 filterSpecBlock(localDrs, unifiedImmPeakList, unifiedCapYPeakList,
-                                        unifiedSquiggleIonPeakLists, spectraTol, pct, false, true)));  //todo tol
+                                        unifiedSquiggleIonPeakLists, spectraTol, pct, false, true)));
                     }
                     */
                     /* Get results */
@@ -418,6 +418,8 @@ public class DiagnosticPeakPicker {
 
     public void print(String fout) throws IOException {
         boolean debug = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printDebugFile"));
+        boolean printAucTemp = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printAuc"));
+        int printAuc = printAucTemp ? 1 : 0; //This is a bad way to do this, need to merge bool and int .toString() funcs
         if (debug) {
             PrintWriter out = new PrintWriter(new FileWriter(fout + "_debug", false));
 
@@ -428,16 +430,23 @@ public class DiagnosticPeakPicker {
 
             out.close();
         }
-
         PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
-        out2.print("peak_apex\tmod_annotation\tion_type\t" +
-                "mass\t" + "delta_mod_mass\t" +
-                "remainder_propensity\t" +
-                "percent_mod\tpercent_unmod\t" +
-                "avg_charge\t" +
-                "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\tauc\n");
+        if (printAuc == 1)
+            out2.print("peak_apex\tmod_annotation\tion_type\t" +
+                    "mass\t" + "delta_mod_mass\t" +
+                    "remainder_propensity\t" +
+                    "percent_mod\tpercent_unmod\t" +
+                    "avg_charge\t" +
+                    "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\tauc\n");
+        else
+            out2.print("peak_apex\tmod_annotation\tion_type\t" +
+                    "mass\t" + "delta_mod_mass\t" +
+                    "remainder_propensity\t" +
+                    "percent_mod\tpercent_unmod\t" +
+                    "avg_charge\t" +
+                    "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\n");
         for (int i = 0; i < this.binDiagMetrics.length; i++) {
-            out2.print(this.binDiagMetrics[i].toString());
+            out2.print(this.binDiagMetrics[i].toString(printAuc));
         }
         out2.close();
     }

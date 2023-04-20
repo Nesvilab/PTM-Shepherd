@@ -250,11 +250,11 @@ public class BinDiagMetric {
         return newLines.toString();
     }
 
-    public String toString() {
+    public String toString(int printAuc) {
         StringBuffer newLines = new StringBuffer();
         /* Format tests */
         for (int i = 0; i < this.diagProfRecs.size(); i++) {
-            String newLine = this.diagProfRecs.get(i).toString();
+            String newLine = this.diagProfRecs.get(i).toString(printAuc);
             if (!newLine.equals(""))
                 newLines.append(newLine);
         }

@@ -71,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.4";
+ 	public static final String version = "2.0.5";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -263,6 +263,7 @@ public class PTMShepherd {
 		params.put("diagmine_printDebugFile", "false");
 		params.put("diagmine_printIsotopes", "false");
 		params.put("diagmine_printRedundantTests", "0");
+		params.put("diagmine_printAuc", "true");
 
 		params.put("output_extended", "false");
 		params.put("output_extended_diagmine", "false");
@@ -627,7 +628,6 @@ public class PTMShepherd {
 			for (String ds : datasets.keySet()) {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
-					//dpp.addFilesToIndex(ds, mzMap.get(ds), executorService, Integer.parseInt(getParam("threads")));
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
 					dpp.addPepkeysToIndex(pf);
 				}
