@@ -23,5 +23,6 @@ public enum DatabaseType {
     pGlyco,
     byonic,
     oldPTMShepherd,
+    metamorpheus,
     unknown
 }
