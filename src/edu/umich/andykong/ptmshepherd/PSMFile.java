@@ -917,6 +917,8 @@ public class PSMFile {
 			out.println(this.getLine(i).toString());
 		}
 
+		out.close();
+
 		if (overwrite)
 			Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
 
