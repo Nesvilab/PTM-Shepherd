@@ -16,6 +16,8 @@
 
 package edu.umich.andykong.ptmshepherd.specsimilarity;
 
+import edu.umich.andykong.ptmshepherd.utils.Variance;
+
 public class SimRTRecord {
 	double mass;
 	int originalOrder;

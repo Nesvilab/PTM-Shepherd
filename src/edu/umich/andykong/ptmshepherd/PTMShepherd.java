@@ -33,6 +33,7 @@ import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.glyco.ProbabilityTables;
 import edu.umich.andykong.ptmshepherd.glyco.StaticGlycoUtilities;
+import edu.umich.andykong.ptmshepherd.iterativelocalization.IterativeLocalizer;
 import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.peakpicker.Histogram;
@@ -200,7 +201,7 @@ public class PTMShepherd {
 		params.put("peakpicking_topN", "500"); //num peaks
         params.put("peakpicking_minPsm", "10");
         params.put("localization_background", "4");
-        params.put("localization_allowed_res", "all"); //all or ABCDEF
+        params.put("localization_allowed_res", ""); //all or ABCDEF
 
         params.put("varmod_masses", "");
         params.put("precursor_mass_units", "0"); // 0 = Da, 1 = ppm
@@ -238,6 +239,10 @@ public class PTMShepherd {
 		params.put("iontype_x", "0");
 		params.put("iontype_y", "1");
 		params.put("iontype_z", "0");
+		
+		params.put("iterloc_mode", "true");
+		params.put("iterloc_convergeCriterion", "0.01");
+		params.put("iterloc_maxEpoch", "10");
 
 		params.put("diagmine_mode", "false");
 		params.put("diagmine_minSignal", "0.001");
@@ -538,6 +543,23 @@ public class PTMShepherd {
 			print("Created modification summary\n");
 		}
 
+		//PTMiner-style iterative localization
+		Boolean iterLocMode = Boolean.parseBoolean(params.get("iterloc_mode"));
+		if (iterLocMode) {
+			out.println("Beginning iterative localization");
+			long t1 = System.currentTimeMillis();
+			double peakBoundaries[][] = PeakSummary.readPeakBounds(peaksummary);
+			IterativeLocalizer IterLoc = new IterativeLocalizer(peakBoundaries,
+					Double.parseDouble(params.get("precursor_tol")),
+					Integer.parseInt(params.get("precursor_mass_units")),
+					datasets, mzMap, Integer.parseInt(params.get("threads")),
+					params.get("localization_allowed_res"), Float.parseFloat(params.get("spectra_tol")),
+					concatIonTypes(), Double.parseDouble(params.get("iterloc_convergeCriterion")),
+					Integer.parseInt(params.get("iterloc_maxEpoch"))
+			);
+			IterLoc.localize();
+		}
+		
 		//Localization analysis
 		//Perform initial annotation
 		print("Begin localization annotation");
@@ -1026,7 +1048,7 @@ public class PTMShepherd {
 				}
 			}
 			long t3 = System.currentTimeMillis();
-			PTMShepherd.print(String.format("\t\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2-t1,t3-t2));
+			PTMShepherd.print(String.format("\t\t%s - %d (%d ms, %d ms)", mzMappings.get(cf), clines.size(), t2-t1,t3-t2));
 			MZBINFile mzbinFile = new MZBINFile(normFName(cf + mzBinFilename), specs, "", "");
 			mzbinFile.writeMZBIN();
 			mzMappings.put(cf, new File(normFName(cf + mzBinFilename)));
@@ -1108,5 +1130,22 @@ public class PTMShepherd {
 		int sn = Integer.parseInt(sp[1]);
 		//with charge state
 		return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
+	}
+
+	public static String concatIonTypes() {
+		StringBuffer sb = new StringBuffer();
+		if (params.get("iontype_a").equals("1"))
+			sb.append("a");
+		if (params.get("iontype_b").equals("1"))
+			sb.append("b");
+		if (params.get("iontype_c").equals("1"))
+			sb.append("c");
+		if (params.get("iontype_x").equals("1"))
+			sb.append("x");
+		if (params.get("iontype_y").equals("1"))
+			sb.append("y");
+		if (params.get("iontype_z").equals("1"))
+			sb.append("z");
+		return sb.toString();
 	}
 }

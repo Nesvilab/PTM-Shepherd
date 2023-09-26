@@ -17,8 +17,6 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
-import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTRecord;
-import edu.umich.andykong.ptmshepherd.specsimilarity.Variance;
 
 public class GlycoRecord {
     double mass;
