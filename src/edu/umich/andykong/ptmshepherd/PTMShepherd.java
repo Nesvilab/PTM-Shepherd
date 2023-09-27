@@ -242,7 +242,7 @@ public class PTMShepherd {
 		
 		params.put("iterloc_mode", "true");
 		params.put("iterloc_convergeCriterion", "0.01");
-		params.put("iterloc_maxEpoch", "10");
+		params.put("iterloc_maxEpoch", "1"); // Todo hangs when set to 0
 
 		params.put("diagmine_mode", "false");
 		params.put("diagmine_minSignal", "0.001");
@@ -558,6 +558,7 @@ public class PTMShepherd {
 					Integer.parseInt(params.get("iterloc_maxEpoch"))
 			);
 			IterLoc.localize();
+			out.println("Done\n");
 		}
 		
 		//Localization analysis
@@ -1119,12 +1120,21 @@ public class PTMShepherd {
 		}
 	}
 
+	/**
+	 * Removes charge state from spec name to match spectra that have had charge state reannotated.
+	 * If the spec name is already renormed, returns input string
+	 * @param s
+	 * @return specName without charge state
+	 */
 	public static String reNormName(String s) {
 		String[] sp = s.split("\\.");
+		if (sp[sp.length-2].equals(sp[sp.length-1])) // If the format is XXX.Spec.Spec already, return input string
+			return s;
 		int sn = Integer.parseInt(sp[1]);
 		//without charge state
 		return String.format("%s.%d.%d", sp[0], sn, sn);
 	}
+
 	public static String reNormNameWithCharge(String s) {
 		String[] sp = s.split("\\.");
 		int sn = Integer.parseInt(sp[1]);

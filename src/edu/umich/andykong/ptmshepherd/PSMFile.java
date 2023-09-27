@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.zip.CRC32;
 
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
@@ -77,8 +78,16 @@ public class PSMFile {
 			this.spLine.add(colIdx, val);
 		}
 
+		public void addValAtColumn(String colName, String val){
+			this.spLine.add(getColumn(colName), val);
+		}
+
 		public void replaceValAtColumn(int colIdx, String val){
 			this.spLine.set(colIdx, val);
+		}
+
+		public void replaceValAtColumn(String colName, String val){
+			this.spLine.set(getColumn(colName), val);
 		}
 
 		public String getSpec() {
@@ -135,6 +144,10 @@ public class PSMFile {
 			if (this.dMass == null)
 				this.dMass = Float.parseFloat(this.spLine.get(getColumn("Delta Mass")));
 			return this.dMass;
+		}
+
+		public String getColumnValue(String colName) {
+			return this.spLine.get(getColumn(colName));
 		}
 
 		public String toString() {
@@ -875,7 +888,7 @@ public class PSMFile {
 			newHeaders.add(indx, newHead);
 			this.headers = newHeaders.toArray(new String[newHeaders.size()]);
 		} else {
-			System.out.printf("%s found in headers. Overwriting existing column.");
+			System.out.printf("\t%s found in headers, overwriting existing column%n", newHead);
 		}
 
 		return oldHeaderIndx;
@@ -884,27 +897,80 @@ public class PSMFile {
 	public void addColumn(int colIndx, String newHead, ArrayList<String> keys, ArrayList<String> vals) {
 		// Check that PSM table editing will not fail
 		if (vals.size() != this.data.size() || keys.size() != data.size()) {
-			throw new ArrayIndexOutOfBoundsException("Input arrays and PSM table are not the same length, " +
+			throw new ArrayIndexOutOfBoundsException("\tInput arrays and PSM table are not the same length, " +
 					"editing PSM table will fail\n");
 		}
+
+		//TODO if column not found and inserting to the right, it will insert at the beginning of the table
+		// This fixes it, but the error message should be different. Not sure how to check colIndx
+		if (colIndx == 0)
+			throw new ArrayIndexOutOfBoundsException("\tSpectrum is a protected column, refusing to overwrite\n");
 
 		// Check that header doesn't already exist
 		int existingHeaderIndx = addHeader(colIndx, newHead);
 		if (existingHeaderIndx == -1) {
 			for (int i = 0; i < keys.size(); i++) {
-				int rowIndx = this.scanToLine.get(keys.get(i));
+				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
+				int rowIndx = this.scanToLine.get(specKey);
 				PSM tPSM = this.getLine(rowIndx);
-				tPSM.addValAtColumn(colIndx, vals.get(i));
+				tPSM.addValAtColumn(newHead, vals.get(i));
 				tPSM.updateLine();
 			}
 		} else {
 			for (int i = 0; i < keys.size(); i++) {
-				int rowIndx = this.scanToLine.get(keys.get(i));
-				PSM tPSM = this.getLine(i);
-				tPSM.replaceValAtColumn(rowIndx, vals.get(i));
+				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
+				int rowIndx = this.scanToLine.get(specKey);
+				PSM tPSM = this.getLine(rowIndx);
+				tPSM.replaceValAtColumn(newHead, vals.get(i));
 				tPSM.updateLine();
 			}
 		}
+	}
+
+	/**
+	 * Returns the values of the column at colIndx.
+	 * @param header column name
+	 * @return	generic ArrayList of type Object
+	 */
+	public ArrayList<String> getColumnValues(String header) { //TODO I think you can make this a generic parser by making one param a callable of DataDtype
+		int colIndx = getColumn(header);
+
+		if (colIndx < 0 || colIndx >= (this.headers.length)) {
+			throw new ArrayIndexOutOfBoundsException(String.format("Column index %d is out of bounds for a %d column" +
+					"wide table", colIndx, this.headers.length));
+		}
+
+		ArrayList<String> values = new ArrayList<>(this.data.size());
+
+		for (int i = 0; i < data.size(); i++) {
+			PSM tPSM = this.getLine(i);
+			values.add(tPSM.getColumnValue(header));
+		}
+
+		return values;
+	}
+
+	/**
+	 * Returns the values of the column at colIndx.
+	 * @param header column name
+	 * @return	generic ArrayList of type Object
+	 */
+	public HashMap<String,String> getColumnValuesAndSpecs(String header) {
+		int colIndx = getColumn(header);
+
+		if (colIndx < 0 || colIndx >= (this.headers.length)) {
+			throw new ArrayIndexOutOfBoundsException(String.format("Column index %d is out of bounds for a %d column" +
+					"wide table", colIndx, this.headers.length));
+		}
+
+		HashMap<String,String> values = new HashMap<>(this.data.size());
+
+		for (int i = 0; i < data.size(); i++) {
+			PSM tPSM = this.getLine(i);
+			values.put(tPSM.getSpec(), tPSM.getColumnValue(header));
+		}
+
+		return values;
 	}
 
 	public void save(boolean overwrite) throws IOException {
@@ -921,7 +987,6 @@ public class PSMFile {
 
 		if (overwrite)
 			Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
-
 	}
 
 	private String headersToString() {

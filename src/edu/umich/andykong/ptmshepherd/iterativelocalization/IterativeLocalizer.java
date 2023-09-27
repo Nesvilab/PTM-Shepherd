@@ -5,11 +5,15 @@ import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.utils.Peptide;
+import edu.umich.andykong.ptmshepherd.utils.StringParsingUtils;
 
 import java.io.File;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
+import static edu.umich.andykong.ptmshepherd.utils.StringParsingUtils.subString;
 
 
 public class IterativeLocalizer {
@@ -29,6 +33,7 @@ public class IterativeLocalizer {
     int maxEpoch;
 
     String allowedAAs;
+    String decoyAAs;
     String ionTypes;
     float fragTol;
 
@@ -36,7 +41,7 @@ public class IterativeLocalizer {
     static int scanNum;
     static boolean debugFlag;
 
-    //1. Learn distribution of intensities from unmodified peptides
+    //1. Learn distribution of intensities from unmodified peptides //TODO change this description...
     //   Loop through files
     //2. Loop through bins
     //3.    While bin has not converged
@@ -61,6 +66,7 @@ public class IterativeLocalizer {
         this.fragTol = fragTol;
         this.convCriterion = convCriterion;
         this.maxEpoch = maxEpoch;
+        this.decoyAAs = "ALIV"; // Well, you can tell by the way I use my walkstaying ALIV
     }
 
     private void initPrecursorPeakBounds(double[][] peakBounds, double peakTol, int precursorMassUnits) {
@@ -70,10 +76,12 @@ public class IterativeLocalizer {
     }
 
     public void localize() throws Exception {
-        //Step 1: use matched intensities of unmodified peptides to fit lognormal distribution
+        // Step 1: use matched intensities of unmodified peptides to fit nonparametric distribution
         fitMatchedIonDistribution();
-        //Step 2: draw the rest of the fucking owl
+        // Step 2: draw the rest of the fucking owl
         calculateLocalizationProbabilities();
+        // Step 3: calculate FLRs
+        calculateFalseLocalizationRates();
     }
 
     private void fitMatchedIonDistribution() throws Exception {
@@ -229,7 +237,7 @@ public class IterativeLocalizer {
                                 strMaxProbs2.add(Double.toString(maxProb));
                                 String maxProbAA = findMaxLocalizationProbabilitySite(siteProbs, pep);
                                 strMaxProbs.add(maxProbToString(maxProb, maxProbAA));
-                                double locEntropy = calculateLocalizationEntropy(siteProbs, allowedPoses); //TODO this should be moved to where I calculate FDR with decoy AAs
+                                double locEntropy = calculateLocalizationEntropy(siteProbs, allowedPoses);
                                 strEntropies.add(entropyToString(locEntropy));
                             }
 
@@ -246,7 +254,7 @@ public class IterativeLocalizer {
                                 "delta_mass_entropy", specNames, strEntropies);
                         psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1,
                                 "delta_mass_maxprob", specNames, strMaxProbs2);
-                        psmf.save(false); // Do not overwrite
+                        psmf.save(true); // Do not overwrite
                         complete = true;
                     }
                 }
@@ -291,7 +299,7 @@ public class IterativeLocalizer {
     }
 
     //todo mods should be parsed here if we don't want to localized on top of var mods
-    //todo test parsing
+    //todo test parsing with all different AAs
     private boolean[] parseAllowedPositions(String seq, String allowedAAs, float[] mods) {
         boolean[] allowedPoses = new boolean[seq.length()+2];
         if (allowedAAs.equals("all") || allowedAAs.equals(""))
@@ -320,13 +328,232 @@ public class IterativeLocalizer {
             }
         }
 
-        /** TODO this will be necessary to debuf the allowed positions
+        /** TODO this will be necessary to debug the allowed positions if we decide not allow loc on top of mods
         for (int i = 0; i < allowedPoses.length; i++) {
             System.out.print((allowedPoses[i] == true ? 1 : 0) + " ");
         }
         System.out.println();
          **/
         return allowedPoses;
+    }
+
+    /**
+     * Estimates false localization rates in two ways
+     * The first assumes that the probabilities computed by the model are well-calibrated and computed the BH
+     * adjusted q-values \hat{FLR} (sum_0^i 1-(P(loc_i)) / i for each PSM i.
+     * The second does not assume that the probabilities computed by the model are correct, and instead estimates the
+     * FLR using decoy amino acids. This automatically removes any modifications on these residues from consideration,
+     * which may not be desirable under all circumstances. This is calculated using the unbiased estimator (d+1)/t
+     * from Levitsky J Proteome Res. (2017), but adjusted by the ratio of decoy AAs/target AAs.
+     *
+     * @return
+     */
+    private void calculateFalseLocalizationRates() throws Exception { //TODO this needs to be modularized so it can be unit tested
+        System.out.println("\tEstimating false localization rates");
+
+        long t1 = System.currentTimeMillis();
+
+        int nTargetAAs = 0;
+        int nDecoyAAs = 0;
+        // Build histos of max localization probs, 4 digit accuracy plus one bin for 1.0000
+        int[] targetProbs = new int[1000+1];
+        int[] decoyProbs = new int[1000+1];
+        int totalPsms = 0;
+        // Build histos of localization entropies, 4 digit accuracy plus one bin for 1.0000
+        int[] targetEntropies = new int[1000+1]; //4 digit accuracy, plus one bin for 1.0000
+        int[] decoyEntropies = new int[1000+1];
+
+        // Loop through datasets
+        for (String ds : this.datasets.keySet()) {
+            ArrayList<String[]> dsData = this.datasets.get(ds);
+            // Loop through PSM files
+            for (int i = 0; i < dsData.size(); i++) {
+
+                // Get values we're working with on first pass
+                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                ArrayList<String> peps = psmf.getColumnValues("Peptide");
+                ArrayList<String> maxProbs = psmf.getColumnValues("delta_mass_maxloc");
+                ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
+
+                // Add probs to target and decoy histos and calculate nTarget and nDecoyAAs
+                for (int j = 0; j < peps.size(); j++) {
+                    String pep = peps.get(j);
+                    // Skip if PSM is not localized, otherwise count it
+                    String maxProb = maxProbs.get(j);
+                    if (maxProb.equals(""))
+                        continue;
+                    else
+                        totalPsms++;
+
+                    // Count decoy and target AA counts for this line
+                    for (int k = 0; k < pep.length(); k++) {
+                        if(isDecoyAA(pep.charAt(k)))
+                            nDecoyAAs++;
+                        else
+                            nTargetAAs++;
+                    }
+
+                    // Add max probability and entropy
+                    float p = Float.parseFloat(subString(maxProb, "(", ")"));
+                    float entropy = Float.parseFloat(entropies.get(j));
+                    if (isDecoyAA(maxProb.charAt(0))) {
+                        decoyProbs[(int) (p * 1000.0)]++;
+                        decoyEntropies[(int) (entropy * 1000.0)]++;
+                    } else {
+                        targetProbs[(int) (p * 1000.0)]++;
+                        targetEntropies[(int) (entropy * 1000.0)]++;
+                    }
+                }
+            }
+        }
+
+        // Calculate the FLRs of each type
+        // Three different FLRs to compute
+        double[] flrProb = new double[1000+1]; // Assumes model probabilities are valid, does not use decoys
+        double[] flrProbDecoy = new double[1000+1]; // Uses decoys instead
+        double[] flrEntropyDecoy = new double[1000+1]; // Uses decoys and entropy
+        double tarDecRatio = (double) nTargetAAs / (double) nDecoyAAs;
+
+        // Compute FLR based on assumption that model is true using BH correction in blocks of 0.0001 probabilities
+        double runningFlr = 0.0;
+        int runningHits = 0;
+        for (int i = flrProb.length-1; i >= 0; i--) {
+            // Note: we are assuming decoys are masked, and since they are real AAs rather than reversed sequences,
+            // they are included in the number of hits
+            int cHits = targetProbs[i] + decoyProbs[i];
+            double proportionOfPSMs = safeDivide(cHits, totalPsms);
+            double cLocP = (double) i / 1000; // Current probability
+            double binPVal = 1.0 - cLocP;
+            double binFlr = binPVal * proportionOfPSMs;
+
+            // Add new IDs, but weight it by their contribution to total number of IDs above them in the ranking
+            runningFlr += binFlr * safeDivide(cHits, cHits + runningHits);
+
+            flrProb[i] = runningFlr;
+            runningHits += cHits;
+        }
+
+        // Calculate FLR based on decoy AAs and maxProb, don't forget to multipy by tar/dec ratio
+        int cDecoys = 1; // unbiased estimator has d+1 in numerator
+        int cTargets = 0;
+        for (int i = flrProbDecoy.length-1; i >= 0; i--) {
+            cDecoys += decoyProbs[i];
+            cTargets += targetProbs[i];
+            double qVal = safeDivide(cDecoys, cTargets) * tarDecRatio;
+            flrProbDecoy[i] = qVal;
+        }
+
+        // Calculate FLR based on decoy AAs and entropy, don't forget to multipy by tar/dec ratio
+        cDecoys = 1; // unbiased estimator has d+1 in numerator
+        cTargets = 0;
+        for (int i = 0; i < flrEntropyDecoy.length; i++) {
+            cDecoys += decoyEntropies[i];
+            cTargets += targetEntropies[i];
+            double qVal = safeDivide(cDecoys, cTargets) * tarDecRatio;
+            flrEntropyDecoy[i] = qVal;
+        }
+
+        // Reestimate using the minimum q val of items > i to make q-values monotonic
+        double[] qProbModel = new double[1000+1]; // Assumes model probabilities are valid, does not use decoys
+        double[] qProbDecoyModel = new double[1000+1]; // Uses decoys instead
+        double[] qEntropyDecoyModel = new double[1000+1]; // Uses decoys and entropy
+        double min = 1000.0;
+        for (int i = 0; i < flrProb.length; i++) {
+            if (flrProb[i] < min)
+                min = flrProb[i];
+            qProbModel[i] = min;
+        }
+
+        min = 1000.0;
+        for (int i = 0; i < flrProbDecoy.length; i++) {
+            if (flrProbDecoy[i] < min)
+                min = flrProbDecoy[i];
+            qProbDecoyModel[i] = min;
+        }
+
+        min = 1000.0;
+        for (int i = flrEntropyDecoy.length - 1; i >= 0; i--) {
+            if (flrEntropyDecoy[i] < min)
+                min = flrEntropyDecoy[i];
+            qEntropyDecoyModel[i] = min;
+        }
+
+        /**
+        // Print to test
+        for (int i = flrProb.length-1; i >= 0; i--) {
+            double cProb = (double) i / 1000.0;
+            System.out.printf("%.4f\t%.4f\t%d\t%d%n", cProb, qProbModel[i], targetProbs[i], decoyProbs[i]);
+        }
+        System.out.println("*****");
+
+        for (int i = flrProb.length-1; i >= 0; i--) {
+            double cProb = (double) i / 1000.0;
+            System.out.printf("%.4f\t%.4f\t%d\t%d%n", cProb, qProbDecoyModel[i], targetProbs[i], decoyProbs[i]);
+        }
+
+        System.out.println("*****");
+        // Print to test
+        for (int i = flrProb.length-1; i >= 0; i--) {
+            double cProb = (double) i / 1000;
+            System.out.printf("%.4f\t%.4f\t%d\t%d%n", cProb, flrEntropyDecoy[i], targetEntropies[i], decoyEntropies[i]);
+        }
+        System.out.println("*****");
+        for (int i = flrProb.length-1; i >= 0; i--) {
+            double cProb = (double) i / 1000;
+            System.out.printf("%.4f\t%.4f\t%d\t%d%n", cProb, qEntropyDecoyModel[i], targetEntropies[i], decoyEntropies[i]);
+        }
+         **/
+
+        // Loop through datasets
+        for (String ds : this.datasets.keySet()) {
+            ArrayList<String[]> dsData = this.datasets.get(ds);
+            // Loop through PSM files
+            for (int i = 0; i < dsData.size(); i++) {
+
+                // Get values to map to q-vals
+                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                ArrayList<String> specNames = psmf.getColumnValues("Spectrum");
+                ArrayList<String> maxProbs = psmf.getColumnValues("delta_mass_maxloc");
+                ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
+
+                // Assign each q-Val
+                ArrayList<String> probModelVals = new ArrayList<>(specNames.size());
+                ArrayList<String> probDecoyModelVals = new ArrayList<>(specNames.size());
+                ArrayList<String> entropyDecoyModelVals = new ArrayList<>(specNames.size());
+                for (int j = 0; j < specNames.size(); j++) {
+                    String specName = reNormName(specNames.get(i));
+                    // prob model
+                    double maxProb = Double.parseDouble(subString(maxProbs.get(i), "(", ")"));
+                    probModelVals.add(new DecimalFormat("0.0000").format(qProbModel[(int) (maxProb * 1000)]));
+                    // prob model with decoys
+                    probDecoyModelVals.add(new DecimalFormat("0.0000").format(qProbDecoyModel[(int) (maxProb * 1000)]));
+                    // entropy model
+                    double entropy = Double.parseDouble(entropies.get(i));
+                    entropyDecoyModelVals.add(new DecimalFormat("0.0000").format(qEntropyDecoyModel[(int) (entropy * 1000)]));
+                }
+
+                // Send to PSM file
+                psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1, "delta_mass_BH_loc_q",
+                        specNames, probModelVals);
+                psmf.addColumn(psmf.getColumn("delta_mass_BH_FDR_q") + 1, "delta_mass_prob_decoyAA_q",
+                        specNames, probDecoyModelVals);
+                psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1, "delta_mass_entropy_decoyAA_q",
+                        specNames, entropyDecoyModelVals);
+                psmf.save(true);
+            }
+        }
+
+        long t2 = System.currentTimeMillis();
+        System.out.printf("\tDone estimating false localization rates (%d ms processing)\n", t2-t1);
+
+    }
+
+    boolean isDecoyAA(char aa) {
+        for (int i = 0; i < this.decoyAAs.length(); i++) {
+            if (aa == this.decoyAAs.charAt(i))
+                return true;
+        }
+        return false;
     }
 
     /**
@@ -343,7 +570,7 @@ public class IterativeLocalizer {
      * @param mods          array containing masses to be added on to pep sequence at mods[i] position
      * @param dMass         delta mass of PSM
      * @param cBin          current MS1 mass shift bin index
-     * @param allowedPoses  array of allowed positions based on peptide sequence localization restrictions TODO and mods
+     * @param allowedPoses  array of allowed positions based on peptide sequence localization restrictions TODO add mods
      * @return double[] of localization probabilities
      */
     private double[] localizePsm (Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses) {
@@ -380,7 +607,8 @@ public class IterativeLocalizer {
             siteLikelihoods[i+1] = computeLikelihood(pepFrags, peakMzs, peakInts);
             mods[i] -= dMass;
         }
-         **/ //NEW FUNCTION STARTS HERE
+         **/
+        //NEW FUNCTION STARTS HERE
         // First calculate the set of shifted and unshifted ions
         ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
         ArrayList<Float> shiftedPepFrags = new ArrayList<Float>(pepFrags.size());
@@ -445,8 +673,7 @@ public class IterativeLocalizer {
         for(int i = 0; i < sitePosteriorProbs.length; i++)
             sitePosteriorProbs[i] = (sitePriorProbs[i] * siteLikelihoods[i]) / marginalProb;
 
-
-        // TODO remove XXX
+        // TODO remove once unit tests are in place
         if (debugFlag) {
             System.out.print("LH\t");
             for (int i = 0; i < siteLikelihoods.length; i++) {
@@ -482,7 +709,6 @@ public class IterativeLocalizer {
      * @return
      */
     private double computeLikelihood(ArrayList<Float> pepFrags, float[] peakMzs, float[] peakInts) {
-        //XXX I THINK THIS IS ONLY SUPPOSED TO BE USING THE PEAKS THAT MATCH AT LEAST ONE POSITION
         // Find matched ion intensities. Matched ions will have positive intensities, unmatched ions will have negative
         float[] matchedIonIntensities = findMatchedIons(pepFrags, peakMzs, peakInts);
         // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
@@ -682,8 +908,6 @@ public class IterativeLocalizer {
             if (i == this.zeroBin)
                 continue;
             this.priorProbs[i].calcConvergence(convCriterion);
-            System.out.println("peakind " + i);
-            System.out.println(priorProbs[i].toString());
         }
     }
 
@@ -737,6 +961,13 @@ public class IterativeLocalizer {
     private String maxProbToString(double maxProb, String maxProbSite) {
         String strProb = new DecimalFormat("0.0000").format(maxProb);
         return maxProbSite + "(" + strProb + ")";
+    }
+
+    private double safeDivide(int x, int y) {
+        if (y == 0)
+            return 0;
+        else
+            return (double) x / (double) y;
     }
 
 }
