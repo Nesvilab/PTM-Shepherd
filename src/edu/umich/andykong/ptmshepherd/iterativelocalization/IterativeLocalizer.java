@@ -673,7 +673,7 @@ public class IterativeLocalizer {
             if (debugFlag) {
                 System.out.println(pep);
                 System.out.println("Position " + (i + 1));
-                System.out.println(spec.toString());
+                System.out.println(spec);
             }
             siteLikelihoods[i+1] = computeLikelihood(sitePepFrags, reducedMzs, reducedInts);
             mods[i] -= dMass;
