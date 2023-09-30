@@ -18,9 +18,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: Set up JDK 15
         uses: actions/setup-java@v2
-          with:
-            java-version: 15
-            distribution: 'adopt'
+        with:
+          java-version: 15
+          distribution: 'adopt'
       - name: Test with Gradle
         run: ./gradlew test
 
