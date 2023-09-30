@@ -40,6 +40,7 @@ public class IterativeLocalizer {
     static String pep;
     static int scanNum;
     static boolean debugFlag;
+    boolean printIonDistribution = true; // TODO make this a parameter
 
     //1. Learn distribution of intensities from unmodified peptides //TODO change this description...
     //   Loop through files
@@ -66,7 +67,7 @@ public class IterativeLocalizer {
         this.fragTol = fragTol;
         this.convCriterion = convCriterion;
         this.maxEpoch = maxEpoch;
-        this.decoyAAs = "ALIV"; // Well, you can tell by the way I use my walkstaying ALIV
+        this.decoyAAs = "ALIV"; // Well, you can tell by the way I use my walks //TODO make this a parameter if its worth it
     }
 
     private void initPrecursorPeakBounds(double[][] peakBounds, double peakTol, int precursorMassUnits) {
@@ -132,6 +133,9 @@ public class IterativeLocalizer {
             }
         }
         this.matchedIonDist.calculateCdf();
+        if (this.printIonDistribution)
+            this.matchedIonDist.printHisto("matched_ion_distribution.tsv");
+
         long t2 = System.currentTimeMillis();
         System.out.printf("\tDone fitting distribution to matched zero-bin fragments (%d ms processing)\n", t2-t1);
     }
@@ -211,6 +215,10 @@ public class IterativeLocalizer {
                                 else
                                     continue;
                             }
+
+                            // If converged skip unless final round
+                            if (!finalPass && this.priorProbs[cBin].getIsConverged()) // Safe because left is first
+                                continue; // TODO XXX this is breaking
 
                             Spectrum spec = mr.getSpectrum(specName);
                             if (spec == null) {
@@ -455,8 +463,8 @@ public class IterativeLocalizer {
 
         // Reestimate using the minimum q val of items > i to make q-values monotonic
         double[] qProbModel = new double[1000+1]; // Assumes model probabilities are valid, does not use decoys
-        double[] qProbDecoyModel = new double[1000+1]; // Uses decoys instead
-        double[] qEntropyDecoyModel = new double[1000+1]; // Uses decoys and entropy
+        double[] qProbDecoyModel = new double[1000+1]; // Uses decoys instead TODO returning all 0
+        double[] qEntropyDecoyModel = new double[1000+1]; // Uses decoys and entropy TODO returning all 0.0001
         double min = 1000.0;
         for (int i = 0; i < flrProb.length; i++) {
             if (flrProb[i] < min)
@@ -521,25 +529,38 @@ public class IterativeLocalizer {
                 ArrayList<String> probDecoyModelVals = new ArrayList<>(specNames.size());
                 ArrayList<String> entropyDecoyModelVals = new ArrayList<>(specNames.size());
                 for (int j = 0; j < specNames.size(); j++) {
-                    String specName = reNormName(specNames.get(i));
-                    // prob model
-                    double maxProb = Double.parseDouble(subString(maxProbs.get(i), "(", ")"));
-                    probModelVals.add(new DecimalFormat("0.0000").format(qProbModel[(int) (maxProb * 1000)]));
-                    // prob model with decoys
-                    probDecoyModelVals.add(new DecimalFormat("0.0000").format(qProbDecoyModel[(int) (maxProb * 1000)]));
-                    // entropy model
-                    double entropy = Double.parseDouble(entropies.get(i));
-                    entropyDecoyModelVals.add(new DecimalFormat("0.0000").format(qEntropyDecoyModel[(int) (entropy * 1000)]));
+
+                    // Check if peptide is unmod and deal with it if it is
+                    boolean unmodFlag = maxProbs.get(i).equals("") ? true : false;
+                    if (unmodFlag) {
+                        // prob model
+                        probModelVals.add("");
+                        // prob model with decoys
+                        probDecoyModelVals.add("");
+                        // entropy model
+                        entropyDecoyModelVals.add("");
+                    } else {
+                        // prob model
+                        double maxProb = Double.parseDouble(subString(maxProbs.get(i), "(", ")"));
+                        probModelVals.add(new DecimalFormat("0.0000").format(qProbModel[(int) (maxProb * 1000)]));
+                        // prob model with decoys
+                        probDecoyModelVals.add(new DecimalFormat("0.0000").format(qProbDecoyModel[(int) (maxProb * 1000)]));
+                        // entropy model
+                        double entropy = Double.parseDouble(entropies.get(i));
+                        entropyDecoyModelVals.add(new DecimalFormat("0.0000").format(qEntropyDecoyModel[(int) (entropy * 1000)]));
+                    }
                 }
 
                 // Send to PSM file
                 psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1, "delta_mass_BH_loc_q",
                         specNames, probModelVals);
-                psmf.addColumn(psmf.getColumn("delta_mass_BH_FDR_q") + 1, "delta_mass_prob_decoyAA_q",
+                /** //TODO figure out what's going on with these before implementing them, assuming they're even worth doing
+                psmf.addColumn(psmf.getColumn("delta_mass_BH_loc_q") + 1, "delta_mass_prob_decoyAA_q",
                         specNames, probDecoyModelVals);
                 psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1, "delta_mass_entropy_decoyAA_q",
                         specNames, entropyDecoyModelVals);
                 psmf.save(true);
+                 **/
             }
         }
 
@@ -652,7 +673,7 @@ public class IterativeLocalizer {
             if (debugFlag) {
                 System.out.println(pep);
                 System.out.println("Position " + (i + 1));
-                System.out.println(spec.toString());
+                System.out.println(spec);
             }
             siteLikelihoods[i+1] = computeLikelihood(sitePepFrags, reducedMzs, reducedInts);
             mods[i] -= dMass;

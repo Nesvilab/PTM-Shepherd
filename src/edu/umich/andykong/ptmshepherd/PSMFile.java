@@ -897,7 +897,7 @@ public class PSMFile {
 	public void addColumn(int colIndx, String newHead, ArrayList<String> keys, ArrayList<String> vals) {
 		// Check that PSM table editing will not fail
 		if (vals.size() != this.data.size() || keys.size() != data.size()) {
-			throw new ArrayIndexOutOfBoundsException("\tInput arrays and PSM table are not the same length, " +
+			throw new ArrayIndexOutOfBoundsException("Input arrays and PSM table are not the same length, " +
 					"editing PSM table will fail\n");
 		}
 

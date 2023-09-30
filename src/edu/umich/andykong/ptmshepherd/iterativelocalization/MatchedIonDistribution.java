@@ -1,5 +1,10 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 
@@ -16,7 +21,7 @@ public class MatchedIonDistribution {
         this.resolution = resolution;
         this.binMult = (int) (1.0f/resolution);
         this.pdf = new int[((int) (100.0 * this.binMult + 1))];
-        this.pdfUnmatched = new int[((int) (100.0 * this.binMult + 1))]; //TODO test
+        this.pdfUnmatched = new int[((int) (100.0 * this.binMult + 1))]; //TODO implement and test this alternative model
     }
 
     // Original was ptminer mode
@@ -124,5 +129,22 @@ public class MatchedIonDistribution {
         for (int i = 0; i < intensities.length; i++)
             probs[i] = calcIonProbability(intensities[i]);
         return probs;
+    }
+
+    public String toString() {
+        StringBuffer sb = new StringBuffer();
+
+        sb.append("intensity\tcount\n");
+        for (int i = 0; i < this.pdf.length; i++)
+            sb.append(new DecimalFormat("0.00").format((double) i / (double) this.binMult)
+                    + "\t" + this.pdf[i] + "\n");
+
+        return sb.toString();
+    }
+
+    public void printHisto(String fname) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(fname));
+        out.print(this.toString());
+        out.close();
     }
 }

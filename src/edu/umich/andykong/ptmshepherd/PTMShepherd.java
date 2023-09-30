@@ -72,7 +72,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "2.0.5";
+ 	public static final String version = "2.1.0";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
@@ -219,6 +219,7 @@ public class PTMShepherd {
 		params.put("spectra_condRatio", "0.00001");
 		params.put("spectra_maxfragcharge", "2");//todo
 		params.put("spectra_maxPrecursorCharge", "4");
+		//TODO add precursor removal
 
 		params.put("compare_betweenRuns", "true");
 		params.put("annotation_file", "");
@@ -242,7 +243,7 @@ public class PTMShepherd {
 		
 		params.put("iterloc_mode", "true");
 		params.put("iterloc_convergeCriterion", "0.01");
-		params.put("iterloc_maxEpoch", "1"); // Todo hangs when set to 0
+		params.put("iterloc_maxEpoch", "100"); // Todo hangs when set to 0
 
 		params.put("diagmine_mode", "false");
 		params.put("diagmine_minSignal", "0.001");

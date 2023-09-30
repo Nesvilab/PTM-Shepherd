@@ -7,7 +7,7 @@
  */
 
 plugins {
-    id 'com.github.johnrengelman.shadow' version '5.1.0'
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
 
     // Apply the java plugin to add support for Java
     id 'java'
@@ -30,7 +30,7 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-version = '2.0.5'
+version = '2.1.0'
 
 application {
     // Define the main class for the application
@@ -75,6 +75,7 @@ dependencies {
 
     // logging
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+    implementation 'junit:junit:4.13.1'
     //implementation "org.slf4j:slf4j-simple:${slf4jVersion}"
     //testImplementation "org.slf4j:slf4j-simple:${slf4jVersion}"
 
