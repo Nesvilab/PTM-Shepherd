@@ -636,6 +636,7 @@ public class IterativeLocalizer {
         for (Float frag : pepFrags)
             shiftedPepFrags.add(frag + dMass);
         pepFrags.addAll(shiftedPepFrags);
+
         if (debugFlag)
             System.out.println(pepFrags.stream().map(Object::toString)
                 .collect(Collectors.joining(", ")));
