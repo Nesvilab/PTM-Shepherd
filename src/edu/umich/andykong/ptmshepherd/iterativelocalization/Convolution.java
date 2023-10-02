@@ -1,5 +1,7 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
+import java.util.Arrays;
+
 /**
  * This class contains static functions for computing convolutions of two random categorical variables.
  */
