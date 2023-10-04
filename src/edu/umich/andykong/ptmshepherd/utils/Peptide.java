@@ -1,10 +1,19 @@
 package edu.umich.andykong.ptmshepherd.utils;
 
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class Peptide { //TODO theoretical peptide fragments, should this not start at 0? Skip b1/y1/a1?
+    public String pepSeq;
+    public float[] mods;
+    public Peptide(String pepSeq, float[] mods) {
+        this.pepSeq = pepSeq;
+        this.mods = mods;
+    }
+
     public static ArrayList<Float> calculatePeptideFragments(String seq, float[] mods, String ionTypes, int maxCharge) {
         ArrayList<Float> knownFrags = new ArrayList<>(seq.length() * ionTypes.length());
 
@@ -46,5 +55,39 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         }
 
         return knownFrags;
+    }
+
+    public static Peptide generateDecoy(String pep, float[] mods, Random rng) {
+        ArrayList<Site> sites = new ArrayList<>(pep.length());
+
+        // Shuffle core
+        for (int i = 1; i < pep.length()-1; i++)
+            sites.add(new Site(pep.charAt(i), mods[i]));
+        Collections.shuffle(sites, rng);
+
+        StringBuilder newPep = new StringBuilder();
+        float[] newMods = new float[mods.length];
+        // N-term AA
+        newPep.append(pep.charAt(0));
+        newMods[0] = mods[0];
+        for (int i = 0; i < sites.size(); i++) {
+            newPep.append(sites.get(i).aa);
+            newMods[i+1] = sites.get(i).mod;
+        }
+        // C-term AA
+        newPep.append(sites.get(sites.size()-1).aa);
+        newMods[newMods.length-1] = mods[mods.length-1];
+
+        return new Peptide(newPep.toString(), newMods);
+    }
+
+    static class Site {
+        char aa;
+        float mod;
+
+        Site(char aa, float mod) {
+            this.aa = aa;
+            this.mod = mod;
+        }
     }
 }

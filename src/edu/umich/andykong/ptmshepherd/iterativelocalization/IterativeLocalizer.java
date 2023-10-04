@@ -11,6 +11,8 @@ import java.io.File;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import static edu.umich.andykong.ptmshepherd.utils.StringParsingUtils.subString;
@@ -218,7 +220,7 @@ public class IterativeLocalizer {
 
                             // If converged skip unless final round
                             if (!finalPass && this.priorProbs[cBin].getIsConverged()) // Safe because left is first
-                                continue; // TODO XXX this is breaking
+                                continue;
 
                             Spectrum spec = mr.getSpectrum(specName);
                             if (spec == null) {
@@ -226,7 +228,7 @@ public class IterativeLocalizer {
                                 continue;
                             }
 
-                            //if (pep.equals("LYGYQAQHYVCMK") && spec.scanNum == 24865) {
+                            //if (specName.equals("02330a_GB1_3990_02_PTM_TrainKit_Rmod_Methyl_200fmol_3xHCD_R1.34399.34399")) {
                             //    this.debugFlag = true;
                             //}
 
@@ -336,12 +338,6 @@ public class IterativeLocalizer {
             }
         }
 
-        /** TODO this will be necessary to debug the allowed positions if we decide not allow loc on top of mods
-        for (int i = 0; i < allowedPoses.length; i++) {
-            System.out.print((allowedPoses[i] == true ? 1 : 0) + " ");
-        }
-        System.out.println();
-         **/
         return allowedPoses;
     }
 
@@ -664,6 +660,7 @@ public class IterativeLocalizer {
         // Iterate through sites to compute likelihood for each site P(Spec_i|Pep_{ij})
         // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
         // is equal to the proximal AA
+        /**
         for(int i = 0; i < pep.length(); i++) {
             if (allowedPoses[i+1] == false) {
                 siteLikelihoods[i+1] = 0.0;
@@ -679,6 +676,9 @@ public class IterativeLocalizer {
             siteLikelihoods[i+1] = computeLikelihood(sitePepFrags, reducedMzs, reducedInts);
             mods[i] -= dMass;
         }
+         **/
+        siteLikelihoods = computePoissonBinomialLikelihood(pep, mods, dMass, allowedPoses, reducedMzs, reducedInts);
+
 
         // Propagate terminal AA likelihoods to each terminus //TODO this isn't going to handle cases when termini are allowed but the first residue isnt
         if (allowedPoses[0])
@@ -718,17 +718,72 @@ public class IterativeLocalizer {
     }
 
     /**
-     * Computes the likelihood P(Spec_i|Pep_{ij}) of a particular localization site. Matched and unmatched ion
-     * intensities are retrieved from the spectrum. Unmatched ions have their intensities multiplied by -1. Matched ions
-     * are mapped to the MatchedIonDistribution with negative (unmatched) intensities ignored, then the array is flipped
-     * and the unmatched ions in the spectrum are mapped to the MatchedIonDistribution.
+     * Computes the likelihood P(Spec_i|Pep_{ij}) of all localization sites using the Poisson Binomial model. Matched
+     * ions currently map to the adapted PTMiner function.
+     * @param pep
+     * @param allowedPoses
+     * @param peakMzs
+     * @param peakInts
+     * @return
+     */
+    private double[] computePoissonBinomialLikelihood(String pep, float[] mods, float dMass, boolean[] allowedPoses,
+                                                      float[] peakMzs, float[] peakInts) {
+        // Set up structures to hold site matched ion probabilities
+        int nAllowedPoses = 0;
+        for (int i = 1; i < allowedPoses.length-1; i++) { // Ignore C- and N-term, will be propogated at the end
+            if (allowedPoses[i])
+                nAllowedPoses++;
+        }
+        double[][] ionProbs = new double[nAllowedPoses][peakMzs.length];
+
+        // Loop through sites and calculate the matched ions
+        int cAllowedPos = 0;
+        for(int i = 0; i < pep.length(); i++) {
+            if (allowedPoses[i+1] == false)
+                continue;
+            mods[i] += dMass;
+            ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
+            // Find matched ion intensities. Matched ions will have positive intensities, unmatched ions will have negative
+            float[] matchedIonIntensities = findMatchedIons(sitePepFrags, peakMzs, peakInts);
+            // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
+            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities);
+            if (debugFlag) {
+                System.out.println("Matched ions");
+                System.out.println(pep);
+                System.out.println("Position " + (i + 1));;
+                System.out.println(Arrays.toString(matchedIonIntensities));
+                System.out.println(Arrays.toString(matchedIonProbabilities));
+                System.out.println("Matched ions done");
+
+
+            }
+            // Format these for Poisson Binomial input
+            ionProbs[cAllowedPos] = matchedIonProbabilities;
+            cAllowedPos++;
+            mods[i] -= dMass;
+        }
+
+        // Compute site likelihoods, add N- and C-termini to likelihood output
+        double[] pepAALikelihoods = PoissonBinomialLikelihood.calculateProbXMax(ionProbs);
+        double[] siteLikelihoods = IntStream.rangeClosed(0, pepAALikelihoods.length + 1).mapToDouble(
+                i -> (i == 0 || i == pepAALikelihoods.length + 1) ? 0 : pepAALikelihoods[i - 1]).toArray();
+
+        return siteLikelihoods;
+    }
+
+    /**
+     * Computes the likelihood P(Spec_i|Pep_{ij}) of a particular localization site using either the PTMiner model
+     * or the adapted PTMiner model. Matched and unmatched ion intensities are retrieved from the spectrum.
+     * Unmatched ions have their intensities multiplied by -1. Matched ions are mapped to the MatchedIonDistribution
+     * with negative (unmatched) intensities ignored, then the array is flipped and the unmatched ions in the spectrum
+     * are mapped to the MatchedIonDistribution.
      *
      * P(Spec_i|Pep_{ij}) is given by prod(Peak_k|Pep_{ij}),
      * where P(Peak_k|Pep_{ij}) = CDF(intensity_i) if matched and 1-CDF(intensity_i) if unmatched.
      * @param pepFrags  theoretical peptide fragments
      * @param peakMzs   spectrum peak M/Zs
      * @param peakInts  spectrum peak intensities
-     * @return
+     * @return likelihood of a particular site
      */
     private double computeLikelihood(ArrayList<Float> pepFrags, float[] peakMzs, float[] peakInts) {
         // Find matched ion intensities. Matched ions will have positive intensities, unmatched ions will have negative
@@ -793,9 +848,8 @@ public class IterativeLocalizer {
      * @param peakInts  spectrum peak intensities
      * @return float[] of size spectrum_ions, matched ions show intensity, unmatched ions show -1 * intensity
      */
-    private float[] findMatchedIons(ArrayList<Float> pepFrags, float[] peakMzs, float[] peakInts) {
+    float[] findMatchedIons(ArrayList<Float> pepFrags, float[] peakMzs, float[] peakInts) {
         float[] matchedIonIntensities = new float[peakMzs.length];
-        Arrays.sort(matchedIonIntensities);
         Collections.sort(pepFrags);
 
         if (debugFlag)
@@ -811,8 +865,10 @@ public class IterativeLocalizer {
             double maxVal = frag + (frag * this.fragTol / 1000000.0f);
             // Until we get to a matched ion, multiply intensities by -1 to signify that they are unmatched
             while (specIdx < maxSpecIdx) {
-                if (peakMzs[specIdx] < minVal) {
-                    matchedIonIntensities[specIdx] = -1 * peakInts[specIdx];
+                if (peakMzs[specIdx] <= minVal) {
+                    if (matchedIonIntensities[specIdx] == 0.0f) { // Check if not matched yet
+                        matchedIonIntensities[specIdx] = -1.0f * peakInts[specIdx];
+                    }
                     specIdx++;
                 } else
                     break;
@@ -833,19 +889,21 @@ public class IterativeLocalizer {
             if (matchedIons == 1) { // If only matched one ion in minVal->maxVal window
                 if (debugFlag)
                     System.out.println(peakMzs[wIndex]);
-                matchedIonIntensities[wIndex] = maxInt;
-                specIdx = wIndex + 1;
+                matchedIonIntensities[startIdx] = maxInt;
             } else { // If more than one ion in minVal->maxVal window, max is matched and rest are unmatched
                 for (int i = startIdx; i <= wIndex; i++) {
-                    if (peakInts[i] == maxInt) {
+                    if (Math.abs(peakInts[i] - maxInt) < 0.001) {
                         if (debugFlag)
-                            System.out.println(peakMzs[wIndex]);
+                            System.out.println(peakMzs[wIndex] + "\t" + peakInts[wIndex]);
                         matchedIonIntensities[i] = maxInt;
-                        specIdx = i + 1;
                         break;
                     }
                 }
             }
+        }
+        while (specIdx < maxSpecIdx) { // If we passed the last fragment, consider the rest unmatched
+            matchedIonIntensities[specIdx] = -1.0f * peakInts[specIdx];
+            specIdx++;
         }
 
         if (debugFlag)
