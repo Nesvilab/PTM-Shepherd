@@ -167,7 +167,6 @@ public class PoissonBinomialLikelihood {
                 yIonPoint++;
             }
         }
-
         // Handle cases where there are no ions matched by inserting dummy variable that there is 1 probability of 0
         if (xBinPoiParams.length == 0) {
             xBinPoiParams = new double[][]{
