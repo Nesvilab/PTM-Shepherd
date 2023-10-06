@@ -12,7 +12,11 @@ public class MatchedIonDistribution {
     int[] pdf;
     int[] pdfDecoy;
     double[] cdf;
+
+    int[] pdfMassError;
+    int[] pdfMassErrorDecoy;
     double[] ionPosterior;
+    double[] ionPosteriorMassError;
     float resolution;
     int binMult;
 
@@ -22,7 +26,9 @@ public class MatchedIonDistribution {
         this.resolution = resolution;
         this.binMult = (int) (1.0f/resolution);
         this.pdf = new int[((int) (100.0 * this.binMult + 1))];
-        this.pdfDecoy = new int[((int) (100.0 * this.binMult + 1))]; //TODO implement and test this alternative model
+        this.pdfDecoy = new int[((int) (100.0 * this.binMult + 1))];
+        this.pdfMassError = new int[100]; // Default 100 ppm max, can make it dynamic TODO
+        this.pdfMassErrorDecoy = new int[100]; // Default 100 ppm max, can make it dynamic TODO
         if (poissonBinomial)
             this.mode = "poissonbinomial-matched-theoretical-decoy";
     }
@@ -72,9 +78,40 @@ public class MatchedIonDistribution {
         }
     }
 
+    /**
+     * Adds ion to ion posterior probability distribution. Currently only using MATCHED ions.
+     * @param intensity
+     * @param massError
+     * @param isDecoy
+     */
+    public void addIon(float intensity, float massError, boolean isDecoy) {
+        if (!isDecoy) {
+            if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
+                int intIndx = (int) (intensity * this.binMult);
+                this.pdf[intIndx]++;
+                int massErrorIndx = (int) massError;
+                this.pdfMassError[massErrorIndx]++;
+            }
+        } else {
+            if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
+                int idx = (int) (intensity * this.binMult);
+                this.pdfDecoy[idx]++;
+                int massErrorIndx = (int) massError;
+                this.pdfMassErrorDecoy[massErrorIndx]++;
+            }
+        }
+    }
+
+
     public void addIons(float [] intensities) {
         for(int i = 0; i < intensities.length; i++) {
             addIon(intensities[i]);
+        }
+    }
+
+    public void addIons(float[] intensities, float[] massErrors, boolean isDecoy) {
+        for(int i = 0; i < intensities.length; i++) {
+            addIon(intensities[i], massErrors[i], isDecoy);
         }
     }
 
@@ -121,14 +158,19 @@ public class MatchedIonDistribution {
     }
 
     public void calculateIonPosterior() {
-        // Calculate local q-val estimate
+        calculateIonIntensityPosterior();
+        calculateIonMassErrorPosterior();
+    }
+
+    private void calculateIonIntensityPosterior() {
+        // Calculate local q-val estimate //todo terminology
         this.ionPosterior = new double[((int) (100.0 * this.binMult + 1))];
         int sumTarget = 0;
-        int sumDecoy = 0;
+        int sumDecoy = 1;
         for (int i = this.pdf.length - 1; i >= 0; i--) {
             sumTarget += this.pdf[i];
             sumDecoy += this.pdfDecoy[i];
-            this.ionPosterior[i] = (double) sumTarget / ((double) sumDecoy + (double) sumTarget);
+            this.ionPosterior[i] = 1.0 - ((double) sumDecoy / Math.max(sumTarget, 1)); //todo try decoy+1/target
         }
 
         // Find q-val monotonic increasing
@@ -144,10 +186,45 @@ public class MatchedIonDistribution {
                     maxIndx = i;
                 }
             }
+            System.out.println(rightStop);
+            if (maxIndx == -1) //Why??? TODO
+                break;
             for (int i = maxIndx; i < rightStop; i++) {
                 this.ionPosterior[i] = max;
             }
             rightStop = maxIndx - 1;
+        }
+    }
+
+    private void calculateIonMassErrorPosterior() {
+        // Calculate local q-val estimates ?? //todo terminology
+        this.ionPosteriorMassError = new double[100];
+        int sumTarget = 0;
+        int sumDecoy = 1;
+        for (int i = 0; i < this.pdfMassError.length; i++) {
+            sumTarget += this.pdfMassError[i];
+            sumDecoy += this.pdfMassErrorDecoy[i];
+            this.ionPosteriorMassError[i] = 1.0 - ((double) sumDecoy / Math.max(sumTarget, 1)); //todo try decoy+1/target
+        }
+
+        // Find q-val monotonic increasing
+        // rightStop is always this.ionPosteriorMassError.length;
+        int leftStop = 0;
+        while (leftStop <= this.ionPosteriorMassError.length - 1) {
+            double max = -1;
+            int maxIndx = -1;
+            // Search within window for max
+            for (int i = this.ionPosteriorMassError.length - 1; i > leftStop; i--) {
+                if (this.ionPosteriorMassError[i] > max) {
+                    max = this.ionPosteriorMassError[i];
+                    maxIndx = i;
+                }
+            }
+            for (int i = maxIndx; i > leftStop; i--) {
+                this.ionPosteriorMassError[i] = max;
+            }
+            leftStop = maxIndx + 1;
+            System.out.println(leftStop);
         }
     }
 
@@ -194,7 +271,7 @@ public class MatchedIonDistribution {
         return probs;
     }
 
-    public String toString() {
+    public String intensityToString() {
         StringBuffer sb = new StringBuffer();
 
         if (!this.mode.equals("poissonbinomial-matched-theoretical-decoy")) {
@@ -213,9 +290,26 @@ public class MatchedIonDistribution {
         return sb.toString();
     }
 
-    public void printHisto(String fname) throws IOException {
+    public void printIntensityHisto(String fname) throws IOException {
         PrintWriter out = new PrintWriter(new FileWriter(fname));
-        out.print(this.toString());
+        out.print(this.intensityToString());
         out.close();
     }
+
+    public String massErrorToString() {
+        StringBuffer sb = new StringBuffer();
+
+        sb.append("mass_error\tcount_target\tcount_decoy\tion_PEP\n");
+        for (int i = 0; i < this.pdfMassError.length; i++) {sb.append(i + "\t" + this.pdfMassError[i] + "\t" +
+                this.pdfMassErrorDecoy[i] + "\t" + this.ionPosteriorMassError[i] + "\n");
+        }
+        return sb.toString();
+    }
+
+    public void printMassErrorHisto(String fname) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(fname));
+        out.print(this.massErrorToString());
+        out.close();
+    }
+
 }
