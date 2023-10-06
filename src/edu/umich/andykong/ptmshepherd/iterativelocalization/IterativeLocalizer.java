@@ -43,6 +43,9 @@ public class IterativeLocalizer {
     static int scanNum;
     static boolean debugFlag;
     boolean printIonDistribution = true; // TODO make this a parameter
+    boolean poissonBinomialDistribution = true; // TODO make this a parameter
+    int seed = 3341;
+    Random rng;
 
     //1. Learn distribution of intensities from unmodified peptides //TODO change this description...
     //   Loop through files
@@ -70,6 +73,7 @@ public class IterativeLocalizer {
         this.convCriterion = convCriterion;
         this.maxEpoch = maxEpoch;
         this.decoyAAs = "ALIV"; // Well, you can tell by the way I use my walks //TODO make this a parameter if its worth it
+        this.rng = new Random(seed);
     }
 
     private void initPrecursorPeakBounds(double[][] peakBounds, double peakTol, int precursorMassUnits) {
@@ -90,7 +94,7 @@ public class IterativeLocalizer {
     private void fitMatchedIonDistribution() throws Exception {
         System.out.println("\tFitting distribution to matched zero-bin fragments");
         // Set up distribution
-        this.matchedIonDist = new MatchedIonDistribution(0.01f);
+        this.matchedIonDist = new MatchedIonDistribution(0.01f, this.poissonBinomialDistribution);
         // Set up zero bin boundaries for faster comp
         double zbL = this.peaks[1][this.zeroBin];
         double zbR = this.peaks[2][this.zeroBin];
@@ -128,13 +132,29 @@ public class IterativeLocalizer {
                             continue;
                         }
 
-                        float [] matchedInts = spec.getMatchedFrags(pep, mods, this.fragTol, this.ionTypes, 0.0F);
-                        this.matchedIonDist.addIons(matchedInts);
+                        if (!this.poissonBinomialDistribution) {
+                            float[] matchedInts = spec.getMatchedFrags(
+                                    pep, mods, this.fragTol, this.ionTypes, 0.0F);
+                            this.matchedIonDist.addIons(matchedInts);
+                        } else {
+                            // Add real values
+                            float[] matchedInts = spec.getMatchedFrags(
+                                    pep, mods, this.fragTol, this.ionTypes, 0.0F);
+                            this.matchedIonDist.addIons(matchedInts, false);
+                            // Add decoy values
+                            Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng);
+                            matchedInts = spec.getMatchedFrags(
+                                    decoyPep.pepSeq, decoyPep.mods, this.fragTol, this.ionTypes, 0.0F);
+                            this.matchedIonDist.addIons(matchedInts, true);
+                        }
                     }
                 }
             }
         }
-        this.matchedIonDist.calculateCdf();
+        if (!this.poissonBinomialDistribution)
+            this.matchedIonDist.calculateCdf();
+        else
+            this.matchedIonDist.calculateIonPosterior();
         if (this.printIonDistribution)
             this.matchedIonDist.printHisto("matched_ion_distribution.tsv");
 
@@ -249,8 +269,22 @@ public class IterativeLocalizer {
                                 strMaxProbs.add(maxProbToString(maxProb, maxProbAA));
                                 double locEntropy = calculateLocalizationEntropy(siteProbs, allowedPoses);
                                 strEntropies.add(entropyToString(locEntropy));
-                            }
 
+                                // TODO check decoy usefulness
+                                Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng);
+                                boolean[] decoyAllowedPoses = parseAllowedPositions(decoyPep.pepSeq,
+                                        this.allowedAAs, decoyPep.mods);
+                                double[] decoySiteProbs = localizePsm(spec, decoyPep.pepSeq, decoyPep.mods, dMassApex,
+                                        cBin, decoyAllowedPoses);
+                                double decoyMaxProb = findMaxLocalizationProbability(decoySiteProbs);
+                                String decoyMaxProbAA = findMaxLocalizationProbabilitySite(decoySiteProbs, decoyPep.pepSeq);
+                                if (decoyMaxProb >= maxProb) {
+                                    System.out.println(specName + "\t" + pep + "\t" + decoyPep.pepSeq + "\t" +
+                                            maxProbToString(maxProb, maxProbAA) + "\t" +
+                                            maxProbToString(decoyMaxProb, decoyMaxProbAA));
+                                }
+
+                            }
                         }
                     }
                     // If models have converged, update PSM tables
@@ -720,11 +754,12 @@ public class IterativeLocalizer {
     /**
      * Computes the likelihood P(Spec_i|Pep_{ij}) of all localization sites using the Poisson Binomial model. Matched
      * ions currently map to the adapted PTMiner function.
-     * @param pep
-     * @param allowedPoses
-     * @param peakMzs
-     * @param peakInts
-     * @return
+     * @param pep peptide sequence as string
+     * @param mods modifications on the peptides as float array
+     * @param allowedPoses allowed positions on the peptides as boolean array
+     * @param peakMzs reduced peak M/Z float array matching at least one site
+     * @param peakInts reduced peak intensity float array matching at least one site
+     * @return likelihoods of each site as double array
      */
     private double[] computePoissonBinomialLikelihood(String pep, float[] mods, float dMass, boolean[] allowedPoses,
                                                       float[] peakMzs, float[] peakInts) {
@@ -754,8 +789,6 @@ public class IterativeLocalizer {
                 System.out.println(Arrays.toString(matchedIonIntensities));
                 System.out.println(Arrays.toString(matchedIonProbabilities));
                 System.out.println("Matched ions done");
-
-
             }
             // Format these for Poisson Binomial input
             ionProbs[cAllowedPos] = matchedIonProbabilities;

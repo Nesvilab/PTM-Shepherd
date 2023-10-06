@@ -19,6 +19,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
 
         ArrayList<Character> nIonTypes = new ArrayList<>();
         ArrayList<Character> cIonTypes = new ArrayList<>();
+        // Todo this should start at b2
         for (int i = 0; i < ionTypes.length(); i++) {
             char curIonType = ionTypes.charAt(i);
             if (curIonType == 'a' || curIonType == 'b' || curIonType == 'c')
@@ -38,7 +39,8 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
                 float cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
                 for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
                     cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
-                    knownFrags.add(cmass);
+                    if (i != 0) // todo skip a1/b1 ion, check if this needs to be skipped for c too
+                        knownFrags.add(cmass);
                 }
             }
         }
@@ -75,7 +77,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             newMods[i+1] = sites.get(i).mod;
         }
         // C-term AA
-        newPep.append(sites.get(sites.size()-1).aa);
+        newPep.append(pep.charAt(pep.length()-1));
         newMods[newMods.length-1] = mods[mods.length-1];
 
         return new Peptide(newPep.toString(), newMods);

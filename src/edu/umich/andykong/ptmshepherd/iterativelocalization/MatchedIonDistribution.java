@@ -10,18 +10,21 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 
 public class MatchedIonDistribution {
     int[] pdf;
-    int[] pdfUnmatched;
+    int[] pdfDecoy;
     double[] cdf;
+    double[] ionPosterior;
     float resolution;
     int binMult;
 
-    public final String mode = "ptminer-unmatched-theoretical";
+    public String mode = "ptminer-unmatched-theoretical";
 
-    public MatchedIonDistribution(float resolution) {
+    public MatchedIonDistribution(float resolution, boolean poissonBinomial) {
         this.resolution = resolution;
         this.binMult = (int) (1.0f/resolution);
         this.pdf = new int[((int) (100.0 * this.binMult + 1))];
-        this.pdfUnmatched = new int[((int) (100.0 * this.binMult + 1))]; //TODO implement and test this alternative model
+        this.pdfDecoy = new int[((int) (100.0 * this.binMult + 1))]; //TODO implement and test this alternative model
+        if (poissonBinomial)
+            this.mode = "poissonbinomial-matched-theoretical-decoy";
     }
 
     // Original was ptminer mode
@@ -39,10 +42,10 @@ public class MatchedIonDistribution {
                 int idx = (int) (intensity * this.binMult);
                 this.pdf[idx]++;
             }
-        } else if (this.mode.equals("ptminer-unmatched-theoretical-experimental")) {
+        } else if (this.mode.equals("poissonbinomial-matched-theoretical-decoy")) {
             if (intensity < 0.0f) {
                 int idx = (int) (-1 * intensity * this.binMult);
-                this.pdfUnmatched[idx]++;
+                this.pdfDecoy[idx]++;
             } else {
                 int idx = (int) (-1 * intensity * this.binMult);
                 this.pdf[idx]++;
@@ -50,9 +53,34 @@ public class MatchedIonDistribution {
         }
     }
 
-    public synchronized void addIons(float [] intensities) {
+    /**
+     * Adds ion to ion posterior probability distribution. Currently only using MATCHED ions.
+     * @param intensity
+     * @param isDecoy
+     */
+    public void addIon(float intensity, boolean isDecoy) {
+        if (!isDecoy) {
+            if (intensity > 0.0f) {
+                int idx = (int) (intensity * this.binMult);
+                this.pdf[idx]++;
+            }
+        } else {
+            if (intensity > 0.0f) {
+                int idx = (int) (intensity * this.binMult);
+                this.pdfDecoy[idx]++;
+            }
+        }
+    }
+
+    public void addIons(float [] intensities) {
         for(int i = 0; i < intensities.length; i++) {
             addIon(intensities[i]);
+        }
+    }
+
+    public void addIons(float [] intensities, boolean isDecoy) {
+        for(int i = 0; i < intensities.length; i++) {
+            addIon(intensities[i], isDecoy);
         }
     }
 
@@ -61,7 +89,7 @@ public class MatchedIonDistribution {
         this.pdf[idx]++;
     }
 
-    public synchronized void addIons_Original(float [] intensities) {
+    public void addIons_Original(float [] intensities) {
         for(int i = 0; i < intensities.length; i++) {
              if (intensities[i] < 0)
                 continue;
@@ -92,6 +120,37 @@ public class MatchedIonDistribution {
         this.cdf[this.cdf.length-1] = this.cdf[this.cdf.length-2] = lastBinsAverage;
     }
 
+    public void calculateIonPosterior() {
+        // Calculate local q-val estimate
+        this.ionPosterior = new double[((int) (100.0 * this.binMult + 1))];
+        int sumTarget = 0;
+        int sumDecoy = 0;
+        for (int i = this.pdf.length - 1; i >= 0; i--) {
+            sumTarget += this.pdf[i];
+            sumDecoy += this.pdfDecoy[i];
+            this.ionPosterior[i] = (double) sumTarget / ((double) sumDecoy + (double) sumTarget);
+        }
+
+        // Find q-val monotonic increasing
+        // leftStop is always 0
+        int rightStop = this.ionPosterior.length;
+        while (rightStop >= 0) {
+            double max = -1;
+            int maxIndx = -1;
+            // Search within window for max
+            for (int i = 0; i < rightStop; i++) {
+                if (this.ionPosterior[i] > max) {
+                    max = this.ionPosterior[i];
+                    maxIndx = i;
+                }
+            }
+            for (int i = maxIndx; i < rightStop; i++) {
+                this.ionPosterior[i] = max;
+            }
+            rightStop = maxIndx - 1;
+        }
+    }
+
     public void calculateCdf_UnmatchedExperimentalTheoretical() { //TODO test
         this.cdf = new double[((int) (100.0 * this.binMult + 1))];
         int sum = 0;
@@ -120,7 +179,11 @@ public class MatchedIonDistribution {
         if (intensity < 0)
              prob = -1;
         else
-            prob = this.cdf[(int) intensity * this.binMult];
+            if (!this.mode.equals("poissonbinomial-matched-theoretical-decoy")) {
+                prob = this.cdf[(int) intensity * this.binMult];
+            } else {
+                prob = this.ionPosterior[(int) intensity * this.binMult];
+            }
         return prob;
     }
 
@@ -134,11 +197,19 @@ public class MatchedIonDistribution {
     public String toString() {
         StringBuffer sb = new StringBuffer();
 
-        sb.append("intensity\tcount\n");
-        for (int i = 0; i < this.pdf.length; i++)
-            sb.append(new DecimalFormat("0.00").format((double) i / (double) this.binMult)
-                    + "\t" + this.pdf[i] + "\n");
-
+        if (!this.mode.equals("poissonbinomial-matched-theoretical-decoy")) {
+            sb.append("intensity\tcount\n");
+            for (int i = 0; i < this.pdf.length; i++) {
+                sb.append(new DecimalFormat("0.00").format((double) i / (double) this.binMult)
+                        + "\t" + this.pdf[i] + "\n");
+            }
+        } else {
+            sb.append("intensity\tcount_target\tcount_decoy\tion_PEP\n");
+            for (int i = 0; i < this.pdf.length; i++) {
+                sb.append(new DecimalFormat("0.00").format((double) i / (double) this.binMult)
+                        + "\t" + this.pdf[i] + "\t" + this.pdfDecoy[i] + "\t" + this.ionPosterior[i] + "\n");
+            }
+        }
         return sb.toString();
     }
 
