@@ -136,15 +136,14 @@ public class PoissonBinomialLikelihood {
         int nMatchedIonsX = 0;
         int nMatchedIonsY = 0;
         int nSharedIons = 0;
-        for (int i = 0; i < xIonProbs.length; i++) {
-            if (xIonProbs[i] > 0.0)
-                nMatchedIonsX++;
-            if (yIonProbs[i] > 0.0)
-                nMatchedIonsY++;
-            if (xIonProbs[i] > 0.0 && yIonProbs[i] > 0.0)
-                nSharedIons++;
-        }
-
+            for (int i = 0; i < xIonProbs.length; i++) {
+                if (xIonProbs[i] > 0.0)
+                    nMatchedIonsX++;
+                if (yIonProbs[i] > 0.0)
+                    nMatchedIonsY++;
+                if (xIonProbs[i] > 0.0 && yIonProbs[i] > 0.0)
+                    nSharedIons++;
+            }
         // Set up arrays to be convolved
         double[][] xBinPoiParams = new double[nMatchedIonsX - nSharedIons][2];
         double[][] yBinPoiParams = new double[nMatchedIonsY - nSharedIons][2];
