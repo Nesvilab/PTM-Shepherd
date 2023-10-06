@@ -6,6 +6,7 @@ import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.utils.Peptide;
 import edu.umich.andykong.ptmshepherd.utils.StringParsingUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.File;
 import java.text.DecimalFormat;
@@ -94,7 +95,7 @@ public class IterativeLocalizer {
     private void fitMatchedIonDistribution() throws Exception {
         System.out.println("\tFitting distribution to matched zero-bin fragments");
         // Set up distribution
-        this.matchedIonDist = new MatchedIonDistribution(0.01f, this.poissonBinomialDistribution);
+        this.matchedIonDist = new MatchedIonDistribution(1.0f, this.poissonBinomialDistribution);
         // Set up zero bin boundaries for faster comp
         double zbL = this.peaks[1][this.zeroBin];
         double zbR = this.peaks[2][this.zeroBin];
@@ -137,15 +138,26 @@ public class IterativeLocalizer {
                                     pep, mods, this.fragTol, this.ionTypes, 0.0F);
                             this.matchedIonDist.addIons(matchedInts);
                         } else {
-                            // Add real values
-                            float[] matchedInts = spec.getMatchedFrags(
-                                    pep, mods, this.fragTol, this.ionTypes, 0.0F);
-                            this.matchedIonDist.addIons(matchedInts, false);
-                            // Add decoy values
+                             // Get spectral peaks
+                            float[] peakMzs = spec.getPeakMZ();
+                            float[] peakInts = spec.getPeakInt();
+
+                            // Add target peptide values to matched ion histograms
+                            ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(
+                                    pep, mods, this.ionTypes, 1);
+                            float[][] matchedIons = findMatchedIons(sitePepFrags, peakMzs, peakInts);
+                            float[] matchedIonIntensities = matchedIons[0];
+                            float[] matchedIonMassErrors = matchedIons[1];
+                            this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, false);
+
+                            // Add decoy peptide values to matched ion histogram
                             Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng);
-                            matchedInts = spec.getMatchedFrags(
-                                    decoyPep.pepSeq, decoyPep.mods, this.fragTol, this.ionTypes, 0.0F);
-                            this.matchedIonDist.addIons(matchedInts, true);
+                            ArrayList<Float> decoySitePepFrags = Peptide.calculatePeptideFragments(
+                                    decoyPep.pepSeq, decoyPep.mods, this.ionTypes, 1);
+                            float[][] decoyMatchedIons = findMatchedIons(decoySitePepFrags, peakMzs, peakInts);
+                            float[] decoyMatchedIonIntensities = decoyMatchedIons[0];
+                            float[] decoyMatchedMassErrors = decoyMatchedIons[1];
+                            this.matchedIonDist.addIons(decoyMatchedIonIntensities, decoyMatchedMassErrors, true);
                         }
                     }
                 }
@@ -155,8 +167,10 @@ public class IterativeLocalizer {
             this.matchedIonDist.calculateCdf();
         else
             this.matchedIonDist.calculateIonPosterior();
-        if (this.printIonDistribution)
-            this.matchedIonDist.printHisto("matched_ion_distribution.tsv");
+        if (this.printIonDistribution) {
+            this.matchedIonDist.printIntensityHisto("matched_ion_intensity_distribution.tsv");
+            this.matchedIonDist.printMassErrorHisto("matched_ion_mass_error_distribution.tsv");
+        }
 
         long t2 = System.currentTimeMillis();
         System.out.printf("\tDone fitting distribution to matched zero-bin fragments (%d ms processing)\n", t2-t1);
@@ -674,7 +688,7 @@ public class IterativeLocalizer {
         // Filter peakMzs and peakInts to only those that match at least one ion
         float[] peakMzs = spec.getPeakMZ();
         float[] peakInts = spec.getPeakInt();
-        float[] matchedIons = findMatchedIons(pepFrags, peakMzs, peakInts); // Returns -1 if unmatched, intensity otherwise
+        float[] matchedIons = findMatchedIons(pepFrags, peakMzs, peakInts)[0]; // Returns -1 if unmatched, intensity otherwise // [0] is intensities, [1] is mass errors TODO rewrite
         int matchedCount = 0;
         for (int i = 0; i < matchedIons.length; i++) {
             if (matchedIons[i] > 0.0)
@@ -774,14 +788,16 @@ public class IterativeLocalizer {
         // Loop through sites and calculate the matched ions
         int cAllowedPos = 0;
         for(int i = 0; i < pep.length(); i++) {
-            if (allowedPoses[i+1] == false)
+            if (!allowedPoses[i + 1])
                 continue;
             mods[i] += dMass;
             ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
             // Find matched ion intensities. Matched ions will have positive intensities, unmatched ions will have negative
-            float[] matchedIonIntensities = findMatchedIons(sitePepFrags, peakMzs, peakInts);
+            float[][] matchedIons = findMatchedIons(sitePepFrags, peakMzs, peakInts);
+            float[] matchedIonIntensities = matchedIons[0];
+            float[] matchedIonMassErrors = matchedIons[1];
             // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
-            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities);
+            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities); //TODO input mass errors here
             if (debugFlag) {
                 System.out.println("Matched ions");
                 System.out.println(pep);
@@ -820,7 +836,7 @@ public class IterativeLocalizer {
      */
     private double computeLikelihood(ArrayList<Float> pepFrags, float[] peakMzs, float[] peakInts) {
         // Find matched ion intensities. Matched ions will have positive intensities, unmatched ions will have negative
-        float[] matchedIonIntensities = findMatchedIons(pepFrags, peakMzs, peakInts);
+        float[] matchedIonIntensities = findMatchedIons(pepFrags, peakMzs, peakInts)[0];
         // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
         double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities);
 
@@ -879,10 +895,13 @@ public class IterativeLocalizer {
      * @param pepFrags  theoretical peptide fragments
      * @param peakMzs   spectrum peak M/Zs
      * @param peakInts  spectrum peak intensities
-     * @return float[] of size spectrum_ions, matched ions show intensity, unmatched ions show -1 * intensity
+     * @return float[][] of size [2][spectrum_ions], [0] is matched ion intensities, matched ions show intensity,
+     * unmatched ions show -1 * intensity, [1] is matched ion mass errors, matched fragments show absolute value of mass
+     * error as PPM, unmatched ions show -1.
      */
-    float[] findMatchedIons(ArrayList<Float> pepFrags, float[] peakMzs, float[] peakInts) {
+    public float[][] findMatchedIons(ArrayList<Float> pepFrags, float[] peakMzs, float[] peakInts) {
         float[] matchedIonIntensities = new float[peakMzs.length];
+        float[] matchedIonErrors = new float[peakMzs.length];
         Collections.sort(pepFrags);
 
         if (debugFlag)
@@ -901,6 +920,7 @@ public class IterativeLocalizer {
                 if (peakMzs[specIdx] <= minVal) {
                     if (matchedIonIntensities[specIdx] == 0.0f) { // Check if not matched yet
                         matchedIonIntensities[specIdx] = -1.0f * peakInts[specIdx];
+                        matchedIonErrors[specIdx] = -1.0f;
                     }
                     specIdx++;
                 } else
@@ -923,12 +943,14 @@ public class IterativeLocalizer {
                 if (debugFlag)
                     System.out.println(peakMzs[wIndex]);
                 matchedIonIntensities[startIdx] = maxInt;
+                matchedIonErrors[startIdx] = Math.abs(frag - peakMzs[startIdx]) / peakMzs[startIdx] * 1000000.0f;
             } else { // If more than one ion in minVal->maxVal window, max is matched and rest are unmatched
                 for (int i = startIdx; i <= wIndex; i++) {
                     if (Math.abs(peakInts[i] - maxInt) < 0.001) {
                         if (debugFlag)
                             System.out.println(peakMzs[wIndex] + "\t" + peakInts[wIndex]);
                         matchedIonIntensities[i] = maxInt;
+                        matchedIonErrors[i] = Math.abs(frag - peakMzs[i]) / peakMzs[i] * 1000000.0f;
                         break;
                     }
                 }
@@ -936,13 +958,19 @@ public class IterativeLocalizer {
         }
         while (specIdx < maxSpecIdx) { // If we passed the last fragment, consider the rest unmatched
             matchedIonIntensities[specIdx] = -1.0f * peakInts[specIdx];
+            matchedIonErrors[specIdx] = -1.0f;
             specIdx++;
         }
 
         if (debugFlag)
             System.out.println(Arrays.toString(matchedIonIntensities));
 
-        return matchedIonIntensities;
+        float[][] matchedIons = new float[][]{
+                matchedIonIntensities,
+                matchedIonErrors
+        };
+
+        return matchedIons;
     }
 
     /**
@@ -966,7 +994,7 @@ public class IterativeLocalizer {
         // Calculate potential sites
         int s = 0;
         for (int i  = 0; i < allowedPoses.length; i++) {
-            if (allowedPoses[i] == true) {
+            if (allowedPoses[i]) {
                 s++;
             }
         }
@@ -1029,7 +1057,7 @@ public class IterativeLocalizer {
         for (int i = 0; i < this.peaks[0].length; i++) {
             if (i == this.zeroBin)
                 continue;
-            if (this.priorProbs[i].getIsConverged() == true)
+            if (this.priorProbs[i].getIsConverged())
                 nConverged++;
         }
         return nConverged;
@@ -1041,7 +1069,7 @@ public class IterativeLocalizer {
         for (int i = 0; i < this.peaks[0].length; i++) {
             if (i == this.zeroBin)
                 continue;
-            if (this.priorProbs[i].getIsConverged() == false) {
+            if (!this.priorProbs[i].getIsConverged()) {
                 nUnconverged++;
                 avgNorm += this.priorProbs[i].getPriorVectorNorm();
             }
@@ -1054,14 +1082,14 @@ public class IterativeLocalizer {
 
         sb.append(new DecimalFormat("0.0000").format(dMass));
         sb.append("@");
-        if (allowedPoses[0] == true)
+        if (allowedPoses[0])
             sb.append("("+new DecimalFormat("0.0000").format(probs[0])+")");
         for (int i = 0; i < pep.length(); i++) {
             sb.append(pep.charAt(i));
-            if (allowedPoses[i+1] == true)
+            if (allowedPoses[i + 1])
                 sb.append("("+new DecimalFormat("0.0000").format(probs[i+1])+")");
         }
-        if (allowedPoses[allowedPoses.length-1] == true)
+        if (allowedPoses[allowedPoses.length - 1])
             sb.append("("+new DecimalFormat("0.0000").format(probs[0])+")");
 
         return sb.toString();
