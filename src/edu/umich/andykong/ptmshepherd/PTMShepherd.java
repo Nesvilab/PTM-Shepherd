@@ -223,7 +223,7 @@ public class PTMShepherd {
 		params.put("annotation_file", "");
 		params.put("annotation_tol", "0.01"); //annotation tolerance (in daltons) for unimod matching
 
-		params.put("glyco_mode", "false");
+		params.put("run_glyco_mode", "false");
 		params.put("cap_y_ions", "0,203.07937,349.137279,406.15874,568.21156,730.26438,892.3172");
 		params.put("glyco_cap_y_ions_normalize", "1"); //0 = off, 1 = base peak
 		params.put("max_cap_y_charge", "0");
@@ -691,7 +691,7 @@ public class PTMShepherd {
 		}
 
 		//Glycan assignment
-		boolean glycoMode = Boolean.parseBoolean(params.get("glyco_mode"));
+		boolean glycoMode = Boolean.parseBoolean(params.get("run_glyco_mode"));
 		if (glycoMode) {
 			System.out.println("Beginning glycan assignment");
 			// parse glyco parameters and initialize database and ratio tables

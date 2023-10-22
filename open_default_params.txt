@@ -39,7 +39,7 @@ iontype_z = 0
 compare_betweenRuns = false // Allows spectral similarity and retention time changes to be calculated based on PSMs from other raw files
 
 
-glyco_mode = false // Turns on glyco mode
+run_glyco_mode = false // Turns on glyco mode
 cap_y_ions = 0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279
 cap_y_ions_normalize = 0 //0 = off, 1 = base peak
 max_cap_y_charge = 0
