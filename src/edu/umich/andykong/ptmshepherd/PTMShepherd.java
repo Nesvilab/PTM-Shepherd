@@ -599,7 +599,7 @@ public class PTMShepherd {
 		print("Created similarity/RT reports\n");
 
 		//Diagnostic mining
-		boolean diagMineMode = Boolean.parseBoolean(params.get("diagmine_mode"));
+		boolean diagMineMode = Boolean.parseBoolean(params.get("run_diagmine_mode"));
 		if (diagMineMode) {
 			out.println("Beginning diagnostic ion mining");
 			long t1 = System.currentTimeMillis();
@@ -650,7 +650,7 @@ public class PTMShepherd {
 		}
 
 		// diagnostic ion extraction (original glyco/labile mode)
-		boolean extractDiagnosticIons = Boolean.parseBoolean(params.get("diagextract_mode"));
+		boolean extractDiagnosticIons = Boolean.parseBoolean(params.get("run_diagextract_mode"));
 		if (extractDiagnosticIons) {
 			System.out.println("Beginning diagnostic ion extraction");
 			int numThreads = Integer.parseInt(params.get("threads"));
