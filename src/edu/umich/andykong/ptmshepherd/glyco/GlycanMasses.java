@@ -38,43 +38,12 @@ public class GlycanMasses {
     public static final float CaAdductMass = (float) 37.946938;     // replaced 2 protons by Ca+2
     public static final float AlAdductMass = (float) 23.958062;     // replaced 3 protons by Al+3
 
-    // map of residue -> mass
-    public static TreeMap<GlycanResidue, Float> glycoMasses;
-    static
-    {
-        glycoMasses = new TreeMap<>();
-        glycoMasses.put(GlycanResidue.Hex, hexMass);
-        glycoMasses.put(GlycanResidue.HexNAc, hexnacMass);
-        glycoMasses.put(GlycanResidue.dHex, dhexMass);
-        glycoMasses.put(GlycanResidue.NeuAc, neuacMass);
-        glycoMasses.put(GlycanResidue.NeuGc, neugcMass);
-        glycoMasses.put(GlycanResidue.Phospho, phosphoMass);
-        glycoMasses.put(GlycanResidue.Sulfo, sulfoMass);
-        glycoMasses.put(GlycanResidue.NH3, NH3adductMass);
-        glycoMasses.put(GlycanResidue.Na, NaAdductMass);
-        glycoMasses.put(GlycanResidue.Fe3, Fe3AdductMass);
-        glycoMasses.put(GlycanResidue.Fe2, Fe2AdductMass);
-        glycoMasses.put(GlycanResidue.Ca, CaAdductMass);
-        glycoMasses.put(GlycanResidue.Al, AlAdductMass);
-    }
 
     // Map of names to residues for parsing database files. NOTE: assumed all lower case
     public static TreeMap<String, GlycanResidue> glycoNames;
     static
     {
         glycoNames = new TreeMap<>();
-        glycoNames.put("hex", GlycanResidue.Hex);
-        glycoNames.put("glc", GlycanResidue.Hex);
-        glycoNames.put("gal", GlycanResidue.Hex);
-        glycoNames.put("glucose", GlycanResidue.Hex);
-        glycoNames.put("galactose", GlycanResidue.Hex);
-        glycoNames.put("hexnac", GlycanResidue.HexNAc);
-        glycoNames.put("glcnac", GlycanResidue.HexNAc);
-        glycoNames.put("galnac", GlycanResidue.HexNAc);
-        glycoNames.put("fuc", GlycanResidue.dHex);
-        glycoNames.put("dhex", GlycanResidue.dHex);
-        glycoNames.put("neuac", GlycanResidue.NeuAc);
-        glycoNames.put("neugc", GlycanResidue.NeuGc);
         glycoNames.put("phospho", GlycanResidue.Phospho);
         glycoNames.put("phosphorylation", GlycanResidue.Phospho);
         glycoNames.put("phosphate", GlycanResidue.Phospho);

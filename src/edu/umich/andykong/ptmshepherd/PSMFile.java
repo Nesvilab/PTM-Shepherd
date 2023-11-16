@@ -222,7 +222,7 @@ public class PSMFile {
 	*  Update: only writes some columns rather than full rawglyco table
 	*  numColsToUse gives the number of columns to take
 	*/
-	public void mergeGlycoTable(File glyf, int numColsToUse, boolean writeGlycansToAssignedMods, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass, boolean printDecoys) throws Exception {
+	public void mergeGlycoTable(File glyf, int numColsToUse, GlycoParams glycoParams) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
 		String tempFoutName = this.fname + ".glyco.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
@@ -258,7 +258,7 @@ public class PSMFile {
 			observedModCol = 27;		// default is 27
 		}
 		if (warnPSMcolNotFound(assignedModCol, "Assigned Modifications") || warnPSMcolNotFound(fraggerLocCol, "MSFragger Localization") || warnPSMcolNotFound(peptideCol, "Peptide") || warnPSMcolNotFound(modPeptideCol, "Modified Peptide") || warnPSMcolNotFound(deltaMassCol, "Delta Mass")) {
-			writeGlycansToAssignedMods = false;		// can't write to assigned mods without these columns, disable
+			glycoParams.writeGlycansToAssignedMods = false;		// can't write to assigned mods without these columns, disable
 		}
 
 		// get rawglyco file headers
@@ -309,7 +309,7 @@ public class PSMFile {
 					String observedGlycan;
 					String glycanScore = glyLine.get(glycanScoreCol);
 					if (rawGlycan.contains("Decoy")) {
-						if (!printDecoys) {
+						if (!glycoParams.printGlycoDecoys) {
 							// report best target glycan instead of decoy (q-value will be reported as 1)
 							rawGlycan = glyLine.get(bestTargetGlycanCol);
 							glycanScore = glyLine.get(bestTargetScoreCol);
@@ -326,8 +326,8 @@ public class PSMFile {
 					newLine.set(observedModCol + 2, glycanScore);
 					newLine.set(observedModCol + 3, glyLine.get(glycanQvalCol));
 					int charge = Integer.parseInt(newLine.get(chargeCol));
-					if (writeGlycansToAssignedMods) {
-						newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge, writeGlycansToAssignedMods);
+					if (glycoParams.writeGlycansToAssignedMods) {
+						newLine = writeGlycanToAssignedMod(newLine, rawGlycan, charge, glycoParams);
 					}
 				}
 			}
@@ -377,7 +377,7 @@ public class PSMFile {
 	 * Also writes to modified peptide and delta mass columns.
 	 * Handles cases where information was previously written to the PSM table by removing/replacing the previous ID if present
 	 */
-	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, boolean nGlycan, String allowedResidues, boolean removeGlycanDeltaMass, int charge, boolean writeAllGlycans) {
+	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, int charge, GlycoParams glycoParams) {
 		// parse glycan composition from recently edited observed mods col
 		TreeMap<GlycanResidue, Integer> glycanComp;
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
@@ -385,9 +385,9 @@ public class PSMFile {
 
 		// Default is to always write glycan mass to assigned mod, unless option to only write glycans passing FDR is specified
 		boolean editPSMGlycoEntry = true;
-		if (!writeAllGlycans) {
+		if (!glycoParams.writeGlycansToAssignedMods) {
 			editPSMGlycoEntry = !failOrDecoy;
-			if (removeGlycanDeltaMass) {
+			if (glycoParams.removeGlycanDeltaMass) {
 				// if removing delta mass for quant, ALWAYS edit PSM entry, even if it did not pass FDR (needed for quant)
 				PTMShepherd.print("Note: remove_glycan_delta_mass requires that put_glycans_to_assigned_mods be set to True. All glycans will be written to assigned mods, regardless of FDR");
 				editPSMGlycoEntry = true;
@@ -396,11 +396,11 @@ public class PSMFile {
 
 		/* Get glycan mass */
 		try {
-			glycanComp = GlycoParams.parseGlycanString(glycanOnly);
+			glycanComp = glycoParams.parseGlycanString(glycanOnly);
 		} catch (Exception ex) {
 			try {
 				// try old format in case of old PSM file
-				glycanComp = GlycoParams.parseGlycanStringOld(glycanOnly);
+				glycanComp = glycoParams.parseGlycanStringOld(glycanOnly);
 			} catch (Exception ex2) {
 				// Not a glycan (PTM-S or Philosopher may put other string formats here) - ignore and continue
 				return newLine;
@@ -410,11 +410,11 @@ public class PSMFile {
 		if (glycanMass == 0) {
 			// do not edit entry if no matches found to the delta mass
 			editPSMGlycoEntry = false;
-			removeGlycanDeltaMass = false;
+			glycoParams.removeGlycanDeltaMass = false;
 		}
 
 		/* Get glycan location */
-		int glycanLocation = readMSFraggerGlycanLocation(newLine, fraggerLocCol, peptideCol, nGlycan, allowedResidues);
+		int glycanLocation = readMSFraggerGlycanLocation(newLine, fraggerLocCol, peptideCol, glycoParams.nGlycan, glycoParams.allowedLocalizationResidues);
 		String glycanAA;
 		String fraggerPepLocStr = newLine.get(fraggerLocCol);
 		// skip missing loc column for now (quant will fail, but not needed for basic ID)
@@ -504,7 +504,7 @@ public class PSMFile {
 		newLine.set(modPeptideCol, newModPep);
 
 		/* Update delta mass AND calc m/z columns */
-		if (removeGlycanDeltaMass) {
+		if (glycoParams.removeGlycanDeltaMass) {
 			double prevDeltaMass = Double.parseDouble(newLine.get(deltaMassCol));
 			double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
 			double prevNeutralMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);

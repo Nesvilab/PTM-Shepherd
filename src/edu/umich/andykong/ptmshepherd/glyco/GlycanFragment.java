@@ -42,8 +42,8 @@ public class GlycanFragment {
      * @param glycanStr string to parse for composition
      * @param expectedIntensity observed relative intensity todo: might be able to remove this if not using later
      */
-    public GlycanFragment(String glycanStr, double expectedIntensity, FragType fragType) {
-        this.requiredComposition = GlycoParams.parseGlycanString(glycanStr);
+    public GlycanFragment(String glycanStr, double expectedIntensity, FragType fragType, GlycoParams glycoParams) {
+        this.requiredComposition = glycoParams.parseGlycanString(glycanStr);
         this.expectedIntensity = expectedIntensity;
         this.isDecoy = false;
         this.foundIntensity = 0;
@@ -54,14 +54,13 @@ public class GlycanFragment {
     }
 
     /**
-     * Constructor for case that neutral mass is the mass of requiredComposition exactly
-     * @param ruleProbabilities probabilities to use
+     * Constructor Y ions (neutral mass is the mass of requiredComposition exactly)
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, boolean isDecoy, Random randomGenerator, FragType fragType) {
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, boolean isDecoy, Random randomGenerator, FragType fragType) {
         this.requiredComposition = requiredComposition;
-        this.ruleProbabilities = ruleProbabilities;
+        this.ruleProbabilities = computeYRuleProbs();
         this.propensity = 0;
         this.expectedIntensity = 0;
         this.foundIntensity = 0;
@@ -189,6 +188,25 @@ public class GlycanFragment {
         }
         // all checks pass - return true
         return true;
+    }
+
+    /**
+     * Compute the generic scores for a Y ion from the provided scores of the individual residues. The score resulting
+     * in the least change is taken if there are disagreements between residue scores.
+     * @return
+     */
+    private double[] computeYRuleProbs() {
+        double minProbPlus = 100000;
+        double maxProbMinus = -1;
+        for (GlycanResidue residue: requiredComposition.keySet()) {
+            if (residue.yProbs[0] < minProbPlus) {
+                minProbPlus = residue.yProbs[0];
+            }
+            if (residue.yProbs[1] > maxProbMinus) {
+                maxProbMinus = residue.yProbs[1];
+            }
+        }
+        return new double[]{minProbPlus, maxProbMinus};
     }
 
     /**

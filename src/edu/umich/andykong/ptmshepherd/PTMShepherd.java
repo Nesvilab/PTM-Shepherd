@@ -740,7 +740,7 @@ public class PTMShepherd {
 
 				if (glycoParams.useGlycanFragmentProbs) {
 					// second pass - calculate fragment propensities, regenerate database, and re-run
-					HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs();
+					HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
 					ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
 
 					// run glyco PSM-level analysis with the new database
@@ -776,7 +776,7 @@ public class PTMShepherd {
 				ArrayList<String[]> dsData = datasets.get(ds);
 				for (int i = 0; i < dsData.size(); i++) {
 					PSMFile pf = new PSMFile(new File(dsData.get(i)[0]));
-					pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, glycoParams.writeGlycansToAssignedMods, glycoParams.nGlycan, glycoParams.allowedLocalizationResidues, glycoParams.removeGlycanDeltaMass, glycoParams.printGlycoDecoys);
+					pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, glycoParams);
 				}
 			}
 
@@ -1096,7 +1096,7 @@ public class PTMShepherd {
 		String decoyParam = getParam("decoy_type");
 		glycoParams.decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): GlycoAnalysis.DEFAULT_GLYCO_DECOY_TYPE;
 		ProbabilityTables glycoProbabilityTable = GlycoParams.initGlycoProbTable();
-		HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoProbabilityTable);
+		glycoParams.glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoProbabilityTable, glycoParams);
 		glycoParams.glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PPM_TOL : Double.parseDouble(getParam("glyco_ppm_tol"));
 		glycoParams.glycoIsotopes = GlycoParams.parseGlycoIsotopesParam();
 		glycoParams.nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true

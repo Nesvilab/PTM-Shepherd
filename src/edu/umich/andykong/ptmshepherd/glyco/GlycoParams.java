@@ -54,6 +54,7 @@ public class GlycoParams {
     public boolean useNonCompFDR ;
     public double defaultProp;
     public String allowedLocalizationResidues;
+    public HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase;
 
     private static final String defaultResiduePath = "glycan_residues.tsv";
     private static final String defaultModsPath = "glycan_mods.tsv";
@@ -64,31 +65,6 @@ public class GlycoParams {
     private static final Pattern byonicPattern = Pattern.compile("[A-Za-z]+\\([0-9]+\\)");      // e.g., HexNAc(1)Hex(1)
     private static final Pattern metamorpheusPattern = Pattern.compile("[A-Z]+[0-9]+");         // e.g., N1H1
     private static final Pattern oldPTMSPattern = Pattern.compile("[A-Za-z]+-[0-9]+");          // e.g., HexNAc-1_Hex-1
-
-    private static final HashMap<String, GlycanResidue> pGlycoTokenMap;    // map pGlyco tokens to our internal Glycan strings
-    static
-    {
-        pGlycoTokenMap = new HashMap<>();
-        pGlycoTokenMap.put("A", GlycanResidue.NeuAc);
-        pGlycoTokenMap.put("G", GlycanResidue.NeuGc);
-        pGlycoTokenMap.put("F", GlycanResidue.dHex);
-        pGlycoTokenMap.put("H", GlycanResidue.Hex);
-        pGlycoTokenMap.put("N", GlycanResidue.HexNAc);
-        pGlycoTokenMap.put("P", GlycanResidue.Phospho);
-    }
-    private static final HashMap<String, GlycanResidue> metamorpheusTokenMap;    // map pGlyco tokens to our internal Glycan strings
-    static
-    {
-        metamorpheusTokenMap = new HashMap<>();
-        metamorpheusTokenMap.put("A", GlycanResidue.NeuAc);
-        metamorpheusTokenMap.put("G", GlycanResidue.NeuGc);
-        metamorpheusTokenMap.put("F", GlycanResidue.dHex);
-        metamorpheusTokenMap.put("H", GlycanResidue.Hex);
-        metamorpheusTokenMap.put("N", GlycanResidue.HexNAc);
-        metamorpheusTokenMap.put("P", GlycanResidue.Phospho);
-        metamorpheusTokenMap.put("S", GlycanResidue.Sulfo);
-        metamorpheusTokenMap.put("Y", GlycanResidue.Na);
-    }
 
     public GlycoParams(String glycanResiduesPath, String glycanModsPath) {
         // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
@@ -234,7 +210,7 @@ public class GlycoParams {
                             glycanComp = parsePGlycoGlycan(line);
                             break;
                         case metamorpheus:
-                            glycanComp = parseMetaMorpheusGlycan(line, metamorpheusPattern.matcher(line));
+                            glycanComp = parseGlycan(line, metamorpheusPattern.matcher(line));
                             break;
                         case oldPTMShepherd:
                             glycanComp = parseGlycan(line, oldPTMSPattern.matcher(line));
@@ -319,7 +295,7 @@ public class GlycoParams {
      * @param glycanFormatRegex from Pattern.Matcher(string)
      * @return
      */
-    private static TreeMap<GlycanResidue, Integer> parseGlycan(String line, Matcher glycanFormatRegex) {
+    private TreeMap<GlycanResidue, Integer> parseGlycan(String line, Matcher glycanFormatRegex) {
         TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
         while(glycanFormatRegex.find()) {
             String glycanToken = glycanFormatRegex.group();
@@ -327,44 +303,15 @@ public class GlycoParams {
             GlycanResidue residue;
             if (glycanName.find()) {
                 String glycan = glycanName.group();
-                if (GlycanMasses.glycoNames.containsKey(glycan.trim().toLowerCase())) {
-                    residue = GlycanMasses.glycoNames.get(glycan.trim().toLowerCase());
-                } else {
-                    PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", glycan, line));
-                    continue;
+                residue = findResidueName(glycan);
+                if (residue == null) {
+                    // todo: try to match to a modification
+                    PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized. This glycan will not be included in search! Please add %s to the glycan_residues.tsv table.", glycanName, line, glycanName));
+                    return new TreeMap<>();
                 }
             } else {
-                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", glycanToken, line));
-                continue;
-            }
-            Matcher glycanCount = numberPattern.matcher(glycanToken);
-            if (glycanCount.find()) {
-                int count = Integer.parseInt(glycanCount.group());
-                glycanComp.put(residue, count);
-            } else {
-                PTMShepherd.print(String.format("Warning: glycan count not found in glycan %s and was ignored", line));
-            }
-        }
-        return glycanComp;
-    }
-
-    private static TreeMap<GlycanResidue, Integer> parseMetaMorpheusGlycan(String line, Matcher glycanFormatRegex) {
-        TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
-        while(glycanFormatRegex.find()) {
-            String glycanToken = glycanFormatRegex.group();
-            Matcher glycanName = letterPattern.matcher(glycanToken);
-            GlycanResidue residue;
-            if (glycanName.find()) {
-                String glycan = glycanName.group();
-                if (metamorpheusTokenMap.containsKey(glycan)) {
-                    residue = metamorpheusTokenMap.get(glycan);
-                } else {
-                    PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", glycanName.toString(), line));
-                    continue;
-                }
-            } else {
-                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", glycanName.toString(), line));
-                continue;
+                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized. This glycan will not be included in search! Please add %s to the glycan_residues.tsv table.", glycanName, line, glycanName));
+                return new TreeMap<>();
             }
             Matcher glycanCount = numberPattern.matcher(glycanToken);
             if (glycanCount.find()) {
@@ -378,11 +325,34 @@ public class GlycoParams {
     }
 
     /**
+     * Search all GlycanResidue names and alternate names to try to match this input to one of them.
+     * @param inputName string
+     * @return
+     */
+    private GlycanResidue findResidueName(String inputName) {
+        for (GlycanResidue residue: glycanResidues) {
+            if (residue.name.equalsIgnoreCase(inputName)) {
+                return residue;
+            }
+        }
+        // no exact match: check alternate names
+        for (GlycanResidue residue: glycanResidues) {
+            for (String altName : residue.alternateNames) {
+                if (altName.equalsIgnoreCase(inputName)) {
+                    return residue;
+                }
+            }
+        }
+        // no match - return null and warn user
+        return null;
+    }
+
+    /**
      * Parse pGlyco glycan from String
      * @param line
      * @return
      */
-    private static TreeMap<GlycanResidue, Integer> parsePGlycoGlycan(String line) {
+    private TreeMap<GlycanResidue, Integer> parsePGlycoGlycan(String line) {
         TreeMap<GlycanResidue, Integer> glycanComp = new TreeMap<>();
 
         // skip empty lines and lines without a glycan structure
@@ -391,27 +361,20 @@ public class GlycoParams {
         }
 
         // parse glycans from tokens
-        line = line.replace("Hp", "H(P");      // remove double characters, if present
         Matcher matcher = pGlycoPattern.matcher(line);
-        boolean valid = true;
         while(matcher.find()) {
             String glycanToken = matcher.group();
-            if (pGlycoTokenMap.containsKey(glycanToken)) {
-                GlycanResidue residue = pGlycoTokenMap.get(glycanToken);
-                if (glycanComp.containsKey(residue)) {
-                    glycanComp.put(residue, glycanComp.get(residue) + 1);
-                } else {
-                    glycanComp.put(residue, 1);
-                }
-
-            } else {
-                PTMShepherd.print(String.format("Invalid token %s in line %s during glycan database parsing. This glycan will be skipped", glycanToken, line));
-                valid = false;
-                break;
+            GlycanResidue residue = findResidueName(glycanToken);
+            if (residue == null) {
+                // todo: try to match to a modification
+                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized. This glycan will not be included in search! Please add %s to the glycan_residues.tsv table.", glycanName, line, glycanName));
+                return new TreeMap<>();
             }
-        }
-        if (!valid) {
-            glycanComp = new TreeMap<>();
+            if (glycanComp.containsKey(residue)) {
+                glycanComp.put(residue, glycanComp.get(residue) + 1);
+            } else {
+                glycanComp.put(residue, 1);
+            }
         }
         return glycanComp;
     }
@@ -639,7 +602,7 @@ public class GlycoParams {
         }
     }
 
-    public static TreeMap<GlycanResidue, Integer> parseGlycanStringOld(String glycanString) {
+    public TreeMap<GlycanResidue, Integer> parseGlycanStringOld(String glycanString) {
         Matcher matcher = oldPTMSPattern.matcher(glycanString);
         return parseGlycan(glycanString, matcher);
     }
@@ -649,34 +612,11 @@ public class GlycoParams {
      * @param glycanString Byonic format glycan string
      * @return composition map
      */
-    public static TreeMap<GlycanResidue, Integer> parseGlycanString(String glycanString) {
+    public TreeMap<GlycanResidue, Integer> parseGlycanString(String glycanString) {
         glycanString = glycanString.replace("FailFDR_", "");
         glycanString = glycanString.replace("Decoy_", "");
         Matcher matcher = byonicPattern.matcher(glycanString);
         return parseGlycan(glycanString, matcher);
-    }
-
-    /**
-     * Helper for parsing glycan compositions with error checking. NOTE: ignores unknown glycan residues, but continues
-     * assembling the rest of the composition, leading to altered compositions when unknowns are present
-     * @param glycanComp
-     * @param residueStr
-     * @param countStr
-     * @param glycanString
-     */
-    private static void parserHelper(TreeMap<GlycanResidue, Integer> glycanComp, String residueStr, String countStr, String glycanString) {
-        GlycanResidue residue = GlycanMasses.glycoNames.get(residueStr.trim().toLowerCase(Locale.ROOT));
-        if (residue == null) {
-            PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", residueStr, glycanString));
-            return;
-        }
-        int count;
-        try {
-            count = Integer.parseInt(countStr.trim());
-        } catch (ArrayIndexOutOfBoundsException ex) {
-            return;   // empty string or incorrect format - ignore
-        }
-        glycanComp.put(residue, count);
     }
 
     /**

@@ -177,7 +177,7 @@ public class GlycoAnalysis {
      * Option to save prevalence file for diagnostics/info to be added?
      * @return Map of glycan string : fragment propensities container
      */
-    public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs() throws IOException {
+    public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs(GlycoParams glycoParams) throws IOException {
         HashMap<String, GlycanCandidateFragments> glycanCandidateFragmentsMap = new HashMap<>();
         HashMap<String, ArrayList<GlycanCandidate>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
 
@@ -198,7 +198,7 @@ public class GlycoAnalysis {
                 String glycanString = splits[glycanCol];
                 boolean isDecoy = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
                 String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
-                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo);
+                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo, glycoParams);
                 String glycanHash = fragmentInfoContainer.toString();
                 // only include targets in fragment info
                 if (!isDecoy) {
@@ -1550,7 +1550,7 @@ public class GlycoAnalysis {
      * by residue type
      * @return map of residue type : list of fragment descriptors parsed from the table
      */
-    public static HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> parseOxoniumDatabase(ProbabilityTables probabilityTable) {
+    public static HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> parseOxoniumDatabase(ProbabilityTables probabilityTable, GlycoParams glycoParams) {
         HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> oxoniumDB = new HashMap<>();
         BufferedReader in;
         try {
@@ -1563,7 +1563,7 @@ public class GlycoAnalysis {
                     continue;
                 String[] splits = line.split("\t");
                 GlycanResidue residue = GlycanMasses.glycoNames.get(splits[0].trim().toLowerCase(Locale.ROOT));
-                TreeMap<GlycanResidue, Integer> ionComposition = GlycoParams.parseGlycanString(splits[1]);
+                TreeMap<GlycanResidue, Integer> ionComposition = glycoParams.parseGlycanString(splits[1]);
                 double massShift = Double.parseDouble(splits[2]);
                 String comment = splits.length > 3 ? splits[3] : "";
 

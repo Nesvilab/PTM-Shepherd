@@ -39,8 +39,8 @@ public class GlycanCandidate {
      * @param glycanStr glycan composition string to read
      * @param parsedFragmentInfo list of strings containing fragment ion info
      */
-    public GlycanCandidate(String glycanStr, String[] parsedFragmentInfo){
-        glycanComposition = GlycoParams.parseGlycanString(glycanStr);
+    public GlycanCandidate(String glycanStr, String[] parsedFragmentInfo, GlycoParams glycoParams){
+        glycanComposition = glycoParams.parseGlycanString(glycanStr);
         monoisotopicMass = computeMonoisotopicMass(glycanComposition);
 
         Yfragments = new TreeMap<>();
@@ -50,10 +50,10 @@ public class GlycanCandidate {
             // string format is [type]~[composition]~[intensity]
             if (typeSplits[0].matches("Y")) {
                 // Y ion
-                GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]), GlycanFragment.FragType.Y);
+                GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]), GlycanFragment.FragType.Y, glycoParams);
                 Yfragments.put(newFragment.hash, newFragment);
             } else if (typeSplits[0].matches("Ox")) {
-                GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]), GlycanFragment.FragType.Ox);
+                GlycanFragment newFragment = new GlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]), GlycanFragment.FragType.Ox, glycoParams);
                 oxoniumFragments.put(newFragment.hash, newFragment);
             } else {
                 // invalid
@@ -71,16 +71,16 @@ public class GlycanCandidate {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
-        for (GlycanResidue residue : GlycanResidue.values()){
+        for (GlycanResidue residue : glycoParams.glycanResidues){
             if (!this.glycanComposition.containsKey(residue)) {
                 this.glycanComposition.put(residue, 0);
             }
         }
-        this.monoisotopicMass = setMassHelper(decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+        this.monoisotopicMass = setMassHelper(glycoParams);
 
         // initialize fragments for this candidate
-        initializeYFragments(probabilityTable, randomGenerator);
-        initializeOxoniumFragments(glycoOxoniumDatabase, randomGenerator);
+        initializeYFragments(glycoParams.randomGenerator);
+        initializeOxoniumFragments(glycoParams.glycoOxoniumDatabase, glycoParams.randomGenerator);
         this.hasFragmentProps = false;
     }
 
@@ -96,7 +96,7 @@ public class GlycanCandidate {
         this.glycanComposition = oldCandidate.glycanComposition;
         this.isDecoy = oldCandidate.isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
-        for (GlycanResidue residue : GlycanResidue.values()){
+        for (GlycanResidue residue : glycoParams.glycanResidues){
             if (!this.glycanComposition.containsKey(residue)) {
                 this.glycanComposition.put(residue, 0);
             }
@@ -231,39 +231,71 @@ public class GlycanCandidate {
         }
     }
 
+    private static <T> List<List<T>> generateCombinations(List<T> source, List<T> comb, int targetSize) {
+        if (comb.size() == targetSize) {
+            List<List<T>> result = new ArrayList<>();
+            result.add(comb);
+            return result;
+        }
+
+        List<List<T>> result = new ArrayList<>();
+        Iterator<T> iterator = source.iterator();
+        while (iterator.hasNext()) {
+            T item = iterator.next();
+            iterator.remove();
+
+            // creating a new combination using existing as a base
+            List<T> newComb = new ArrayList<T>(comb);
+            newComb.add(item); // adding the element that was removed from the source
+            result.addAll(generateCombinations(new ArrayList<>(source), newComb, targetSize)); // adding all the combinations generated
+        }
+        return result;
+    }
+
+    private String hashComp(TreeMap<GlycanResidue, Integer> composition) {
+        StringBuilder output = new StringBuilder();
+        for (Map.Entry<GlycanResidue, Integer> entry: composition.entrySet()) {
+            output.append(entry.getKey().name);
+            output.append(entry.getValue());
+        }
+        return output.toString();
+    }
+
     /**
      * Initialize array of all fragment ions to search for this candidate. Candidate has
      * fragment Ys up to the max HexNAc, Hex, and dHex present. Decoy fragments are generated for decoy candidates.
      */
-    public void initializeYFragments(ProbabilityTables probabilityTable, Random randomGenerator) {
+    public void initializeYFragments(Random randomGenerator) {
         // Initialize list of all Y fragments to consider. Currently using only HexNAc, Hex, and dHex in Y ions
-        this.Yfragments = new TreeMap<>();
-        for (int hexnac = 0; hexnac <= this.glycanComposition.get(GlycanResidue.HexNAc); hexnac++) {
-            for (int hex = 0; hex <= this.glycanComposition.get(GlycanResidue.Hex); hex++) {
-                if (!(hexnac == 0 && hex == 0)) {
-                    // todo: option or remove
-                    if (hexnac == 0 && this.glycanComposition.get(GlycanResidue.HexNAc) > 0) {
-                        // do not generate non-HexNAc containing Y ions for compositions that have HexNAc
-                        continue;
-                    }
-                    // add "regular" (no dHex) Y fragment for this HexNAc/Hex combination
-                    Map<GlycanResidue, Integer> composition = new HashMap<>();
-                    composition.put(GlycanResidue.HexNAc, hexnac);
-                    composition.put(GlycanResidue.Hex, hex);
-                    GlycanFragment fragment = new GlycanFragment(composition, probabilityTable.regularYrules, this.isDecoy, randomGenerator, GlycanFragment.FragType.Y);
-                    Yfragments.put(fragment.hash, fragment);
+        Yfragments = new TreeMap<>();
+        List<GlycanResidue> allGlycans = new ArrayList<>();
+        for (Map.Entry<GlycanResidue, Integer> compEntry: glycanComposition.entrySet()) {
+            for (int i=0; i < compEntry.getValue(); i++) {
+                allGlycans.add(compEntry.getKey());
+            }
+        }
+
+        // compute all combinations of length k
+        HashSet<String> foundCombos = new HashSet<>();
+        for (int k=0; k < allGlycans.size(); k++) {
+            ArrayList<GlycanResidue> inputGlycans = new ArrayList<>(allGlycans);
+            List<List<GlycanResidue>> combos = generateCombinations(inputGlycans, new ArrayList<>(), k);
+            for (List<GlycanResidue> combo: combos) {
+                TreeMap<GlycanResidue, Integer> composition = new TreeMap<>();
+                for (GlycanResidue residue: combo) {
+                    composition.put(residue, composition.getOrDefault(residue, 0) + 1);
                 }
-                for (int dHex = 1; dHex <= this.glycanComposition.get(GlycanResidue.dHex); dHex++) {
-                    // add dHex fragments (if allowed)
-                    Map<GlycanResidue, Integer> dHexcomposition = new HashMap<>();
-                    dHexcomposition.put(GlycanResidue.HexNAc, hexnac);
-                    dHexcomposition.put(GlycanResidue.Hex, hex);
-                    dHexcomposition.put(GlycanResidue.dHex, dHex);
-                    GlycanFragment dHexfragment = new GlycanFragment(dHexcomposition, probabilityTable.dHexYrules, this.isDecoy, randomGenerator, GlycanFragment.FragType.Y);
-                    Yfragments.put(dHexfragment.hash, dHexfragment);
+                String hash = hashComp(composition);
+                if (!foundCombos.contains(hash)) {
+                    foundCombos.add(hash);
+                    GlycanFragment fragment = new GlycanFragment(composition, this.isDecoy, randomGenerator, GlycanFragment.FragType.Y);
+                    Yfragments.put(hash, fragment);
                 }
             }
         }
+
+        // todo: add filtering rules
+
     }
 
     /**
@@ -273,12 +305,13 @@ public class GlycanCandidate {
      */
     public void initializeOxoniumFragments(HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
         this.oxoniumFragments = new TreeMap<>();
-        for (GlycanResidue residue : GlycanResidue.values()) {
+        for (GlycanResidue residue : glycanComposition.keySet()) {
             if (this.glycanComposition.get(residue) > 0) {
                 if (this.isDecoy) {
                     oxoniumFragments.putAll(makeOxoniums(residue, true, glycoOxoniumDatabase, randomGenerator));
                 } else {
                     oxoniumFragments.putAll(makeOxoniums(residue, false, glycoOxoniumDatabase, randomGenerator));
+
                 }
             }
         }
@@ -300,6 +333,7 @@ public class GlycanCandidate {
         return newFragments;
     }
 
+
     /**
      * Take initialized oxonium ions (from initializeOxoniumFragments) and update them with propensity and intensity
      * information from the provided fragment info database
@@ -320,7 +354,7 @@ public class GlycanCandidate {
         double mass = 0;
         for (Map.Entry<GlycanResidue, Integer> glycanEntry : glycanComposition.entrySet()) {
             // mass = residue mass * residue count
-            mass += (GlycanMasses.glycoMasses.get(glycanEntry.getKey()) * glycanEntry.getValue());
+            mass += (glycanEntry.getKey().mass * glycanEntry.getValue());
         }
         return mass;
     }
