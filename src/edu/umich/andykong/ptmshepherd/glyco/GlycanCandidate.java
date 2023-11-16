@@ -40,7 +40,7 @@ public class GlycanCandidate {
      * @param parsedFragmentInfo list of strings containing fragment ion info
      */
     public GlycanCandidate(String glycanStr, String[] parsedFragmentInfo){
-        glycanComposition = StaticGlycoUtilities.parseGlycanString(glycanStr);
+        glycanComposition = GlycoParams.parseGlycanString(glycanStr);
         monoisotopicMass = computeMonoisotopicMass(glycanComposition);
 
         Yfragments = new TreeMap<>();
@@ -65,14 +65,9 @@ public class GlycanCandidate {
      * Base constructor for a new glycan candidate for initial search (not using fragment propensities)
      * @param inputGlycanComp composition map
      * @param isDecoy bool
-     * @param decoyType type of decoy (0 - 3)
-     * @param glycoPPMtol MS1 tolerance
-     * @param glycoIsotopes possible isotope errors
-     * @param probabilityTable input prob ratios
-     * @param glycoOxoniumDatabase oxonium ion input info
-     * @param randomGenerator random object for randomizing masses if needed
+     * @param glycoParams parameters container
      */
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, Random randomGenerator) {
+    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, GlycoParams glycoParams) {
         this.glycanComposition = inputGlycanComp;
         this.isDecoy = isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
@@ -94,13 +89,10 @@ public class GlycanCandidate {
      * candidate from the first search. Making a new container and fragments to avoid threading issues, but passing
      * original probabilities where propensities not found.
      * @param oldCandidate original search candidate to use as model
-     * @param decoyType type of decoy (0 - 3)
-     * @param glycoPPMtol MS1 tolerance
-     * @param glycoIsotopes possible isotope errors
      * @param fragmentInfo input propensities and intensities for fragment ions
-     * @param randomGenerator random object for randomizing masses if needed
+     * @param glycoParams parameters container
      */
-    public GlycanCandidate(GlycanCandidate oldCandidate, GlycanCandidateFragments fragmentInfo, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+    public GlycanCandidate(GlycanCandidate oldCandidate, GlycanCandidateFragments fragmentInfo, GlycoParams glycoParams) {
         this.glycanComposition = oldCandidate.glycanComposition;
         this.isDecoy = oldCandidate.isDecoy;
         // make sure that all residue types are accounted for (add Residue with 0 counts for any not included in the file)
@@ -109,11 +101,11 @@ public class GlycanCandidate {
                 this.glycanComposition.put(residue, 0);
             }
         }
-        this.monoisotopicMass = setMassHelper(decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+        this.monoisotopicMass = setMassHelper(glycoParams);
 
         // initialize fragments for this candidate
-        initializeYFragmentsFromProps(oldCandidate.Yfragments, fragmentInfo, randomGenerator);
-        initializeOxoniumFragmentsFromProps(oldCandidate.oxoniumFragments, fragmentInfo, randomGenerator);
+        initializeYFragmentsFromProps(oldCandidate.Yfragments, fragmentInfo, glycoParams.randomGenerator);
+        initializeOxoniumFragmentsFromProps(oldCandidate.oxoniumFragments, fragmentInfo, glycoParams.randomGenerator);
         this.hasFragmentProps = true;
     }
 
@@ -155,26 +147,26 @@ public class GlycanCandidate {
     }
 
     // Helper method for determining decoy masses for various decoy mass generation settings
-    private double setMassHelper(int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator) {
+    private double setMassHelper(GlycoParams glycoParams) {
         double mass;
         if (! isDecoy) {
             mass = computeMonoisotopicMass(glycanComposition);
         } else {
             double baseMonoistopicMass = computeMonoisotopicMass(glycanComposition);
             double randomShift = 0;
-            switch (decoyType) {
+            switch (glycoParams.decoyType) {
                 case 0:
                     // simple mass window
-                    randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA, randomGenerator);
+                    randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA, glycoParams.randomGenerator);
                     break;
                 case 1:
                     // random isotope and mass error
-                    randomShift = getRandomShiftIsotopes(baseMonoistopicMass, glycoIsotopes, glycoPPMtol, randomGenerator);
+                    randomShift = getRandomShiftIsotopes(baseMonoistopicMass, glycoParams.glycoIsotopes, glycoParams.glycoPPMtol, glycoParams.randomGenerator);
                     break;
                 case 2:
                     // random mass error, no isotope error
                     Integer[] noIsotopes = {0};
-                    randomShift = getRandomShiftIsotopes(baseMonoistopicMass, noIsotopes, glycoPPMtol, randomGenerator);
+                    randomShift = getRandomShiftIsotopes(baseMonoistopicMass, noIsotopes, glycoParams.glycoPPMtol, glycoParams.randomGenerator);
                 case 3:
                     // exact target mass - random shift left at 0
                     break;

@@ -67,17 +67,16 @@ public class GlycoAnalysis {
     public boolean useNonCompFDR;
 
     // Default constructor
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, ProbabilityTables inputProbabilityTable, boolean normYs, double absMassErrorDefault, Integer[] glycoIsotopes, double glycoPPMtol) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
 
         // init with default values, can be changed by params
-        this.probabilityTable = inputProbabilityTable;
-        this.normYions = normYs;
-        this.defaultMassErrorAbsScore = absMassErrorDefault;
-        this.glycoPPMtol = glycoPPMtol;
-        this.glycoIsotopes = glycoIsotopes;
+        this.normYions = glycoParams.glycoYnorm;
+        this.defaultMassErrorAbsScore = glycoParams.absScoreErrorParam;
+        this.glycoPPMtol = glycoParams.glycoPPMtol;
+        this.glycoIsotopes = glycoParams.glycoIsotopes;
         this.useFragmentSpecificProbs = false;
         this.glycanMassBinMap = new HashMap<>();
     }
@@ -185,10 +184,10 @@ public class GlycoAnalysis {
         // read info from glycofrags file
         BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
         String[] headerSplits = in.readLine().split("\t");
-        int glycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-        int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
-        int deltaMassCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Mass Shift");
-        int fragmentStartCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Fragments:");
+        int glycanCol = GlycoParams.getHeaderColIndex(headerSplits, "Best Glycan");
+        int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
+        int deltaMassCol = GlycoParams.getHeaderColIndex(headerSplits, "Mass Shift");
+        int fragmentStartCol = GlycoParams.getHeaderColIndex(headerSplits, "Fragments:");
 
         // read all glycan info in
         String currentLine;
@@ -325,11 +324,11 @@ public class GlycoAnalysis {
 
         // detect headers
         String[] headerSplits = in.readLine().split("\t");
-        int gSpecCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Spectrum");
-        int absScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan Score");
-        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-        int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
-        int bestNextScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Target Score");
+        int gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
+        int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
+        int bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, "Best Glycan");
+        int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
+        int bestNextScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Best Target Score");
 
         if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
             PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
@@ -524,10 +523,10 @@ public class GlycoAnalysis {
 
         // detect headers
         String[] headerSplits = in.readLine().split("\t");
-        int gSpecCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Spectrum");
-        int absScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan Score");
-        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-        int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
+        int gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
+        int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
+        int bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, "Best Glycan");
+        int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
 
         if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
             PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
@@ -1564,7 +1563,7 @@ public class GlycoAnalysis {
                     continue;
                 String[] splits = line.split("\t");
                 GlycanResidue residue = GlycanMasses.glycoNames.get(splits[0].trim().toLowerCase(Locale.ROOT));
-                TreeMap<GlycanResidue, Integer> ionComposition = StaticGlycoUtilities.parseGlycanString(splits[1]);
+                TreeMap<GlycanResidue, Integer> ionComposition = GlycoParams.parseGlycanString(splits[1]);
                 double massShift = Double.parseDouble(splits[2]);
                 String comment = splits.length > 3 ? splits[3] : "";
 

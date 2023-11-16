@@ -18,6 +18,7 @@ package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.peakpicker.PeakAnnotator;
+import org.hipparchus.random.RandomGenerator;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -30,7 +31,32 @@ import java.util.regex.Pattern;
 /**
  * Organization - putting a bunch of glyco-specific utilities here rather than cluttering the main PTM-S.java
  */
-public class StaticGlycoUtilities {
+public class GlycoParams {
+
+    public Random randomGenerator;
+    public ArrayList<GlycanMod> glycanMods;
+    public ArrayList<GlycanResidue> glycanResidues;
+    public ArrayList<GlycanCandidate> glycoDatabase;
+    public int decoyType;
+    public double glycoPPMtol;
+    public Integer[] glycoIsotopes;
+    public boolean nGlycan;
+    public boolean glycoYnorm;
+    public double absScoreErrorParam;
+    public double glycoFDR;
+    public boolean printFullParams;
+    public boolean writeGlycansToAssignedMods;
+    public boolean removeGlycanDeltaMass;
+    public boolean printGlycoDecoys;
+    public int numThreads;
+    public boolean useGlycanFragmentProbs;
+    public boolean useNewFDR;
+    public boolean useNonCompFDR ;
+    public double defaultProp;
+    public String allowedLocalizationResidues;
+
+    private static final String defaultResiduePath = "glycan_residues.tsv";
+    private static final String defaultModsPath = "glycan_mods.tsv";
 
     private static final Pattern numberPattern = Pattern.compile("[0-9]");
     private static final Pattern letterPattern = Pattern.compile("[a-zA-Z]+");
@@ -64,6 +90,62 @@ public class StaticGlycoUtilities {
         metamorpheusTokenMap.put("Y", GlycanResidue.Na);
     }
 
+    public GlycoParams(String glycanResiduesPath, String glycanModsPath) {
+        // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
+        glycanResidues = parseGlycoResiduesDB(glycanResiduesPath);
+        glycanMods = parseGlycoModsDB(glycanModsPath);
+    }
+
+    private ArrayList<GlycanResidue> parseGlycoResiduesDB(String glycanResiduesPath) {
+        ArrayList<GlycanResidue> residues = new ArrayList<>();
+        BufferedReader in;
+        try {
+            // no glycan database provided - fall back to default glycan list in PeakAnnotator
+            if (glycanResiduesPath.matches("")) {
+                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(glycanResiduesPath)));
+            } else {
+                in = new BufferedReader(new FileReader(glycanResiduesPath));
+            }
+            String line;
+            while ((line = in.readLine()) != null) {
+                if (line.startsWith("#")) {
+                    continue;
+                }
+                GlycanResidue residue = GlycanResidue.parseResidue(line);
+                residues.add(residue);
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            PTMShepherd.die(String.format("Error parsing input monosaccharide table %s", glycanResiduesPath));
+        }
+        return residues;
+    }
+
+    private ArrayList<GlycanMod> parseGlycoModsDB(String glycanModsPath) {
+        ArrayList<GlycanMod> mods = new ArrayList<>();
+        BufferedReader in;
+        try {
+            // no glycan database provided - fall back to default glycan list in PeakAnnotator
+            if (glycanModsPath.matches("")) {
+                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(glycanModsPath)));
+            } else {
+                in = new BufferedReader(new FileReader(glycanModsPath));
+            }
+            String line;
+            while ((line = in.readLine()) != null) {
+                if (line.startsWith("#")) {
+                    continue;
+                }
+                GlycanMod mod = GlycanMod.parseMod(line);
+                mods.add(mod);
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            PTMShepherd.die(String.format("Error parsing input monosaccharide table %s", glycanModsPath));
+        }
+        return mods;
+    }
+
 
     /**
      * Write a list of masses for all glycan candidates to pass to IonQuant. Format is one mass per line.
@@ -85,10 +167,9 @@ public class StaticGlycoUtilities {
     /**
      * Parse input glycan database file. Formatting: 1 glycan per line, "Residue1-count_Residue2-count_...\n"
      * @param inputPath path to input file
-     * @param glycoIsotopes
      * @return list of glycans to consider
      */
-    public static ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath, ArrayList<GlycanResidue> adductList, int maxAdducts, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase, boolean nGlycan) {
+    public ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath) {
         // read input glycan database or default database if none provided
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
         DatabaseType dbType;
@@ -165,14 +246,14 @@ public class StaticGlycoUtilities {
                     }
 
                     // generate a new candidate from this composition and add to DB
-                    GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                    GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, this);
                     String compositionHash = candidate.toString();
                     // prevent addition of duplicates if user has them in database
                     if (!glycansInDB.containsKey(compositionHash)) {
                         glycanDB.add(candidate);
                         glycansInDB.put(compositionHash, Boolean.TRUE);
                         // also add a decoy for this composition
-                        GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                        GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, this);
                         glycanDB.add(decoy);
 
                         // add adducts from adduct list to each composition
@@ -184,13 +265,13 @@ public class StaticGlycoUtilities {
                                 adductComp.putAll(glycanComp);
                                 adductComp.put(adduct, numAdducts);
 
-                                GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                                GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, this);
                                 String adductCompositionHash = adductCandidate.toString();
                                 if (!glycansInDB.containsKey(adductCompositionHash)) {
                                     glycanDB.add(adductCandidate);
                                     glycansInDB.put(adductCompositionHash, Boolean.TRUE);
                                     // also add a decoy for this composition
-                                    GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, decoyType, glycoTolPPM, glycoIsotopes, probabilityTable, glycoOxoniumDatabase, randomGenerator);
+                                    GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, this);
                                     glycanDB.add(adductDecoy);
                                 }
                             }
@@ -215,7 +296,7 @@ public class StaticGlycoUtilities {
      * @param oldGlycoDB original glycan DB used for bootstrap analysis (or just initial DB provided by user)
      * @return glycan candidate arraylist
      */
-    public static ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, ArrayList<GlycanCandidate> oldGlycoDB, Random randomGenerator, int decoyType, double glycoTolPPM, Integer[] glycoIsotopes, ProbabilityTables probabilityTable, HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase) {
+    public ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, ArrayList<GlycanCandidate> oldGlycoDB) {
         ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
         for (GlycanCandidate oldCandidate : oldGlycoDB) {
             GlycanCandidate newCandidate;
@@ -227,7 +308,7 @@ public class StaticGlycoUtilities {
 
             // Get fragment info if present and initialize new candidate based on the old and fragment info (if present)
             GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
-            newCandidate = new GlycanCandidate(oldCandidate, fragmtInfo, decoyType, glycoTolPPM, glycoIsotopes, randomGenerator, glycoOxoniumDatabase);
+            newCandidate = new GlycanCandidate(oldCandidate, fragmtInfo, this);
             newGlycoDB.add(newCandidate);
         }
         return newGlycoDB;
@@ -617,11 +698,7 @@ public class StaticGlycoUtilities {
     /**
      * Print glyco params used
      */
-    public static void printGlycoParams(ArrayList<GlycanResidue> adductList, int maxAdducts, ArrayList<GlycanCandidate> glycoDatabase,
-                                        ProbabilityTables glycoProbabilityTable, boolean glycoYnorm, double absScoreErrorParam,
-                                        Integer[] glycoIsotopes, double glycoPPMtol, double glycoFDR, boolean printFullParams,
-                                        boolean nGlycanMode, String allowedLocalizationResidues, int decoyType,
-                                        boolean printDecoys, boolean removeGlycanDelta) {
+    public void printGlycoParams() {
         PTMShepherd.print("Glycan Assignment params:");
         PTMShepherd.print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
         PTMShepherd.print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));

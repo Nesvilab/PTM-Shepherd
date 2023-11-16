@@ -43,7 +43,7 @@ public class GlycanFragment {
      * @param expectedIntensity observed relative intensity todo: might be able to remove this if not using later
      */
     public GlycanFragment(String glycanStr, double expectedIntensity, FragType fragType) {
-        this.requiredComposition = StaticGlycoUtilities.parseGlycanString(glycanStr);
+        this.requiredComposition = GlycoParams.parseGlycanString(glycanStr);
         this.expectedIntensity = expectedIntensity;
         this.isDecoy = false;
         this.foundIntensity = 0;
