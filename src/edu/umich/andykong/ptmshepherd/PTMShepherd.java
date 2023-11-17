@@ -1093,7 +1093,7 @@ public class PTMShepherd {
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
 		String decoyParam = getParam("decoy_type");
 		glycoParams.decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): GlycoAnalysis.DEFAULT_GLYCO_DECOY_TYPE;
-		glycoParams.glycoProbabilityTable = GlycoParams.initGlycoProbTable();
+		glycoParams.glycoProbabilityTable = GlycoParams.initGlycoProbTable(glycoParams);
 		glycoParams.glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoParams.glycoProbabilityTable, glycoParams);
 		glycoParams.glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PPM_TOL : Double.parseDouble(getParam("glyco_ppm_tol"));
 		glycoParams.glycoIsotopes = GlycoParams.parseGlycoIsotopesParam();

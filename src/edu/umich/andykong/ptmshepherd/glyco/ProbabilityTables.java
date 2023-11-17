@@ -90,12 +90,12 @@ public class ProbabilityTables {
     /**
      * Update the list of probabilities after parameters have been parsed
      */
-    public void updateRulesByResidue() {
-        rulesByResidue.put(GlycanResidue.NeuAc, neuacRules);
-        rulesByResidue.put(GlycanResidue.NeuGc, neugcRules);
-        rulesByResidue.put(GlycanResidue.Phospho, phosphoRules);
-        rulesByResidue.put(GlycanResidue.Sulfo, sulfoRules);
-        rulesByResidue.put(GlycanResidue.dHex, dhexOxoRules);
+    public void updateRulesByResidue(GlycoParams glycoParams) {
+        rulesByResidue.put(glycoParams.findResidueName("NeuAc"), neuacRules);
+        rulesByResidue.put(glycoParams.findResidueName("NeuGc"), neugcRules);
+        rulesByResidue.put(glycoParams.findResidueName("Phospho"), phosphoRules);
+        rulesByResidue.put(glycoParams.findResidueName("Sulfo"), sulfoRules);
+        rulesByResidue.put(glycoParams.findResidueName("Fuc"), dhexOxoRules);
     }
 
 

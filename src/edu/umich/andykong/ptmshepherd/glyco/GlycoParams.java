@@ -461,7 +461,7 @@ public class GlycoParams {
      * -mass/isotope: key1:value1,key2:value2,etc
      * @return ProbabilityTable to use
      */
-    public static ProbabilityTables initGlycoProbTable() {
+    public static ProbabilityTables initGlycoProbTable(GlycoParams glycoParams) {
         ProbabilityTables probabilityTable = new ProbabilityTables();
 
         // Read params for probabilities if present, otherwise use default values (already init'd in the constructor)
@@ -527,7 +527,7 @@ public class GlycoParams {
                 }
             }
         }
-        probabilityTable.updateRulesByResidue();
+        probabilityTable.updateRulesByResidue(glycoParams);
         return probabilityTable;
     }
 
