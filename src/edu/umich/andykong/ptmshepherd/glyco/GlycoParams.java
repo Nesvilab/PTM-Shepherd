@@ -60,7 +60,7 @@ public class GlycoParams {
     private static final String defaultResiduePath = "glycan_residues.tsv";
     private static final String defaultModsPath = "glycan_mods.tsv";
 
-    private static final Pattern numberPattern = Pattern.compile("[0-9]");
+    private static final Pattern numberPattern = Pattern.compile("[0-9]+");
     private static final Pattern letterPattern = Pattern.compile("[a-zA-Z]+");
     private static final Pattern pGlycoPattern = Pattern.compile("[()]?[AGFHNP]+[()]");         // e.g., (N(H))
     private static final Pattern byonicPattern = Pattern.compile("[A-Za-z]+\\([0-9]+\\)");      // e.g., HexNAc(1)Hex(1)

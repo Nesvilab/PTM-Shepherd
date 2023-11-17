@@ -16,6 +16,8 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -24,7 +26,7 @@ import java.util.Comparator;
  * Allowed names for glyco residues. Matched to masses in GlycanMasses
  */
 
-public class GlycanResidue implements Comparator<GlycanResidue> {
+public class GlycanResidue implements Comparable<GlycanResidue> {
     public String name;
     public double mass;
     public double[] yProbs;
@@ -42,7 +44,7 @@ public class GlycanResidue implements Comparator<GlycanResidue> {
     }
 
     public static GlycanResidue parseResidue(String line) {
-        String[] splits = line.split("\t");
+        String[] splits = line.replace("\"", "").split("\t");
         double mass = Double.parseDouble(splits[1]);
         double yProbPlus = getOrDefault(splits[2]);
         double yProbMinus = getOrDefault(splits[3]);
@@ -72,8 +74,12 @@ public class GlycanResidue implements Comparator<GlycanResidue> {
         }
     }
 
+    public String toString() {
+        return name;
+    }
+
     @Override
-    public int compare(GlycanResidue o1, GlycanResidue o2) {
-        return o1.name.compareTo(o2.name);
+    public int compareTo(@NotNull GlycanResidue o) {
+        return name.compareTo(o.name);
     }
 }

@@ -78,7 +78,6 @@ public class PTMShepherd {
 	static HashMap<String,HashMap<String,File>> mzMap;
 	static HashMap<String,Integer> datasetMS2;
 	static ArrayList<String> cacheFiles;
-	static ArrayList<GlycanCandidate> glycoDatabase;
 	private static String outputPath;
 	public static ExecutorService executorService;
 	private static final long glycoRandomSeed = 1364955171;
@@ -697,7 +696,7 @@ public class PTMShepherd {
 			boolean alreadyPrintedParams = false;
 			GlycoParams glycoParams = parseGlycoParams();
 			String glycoMassFilePath = normFName(glycoMassListName);
-			GlycoParams.writeGlycanMassList(glycoDatabase, glycoMassFilePath);
+			GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
 
 			// Glyco: first pass
 			for (String ds : datasets.keySet()) {

@@ -277,19 +277,21 @@ public class GlycanCandidate {
 
         // compute all combinations of length k
         HashSet<String> foundCombos = new HashSet<>();
-        for (int k=0; k < allGlycans.size(); k++) {
+        for (int k=0; k <= allGlycans.size(); k++) {
             ArrayList<GlycanResidue> inputGlycans = new ArrayList<>(allGlycans);
             List<List<GlycanResidue>> combos = generateCombinations(inputGlycans, new ArrayList<>(), k);
             for (List<GlycanResidue> combo: combos) {
-                TreeMap<GlycanResidue, Integer> composition = new TreeMap<>();
-                for (GlycanResidue residue: combo) {
-                    composition.put(residue, composition.getOrDefault(residue, 0) + 1);
-                }
-                String hash = hashComp(composition);
-                if (!foundCombos.contains(hash)) {
-                    foundCombos.add(hash);
-                    GlycanFragment fragment = new GlycanFragment(composition, this.isDecoy, randomGenerator, GlycanFragment.FragType.Y);
-                    Yfragments.put(hash, fragment);
+                if (combo.size() > 0) {
+                    TreeMap<GlycanResidue, Integer> composition = new TreeMap<>();
+                    for (GlycanResidue residue : combo) {
+                        composition.put(residue, composition.getOrDefault(residue, 0) + 1);
+                    }
+                    String hash = hashComp(composition);
+                    if (!foundCombos.contains(hash)) {
+                        foundCombos.add(hash);
+                        GlycanFragment fragment = new GlycanFragment(composition, this.isDecoy, randomGenerator, GlycanFragment.FragType.Y);
+                        Yfragments.put(hash, fragment);
+                    }
                 }
             }
         }
