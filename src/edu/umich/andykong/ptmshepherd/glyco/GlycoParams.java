@@ -113,8 +113,8 @@ public class GlycoParams {
                 if (line.startsWith("#")) {
                     continue;
                 }
-                GlycanMod mod = GlycanMod.parseMod(line);
-                mods.add(mod);
+//                GlycanMod mod = GlycanMod.parseMod(line);
+//                mods.add(mod);
             }
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -233,26 +233,7 @@ public class GlycoParams {
                         GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, this);
                         glycanDB.add(decoy);
 
-                        // add adducts from adduct list to each composition
-                        for (GlycanResidue adduct : adductList) {
-                            for (int numAdducts = 1; numAdducts <= maxAdducts; numAdducts++) {
-                                // deep copy the original composition and add the adduct to it
-                                TreeMap<GlycanResidue, Integer> adductComp = new TreeMap<>();
-
-                                adductComp.putAll(glycanComp);
-                                adductComp.put(adduct, numAdducts);
-
-                                GlycanCandidate adductCandidate = new GlycanCandidate(adductComp, false, this);
-                                String adductCompositionHash = adductCandidate.toString();
-                                if (!glycansInDB.containsKey(adductCompositionHash)) {
-                                    glycanDB.add(adductCandidate);
-                                    glycansInDB.put(adductCompositionHash, Boolean.TRUE);
-                                    // also add a decoy for this composition
-                                    GlycanCandidate adductDecoy = new GlycanCandidate(adductComp, true, this);
-                                    glycanDB.add(adductDecoy);
-                                }
-                            }
-                        }
+                        // todo: add mods/adducts handling
                     }
                 }
             }
@@ -420,34 +401,6 @@ public class GlycoParams {
         return DatabaseType.unknown;
     }
 
-    /**
-     * Read the desired adducts from the parameters file.
-     * Parameter key: glyco_adducts
-     * Parameter values: must match GlycanResidue adduct types (case insensitive), comma separated
-     * @return list of adduct GlycanResidues to add to compositions in glycan database
-     */
-    public static ArrayList<GlycanResidue> parseGlycoAdductParam() {
-        ArrayList<GlycanResidue> adducts = new ArrayList<>();
-        String adductParamValue = PTMShepherd.getParam("glyco_adducts");
-        String[] adductStrs;
-        if (adductParamValue.length() > 0)
-            adductStrs = adductParamValue.split(",| |/");
-        else
-            adductStrs = new String[0];
-
-        for (String adductStr : adductStrs) {
-            if (adductStr.equals("")) {
-                continue;
-            }
-            if (GlycanMasses.glycoNames.containsKey(adductStr.trim())) {
-                GlycanResidue adduct = GlycanMasses.glycoNames.get(adductStr.trim());
-                adducts.add(adduct);
-            } else {
-                System.out.printf("Invalid glyco adduct %s, ignored\n", adductStr);
-            }
-        }
-        return adducts;
-    }
 
     /**
      * Parse isotopes parameter of format 'min,max' into Integer[] to pass to glyco analysis
@@ -644,23 +597,8 @@ public class GlycoParams {
         PTMShepherd.print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
         PTMShepherd.print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
         PTMShepherd.print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
-        // adducts
-        if (maxAdducts > 0 && adductList.size() > 0) {
-            StringBuilder adductStr = new StringBuilder();
-            int count = 0;
-            for (GlycanResidue adduct: adductList) {
-                adductStr.append(adduct.name());
-                count++;
-                if (count < adductList.size()) {
-                    adductStr.append(", ");
-                }
-            }
-            PTMShepherd.print(String.format("\tAdducts: %s, max %d", adductStr, maxAdducts));
-        } else {
-            PTMShepherd.print("\tAdducts: none");
-        }
         PTMShepherd.print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / 2));
-        if (nGlycanMode) {
+        if (nGlycan) {
             PTMShepherd.print("\tmode: N-glycan");
             PTMShepherd.print("\tAllowed Sites: N in N-X-S/T sequons only");
         } else {
@@ -677,10 +615,10 @@ public class GlycoParams {
             PTMShepherd.print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
             PTMShepherd.print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
             PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
-            if (printDecoys) {
+            if (printGlycoDecoys) {
                 PTMShepherd.print("\tPrinting decoy glycans");
             }
-            if (removeGlycanDelta) {
+            if (removeGlycanDeltaMass) {
                 PTMShepherd.print("\tRemoving glycan delta mass from PSM table");
             }
         }

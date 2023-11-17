@@ -1091,8 +1091,6 @@ public class PTMShepherd {
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
-		ArrayList<GlycanResidue> adductList = GlycoParams.parseGlycoAdductParam();
-//			int maxAdducts = Integer.parseInt(params.get("max_adducts"));
 		String decoyParam = getParam("decoy_type");
 		glycoParams.decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): GlycoAnalysis.DEFAULT_GLYCO_DECOY_TYPE;
 		glycoParams.glycoProbabilityTable = GlycoParams.initGlycoProbTable();
