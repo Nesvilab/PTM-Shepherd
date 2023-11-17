@@ -157,7 +157,7 @@ public class GlycanFragment {
      * @param candidate glycan candidate to consider
      * @return true if allowed/expected for this candidate, false if not
      */
-    public boolean isAllowedFragment(GlycanCandidate candidate){
+    public boolean isAllowedFragment(GlycanCandidate candidate, GlycoParams glycoParams){
         // target fragments can only match target candidates and decoy fragments can only match decoy candidates
         if (this.isDecoy) {
             if (!candidate.isDecoy) {
@@ -177,11 +177,13 @@ public class GlycanFragment {
             }
         }
 
-        // special cases
-        if (this.requiredComposition.containsKey(GlycanResidue.Hex) && this.requiredComposition.containsKey(GlycanResidue.HexNAc)) {
-            if (this.requiredComposition.get(GlycanResidue.Hex) > 0 && !(this.requiredComposition.get(GlycanResidue.HexNAc) > 0)) {
+        // special cases todo: fix/generalize
+        GlycanResidue hexNAc = glycoParams.findResidueName("HexNAc");
+        GlycanResidue hexRes = glycoParams.findResidueName("Hex");
+        if (this.requiredComposition.containsKey(hexRes) && this.requiredComposition.containsKey(hexNAc)) {
+            if (this.requiredComposition.get(hexRes) > 0 && !(this.requiredComposition.get(hexNAc) > 0)) {
                 // Hex required but NOT HexNAc. Return false if candidate contains HexNAc
-                if (candidate.glycanComposition.get(GlycanResidue.HexNAc) > 0) {
+                if (candidate.glycanComposition.get(hexNAc) > 0) {
                     return false;
                 }
             }
@@ -239,9 +241,9 @@ public class GlycanFragment {
             stringBuilder.append("Decoy_");
         }
         ArrayList<String> residues = new ArrayList<>();
-        for (GlycanResidue residueKey : GlycanResidue.values()) {
+        for (GlycanResidue residueKey : glycanComposition.keySet()) {
             if (glycanComposition.getOrDefault(residueKey, 0) > 0) {
-                residues.add(String.format("%s(%d)", GlycanMasses.outputGlycoNames.get(residueKey), glycanComposition.get(residueKey)));
+                residues.add(String.format("%s(%d)", residueKey.name, glycanComposition.get(residueKey)));
             }
         }
         stringBuilder.append(String.join("", residues));

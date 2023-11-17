@@ -65,12 +65,14 @@ public class GlycoAnalysis {
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
     public boolean useNonCompFDR;
+    private GlycoParams glycoParams;
 
     // Default constructor
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams) {
         this.dsName = dsName;
         this.glycoFile = new File(PTMShepherd.normFName(dsName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
+        this.glycoParams = glycoParams;
 
         // init with default values, can be changed by params
         this.normYions = glycoParams.glycoYnorm;
@@ -997,7 +999,7 @@ public class GlycoAnalysis {
         int unique2count = 0;
         for (GlycanFragment fragment1 : fragmentsMap1.values()) {
             double probRatio;
-            if (fragment1.isAllowedFragment(glycan2)) {
+            if (fragment1.isAllowedFragment(glycan2, glycoParams)) {
                 GlycanFragment fragment2 = fragmentsMap2.get(fragment1.hash);
                 probRatio = computeFragmentPairwiseScore(fragment1, fragment2);
                 sumLogRatio += Math.log(probRatio);
@@ -1010,7 +1012,7 @@ public class GlycoAnalysis {
         }
         // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
         for (GlycanFragment fragment : fragmentsMap2.values()) {
-            if (!fragment.isAllowedFragment(glycan1)) {
+            if (!fragment.isAllowedFragment(glycan1, glycoParams)) {
                 double probRatio = computeFragmentAbsoluteScore(fragment);
                 unique2score += Math.log(probRatio);
                 unique2count++;
@@ -1032,7 +1034,7 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
         for (GlycanFragment fragment1 : fragmentsMap1.values()) {
             double probRatio;
-            if (fragment1.isAllowedFragment(glycan2)) {
+            if (fragment1.isAllowedFragment(glycan2, glycoParams)) {
                 GlycanFragment fragment2 = fragmentsMap2.get(fragment1.hash);
                 probRatio = computeFragmentPairwiseScore(fragment1, fragment2);
             } else {
@@ -1043,7 +1045,7 @@ public class GlycoAnalysis {
         }
         // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
         for (GlycanFragment fragment : fragmentsMap2.values()) {
-            if (!fragment.isAllowedFragment(glycan1)) {
+            if (!fragment.isAllowedFragment(glycan1, glycoParams)) {
                 double probRatio = computeFragmentAbsoluteScore(fragment);
                 sumLogRatio -= Math.log(probRatio);
             }
@@ -1178,7 +1180,7 @@ public class GlycoAnalysis {
 
         // Loop over each candidate's fragments, scoring unique (i.e., not in the other candidate) fragments as hit/miss if found/not in spectrum
         for (GlycanFragment fragment1 : glycan1.Yfragments.values()) {
-            if (!fragment1.isAllowedFragment(glycan2)) {
+            if (!fragment1.isAllowedFragment(glycan2, glycoParams)) {
                 boolean foundInSpectrum = fragment1.foundIntensity > 0;
                 if (foundInSpectrum) {
                     cand1Hits++;
@@ -1188,7 +1190,7 @@ public class GlycoAnalysis {
             }
         }
         for (GlycanFragment fragment2 : glycan2.Yfragments.values()) {
-            if (!fragment2.isAllowedFragment(glycan1)) {
+            if (!fragment2.isAllowedFragment(glycan1, glycoParams)) {
                 boolean foundInSpectrum = fragment2.foundIntensity > 0;
                 if (foundInSpectrum) {
                     cand2Hits++;
@@ -1237,7 +1239,7 @@ public class GlycoAnalysis {
 
         // Loop over each candidate's fragments, scoring unique (i.e., not in the other candidate) fragments as hit/miss if found/not in spectrum
         for (GlycanFragment fragment1 : glycan1.oxoniumFragments.values()) {
-            if (!fragment1.isAllowedFragment(glycan2)) {
+            if (!fragment1.isAllowedFragment(glycan2, glycoParams)) {
                 boolean foundInSpectrum = fragment1.foundIntensity > 0;
                 if (foundInSpectrum) {
                     double intensityRatio = computeIntensityRatio(fragment1);
@@ -1248,7 +1250,7 @@ public class GlycoAnalysis {
             }
         }
         for (GlycanFragment fragment2 : glycan2.oxoniumFragments.values()) {
-            if (!fragment2.isAllowedFragment(glycan1)) {
+            if (!fragment2.isAllowedFragment(glycan1, glycoParams)) {
                 boolean foundInSpectrum = fragment2.foundIntensity > 0;
                 if (foundInSpectrum) {
                     double intensityRatio = computeIntensityRatio(fragment2);
@@ -1562,7 +1564,7 @@ public class GlycoAnalysis {
                 if (line.startsWith("#"))
                     continue;
                 String[] splits = line.split("\t");
-                GlycanResidue residue = GlycanMasses.glycoNames.get(splits[0].trim().toLowerCase(Locale.ROOT));
+                GlycanResidue residue = glycoParams.findResidueName(splits[0].trim().toLowerCase(Locale.ROOT));
                 TreeMap<GlycanResidue, Integer> ionComposition = glycoParams.parseGlycanString(splits[1]);
                 double massShift = Double.parseDouble(splits[2]);
                 String comment = splits.length > 3 ? splits[3] : "";

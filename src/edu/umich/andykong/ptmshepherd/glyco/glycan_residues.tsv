@@ -2,7 +2,7 @@
 HexNAc	203.07937	5	0.2					"N,GlcNAc,GalNAc"
 Hex	162.05282	5	0.2					"H,hexose,glucose,galactose,glc,gal"
 Fuc	146.057909	2	0.5	2	0.2	0.1		"F,dhex,fucose"
-NeuAc	291.095417			2	0.05	0.2	"292,274,657"	"A,Neu5Ac"
-NeuGc	307.090334			2	0.05	0.2		"G,Neu5Gc"
+NeuAc	291.095417			2	0.05	0.2	"292,274,657"	A
+NeuGc	307.090334			2	0.05	0.2		G
 Xyl		5	0.2					"X,xylose"
 Pent		5	0.2					"P,pentose"

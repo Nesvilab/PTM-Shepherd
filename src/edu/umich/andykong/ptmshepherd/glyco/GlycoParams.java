@@ -55,6 +55,7 @@ public class GlycoParams {
     public double defaultProp;
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase;
+    public ProbabilityTables glycoProbabilityTable;     // todo: remove?
 
     private static final String defaultResiduePath = "glycan_residues.tsv";
     private static final String defaultModsPath = "glycan_mods.tsv";
@@ -329,7 +330,7 @@ public class GlycoParams {
      * @param inputName string
      * @return
      */
-    private GlycanResidue findResidueName(String inputName) {
+    public GlycanResidue findResidueName(String inputName) {
         for (GlycanResidue residue: glycanResidues) {
             if (residue.name.equalsIgnoreCase(inputName)) {
                 return residue;
@@ -367,7 +368,7 @@ public class GlycoParams {
             GlycanResidue residue = findResidueName(glycanToken);
             if (residue == null) {
                 // todo: try to match to a modification
-                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized. This glycan will not be included in search! Please add %s to the glycan_residues.tsv table.", glycanName, line, glycanName));
+                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized. This glycan will not be included in search! Please add %s to the glycan_residues.tsv table.", glycanToken, line, glycanToken));
                 return new TreeMap<>();
             }
             if (glycanComp.containsKey(residue)) {
