@@ -98,6 +98,11 @@ public class GlycoParams {
         return residues;
     }
 
+    /**
+     * Parse mods database. NOTE: must be called after parseGlycoResiduesDB as it depends on those definitions.
+     * @param glycanModsPath
+     * @return
+     */
     private ArrayList<GlycanMod> parseGlycoModsDB(String glycanModsPath) {
         ArrayList<GlycanMod> mods = new ArrayList<>();
         BufferedReader in;
@@ -113,14 +118,25 @@ public class GlycoParams {
                 if (line.startsWith("#")) {
                     continue;
                 }
-//                GlycanMod mod = GlycanMod.parseMod(line);
-//                mods.add(mod);
+                GlycanMod mod = new GlycanMod(line, this);
+                mods.add(mod);
             }
         } catch (IOException ex) {
             ex.printStackTrace();
-            PTMShepherd.die(String.format("Error parsing input monosaccharide table %s", glycanModsPath));
+            PTMShepherd.die(String.format("Error parsing input glycan mods table %s", glycanModsPath));
         }
         return mods;
+    }
+
+    /**
+     * Update glyco mods parsed from table with parameters from user (fixed/variable, labile, max allowed).
+     */
+    public void updateGlycoMods() {
+        // todo: make specific rules for specific mods
+        for (GlycanMod mod: glycanMods) {
+            mod.maxAllowed = 1;
+            mod.isFixed = false;
+        }
     }
 
 
@@ -233,7 +249,30 @@ public class GlycoParams {
                         GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, this);
                         glycanDB.add(decoy);
 
-                        // todo: add mods/adducts handling
+                        // add mods
+                        for (GlycanMod mod: glycanMods) {
+                            boolean skipMod = false;
+                            for (int i=0; i < mod.maxAllowed; i++) {
+                                // filter by required residue(s), if present
+                                if (mod.requiredResidues.size() > 0) {
+                                    for (GlycanResidue requiredRes: mod.requiredResidues) {
+                                        if (!glycanComp.containsKey(requiredRes)) {
+                                            skipMod = true;
+                                        } else {
+                                            if (i > glycanComp.get(requiredRes)) {
+                                                skipMod = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!skipMod) {
+                                    TreeMap<GlycanResidue, Integer> modComp = (TreeMap<GlycanResidue, Integer>) glycanComp.clone();
+                                    modComp.put(mod.modResidue, i + 1);
+                                    glycanDB.add(new GlycanCandidate(modComp, false, this));
+                                    glycanDB.add(new GlycanCandidate(modComp, true, this));
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -1087,6 +1087,7 @@ public class PTMShepherd {
 		String glycanResidueDB = getParam("glyco_residue_list");
 		String glycanModDB = getParam("glyco_mod_list");
 		GlycoParams glycoParams = new GlycoParams(glycanResidueDB, glycanModDB);
+		glycoParams.updateGlycoMods();
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
@@ -1112,6 +1113,7 @@ public class PTMShepherd {
 		glycoParams.useNewFDR = getParam("use_new_glycan_fdr").equals("") || Boolean.parseBoolean(getParam("use_new_glycan_fdr"));	// default true
 		glycoParams.useNonCompFDR = !getParam("use_noncomp_glycan_fdr").equals("") && Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default false
 		glycoParams.defaultProp = getParam("glyco_default_propensity").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
+
 
 		return glycoParams;
 	}

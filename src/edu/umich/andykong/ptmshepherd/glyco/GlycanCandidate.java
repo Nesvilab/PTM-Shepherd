@@ -284,10 +284,12 @@ public class GlycanCandidate {
                 if (combo.size() > 0) {
                     TreeMap<GlycanResidue, Integer> composition = new TreeMap<>();
                     for (GlycanResidue residue : combo) {
-                        composition.put(residue, composition.getOrDefault(residue, 0) + 1);
+                        if (!residue.islabile) {
+                            composition.put(residue, composition.getOrDefault(residue, 0) + 1);
+                        }
                     }
                     String hash = hashComp(composition);
-                    if (!foundCombos.contains(hash)) {
+                    if (!foundCombos.contains(hash) && !hash.equals("")) {
                         foundCombos.add(hash);
                         GlycanFragment fragment = new GlycanFragment(composition, this.isDecoy, randomGenerator, GlycanFragment.FragType.Y);
                         Yfragments.put(hash, fragment);
