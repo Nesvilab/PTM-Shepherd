@@ -201,7 +201,7 @@ public class GlycanFragment {
         double minProbPlus = 100000;
         double maxProbMinus = -1;
         for (GlycanResidue residue: requiredComposition.keySet()) {
-            if (residue.yProbs[0] < minProbPlus) {
+            if (residue.yProbs[0] < minProbPlus && residue.yProbs[0] > 0) {
                 minProbPlus = residue.yProbs[0];
             }
             if (residue.yProbs[1] > maxProbMinus) {

@@ -71,6 +71,9 @@ public class GlycoParams {
         // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
         glycanResidues = parseGlycoResiduesDB(glycanResiduesPath);
         glycanMods = parseGlycoModsDB(glycanModsPath);
+        for (GlycanMod mod: glycanMods) {
+            glycanResidues.add(mod.modResidue);     // add mod reference to the residue list
+        }
     }
 
     private ArrayList<GlycanResidue> parseGlycoResiduesDB(String glycanResiduesPath) {
