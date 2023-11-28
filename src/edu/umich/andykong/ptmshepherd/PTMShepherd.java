@@ -1087,7 +1087,8 @@ public class PTMShepherd {
 		String glycanResidueDB = getParam("glyco_residue_list");
 		String glycanModDB = getParam("glyco_mod_list");
 		GlycoParams glycoParams = new GlycoParams(glycanResidueDB, glycanModDB);
-		glycoParams.updateGlycoMods();
+		// todo: add user params for easy mod editing from FragPipe
+//		glycoParams.updateGlycoMods();
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);

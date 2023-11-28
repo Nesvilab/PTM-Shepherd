@@ -27,19 +27,19 @@ public class GlycanMod {
         String[] splits = modTsvLine.replace("\"", "").split("\t");
         isLabile = Boolean.parseBoolean(splits[9]);
         modResidue.islabile = isLabile;
+        maxAllowed = Integer.parseInt(splits[11]);
+        isFixed = Boolean.parseBoolean(splits[12]);
 
-        // parse required residues (if present)
+        // parse required residues
         requiredResidues = new ArrayList<>();
-        if (splits.length > 10) {
-            if (!splits[10].matches("")) {
-                String[] resSplits = splits[10].split(",");
-                for (String residueStr : resSplits) {
-                    GlycanResidue residue = glycoParams.findResidueName(residueStr);
-                    if (residue != null) {
-                        requiredResidues.add(residue);
-                    } else {
-                        PTMShepherd.die(String.format("Error parsing glycan_mods.tsv: required residue %s in line %s was not recognized. Make sure this glycan residue is in the glycan_residues.tsv and that it is spelled correctly in glycan_mods.tsv and try again.", residueStr, modTsvLine));
-                    }
+        if (!splits[10].matches("")) {
+            String[] resSplits = splits[10].split(",");
+            for (String residueStr : resSplits) {
+                GlycanResidue residue = glycoParams.findResidueName(residueStr);
+                if (residue != null) {
+                    requiredResidues.add(residue);
+                } else {
+                    PTMShepherd.die(String.format("Error parsing glycan_mods.tsv: required residue %s in line %s was not recognized. Make sure this glycan residue is in the glycan_residues.tsv and that it is spelled correctly in glycan_mods.tsv and try again.", residueStr, modTsvLine));
                 }
             }
         }
