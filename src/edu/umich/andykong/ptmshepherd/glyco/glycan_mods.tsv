@@ -1,4 +1,0 @@
-#Name	mass	yProb +	yProb -	oxoProb +	oxoProb -	oxo int	diagnostic ions	alt names	Labile	Required residue(s)	Max Allowed	Is Fixed
-Phospho	79.96633	2	0.5	2	0.05	0.2	"284,485"	"P,phosph,phosphorylation,phosphate"	FALSE	Hex	0	FALSE
-NH4	17.02655							"ammonium,nh3,ammonia"	TRUE		1	FALSE
-Sulfo	79.95682			2	0.05	0.2		"S,sulfo,sulf,sulfation"	TRUE	HexNAc	0	FALSE

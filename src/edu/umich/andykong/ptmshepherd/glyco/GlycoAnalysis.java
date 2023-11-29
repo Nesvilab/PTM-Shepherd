@@ -1541,13 +1541,15 @@ public class GlycoAnalysis {
      * by residue type
      * @return map of residue type : list of fragment descriptors parsed from the table
      */
-    public static HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> parseOxoniumDatabase(ProbabilityTables probabilityTable, GlycoParams glycoParams) {
+    public static HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> parseOxoniumDatabase(String oxoDBPath, ProbabilityTables probabilityTable, GlycoParams glycoParams) {
         HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> oxoniumDB = new HashMap<>();
         BufferedReader in;
         try {
-            // no glycan database provided - fall back to default glycan list in PeakAnnotator
-            String defaultDB = "oxonium_ion_list.txt";
-            in = new BufferedReader(new InputStreamReader(GlycoAnalysis.class.getResourceAsStream(defaultDB)));
+            if (oxoDBPath.matches("")) {
+                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(GlycoParams.defaultOxoPath)));
+            } else {
+                in = new BufferedReader(new FileReader(oxoDBPath));
+            }
             String line;
             while ((line = in.readLine()) != null) {
                 if (line.startsWith("#"))

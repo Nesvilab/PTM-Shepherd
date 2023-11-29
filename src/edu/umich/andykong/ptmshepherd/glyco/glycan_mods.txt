@@ -1,0 +1,8 @@
+#Name	mass	yProb +	yProb -	oxoProb +	oxoProb -	oxo int	alt names	Labile	Required residue(s)	Max Allowed	Is Fixed
+Phospho	79.96633	2	0.5	2	0.05	0.2	P,phosph,phosphorylation,phosphate	FALSE	Hex	0	FALSE
+Sulfo	79.95682			2	0.05	0.2	S,sulfo,sulf,sulfation	TRUE	HexNAc	0	FALSE
+NH4	17.02655						ammonium,nh3,ammonia	TRUE		0	FALSE
+Na	21.981944	2	0.5				sodium adduct,sodium,Na+	FALSE		0	FALSE
+Fe	52.911462	2	0.5				Fe3,iron,iron adduct,Fe3+	FALSE		0	FALSE
+Ca	37.946938	2	0.5				calcium,calcium adduct,Ca2+	FALSE		0	FALSE
+Al	23.958062	2	0.5				Al3,aluminum,aluminum adduct,Al3+	FALSE		0	FALSE

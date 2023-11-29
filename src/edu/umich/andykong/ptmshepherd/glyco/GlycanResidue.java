@@ -16,11 +16,6 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
-import org.jetbrains.annotations.NotNull;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 
 /**
  * Allowed names for glyco residues. Matched to masses in GlycanMasses
@@ -32,15 +27,13 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
     public double[] yProbs;
     public double[] oxoProbs;
     public String[] alternateNames;
-    public double[] diagnosticIons;
     public boolean islabile;
 
-    public GlycanResidue(String name, double mass, double[] yProbs, double[] oxoProbs, double[] diagnosticIons, String[] altNames, boolean isLabile) {
+    public GlycanResidue(String name, double mass, double[] yProbs, double[] oxoProbs, String[] altNames, boolean isLabile) {
         this.name = name;
         this.mass = mass;
         this.yProbs = yProbs;
         this.oxoProbs = oxoProbs;
-        this.diagnosticIons = diagnosticIons;
         this.alternateNames = altNames;
         this.islabile = isLabile;
     }
@@ -53,17 +46,12 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
         double oxoProbPlus = getOrDefault(splits[4]);
         double oxoProbMinus = getOrDefault(splits[5]);
         double oxoInt = getOrDefault(splits[6]);
-        double[] diagnosticIons = new double[0];
-        if (splits[7].length() > 0) {
-            diagnosticIons = Arrays.stream(splits[7].split(",")).mapToDouble(Double::parseDouble).toArray();
-        }
-        String[] altNames = splits[8].split(",");
-        boolean isLabile = Boolean.parseBoolean(splits[9]);
+        String[] altNames = splits[7].split(",");
+        boolean isLabile = Boolean.parseBoolean(splits[8]);
         return new GlycanResidue(splits[0],
                 mass,
                 new double[]{yProbPlus, yProbMinus},
                 new double[]{oxoProbPlus, oxoProbMinus, oxoInt},
-                diagnosticIons,
                 altNames,
                 isLabile
         );
@@ -83,7 +71,7 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
     }
 
     @Override
-    public int compareTo(@NotNull GlycanResidue o) {
+    public int compareTo(GlycanResidue o) {
         return name.compareTo(o.name);
     }
 }

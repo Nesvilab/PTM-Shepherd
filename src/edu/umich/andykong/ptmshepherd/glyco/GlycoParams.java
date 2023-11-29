@@ -57,8 +57,9 @@ public class GlycoParams {
     public HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase;
     public ProbabilityTables glycoProbabilityTable;     // todo: remove?
 
-    private static final String defaultResiduePath = "glycan_residues.tsv";
-    private static final String defaultModsPath = "glycan_mods.tsv";
+    private static final String defaultResiduePath = "glycan_residues.txt";
+    private static final String defaultModsPath = "glycan_mods.txt";
+    public static final String defaultOxoPath = "oxonium_ion_list.txt";
 
     private static final Pattern numberPattern = Pattern.compile("[0-9]+");
     private static final Pattern letterPattern = Pattern.compile("[a-zA-Z]+");
@@ -67,13 +68,16 @@ public class GlycoParams {
     private static final Pattern metamorpheusPattern = Pattern.compile("[A-Z]+[0-9]+");         // e.g., N1H1
     private static final Pattern oldPTMSPattern = Pattern.compile("[A-Za-z]+-[0-9]+");          // e.g., HexNAc-1_Hex-1
 
-    public GlycoParams(String glycanResiduesPath, String glycanModsPath) {
+    public GlycoParams(String glycanResiduesPath, String glycanModsPath, String oxoniumListPath) {
         // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
         glycanResidues = parseGlycoResiduesDB(glycanResiduesPath);
         glycanMods = parseGlycoModsDB(glycanModsPath);
         for (GlycanMod mod: glycanMods) {
             glycanResidues.add(mod.modResidue);     // add mod reference to the residue list
         }
+
+        glycoProbabilityTable = GlycoParams.initGlycoProbTable(this);
+        glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, glycoProbabilityTable, this);
     }
 
     private ArrayList<GlycanResidue> parseGlycoResiduesDB(String glycanResiduesPath) {
@@ -82,7 +86,7 @@ public class GlycoParams {
         try {
             // no glycan database provided - fall back to default glycan list in PeakAnnotator
             if (glycanResiduesPath.matches("")) {
-                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(glycanResiduesPath)));
+                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(defaultResiduePath)));
             } else {
                 in = new BufferedReader(new FileReader(glycanResiduesPath));
             }
@@ -112,7 +116,7 @@ public class GlycoParams {
         try {
             // no glycan database provided - fall back to default glycan list in PeakAnnotator
             if (glycanModsPath.matches("")) {
-                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(glycanModsPath)));
+                in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(defaultModsPath)));
             } else {
                 in = new BufferedReader(new FileReader(glycanModsPath));
             }

@@ -1086,7 +1086,8 @@ public class PTMShepherd {
 	private static GlycoParams parseGlycoParams() {
 		String glycanResidueDB = getParam("glyco_residue_list");
 		String glycanModDB = getParam("glyco_mod_list");
-		GlycoParams glycoParams = new GlycoParams(glycanResidueDB, glycanModDB);
+		String glycoOxoDB = getParam("glyco_oxonium_list");
+		GlycoParams glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
 		// todo: add user params for easy mod editing from FragPipe
 //		glycoParams.updateGlycoMods();
 
@@ -1094,8 +1095,6 @@ public class PTMShepherd {
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
 		String decoyParam = getParam("decoy_type");
 		glycoParams.decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): GlycoAnalysis.DEFAULT_GLYCO_DECOY_TYPE;
-		glycoParams.glycoProbabilityTable = GlycoParams.initGlycoProbTable(glycoParams);
-		glycoParams.glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(glycoParams.glycoProbabilityTable, glycoParams);
 		glycoParams.glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PPM_TOL : Double.parseDouble(getParam("glyco_ppm_tol"));
 		glycoParams.glycoIsotopes = GlycoParams.parseGlycoIsotopesParam();
 		glycoParams.nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
