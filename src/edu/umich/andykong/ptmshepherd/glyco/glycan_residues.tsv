@@ -1,8 +1,8 @@
-#Name	mass	yProb +	yProb -	oxoProb +	oxoProb -	oxo int	diagnostic ions	alt names
-HexNAc	203.07937	5	0.5					"N,GlcNAc,GalNAc"
-Hex	162.05282	5	0.5					"H,hexose,glucose,galactose,glc,gal"
-Fuc	146.057909	2	0.5	2	0.5	0.1		"F,dhex,fucose"
-NeuAc	291.095417			2	0.05	0.2	"292,274,657"	A
-NeuGc	307.090334			2	0.05	0.2		G
-Xyl	100	5	0.5					"X,xylose"
-Pent	100	5	0.5					pentose
+#Name	mass	yProb +	yProb -	oxoProb +	oxoProb -	oxo int	diagnostic ions	alt names	Is labile
+HexNAc	203.07937	5	0.5					"N,GlcNAc,GalNAc"	FALSE
+Hex	162.05282	5	0.5					"H,hexose,glucose,galactose,glc,gal"	FALSE
+Fuc	146.057909	2	0.5	2	0.5	0.1		"F,dhex,fucose"	FALSE
+NeuAc	291.095417			2	0.05	0.2	"292,274,657"	A	TRUE
+NeuGc	307.090334			2	0.05	0.2		G	TRUE
+Xyl	100	5	0.5					"X,xylose"	FALSE
+Pent	100	5	0.5					pentose	FALSE

@@ -33,16 +33,16 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
     public double[] oxoProbs;
     public String[] alternateNames;
     public double[] diagnosticIons;
-    public boolean islabile;        // for mods/adducts
+    public boolean islabile;
 
-    public GlycanResidue(String name, double mass, double[] yProbs, double[] oxoProbs, double[] diagnosticIons, String[] altNames) {
+    public GlycanResidue(String name, double mass, double[] yProbs, double[] oxoProbs, double[] diagnosticIons, String[] altNames, boolean isLabile) {
         this.name = name;
         this.mass = mass;
         this.yProbs = yProbs;
         this.oxoProbs = oxoProbs;
         this.diagnosticIons = diagnosticIons;
         this.alternateNames = altNames;
-        islabile = false;
+        this.islabile = isLabile;
     }
 
     public static GlycanResidue parseResidue(String line) {
@@ -58,12 +58,14 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
             diagnosticIons = Arrays.stream(splits[7].split(",")).mapToDouble(Double::parseDouble).toArray();
         }
         String[] altNames = splits[8].split(",");
+        boolean isLabile = Boolean.parseBoolean(splits[9]);
         return new GlycanResidue(splits[0],
                 mass,
                 new double[]{yProbPlus, yProbMinus},
                 new double[]{oxoProbPlus, oxoProbMinus, oxoInt},
                 diagnosticIons,
-                altNames
+                altNames,
+                isLabile
         );
     }
 
