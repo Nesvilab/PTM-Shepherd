@@ -273,6 +273,11 @@ public class GlycanCandidate {
             if (glycoParams.nGlycan && glycanComposition.containsKey(hexnac) && !Ycomp.containsKey(hexnac)) {
                 continue;
             }
+            if (glycoParams.nGlycan && glycanComposition.containsKey(hexnac)) {
+                if (Ycomp.containsKey(glycoParams.findResidueName("Hex")) && Ycomp.get(hexnac) < 2) {
+                    continue;
+                }
+            }
             GlycanFragment newFragment = new GlycanFragment(Ycomp, this.isDecoy, glycoParams.randomGenerator, GlycanFragment.FragType.Y);
             Yfragments.put(newFragment.hash, newFragment);
         }
