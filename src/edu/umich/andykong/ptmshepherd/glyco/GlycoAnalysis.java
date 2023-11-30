@@ -51,6 +51,7 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
+    public static final double DEFAULT_MASS_PROB_SCALING = 1;
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
@@ -1269,11 +1270,11 @@ public class GlycoAnalysis {
         float iso2 = (float) (deltaMass - glycan2.monoisotopicMass);
         int roundedIso2 = Math.round(iso2);
 
-        double isotopeProbRatio = glycoParams.glycoProbabilityTable.isotopeProbTable.get(roundedIso1) / glycoParams.glycoProbabilityTable.isotopeProbTable.get(roundedIso2);
+        double isotopeProbRatio = glycoParams.isotopeProbTable.get(roundedIso1) / glycoParams.isotopeProbTable.get(roundedIso2);
 
         // mass error calc
         double massProbRatio;
-        if (glycoParams.glycoProbabilityTable.massProbScaling == 0) {
+        if (glycoParams.massProbScaling == 0) {
             // enable skipping mass error calc for testing
             massProbRatio = 1.0;
         } else {
@@ -1288,7 +1289,7 @@ public class GlycoAnalysis {
                 massStDevs2 = minMassError;
             massProbRatio = Math.abs(massStDevs2 / massStDevs1);     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
         }
-        return Math.log(isotopeProbRatio) + Math.log(massProbRatio) * glycoParams.glycoProbabilityTable.massProbScaling;
+        return Math.log(isotopeProbRatio) + Math.log(massProbRatio) * glycoParams.massProbScaling;
     }
 
     /**
@@ -1383,14 +1384,14 @@ public class GlycoAnalysis {
     private double computeMassIsoScoreAbs(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
         float iso1 = (float) (deltaMass - bestGlycan.monoisotopicMass);
         int roundedIso1 = Math.round(iso1);
-        double isotopeProbRatio = glycoParams.glycoProbabilityTable.isotopeProbTable.get(roundedIso1) / glycoParams.glycoProbabilityTable.isotopeProbTable.get(0);
+        double isotopeProbRatio = glycoParams.isotopeProbTable.get(roundedIso1) / glycoParams.isotopeProbTable.get(0);
         double sumLogRatio = Math.log(isotopeProbRatio);
-        if (! (glycoParams.glycoProbabilityTable.massProbScaling == 0)) {
+        if (! (glycoParams.massProbScaling == 0)) {
             // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
             double massError1 = deltaMass - bestGlycan.monoisotopicMass - (roundedIso1 * AAMasses.averagineIsotopeMass);
             double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
             double massDist = Math.abs(massStDevs1);
-            sumLogRatio += Math.log(glycoParams.absScoreErrorParam / massDist) * glycoParams.glycoProbabilityTable.massProbScaling;      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
+            sumLogRatio += Math.log(glycoParams.absScoreErrorParam / massDist) * glycoParams.massProbScaling;      // Compare to "default" mass error, set to 5 std devs since glycopeps tend to have larger error than regular peps, AND we're more concerned about penalizing large misses
         }
         return sumLogRatio;
     }
@@ -1541,7 +1542,7 @@ public class GlycoAnalysis {
      * by residue type
      * @return map of residue type : list of fragment descriptors parsed from the table
      */
-    public static HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> parseOxoniumDatabase(String oxoDBPath, ProbabilityTables probabilityTable, GlycoParams glycoParams) {
+    public static HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> parseOxoniumDatabase(String oxoDBPath, GlycoParams glycoParams) {
         HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> oxoniumDB = new HashMap<>();
         BufferedReader in;
         try {
@@ -1559,13 +1560,17 @@ public class GlycoAnalysis {
                 TreeMap<GlycanResidue, Integer> ionComposition = glycoParams.parseGlycanString(splits[1]);
                 double massShift = Double.parseDouble(splits[2]);
                 String comment = splits.length > 3 ? splits[3] : "";
+                double hitProb = GlycanResidue.getOrDefault(splits[4]);
+                double missProb = GlycanResidue.getOrDefault(splits[5]);
+                double expectedInt = GlycanResidue.getOrDefault(splits[6]);
+                double[] probRatios = new double[]{hitProb, missProb, expectedInt};
 
                 // Add to existing list if present or create new list if residue type not seen yet
                 if (oxoniumDB.containsKey(residue)) {
-                    oxoniumDB.get(residue).add(new GlycanFragmentDescriptor(ionComposition, probabilityTable.rulesByResidue.get(residue), massShift, comment));
+                    oxoniumDB.get(residue).add(new GlycanFragmentDescriptor(ionComposition, probRatios, massShift, comment));
                 } else {
                     ArrayList<GlycanFragmentDescriptor> residueList = new ArrayList<>();
-                    residueList.add(new GlycanFragmentDescriptor(ionComposition, probabilityTable.rulesByResidue.get(residue), massShift, comment));
+                    residueList.add(new GlycanFragmentDescriptor(ionComposition, probRatios, massShift, comment));
                     oxoniumDB.put(residue, residueList);
                 }
             }

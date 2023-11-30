@@ -27,11 +27,8 @@ import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidateFragments;
-import edu.umich.andykong.ptmshepherd.glyco.GlycanFragmentDescriptor;
-import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
-import edu.umich.andykong.ptmshepherd.glyco.ProbabilityTables;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
@@ -1092,6 +1089,8 @@ public class PTMShepherd {
 //		glycoParams.updateGlycoMods();
 
 		// parse glyco parameters and initialize database and ratio tables
+		glycoParams.initIsotopeProbs(getParam("prob_isotope"));
+		glycoParams.massProbScaling = getParam("prob_mass").equals("") ? GlycoAnalysis.DEFAULT_MASS_PROB_SCALING :  Double.parseDouble(getParam("prob_mass"));
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
 		String decoyParam = getParam("decoy_type");
 		glycoParams.decoyType = decoyParam.length() > 0 ? Integer.parseInt(decoyParam): GlycoAnalysis.DEFAULT_GLYCO_DECOY_TYPE;

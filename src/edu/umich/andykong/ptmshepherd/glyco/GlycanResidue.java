@@ -58,7 +58,7 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
     }
 
     // return -1 for any values not provided (not all rules are needed for all residues).
-    private static double getOrDefault(String input) {
+    public static double getOrDefault(String input) {
         if (input.length() > 0) {
             return Double.parseDouble(input);
         } else {

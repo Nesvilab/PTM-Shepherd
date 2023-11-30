@@ -18,7 +18,6 @@ package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.peakpicker.PeakAnnotator;
-import org.hipparchus.random.RandomGenerator;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -55,7 +54,8 @@ public class GlycoParams {
     public double defaultProp;
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase;
-    public ProbabilityTables glycoProbabilityTable;     // todo: remove?
+    public HashMap<Integer, Double> isotopeProbTable;
+    public double massProbScaling;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -75,9 +75,7 @@ public class GlycoParams {
         for (GlycanMod mod: glycanMods) {
             glycanResidues.add(mod.modResidue);     // add mod reference to the residue list
         }
-
-        glycoProbabilityTable = GlycoParams.initGlycoProbTable(this);
-        glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, glycoProbabilityTable, this);
+        glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, this);
     }
 
     private ArrayList<GlycanResidue> parseGlycoResiduesDB(String glycanResiduesPath) {
@@ -507,74 +505,29 @@ public class GlycoParams {
      * -mass/isotope: key1:value1,key2:value2,etc
      * @return ProbabilityTable to use
      */
-    public static ProbabilityTables initGlycoProbTable(GlycoParams glycoParams) {
-        ProbabilityTables probabilityTable = new ProbabilityTables();
-
-        // Read params for probabilities if present, otherwise use default values (already init'd in the constructor)
-        for (String paramName : ProbabilityTables.probabilityParams) {
-            String paramStr = PTMShepherd.getParam(paramName);
-            if (paramStr.length() > 0) {
-                // parameter provided, read probability
-                double[] values;
-                switch (paramName) {
-                    case "prob_neuacOx":
-                        values = parseProbParam(paramStr, paramName);
-                        if (values.length > 0)
-                            probabilityTable.neuacRules = values;
-                        break;
-                    case "prob_neugcOx":
-                        values = parseProbParam(paramStr, paramName);
-                        if (values.length > 0)
-                            probabilityTable.neugcRules = values;
-                        break;
-                    case "prob_phosphoOx":
-                        values = parseProbParam(paramStr, paramName);
-                        if (values.length > 0)
-                            probabilityTable.phosphoRules = values;
-                        break;
-                    case "prob_sulfoOx":
-                        values = parseProbParam(paramStr, paramName);
-                        if (values.length > 0)
-                            probabilityTable.sulfoRules = values;
-                        break;
-                    case "prob_dhexOx":
-                        values = parseProbParam(paramStr, paramName);
-                        if (values.length > 0)
-                            probabilityTable.dhexOxoRules = values;
-                        break;
-                    case "prob_regY":
-                        values = parseProbParam(paramStr, paramName);
-                        if (values.length > 0)
-                            probabilityTable.regularYrules = values;
-                        break;
-                    case "prob_dhexY":
-                        values = parseProbParam(paramStr, paramName);
-                        if (values.length > 0)
-                            probabilityTable.dHexYrules = values;
-                        break;
-                    case "prob_mass":
-                        probabilityTable.massProbScaling = Double.parseDouble(paramStr);
-                        break;
-                    case "prob_isotope":
-                        String[] isoSplits = paramStr.split(",");
-                        HashMap<Integer, Double> isoProbRules = new HashMap<>();
-                        for (String split: isoSplits) {
-                            String[] keyValue = split.trim().split(":");
-                            try {
-                                isoProbRules.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
-                            } catch (NumberFormatException ex) {
-                                System.out.printf("Illegal character %s in parameter %s, must pairs of numbers like '0:1.5,1:0.75'", split, paramName);
-                            }
-                        }
-                        if (isoProbRules.size() > 0) {
-                            probabilityTable.isotopeProbTable = isoProbRules;
-                        }
-                        break;
+    public void initIsotopeProbs(String paramStr) {
+        isotopeProbTable = new HashMap<>();
+        if (!paramStr.matches("")) {
+            String[] isoSplits = paramStr.split(",");
+            for (String split : isoSplits) {
+                String[] keyValue = split.trim().split(":");
+                try {
+                    isotopeProbTable.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
+                } catch (NumberFormatException ex) {
+                    System.out.printf("Illegal character %s in parameter prob_isotopes, must pairs of numbers like '0:1.5,1:0.75'", split);
                 }
             }
         }
-        probabilityTable.updateRulesByResidue(glycoParams);
-        return probabilityTable;
+        if (isotopeProbTable.size() == 0) {
+            // init defaults
+            isotopeProbTable.put(-2, 0.125);
+            isotopeProbTable.put(-1, 0.25);
+            isotopeProbTable.put(0, 1.0);
+            isotopeProbTable.put(1, 0.95);
+            isotopeProbTable.put(2, 0.5);
+            isotopeProbTable.put(3, 0.25);
+            isotopeProbTable.put(4, 0.125);
+        }
     }
 
     /**
@@ -650,13 +603,14 @@ public class GlycoParams {
         } else {
             PTMShepherd.print(String.format("\tAllowed Sites: %s", allowedLocalizationResidues));
         }
-        PTMShepherd.print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
-        String neuac = Arrays.toString(glycoProbabilityTable.neuacRules);
-        String neugc = Arrays.toString(glycoProbabilityTable.neugcRules);
-        String dhex = Arrays.toString(glycoProbabilityTable.dhexOxoRules);
-        String phospho = Arrays.toString(glycoProbabilityTable.phosphoRules);
-        String sulfo = Arrays.toString(glycoProbabilityTable.sulfoRules);
-        PTMShepherd.print(String.format("\tOxonium probability ratios: NeuAc %s; NeuGc %s; dHex %s; Phospho %s; Sulfo %s", neuac, neugc, dhex,phospho, sulfo));
+        // todo: change to printing by residue/mod
+//        PTMShepherd.print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
+//        String neuac = Arrays.toString(glycoProbabilityTable.neuacRules);
+//        String neugc = Arrays.toString(glycoProbabilityTable.neugcRules);
+//        String dhex = Arrays.toString(glycoProbabilityTable.dhexOxoRules);
+//        String phospho = Arrays.toString(glycoProbabilityTable.phosphoRules);
+//        String sulfo = Arrays.toString(glycoProbabilityTable.sulfoRules);
+//        PTMShepherd.print(String.format("\tOxonium probability ratios: NeuAc %s; NeuGc %s; dHex %s; Phospho %s; Sulfo %s", neuac, neugc, dhex,phospho, sulfo));
         if (printFullParams) {
             PTMShepherd.print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
             PTMShepherd.print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
