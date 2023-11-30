@@ -270,10 +270,10 @@ public class GlycanCandidate {
 
         for (TreeMap<GlycanResidue, Integer> Ycomp: previousYs) {
             // require hexnac for N-glycan Ys. todo: replace hard-coded rule with user params
-            if (glycoParams.nGlycan && glycanComposition.containsKey(hexnac) && !Ycomp.containsKey(hexnac)) {
+            if (glycoParams.nGlycan && glycanComposition.getOrDefault(hexnac, 0) > 0 && !Ycomp.containsKey(hexnac)) {
                 continue;
             }
-            if (glycoParams.nGlycan && glycanComposition.containsKey(hexnac)) {
+            if (glycoParams.nGlycan && glycanComposition.getOrDefault(hexnac, 0) > 0) {
                 if (Ycomp.containsKey(glycoParams.findResidueName("Hex")) && Ycomp.get(hexnac) < 2) {
                     continue;
                 }
