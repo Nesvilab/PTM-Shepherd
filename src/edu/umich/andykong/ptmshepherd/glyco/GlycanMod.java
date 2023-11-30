@@ -25,15 +25,14 @@ public class GlycanMod {
         name = modResidue.name;
         mass = modResidue.mass;
         String[] splits = modTsvLine.replace("\"", "").split("\t");
-        isLabile = Boolean.parseBoolean(splits[8]);
-        modResidue.islabile = isLabile;
-        maxAllowed = Integer.parseInt(splits[10]);
-        isFixed = Boolean.parseBoolean(splits[11]);
+        isLabile = modResidue.islabile;
+        maxAllowed = Integer.parseInt(splits[6]);
+        isFixed = Boolean.parseBoolean(splits[7]);
 
         // parse required residues
         requiredResidues = new ArrayList<>();
-        if (!splits[9].matches("")) {
-            String[] resSplits = splits[9].split(",");
+        if (!splits[5].matches("")) {
+            String[] resSplits = splits[5].split(",");
             for (String residueStr : resSplits) {
                 GlycanResidue residue = glycoParams.findResidueName(residueStr);
                 if (residue != null) {

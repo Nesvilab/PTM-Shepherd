@@ -17,6 +17,8 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
+
 /**
  * Allowed names for glyco residues. Matched to masses in GlycanMasses
  */
@@ -25,15 +27,13 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
     public String name;
     public double mass;
     public double[] yProbs;
-    public double[] oxoProbs;
     public String[] alternateNames;
     public boolean islabile;
 
-    public GlycanResidue(String name, double mass, double[] yProbs, double[] oxoProbs, String[] altNames, boolean isLabile) {
+    public GlycanResidue(String name, double mass, double[] yProbs, String[] altNames, boolean isLabile) {
         this.name = name;
         this.mass = mass;
         this.yProbs = yProbs;
-        this.oxoProbs = oxoProbs;
         this.alternateNames = altNames;
         this.islabile = isLabile;
     }
@@ -43,15 +43,14 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
         double mass = Double.parseDouble(splits[1]);
         double yProbPlus = getOrDefault(splits[2]);
         double yProbMinus = getOrDefault(splits[3]);
-        double oxoProbPlus = getOrDefault(splits[4]);
-        double oxoProbMinus = getOrDefault(splits[5]);
-        double oxoInt = getOrDefault(splits[6]);
-        String[] altNames = splits[7].split(",");
-        boolean isLabile = Boolean.parseBoolean(splits[8]);
+        String[] altNames = splits[4].split(",");
+        boolean isLabile = yProbMinus == -1 && yProbPlus == -1;
+        if (yProbPlus == -1 ^ yProbMinus == -1) {
+            PTMShepherd.die(String.format("Error parsing glycan residue defintions. Residue %s had only 1 Y ion probability defined, but must have 2 (or 0 if labile).", line));
+        }
         return new GlycanResidue(splits[0],
                 mass,
                 new double[]{yProbPlus, yProbMinus},
-                new double[]{oxoProbPlus, oxoProbMinus, oxoInt},
                 altNames,
                 isLabile
         );
