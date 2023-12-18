@@ -264,7 +264,7 @@ public class PSMFile {
 		// get rawglyco file headers
 		int mergeFromCol = -1;
 		for (int i=0; i < glyHeaders.length; i++) {
-			if (glyHeaders[i].matches("Best Glycan")) {
+			if (glyHeaders[i].matches(GlycoAnalysis.GLYCAN_COMP_COL_NAME)) {
 				mergeFromCol = i;
 			}
 		}
@@ -284,8 +284,8 @@ public class PSMFile {
 		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
 		if (!hasPreviousGlycoInfo) {
 			// do not add glyco headers if the PSM table already has them
-			newHeaders.addAll(observedModCol + 1, Arrays.asList(glyHeaders).subList(mergeFromCol + 1, mergeFromCol + numColsToUse));
-			fraggerLocCol = fraggerLocCol + numColsToUse - 1;
+			newHeaders.addAll(observedModCol + 1, Arrays.asList(glyHeaders).subList(mergeFromCol, mergeFromCol + numColsToUse));
+			fraggerLocCol = fraggerLocCol + numColsToUse;
 		}
 		out.println(String.join("\t", newHeaders));
 
@@ -296,7 +296,7 @@ public class PSMFile {
 			String pSpec = newLine.get(pSpecCol);
 			if (!hasPreviousGlycoInfo) {
 				// add columns for glycan score and q-value before proceeding (for all lines, whether glycan-containing or not)
-				for (int i=0; i < numColsToUse - 1; i++) {
+				for (int i=0; i < numColsToUse; i++) {
 					newLine.add(observedModCol + 1 + i, "");
 				}
 			}
@@ -328,9 +328,9 @@ public class PSMFile {
 					}
 
 					// add the final glycan info to the line
-					newLine.set(observedModCol, observedGlycan);
-					newLine.set(observedModCol + 1, glycanScore);
-					newLine.set(observedModCol + 2, glyLine.get(glycanQvalCol));
+					newLine.set(observedModCol + 1, observedGlycan);
+					newLine.set(observedModCol + 2, glycanScore);
+					newLine.set(observedModCol + 3, glyLine.get(glycanQvalCol));
 					int charge = Integer.parseInt(newLine.get(chargeCol));
 					if (writeGlycansToAssignedMods) {
 						newLine = writeGlycanToAssignedMod(newLine, rawGlycan, nGlycan, allowedResidues, removeGlycanDeltaMass, charge, writeGlycansToAssignedMods);

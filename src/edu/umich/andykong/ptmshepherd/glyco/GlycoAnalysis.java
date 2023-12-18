@@ -56,6 +56,7 @@ public class GlycoAnalysis {
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
+    public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;      // todo: param
@@ -93,7 +94,7 @@ public class GlycoAnalysis {
         condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
 
         //write header
-        glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + "\tBest Glycan\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score" + "\tFragments:");
+        glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + "\tFragments:");
 
         //get necessary col indices
         specCol = pf.getColumn("Spectrum");
@@ -184,7 +185,7 @@ public class GlycoAnalysis {
         // read info from glycofrags file
         BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
         String[] headerSplits = in.readLine().split("\t");
-        int glycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Glycan");
+        int glycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
         int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
         int deltaMassCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Mass Shift");
         int fragmentStartCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Fragments:");
@@ -326,7 +327,7 @@ public class GlycoAnalysis {
         String[] headerSplits = in.readLine().split("\t");
         int gSpecCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Spectrum");
         int absScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan Score");
-        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Glycan");
+        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
         int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
         int bestNextScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Target Score");
 
@@ -525,7 +526,7 @@ public class GlycoAnalysis {
         String[] headerSplits = in.readLine().split("\t");
         int gSpecCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Spectrum");
         int absScoreCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan Score");
-        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Best Glycan");
+        int bestGlycanCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
         int qValCol = StaticGlycoUtilities.getHeaderColIndex(headerSplits, "Glycan q-value");
 
         if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
