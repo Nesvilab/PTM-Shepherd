@@ -246,9 +246,14 @@ public class StaticGlycoUtilities {
             GlycanResidue residue;
             if (glycanName.find()) {
                 String glycan = glycanName.group();
-                residue = GlycanMasses.glycoNames.get(glycan.trim().toLowerCase());
+                if (GlycanMasses.glycoNames.containsKey(glycan.trim().toLowerCase())) {
+                    residue = GlycanMasses.glycoNames.get(glycan.trim().toLowerCase());
+                } else {
+                    PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", glycan, line));
+                    continue;
+                }
             } else {
-                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", glycanName.toString(), line));
+                PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized and was ignored", glycanToken, line));
                 continue;
             }
             Matcher glycanCount = numberPattern.matcher(glycanToken);
