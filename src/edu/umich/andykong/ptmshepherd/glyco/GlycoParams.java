@@ -603,14 +603,20 @@ public class GlycoParams {
         } else {
             PTMShepherd.print(String.format("\tAllowed Sites: %s", allowedLocalizationResidues));
         }
-        // todo: change to printing by residue/mod
-//        PTMShepherd.print(String.format("\tY ion probability ratio: %.1f,%.2f; dHex-containing: %.1f,%.2f", glycoProbabilityTable.regularYrules[0], glycoProbabilityTable.regularYrules[1], glycoProbabilityTable.dHexYrules[0], glycoProbabilityTable.dHexYrules[1]));
-//        String neuac = Arrays.toString(glycoProbabilityTable.neuacRules);
-//        String neugc = Arrays.toString(glycoProbabilityTable.neugcRules);
-//        String dhex = Arrays.toString(glycoProbabilityTable.dhexOxoRules);
-//        String phospho = Arrays.toString(glycoProbabilityTable.phosphoRules);
-//        String sulfo = Arrays.toString(glycoProbabilityTable.sulfoRules);
-//        PTMShepherd.print(String.format("\tOxonium probability ratios: NeuAc %s; NeuGc %s; dHex %s; Phospho %s; Sulfo %s", neuac, neugc, dhex,phospho, sulfo));
+        // print residue and mod lists
+        if (printFullParams) {
+            PTMShepherd.print("\tGlycan residue definitions:");
+            for (GlycanResidue residue : glycanResidues) {
+                PTMShepherd.print("\t\t" + residue.printParam());
+            }
+        }
+        PTMShepherd.print("\tGlycan mods/adducts:");
+        for (GlycanMod mod: glycanMods) {
+            if (!mod.printParam().equals("")) {
+                PTMShepherd.print("\t\t" + mod.printParam());
+            }
+        }
+
         if (printFullParams) {
             PTMShepherd.print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
             PTMShepherd.print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));

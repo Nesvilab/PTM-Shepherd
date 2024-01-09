@@ -3,8 +3,6 @@ package edu.umich.andykong.ptmshepherd.glyco;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class GlycanMod {
     public String name;
@@ -41,6 +39,25 @@ public class GlycanMod {
                     PTMShepherd.die(String.format("Error parsing glycan_mods.tsv: required residue %s in line %s was not recognized. Make sure this glycan residue is in the glycan_residues.tsv and that it is spelled correctly in glycan_mods.tsv and try again.", residueStr, modTsvLine));
                 }
             }
+        }
+    }
+
+    public String printParam() {
+        StringBuilder requiredRes = new StringBuilder();
+        if (requiredResidues.size() > 0) {
+            requiredRes.append(", requires:");
+            for (GlycanResidue residue: requiredResidues) {
+                requiredRes.append(" ");
+                requiredRes.append(residue.name);
+            }
+        }
+
+        if (isFixed) {
+            return String.format("fixed: %s%s", modResidue.printParam(), requiredRes);
+        } else if (maxAllowed > 0) {
+            return String.format("variable: %s, max %d%s", modResidue.printParam(), maxAllowed, requiredRes);
+        } else {
+            return "";
         }
     }
 }

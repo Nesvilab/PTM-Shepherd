@@ -69,6 +69,11 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
         return name;
     }
 
+    public String printParam() {
+        String probs = islabile ? "labile" : String.format("%.1f, %.1f", yProbs[0], yProbs[1]);
+        return String.format("%s: %.4f %s", name, mass, probs);
+    }
+
     @Override
     public int compareTo(GlycanResidue o) {
         return name.compareTo(o.name);
