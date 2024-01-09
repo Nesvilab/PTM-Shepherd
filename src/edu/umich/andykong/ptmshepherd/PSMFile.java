@@ -311,17 +311,11 @@ public class PSMFile {
 					if (rawGlycan.contains("Decoy")) {
 						if (!printDecoys) {
 							// report best target glycan instead of decoy (q-value will be reported as 1)
-							observedGlycan = glyLine.get(bestTargetGlycanCol);
+							rawGlycan = glyLine.get(bestTargetGlycanCol);
 							glycanScore = glyLine.get(bestTargetScoreCol);
-						} else {
-							// user requested printing decoys, save decoy glycan (removing FailFDR if present)
-							if (rawGlycan.contains("FailFDR")) {
-								observedGlycan = rawGlycan.replace("FailFDR_", "");
-							} else {
-								observedGlycan = rawGlycan;
-							}
 						}
-					} else if (rawGlycan.contains("FailFDR")) {
+					} 
+					if (rawGlycan.contains("FailFDR")) {
 						observedGlycan = rawGlycan.replace("FailFDR_", "");
 					} else {
 						observedGlycan = rawGlycan;
