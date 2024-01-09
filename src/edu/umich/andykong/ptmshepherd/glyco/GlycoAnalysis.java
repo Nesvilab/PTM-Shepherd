@@ -402,7 +402,7 @@ public class GlycoAnalysis {
                 scoreDistDecoys--;
             }
             // compute TD ratio
-            targetDecoyRatio = calculateFDR(scoreDistTargets, scoreDistDecoys);
+            targetDecoyRatio = calculateFDR(scoreDistTargets, scoreDistDecoys, useNonCompFDR);
             if (scoreDistDecoys > scoreDistTargets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (scoreDistTargets == 0) {
@@ -456,7 +456,7 @@ public class GlycoAnalysis {
                 targets--;
             }
             // compute TD ratio and q-val
-            targetDecoyRatio = calculateFDR(targets, decoys);
+            targetDecoyRatio = calculateFDR(targets, decoys, useNonCompFDR);
             if (decoys > targets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (targets == 0) {
@@ -474,6 +474,7 @@ public class GlycoAnalysis {
                 if (scoreEntry.getValue() >= scoreThreshold) {
                     // stop here, found cutoff
                     foundThreshold = true;
+                    double compFDR = calculateFDR(targets, decoys, false);
                     PTMShepherd.print(String.format("\tUsed score threshold to obtain %.1f%% competitive FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
                 }
                 if (!rawGlycoLine[bestGlycanCol].contains("FailFDR")) {
@@ -569,7 +570,7 @@ public class GlycoAnalysis {
         for (Map.Entry<String, Double> entry : entries) {
             sortedScoreMap.put(entry.getKey(), entry.getValue());
         }
-        double targetDecoyRatio = calculateFDR(targets, decoys);
+        double targetDecoyRatio = calculateFDR(targets, decoys, useNonCompFDR);
         if (targetDecoyRatio < finalGlycoFDR) {
             // not enough decoys to compute FDR - already above desired ratio. Do not update table
             PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%% with basic method, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
@@ -600,7 +601,7 @@ public class GlycoAnalysis {
                 targets--;
             }
             // compute TD ratio and q-val
-            targetDecoyRatio = calculateFDR(targets, decoys);
+            targetDecoyRatio = calculateFDR(targets, decoys, useNonCompFDR);
             if (decoys > targets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (targets == 0) {
@@ -651,7 +652,7 @@ public class GlycoAnalysis {
      * @param decoys decoy count
      * @return FDR
      */
-    private double calculateFDR(int targets, int decoys){
+    private static double calculateFDR(int targets, int decoys, boolean useNonCompFDR){
         if (useNonCompFDR) {
             return (2 * decoys) / (double) (decoys + targets);
         } else {

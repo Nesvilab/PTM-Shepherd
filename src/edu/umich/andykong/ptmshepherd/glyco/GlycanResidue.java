@@ -19,6 +19,8 @@ package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 
+import java.util.HashMap;
+
 /**
  * Allowed names for glyco residues. Matched to masses in GlycanMasses
  */
@@ -29,6 +31,16 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
     public double[] yProbs;
     public String[] alternateNames;
     public boolean islabile;
+
+    private final static HashMap<String, Integer> residueOrder;
+    static {
+        residueOrder = new HashMap<>();
+        residueOrder.put("HexNAc", 0);
+        residueOrder.put("Hex", 1);
+        residueOrder.put("Fuc", 2);
+        residueOrder.put("NeuAc", 3);
+        residueOrder.put("NeuGc", 4);
+    }
 
     public GlycanResidue(String name, double mass, double[] yProbs, String[] altNames, boolean isLabile) {
         this.name = name;
@@ -74,8 +86,25 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
         return String.format("%s: %.4f %s", name, mass, probs);
     }
 
+    /**
+     * Sorting method for glycans by name, preserving the same order as older versions of the code.
+     * @param o
+     * @return
+     */
     @Override
     public int compareTo(GlycanResidue o) {
-        return name.compareTo(o.name);
+        if (residueOrder.containsKey(name)) {
+            if (residueOrder.containsKey(o.name)) {
+                return residueOrder.get(name).compareTo(residueOrder.get(o.name));
+            } else {
+                return -1;  // return the specifically ordered one first
+            }
+        } else {
+            if (residueOrder.containsKey(o.name)) {
+                return 1;
+            } else {
+                return name.compareTo(o.name);
+            }
+        }
     }
 }
