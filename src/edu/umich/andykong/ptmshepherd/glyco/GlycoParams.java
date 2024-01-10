@@ -618,6 +618,12 @@ public class GlycoParams {
         }
 
         if (printFullParams) {
+            PTMShepherd.print(String.format("\tMass prob (score scaling): %.1f", massProbScaling));
+            StringBuilder isoString = new StringBuilder("\tIsotope probs:");
+            for (Map.Entry<Integer, Double> isoEntry: isotopeProbTable.entrySet()) {
+                isoString.append(String.format(" %d:%.1f", isoEntry.getKey(), isoEntry.getValue()));
+            }
+            PTMShepherd.print(isoString.toString());
             PTMShepherd.print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
             PTMShepherd.print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
             PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
