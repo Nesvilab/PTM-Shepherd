@@ -37,8 +37,7 @@ public class GlycoAnalysis {
     MXMLReader mr;
     ArrayList<String> lineWithoutSpectra = new ArrayList<>();
     int totalLines;
-    HashMap<String, MXMLReader> multiMr;
-    float ppmTol, peakTol;
+    float ppmTol;
     int condPeaks;
     int specCol, pepCol, modpepCol, chargecol, deltaCol, rtCol, intCol, pmassCol, modCol;
     double condRatio;
@@ -47,7 +46,7 @@ public class GlycoAnalysis {
     double massErrorWidth;
     public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 3;
     public static final int NUM_ADDED_RAWGLYCO_COLUMNS = 5;
-    public static final double DEFAULT_GLYCO_PPM_TOL = 50;
+    public static final double DEFAULT_GLYCO_PPM_TOL = 30;
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
@@ -56,7 +55,6 @@ public class GlycoAnalysis {
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;      // todo: param
-    public static final int MAX_PROB_RATIO_ABSOLUTE = 10;
     public double finalGlycoFDR;
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?

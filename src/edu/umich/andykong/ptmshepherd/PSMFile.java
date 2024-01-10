@@ -277,9 +277,7 @@ public class PSMFile {
 		int glycanScoreCol = mergeFromCol + 1;
 		int glycanQvalCol = mergeFromCol + 2;
 
-		ArrayList<String> newHeaders = new ArrayList<>();
-		for (int i = 0; i < this.headers.length; i++)
-			newHeaders.add(this.headers[i]);
+		ArrayList<String> newHeaders = new ArrayList<>(Arrays.asList(this.headers));
 		// add after observed mod column (observedModCol + 1)
 		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
 		if (!hasPreviousGlycoInfo) {
