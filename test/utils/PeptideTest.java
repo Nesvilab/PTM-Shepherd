@@ -17,8 +17,12 @@ public class PeptideTest {
         String expectedSeq = "PTIPDEE";
         float[] expectedMods = new float[]{1.0f, 2.0f, 0.0f, 0.0f, 0.0f ,0.0f, 3.0f};
 
-        Peptide decoy =  Peptide.generateDecoy(seq, mods, rng);
+        Peptide decoy =  Peptide.generateDecoy(seq, mods, rng, "shuffled");
         assertEquals(expectedSeq, decoy.pepSeq);
         assertArrayEquals(expectedMods, decoy.mods);
+
+        decoy =  Peptide.generateDecoy(seq, mods, rng, "mutated");
+        expectedSeq = "PDPTIEE";
+        assertEquals(expectedSeq, decoy.pepSeq);
     }
 }

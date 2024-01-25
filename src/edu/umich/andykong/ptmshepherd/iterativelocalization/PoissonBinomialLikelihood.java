@@ -141,7 +141,7 @@ public class PoissonBinomialLikelihood {
                     nMatchedIonsX++;
                 if (yIonProbs[i] > 0.0)
                     nMatchedIonsY++;
-                if (xIonProbs[i] > 0.0 && yIonProbs[i] > 0.0)
+                if (xIonProbs[i] > 0.0 && (xIonProbs[i] == yIonProbs[i]))
                     nSharedIons++;
             }
         // Set up arrays to be convolved
@@ -150,7 +150,6 @@ public class PoissonBinomialLikelihood {
 
         // Construct Binomial Poisson parameters for X and Y
         // Dimensions are [nIons][2], [i][0] value holds chance of 0 (fail); [i][1] holds chance of 1 (success)
-        // I am very proud of this logic... it does max 2 checks for redundancy and a match to either X or Y
         int xIonPoint = 0;
         int yIonPoint = 0;
         for (int i = 0; i < xIonProbs.length; i++) {
@@ -160,7 +159,8 @@ public class PoissonBinomialLikelihood {
                 xBinPoiParams[xIonPoint][0] = 1.0 - xIonProbs[i]; // chance of fail
                 xBinPoiParams[xIonPoint][1] = xIonProbs[i]; // chance of success
                 xIonPoint++;
-            } else {
+            }
+            if (yIonProbs[i] > 0.0){
                 yBinPoiParams[yIonPoint][0] = 1.0 - yIonProbs[i]; // chance of fail
                 yBinPoiParams[yIonPoint][1] = yIonProbs[i]; // chance of success
                 yIonPoint++;
