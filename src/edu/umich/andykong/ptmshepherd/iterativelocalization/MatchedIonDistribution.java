@@ -20,6 +20,10 @@ public class MatchedIonDistribution {
     float resolution;
     int binMult;
 
+    TwoDimJointPMF targetPMF;
+    TwoDimJointPMF decoyPMF;
+    TwoDimJointQValue qValues;
+
     public String mode = "ptminer-unmatched-theoretical";
 
     public MatchedIonDistribution(float resolution, boolean poissonBinomial) {
@@ -29,8 +33,11 @@ public class MatchedIonDistribution {
         this.pdfDecoy = new int[((int) (100.0 * this.binMult + 1))];
         this.pdfMassError = new int[100]; // Default 100 ppm max, can make it dynamic TODO
         this.pdfMassErrorDecoy = new int[100]; // Default 100 ppm max, can make it dynamic TODO
-        if (poissonBinomial)
+        if (poissonBinomial) {
             this.mode = "poissonbinomial-matched-theoretical-decoy";
+            this.targetPMF = new TwoDimJointPMF(101, 3001, true, true);
+            this.decoyPMF = new TwoDimJointPMF(101, 3001, true, true);
+        }
     }
 
     // Original was ptminer mode
@@ -84,6 +91,7 @@ public class MatchedIonDistribution {
      * @param massError
      * @param isDecoy
      */
+    /**
     public void addIon(float intensity, float massError, boolean isDecoy) {
         if (!isDecoy) {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
@@ -98,6 +106,22 @@ public class MatchedIonDistribution {
                 this.pdfDecoy[idx]++;
                 int massErrorIndx = (int) massError;
                 this.pdfMassErrorDecoy[massErrorIndx]++;
+            }
+        }
+    }
+     **/
+    public void addIon(float intensity, float massError, boolean isDecoy) {
+        if (!isDecoy) {
+            if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
+                int intIndx = (int) (intensity);
+                int massErrorIndx = (int) (massError * 100.0);
+                this.targetPMF.addVal(intIndx, massErrorIndx);
+            }
+        } else {
+            if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
+                int intIndx = (int) (intensity);
+                int massErrorIndx = (int) (massError * 100.0);
+                this.decoyPMF.addVal(intIndx, massErrorIndx);
             }
         }
     }
@@ -118,19 +142,6 @@ public class MatchedIonDistribution {
     public void addIons(float [] intensities, boolean isDecoy) {
         for(int i = 0; i < intensities.length; i++) {
             addIon(intensities[i], isDecoy);
-        }
-    }
-
-    public void addIon_Original(float intensity) {
-        int idx = (int) (intensity * this.binMult);
-        this.pdf[idx]++;
-    }
-
-    public void addIons_Original(float [] intensities) {
-        for(int i = 0; i < intensities.length; i++) {
-             if (intensities[i] < 0)
-                continue;
-             addIon(intensities[i]);
         }
     }
 
@@ -157,9 +168,14 @@ public class MatchedIonDistribution {
         this.cdf[this.cdf.length-1] = this.cdf[this.cdf.length-2] = lastBinsAverage;
     }
 
+    /**
     public void calculateIonPosterior() {
         calculateIonIntensityPosterior();
         calculateIonMassErrorPosterior();
+    }
+     **/
+    public void calculateIonPosterior() {
+        this.qValues = new TwoDimJointQValue(this.targetPMF, this.decoyPMF);
     }
 
     private void calculateIonIntensityPosterior() {
@@ -271,6 +287,29 @@ public class MatchedIonDistribution {
         return probs;
     }
 
+    public double calcIonProbability(float intensity, float massError) {
+        double prob;
+        if (intensity < 0)
+            prob = -1;
+        else {
+            if (!this.mode.equals("poissonbinomial-matched-theoretical-decoy")) {
+                prob = this.cdf[(int) intensity * this.binMult];
+            } else {
+                int intIndx = (int) intensity;
+                int massErrorIndx =  (int) massError;
+                prob = 1 - this.qValues.getQVal(intIndx, massErrorIndx);
+            }
+        }
+        return prob;
+    }
+
+    public double[] calcIonProbabilities(float [] intensities, float[] massErrors) {
+        double[] probs = new double[intensities.length];
+        for (int i = 0; i < intensities.length; i++)
+            probs[i] = calcIonProbability(intensities[i], massErrors[i]);
+        return probs;
+    }
+
     public String intensityToString() {
         StringBuffer sb = new StringBuffer();
 
@@ -281,11 +320,7 @@ public class MatchedIonDistribution {
                         + "\t" + this.pdf[i] + "\n");
             }
         } else {
-            sb.append("intensity\tcount_target\tcount_decoy\tion_PEP\n");
-            for (int i = 0; i < this.pdf.length; i++) {
-                sb.append(new DecimalFormat("0.00").format((double) i / (double) this.binMult)
-                        + "\t" + this.pdf[i] + "\t" + this.pdfDecoy[i] + "\t" + this.ionPosterior[i] + "\n");
-            }
+            sb.append(this.qValues.toString());
         }
         return sb.toString();
     }

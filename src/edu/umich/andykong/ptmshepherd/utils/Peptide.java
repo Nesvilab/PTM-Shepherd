@@ -1,6 +1,7 @@
 package edu.umich.andykong.ptmshepherd.utils;
 
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
+import edu.umich.andykong.ptmshepherd.core.AAMutationRules;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.StandardCharsets;
@@ -59,7 +60,31 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return knownFrags;
     }
 
-    public static Peptide generateDecoy(String pep, float[] mods, Random rng) {
+    public static Peptide generateDecoy(String pep, float[] mods, Random rng, String method) {
+        if (method.equals("shuffled"))
+            return generateShuffledDecoy(pep, mods, rng);
+        else if (method.equals("mutated"))
+            return generateMutatedDecoy(pep, mods, rng);
+        else
+            return null; //TODO
+    }
+
+    public static Peptide generateMutatedDecoy(String pep, float[] mods, Random rng) {
+        ArrayList<Site> sites = new ArrayList<>(pep.length());
+        for (int i = 0; i < pep.length(); i++)
+            sites.add(new Site(pep.charAt(i), mods[i]));
+        sites.get(1).aa = AAMutationRules.mutateFrom.get(sites.get(1).aa);
+        sites.get(pep.length()-2).aa = AAMutationRules.mutateFrom.get(sites.get(pep.length()-2).aa);
+
+        StringBuilder newPep = new StringBuilder();
+
+        for (int i = 0; i < sites.size(); i++)
+            newPep.append(sites.get(i).aa);
+
+        return new Peptide(newPep.toString(), mods);
+    }
+
+    public static Peptide generateShuffledDecoy(String pep, float[] mods, Random rng) {
         ArrayList<Site> sites = new ArrayList<>(pep.length());
 
         // Shuffle core

@@ -5,8 +5,6 @@ import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.utils.Peptide;
-import edu.umich.andykong.ptmshepherd.utils.StringParsingUtils;
-import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.File;
 import java.text.DecimalFormat;
@@ -151,7 +149,7 @@ public class IterativeLocalizer {
                             this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, false);
 
                             // Add decoy peptide values to matched ion histogram
-                            Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng);
+                            Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng, "mutated");
                             ArrayList<Float> decoySitePepFrags = Peptide.calculatePeptideFragments(
                                     decoyPep.pepSeq, decoyPep.mods, this.ionTypes, 1);
                             float[][] decoyMatchedIons = findMatchedIons(decoySitePepFrags, peakMzs, peakInts);
@@ -169,7 +167,7 @@ public class IterativeLocalizer {
             this.matchedIonDist.calculateIonPosterior();
         if (this.printIonDistribution) {
             this.matchedIonDist.printIntensityHisto("matched_ion_intensity_distribution.tsv");
-            this.matchedIonDist.printMassErrorHisto("matched_ion_mass_error_distribution.tsv");
+            //this.matchedIonDist.printMassErrorHisto("matched_ion_mass_error_distribution.tsv");
         }
 
         long t2 = System.currentTimeMillis();
@@ -285,17 +283,19 @@ public class IterativeLocalizer {
                                 strEntropies.add(entropyToString(locEntropy));
 
                                 // TODO check decoy usefulness
-                                Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng);
+                                Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng, "mutated");
                                 boolean[] decoyAllowedPoses = parseAllowedPositions(decoyPep.pepSeq,
                                         this.allowedAAs, decoyPep.mods);
                                 double[] decoySiteProbs = localizePsm(spec, decoyPep.pepSeq, decoyPep.mods, dMassApex,
                                         cBin, decoyAllowedPoses);
                                 double decoyMaxProb = findMaxLocalizationProbability(decoySiteProbs);
                                 String decoyMaxProbAA = findMaxLocalizationProbabilitySite(decoySiteProbs, decoyPep.pepSeq);
-                                if (decoyMaxProb >= maxProb) {
-                                    System.out.println(specName + "\t" + pep + "\t" + decoyPep.pepSeq + "\t" +
-                                            maxProbToString(maxProb, maxProbAA) + "\t" +
-                                            maxProbToString(decoyMaxProb, decoyMaxProbAA));
+                                if (debugFlag) {
+                                    if (decoyMaxProb >= maxProb) {
+                                        System.out.println(specName + "\t" + pep + "\t" + decoyPep.pepSeq + "\t" +
+                                                maxProbToString(maxProb, maxProbAA) + "\t" +
+                                                maxProbToString(decoyMaxProb, decoyMaxProbAA));
+                                    }
                                 }
 
                             }
@@ -653,27 +653,7 @@ public class IterativeLocalizer {
         // Iterate through sites to compute likelihood for each site P(Spec_i|Pep_{ij})
         // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
         // is equal to the proximal AA
-        // System.out.println(spec.toString());
-        /**
-        for(int i = 0; i < pep.length(); i++) {
-            if (allowedPoses[i+1] == false) {
-                siteLikelihoods[i+1] = 0.0;
-                continue;
-            }
-            mods[i] += dMass;
-            ArrayList pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
-            if (debugFlag) {
-                System.out.println(pep);
-                System.out.println("Position " + (i + 1));
-                System.out.println(spec.toString());
-            }
-            float[] peakMzs = spec.getPeakMZ();
-            float[] peakInts = spec.getPeakInt();
-            siteLikelihoods[i+1] = computeLikelihood(pepFrags, peakMzs, peakInts);
-            mods[i] -= dMass;
-        }
-         **/
-        //NEW FUNCTION STARTS HERE
+
         // First calculate the set of shifted and unshifted ions
         ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
         ArrayList<Float> shiftedPepFrags = new ArrayList<Float>(pepFrags.size());
@@ -797,7 +777,7 @@ public class IterativeLocalizer {
             float[] matchedIonIntensities = matchedIons[0];
             float[] matchedIonMassErrors = matchedIons[1];
             // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
-            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities); //TODO input mass errors here
+            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities, matchedIonMassErrors); //TODO input mass errors here
             if (debugFlag) {
                 System.out.println("Matched ions");
                 System.out.println(pep);
