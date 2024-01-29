@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package edu.umich.andykong.ptmshepherd.specsimilarity;
+package edu.umich.andykong.ptmshepherd.utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;

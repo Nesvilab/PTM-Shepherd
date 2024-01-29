@@ -26,7 +26,9 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
-import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
+
+import edu.umich.andykong.ptmshepherd.utils.Variance;
+
 import java.util.List;
 
 public class SimRTAnalysis {

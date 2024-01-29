@@ -15,6 +15,7 @@
  */
 
 package edu.umich.andykong.ptmshepherd;
+
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
@@ -23,14 +24,17 @@ import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import umich.ms.datatypes.lcmsrun.Hash;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.zip.CRC32;
+
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 public class PSMFile {
 
@@ -39,19 +43,130 @@ public class PSMFile {
 	public ArrayList<String> mappedRuns;
 	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, calcMZcol, peptideCalcMassCol, chargeCol;
 	public String prefType;
+
+	private HashMap<String, Integer> scanToLine;
 	public File fname;
 
 	public PSMFile(String fn) throws Exception {
 		this(new File(fn));
 	}
 
+	/**
+	 * PSM class to hold parsed line info.
+	 */
+	public class PSM {
+		private int lineNum; // 0 indexed starting from header, 1 indexed starting from data
+		private ArrayList<String> spLine;
+		private String spec;
+		int specNum;
+		private String pep;
+		private ArrayList<ImmutablePair<Integer, Float>> mods;
+		private float [] modArr;
+		private Float dMass;
+
+		PSM(int lineNum, String line) {
+			this.lineNum = lineNum;
+			this.spLine = new ArrayList<>(Arrays.asList(line.replace("\n","").split("\t", -1)));
+			this.spec = null;
+			this.pep = null;
+			this.mods = null;
+			this.modArr = null;
+			this.dMass = null;
+		}
+
+		public void addValAtColumn(int colIdx, String val){
+			this.spLine.add(colIdx, val);
+		}
+
+		public void addValAtColumn(String colName, String val){
+			this.spLine.add(getColumn(colName), val);
+		}
+
+		public void replaceValAtColumn(int colIdx, String val){
+			this.spLine.set(colIdx, val);
+		}
+
+		public void replaceValAtColumn(String colName, String val){
+			this.spLine.set(getColumn(colName), val);
+		}
+
+		public String getSpec() {
+			if (this.spec == null)
+				this.spec = reNormName(spLine.get(getColumn("Spectrum")));
+			return this.spec;
+		}
+		public String getPep() {
+			if (this.pep == null)
+				this.pep = spLine.get(getColumn("Peptide"));
+			return this.pep;
+		}
+
+		public ArrayList<ImmutablePair<Integer,Float>> getMods() {
+			if (this.mods == null) {
+				this.mods = new ArrayList<>();
+				String strMods = spLine.get(getColumn("Assigned Modifications"));
+				if (!strMods.isEmpty()) {
+					String[] spMods = strMods.split(",", -1);
+					for (int i = 0; i < spMods.length; i++) {
+						int p = spMods[i].indexOf("(");
+						int q = spMods[i].indexOf(")");
+						String spos = spMods[i].substring(0, p).trim();
+						float mass = Float.parseFloat(spMods[i].substring(p + 1, q).trim());
+						int pos;
+						if (spos.equals("N-term"))
+							pos = 0;
+						else if (spos.equals("c"))
+							pos = this.getPep().length();
+						else
+							pos = Integer.parseInt(spos.substring(0, spos.length() - 1));
+						this.mods.add(new ImmutablePair<>(pos, mass));
+					}
+				}
+			}
+			return this.mods;
+		}
+
+		public float [] getModsAsArray() {
+			if (this.modArr == null) {
+				this.modArr = new float[this.getPep().length()];
+				Arrays.fill(this.modArr, 0.0f);
+				for (ImmutablePair<Integer, Float> mod : this.getMods()) {
+					if (mod.getLeft() == 0)
+						this.modArr[0] = mod.getRight();
+					else
+						this.modArr[mod.getLeft()-1] = mod.getRight();
+				}
+			}
+			return this.modArr;
+		}
+
+		public float getDMass() {
+			if (this.dMass == null)
+				this.dMass = Float.parseFloat(this.spLine.get(getColumn("Delta Mass")));
+			return this.dMass;
+		}
+
+		public String getColumnValue(String colName) {
+			return this.spLine.get(getColumn(colName));
+		}
+
+		public String toString() {
+			String newStr = String.join("\t", this.spLine);
+			return newStr;
+		}
+
+		public void updateLine() {
+			PSMFile.this.data.set(this.lineNum, this.toString());
+		}
+
+	}
 	public int getColumn(String head) {
 		for(int i = 0; i < headers.length; i++)
 			if(headers[i].equals(head))
 				return i;
 		return -1;
 	}
-	
+
 	public static String [] splitName(String fn) {
 		String [] res = new String[2];
 		if(fn.indexOf(".") < 0) {
@@ -76,7 +191,12 @@ public class PSMFile {
 		dis.close();
 		return Long.toHexString(crc.getValue()) + Long.toHexString(f.length());
 	}
-	
+
+	public PSM getLine(int i) {
+		PSM psm = new PSM(i, data.get(i));
+		return psm;
+	}
+
 	public HashSet<String> getRunNames() {
 		HashSet<String> res = new HashSet<>();
 		int col = getColumn("Spectrum");
@@ -86,6 +206,23 @@ public class PSMFile {
 			res.add(d.substring(0, d.indexOf(".")));
 		}
 		return res;
+	}
+
+	/**
+	 * Makes a map of run names to line indices within the PSM file
+	 * @return HashMap<String, ArrayList<Integer>> ran name -> list of line indices
+	 * TODO make this automatically happen upon construction
+	 */
+	public HashMap<String,ArrayList<Integer>> getRunMappings() {
+		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
+		for(int i = 0; i < this.data.size(); i++) {
+			String [] sp = this.data.get(i).split("\t");
+			String bn = sp[getColumn("Spectrum")].substring(0,sp[getColumn("Spectrum")].indexOf("."));
+			if(!mappings.containsKey(bn))
+				mappings.put(bn, new ArrayList<>());
+			mappings.get(bn).add(i);
+		}
+		return mappings;
 	}
 	
 	public ArrayList<Float> getMassDiffs() {
@@ -159,8 +296,6 @@ public class PSMFile {
 			col = getColumn("Observed Mass");
 		return col;
 	}
-
-
 
 	public static void getMappings(File path, HashMap<String,File> mappings, HashSet<String> runNames) {
 		HashMap<String, Integer> datTypes = new HashMap<>();
@@ -631,6 +766,13 @@ public class PSMFile {
 				this.data.add(cline);
 		}
 		in.close();
+
+		// Build index of PSM file lines to spectrum names
+		this.scanToLine = new HashMap<>();
+		for (int i = 0; i < this.data.size(); i++) {
+			PSM tPSM = this.getLine(i);
+			this.scanToLine.put(tPSM.getSpec(), i);
+		}
 	}
 
     public void annotateMassDiffs(String [] annotations) throws IOException {
@@ -723,6 +865,129 @@ public class PSMFile {
     	return Double.parseDouble(massSplits[0]);
 	}
 
+	/**
+	 * @param indx		insertion index
+	 * @param newHead	new header to be inserted
+	 * @return			-1 if header not already present and successfully inserted, header index if already present
+	 */
+	private int addHeader(int indx, String newHead) {
+		// Check if column already exists
+		int oldHeaderIndx = getColumn(newHead);
+
+		// If header doesn't already exist, edit headers
+		if (oldHeaderIndx == -1) {
+			ArrayList<String> newHeaders = new ArrayList<String>(Arrays.asList(this.headers));
+			newHeaders.add(indx, newHead);
+			this.headers = newHeaders.toArray(new String[newHeaders.size()]);
+		} else {
+			System.out.printf("\t%s found in headers, overwriting existing column%n", newHead);
+		}
+
+		return oldHeaderIndx;
+	}
+
+	public void addColumn(int colIndx, String newHead, ArrayList<String> keys, ArrayList<String> vals) {
+		// Check that PSM table editing will not fail
+		if (vals.size() != this.data.size() || keys.size() != data.size()) {
+			throw new ArrayIndexOutOfBoundsException("Input arrays and PSM table are not the same length, " +
+					"editing PSM table will fail\n");
+		}
+
+		//TODO if column not found and inserting to the right, it will insert at the beginning of the table
+		// This fixes it, but the error message should be different. Not sure how to check colIndx
+		if (colIndx == 0)
+			throw new ArrayIndexOutOfBoundsException("\tSpectrum is a protected column, refusing to overwrite\n");
+
+		// Check that header doesn't already exist
+		int existingHeaderIndx = addHeader(colIndx, newHead);
+		if (existingHeaderIndx == -1) {
+			for (int i = 0; i < keys.size(); i++) {
+				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
+				int rowIndx = this.scanToLine.get(specKey);
+				PSM tPSM = this.getLine(rowIndx);
+				tPSM.addValAtColumn(newHead, vals.get(i));
+				tPSM.updateLine();
+			}
+		} else {
+			for (int i = 0; i < keys.size(); i++) {
+				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
+				int rowIndx = this.scanToLine.get(specKey);
+				PSM tPSM = this.getLine(rowIndx);
+				tPSM.replaceValAtColumn(newHead, vals.get(i));
+				tPSM.updateLine();
+			}
+		}
+	}
+
+	/**
+	 * Returns the values of the column at colIndx.
+	 * @param header column name
+	 * @return	generic ArrayList of type Object
+	 */
+	public ArrayList<String> getColumnValues(String header) { //TODO I think you can make this a generic parser by making one param a callable of DataDtype
+		int colIndx = getColumn(header);
+
+		if (colIndx < 0 || colIndx >= (this.headers.length)) {
+			throw new ArrayIndexOutOfBoundsException(String.format("Column index %d is out of bounds for a %d column" +
+					"wide table", colIndx, this.headers.length));
+		}
+
+		ArrayList<String> values = new ArrayList<>(this.data.size());
+
+		for (int i = 0; i < data.size(); i++) {
+			PSM tPSM = this.getLine(i);
+			values.add(tPSM.getColumnValue(header));
+		}
+
+		return values;
+	}
+
+	/**
+	 * Returns the values of the column at colIndx.
+	 * @param header column name
+	 * @return	generic ArrayList of type Object
+	 */
+	public HashMap<String,String> getColumnValuesAndSpecs(String header) {
+		int colIndx = getColumn(header);
+
+		if (colIndx < 0 || colIndx >= (this.headers.length)) {
+			throw new ArrayIndexOutOfBoundsException(String.format("Column index %d is out of bounds for a %d column" +
+					"wide table", colIndx, this.headers.length));
+		}
+
+		HashMap<String,String> values = new HashMap<>(this.data.size());
+
+		for (int i = 0; i < data.size(); i++) {
+			PSM tPSM = this.getLine(i);
+			values.put(tPSM.getSpec(), tPSM.getColumnValue(header));
+		}
+
+		return values;
+	}
+
+	public void save(boolean overwrite) throws IOException {
+		String tempFoutName = this.fname + ".tmp";
+		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+
+		// Write lines to .tmp file file
+		out.println(headersToString() + '\n');
+		for (int i = 0; i < this.data.size(); i++) {
+			out.println(this.getLine(i).toString());
+		}
+
+		out.close();
+
+		if (overwrite)
+			Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	private String headersToString() {
+		String [] headers = Arrays.copyOf(this.headers, this.headers.length);
+		//TODO Check with Dan, make sure we can remove trailing newlines character in this.headers
+		headers[headers.length-1].replace("\n","");
+		return String.join("\t", headers);
+	}
+
 	public void writeToPsmCache(File cacheFname, ArrayList<Double> varModMasses) throws FileNotFoundException {
 		PrintWriter out = new PrintWriter(cacheFname);
 
@@ -772,3 +1037,4 @@ public class PSMFile {
 		out.close();
 	}
 }
+
