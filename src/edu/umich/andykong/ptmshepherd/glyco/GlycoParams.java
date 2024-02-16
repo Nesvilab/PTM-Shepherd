@@ -152,11 +152,16 @@ public class GlycoParams {
      */
     public static void writeGlycanMassList(ArrayList<GlycanCandidate> glycanDB, String outputPath) throws IOException {
         PrintWriter out = new PrintWriter(new FileWriter(outputPath));
+        HashSet<Integer> writtenMasses = new HashSet<>();
         for (GlycanCandidate candidate : glycanDB) {
             if (candidate.isDecoy) {
                 continue;       // do not write decoy masses to list - only target masses are reported in PSM table, even if decoy is assigned
             }
-            out.write(String.format("%.4f\n",candidate.monoisotopicMass));
+            int roundedMass = (int) Math.round(candidate.monoisotopicMass * 100);
+            if (!writtenMasses.contains(roundedMass)) {
+                out.write(String.format("%.4f\n",candidate.monoisotopicMass));
+                writtenMasses.add(roundedMass);
+            }
         }
         out.flush();
         out.close();
