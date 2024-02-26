@@ -1533,7 +1533,11 @@ public class GlycoAnalysis {
         }
         // if we reach this point, no sequon was found. This can happen if the sequence ends in NX, where X is an enzyme cut point.
         // Assume the second to last residue is the desired index
-        return pepSeq.length() - 2;
+        if (pepseq_glyco[pepSeq.length() - 2] == 'N') {
+            return pepSeq.length() - 2;
+        } else {
+            return -1;
+        }
     }
 
     /**
