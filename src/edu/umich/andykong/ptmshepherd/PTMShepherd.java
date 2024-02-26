@@ -237,7 +237,7 @@ public class PTMShepherd {
 		params.put("iontype_y", "1");
 		params.put("iontype_z", "0");
 		
-		params.put("iterloc_mode", "true");
+		params.put("iterloc_mode", "false");
 		params.put("iterloc_convergeCriterion", "0.01");
 		params.put("iterloc_maxEpoch", "100"); // Todo hangs when set to 0
 
