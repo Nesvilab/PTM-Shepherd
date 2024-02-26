@@ -46,9 +46,11 @@ public class PSMFile {
 
 	private HashMap<String, Integer> scanToLine;
 	public File fname;
+	boolean alreadyWarned;
 
 	public PSMFile(String fn) throws Exception {
 		this(new File(fn));
+		alreadyWarned = false;
 	}
 
 	/**
@@ -549,13 +551,14 @@ public class PSMFile {
 		/* Get glycan location */
 		int glycanLocation = readMSFraggerGlycanLocation(newLine, fraggerLocCol, peptideCol, glycoParams.nGlycan, glycoParams.allowedLocalizationResidues);
 		String glycanAA;
-		String fraggerPepLocStr = newLine.get(fraggerLocCol);
 		// skip missing loc column for now (quant will fail, but not needed for basic ID)
 		try {
-			glycanAA = fraggerPepLocStr.substring(glycanLocation, glycanLocation + 1).toUpperCase();
 			glycanAA = newLine.get(peptideCol).substring(glycanLocation, glycanLocation + 1).toUpperCase();
 		} catch (StringIndexOutOfBoundsException ex) {
-			PTMShepherd.print(String.format("ERROR: MSFragger localization not reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods", newLine.get(0)));
+			if (!alreadyWarned) {
+				PTMShepherd.print(String.format("WARNING: invalid MSFragger localization reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods. Please check the Allowed Residues parameter if not in N-glyco mode.", newLine.get(0)));
+				alreadyWarned = true;
+			}
 			return newLine;
 		}
 
