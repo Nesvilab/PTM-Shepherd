@@ -553,6 +553,7 @@ public class PSMFile {
 		// skip missing loc column for now (quant will fail, but not needed for basic ID)
 		try {
 			glycanAA = fraggerPepLocStr.substring(glycanLocation, glycanLocation + 1).toUpperCase();
+			glycanAA = newLine.get(peptideCol).substring(glycanLocation, glycanLocation + 1).toUpperCase();
 		} catch (StringIndexOutOfBoundsException ex) {
 			PTMShepherd.print(String.format("ERROR: MSFragger localization not reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods", newLine.get(0)));
 			return newLine;
