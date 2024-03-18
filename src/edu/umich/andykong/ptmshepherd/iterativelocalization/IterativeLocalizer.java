@@ -356,9 +356,8 @@ public class IterativeLocalizer {
         }
     }
 
-    //todo mods should be parsed here if we don't want to localized on top of var mods
-    //todo test parsing with all different AAs
-    private boolean[] parseAllowedPositions(String seq, String allowedAAs, float[] mods) {
+    //todo mods should be parsed here if we don't want to localize on top of var mods
+    public static boolean[] parseAllowedPositions(String seq, String allowedAAs, float[] mods) {
         boolean[] allowedPoses = new boolean[seq.length()+2];
         if (allowedAAs.equals("all") || allowedAAs.equals(""))
             Arrays.fill(allowedPoses, true);
@@ -367,22 +366,44 @@ public class IterativeLocalizer {
             for (int i = 0; i < allowedAAs.length(); i++) {
                 if (allowedAAs.charAt(i) == 'n') {
                     i++;
-                    if (allowedAAs.charAt(i) == '*')
+                    if ((allowedAAs.charAt(i) == '*') || (allowedAAs.charAt(i) == '^')) {
                         allowedPoses[0] = true;
-                    else if (allowedAAs.charAt(i) == seq.charAt(0))
                         allowedPoses[1] = true;
+                    } else if (allowedAAs.charAt(i) == seq.charAt(0)) {
+                        allowedPoses[0] = true;
+                        allowedPoses[1] = true;
+                    }
                 } else if (allowedAAs.charAt(i) == 'c') {
                     i++;
-                    if (allowedAAs.charAt(i) == '*')
-                        allowedPoses[seq.length()+1] = true;
-                    else if (allowedAAs.charAt(i) == seq.charAt(seq.length()-1))
-                        allowedPoses[seq.length()+1] = true;
+                    if ((allowedAAs.charAt(i) == '*') || (allowedAAs.charAt(i) == '^')) {
+                        allowedPoses[seq.length()] = true;
+                        allowedPoses[seq.length() + 1] = true;
+                    } else if (allowedAAs.charAt(i) == seq.charAt(seq.length()-1)) {
+                        allowedPoses[seq.length()] = true;
+                        allowedPoses[seq.length() + 1] = true;
+                    }
                 } else {
-                    for (int j = 0; j < seq.length()-1; j++) {
+                    for (int j = 0; j < seq.length(); j++) {
                         if (seq.charAt(j) == allowedAAs.charAt(i))
                             allowedPoses[j+1] = true;
                     }
                 }
+            }
+        }
+
+        // If no positions are allowed, open up all of them
+        // Assume all values are false initially
+        boolean allFalse = true;
+        for (boolean value : allowedPoses) {
+            if (value) {
+                allFalse = false;
+                break;
+            }
+        }
+        // If all values are false, change them to true
+        if (allFalse) {
+            for (int i = 0; i < allowedPoses.length; i++) {
+                allowedPoses[i] = true;
             }
         }
 
@@ -394,7 +415,7 @@ public class IterativeLocalizer {
      * The first assumes that the probabilities computed by the model are well-calibrated and computed the BH
      * adjusted q-values \hat{FLR} (sum_0^i 1-(P(loc_i)) / i for each PSM i.
      * The second does not assume that the probabilities computed by the model are correct, and instead estimates the
-     * FLR using decoy amino acids. This automatically removes any modifications on these residues from consideration,
+     * FLR using decoy amino acids. This automatically removes any modifications on decoy residues from consideration,
      * which may not be desirable under all circumstances. This is calculated using the unbiased estimator (d+1)/t
      * from Levitsky J Proteome Res. (2017), but adjusted by the ratio of decoy AAs/target AAs.
      *

@@ -2,13 +2,60 @@ package iterativelocalization;
 
 import edu.umich.andykong.ptmshepherd.iterativelocalization.IterativeLocalizer;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class IterativeLocalizerTest {
 
     @Test
-    // TODO write tests here
-     void computePoissonBinomialLikelihood() {
+    //TODO handle ^ case
+    //TODO handle case where no position is allowed
+    void parseAllowedPositions() {
+        String seq = "PEPTIDE";
+        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        String allowedAAs = "";
+        boolean[] expectedPoses = new boolean[]{true, true, true, true, true, true, true, true, true};
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "all";
+        expectedPoses = new boolean[]{true, true, true, true, true, true, true, true, true};
+        IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods);
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "Q";
+        expectedPoses = new boolean[]{true, true, true, true, true, true, true, true, true};
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "E";
+        expectedPoses = new boolean[]{false, false, true, false, false, false, false, true, false};
+        System.out.println(Arrays.toString(IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods)));
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "P";
+        expectedPoses = new boolean[]{false, true, false, true, false, false, false, false, false};
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "nP";
+        expectedPoses = new boolean[]{true, true, false, false, false, false, false, false, false};
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "n*";
+        expectedPoses = new boolean[]{true, true, false, false, false, false, false, false, false};
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "n^";
+        expectedPoses = new boolean[]{true, true, false, false, false, false, false, false, false};
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+
+        allowedAAs = "c^";
+        expectedPoses = new boolean[]{false, false, false, false, false, false, false, true, true};
+        assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
+    }
+
+    @Test
+    void computePoissonBinomialLikelihood() { // TODO test
         String pep = "PASGAGAGAGAGKR";
         float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
         float dMass = 100.0188f;
