@@ -162,7 +162,7 @@ public class PeakPicker {
 		}
 
 		//this will merge peaks that should not be split if operating in massoffset mode
-		if (offsetMode == true) {
+		if (false) { //TODO temportarily disabling offset mode due to crashes
 			ArrayList<Integer> popDPs = new ArrayList<>();
 			Arrays.sort(mos);
 			int[] nmos = new int[mos.length]; //holds the max number of peaks that should be present near an mo
