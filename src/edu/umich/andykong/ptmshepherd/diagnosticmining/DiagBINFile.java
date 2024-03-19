@@ -16,9 +16,6 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
-import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import io.grpc.netty.shaded.io.netty.buffer.ByteBuf;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;

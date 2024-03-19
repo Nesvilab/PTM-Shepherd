@@ -16,23 +16,13 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
-import com.google.common.util.concurrent.AtomicDouble;
-import com.google.gson.internal.$Gson$Types;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
-//import org.apache.commons.math3.stat.inference.MannWhitneyUTest;
-import umich.ms.datatypes.lcmsrun.Hash;
-import umich.ms.fileio.filetypes.agilent.cef.jaxb.P;
-
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.lang.reflect.Array;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.commons.math3.stat.inference.TTest;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 
 public class PeakCompareTester {
     double peakApex;
