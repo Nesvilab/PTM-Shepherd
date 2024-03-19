@@ -310,8 +310,8 @@ public class IterativeLocalizer {
                                 "delta_mass_maxloc", specNames, strMaxProbs);
                         psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1,
                                 "delta_mass_entropy", specNames, strEntropies);
-                        psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1,
-                                "delta_mass_maxprob", specNames, strMaxProbs2);
+                        //psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1,
+                        //        "delta_mass_maxprob", specNames, strMaxProbs2);
                         psmf.save(true); // Do not overwrite
                         complete = true;
                     }
@@ -624,8 +624,8 @@ public class IterativeLocalizer {
                         specNames, probDecoyModelVals);
                 psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1, "delta_mass_entropy_decoyAA_q",
                         specNames, entropyDecoyModelVals);
-                psmf.save(true);
-                 **/
+                psmf.save(true); //TODO this will add these columns
+                **/
             }
         }
 

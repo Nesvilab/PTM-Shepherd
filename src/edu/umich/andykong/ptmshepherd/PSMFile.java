@@ -974,7 +974,7 @@ public class PSMFile {
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 
 		// Write lines to .tmp file file
-		out.println(headersToString() + '\n');
+		out.println(headersToString());
 		for (int i = 0; i < this.data.size(); i++) {
 			out.println(this.getLine(i).toString());
 		}
