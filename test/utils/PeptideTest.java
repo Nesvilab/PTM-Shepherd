@@ -21,8 +21,13 @@ public class PeptideTest {
         assertEquals(expectedSeq, decoy.pepSeq);
         assertArrayEquals(expectedMods, decoy.mods);
 
-        decoy =  Peptide.generateDecoy(seq, mods, rng, "mutated");
+        decoy = Peptide.generateDecoy(seq, mods, rng, "mutated");
         expectedSeq = "PDPTIEE";
         assertEquals(expectedSeq, decoy.pepSeq);
+
+        decoy = Peptide.generateDecoy(seq, mods, rng, "mono-mutated");
+        expectedSeq = "PEPTIDD";
+        assertEquals(expectedSeq, decoy.pepSeq);
+        assertEquals(6, decoy.mutatedResidue);
     }
 }

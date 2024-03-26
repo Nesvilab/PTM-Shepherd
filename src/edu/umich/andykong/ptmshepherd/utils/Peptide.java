@@ -10,9 +10,16 @@ import java.util.*;
 public class Peptide { //TODO theoretical peptide fragments, should this not start at 0? Skip b1/y1/a1?
     public String pepSeq;
     public float[] mods;
+    public int mutatedResidue; // for mono-mutated decoys, 0 indexed
+
     public Peptide(String pepSeq, float[] mods) {
         this.pepSeq = pepSeq;
         this.mods = mods;
+    }
+
+    private Peptide(String pepSeq, float[] mods, int mutatedResidue) {
+        this(pepSeq, mods);
+        this.mutatedResidue = mutatedResidue;
     }
 
     public static ArrayList<Float> calculatePeptideFragments(String seq, float[] mods, String ionTypes, int maxCharge) {
@@ -20,7 +27,6 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
 
         ArrayList<Character> nIonTypes = new ArrayList<>();
         ArrayList<Character> cIonTypes = new ArrayList<>();
-        // Todo this should start at b2
         for (int i = 0; i < ionTypes.length(); i++) {
             char curIonType = ionTypes.charAt(i);
             if (curIonType == 'a' || curIonType == 'b' || curIonType == 'c')
@@ -64,25 +70,13 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         if (method.equals("shuffled"))
             return generateShuffledDecoy(pep, mods, rng);
         else if (method.equals("mutated"))
-            return generateMutatedDecoy(pep, mods, rng);
+            return generateMutatedDecoy(pep, mods);
+        else if (method.equals("mono-mutated"))
+            return generateMonoMutatedDecoy(pep, mods, rng);
         else
             return null; //TODO
     }
 
-    public static Peptide generateMutatedDecoy(String pep, float[] mods, Random rng) {
-        ArrayList<Site> sites = new ArrayList<>(pep.length());
-        for (int i = 0; i < pep.length(); i++)
-            sites.add(new Site(pep.charAt(i), mods[i]));
-        sites.get(1).aa = AAMutationRules.mutateFrom.get(sites.get(1).aa);
-        sites.get(pep.length()-2).aa = AAMutationRules.mutateFrom.get(sites.get(pep.length()-2).aa);
-
-        StringBuilder newPep = new StringBuilder();
-
-        for (int i = 0; i < sites.size(); i++)
-            newPep.append(sites.get(i).aa);
-
-        return new Peptide(newPep.toString(), mods);
-    }
 
     public static Peptide generateShuffledDecoy(String pep, float[] mods, Random rng) {
         ArrayList<Site> sites = new ArrayList<>(pep.length());
@@ -107,6 +101,38 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
 
         return new Peptide(newPep.toString(), newMods);
     }
+
+    public static Peptide generateMutatedDecoy(String pep, float[] mods) {
+        ArrayList<Site> sites = new ArrayList<>(pep.length());
+        for (int i = 0; i < pep.length(); i++)
+            sites.add(new Site(pep.charAt(i), mods[i]));
+        sites.get(1).aa = AAMutationRules.mutateFrom.get(sites.get(1).aa);
+        sites.get(pep.length()-2).aa = AAMutationRules.mutateFrom.get(sites.get(pep.length()-2).aa);
+
+        StringBuilder newPep = new StringBuilder();
+
+        for (int i = 0; i < sites.size(); i++)
+            newPep.append(sites.get(i).aa);
+
+        return new Peptide(newPep.toString(), mods);
+    }
+
+    public static Peptide generateMonoMutatedDecoy(String pep, float[] mods, Random rng) {
+        int randomSite = rng.nextInt(pep.length());
+        return generateMonoMutatedDecoy(pep, mods, randomSite);
+    }
+
+    public static Peptide generateMonoMutatedDecoy(String pep, float[] mods, int mutSite) {
+        StringBuilder newPep = new StringBuilder();
+        for (int i = 0; i < pep.length(); i++) {
+            if (i != mutSite)
+                newPep.append(pep.charAt(i));
+            else
+                newPep.append(AAMutationRules.mutateFrom.get(pep.charAt(i)));
+        }
+        return new Peptide(newPep.toString(), mods, mutSite);
+    }
+
 
     static class Site {
         char aa;
