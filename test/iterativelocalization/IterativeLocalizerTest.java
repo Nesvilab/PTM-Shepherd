@@ -10,8 +10,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class IterativeLocalizerTest {
 
     @Test
-    //TODO handle ^ case
-    //TODO handle case where no position is allowed
     void parseAllowedPositions() {
         String seq = "PEPTIDE";
         float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
