@@ -50,22 +50,22 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
         this.islabile = isLabile;
     }
 
-    public static GlycanResidue parseResidue(String line) {
+    /**
+     * Parse a new Residue from a String entry in the database file
+     * @param line tab separated database input
+     */
+    public GlycanResidue(String line) {
         String[] splits = line.replace("\"", "").split("\t");
-        double mass = Double.parseDouble(splits[1]);
+        name = splits[0];
+        mass = Double.parseDouble(splits[1]);
         double yProbPlus = getOrDefault(splits[2]);
         double yProbMinus = getOrDefault(splits[3]);
-        String[] altNames = splits[4].split(",");
-        boolean isLabile = yProbMinus == -1 && yProbPlus == -1;
+        alternateNames = splits[4].split(",");
+        islabile = yProbMinus == -1 && yProbPlus == -1;
         if (yProbPlus == -1 ^ yProbMinus == -1) {
             PTMShepherd.die(String.format("Error parsing glycan residue defintions. Residue %s had only 1 Y ion probability defined, but must have 2 (or 0 if labile).", line));
         }
-        return new GlycanResidue(splits[0],
-                mass,
-                new double[]{yProbPlus, yProbMinus},
-                altNames,
-                isLabile
-        );
+        yProbs = new double[]{yProbPlus, yProbMinus};
     }
 
     // return -1 for any values not provided (not all rules are needed for all residues).

@@ -33,6 +33,7 @@ public class GlycanCandidate {
     public TreeMap<String, GlycanFragment> Yfragments;
     public TreeMap<String, GlycanFragment> oxoniumFragments;
     public boolean hasFragmentProps;    // if this candidate has fragment propensity info or default values
+    public String name;
 
     /**
      * Constructor for reading fragment probability information from the glycoFrags file
@@ -59,6 +60,7 @@ public class GlycanCandidate {
                 // invalid
             }
         }
+        name = this.toString();
     }
 
     /**
@@ -82,6 +84,7 @@ public class GlycanCandidate {
         initializeYFragments(glycoParams);
         initializeOxoniumFragments(glycoParams.glycoOxoniumDatabase, glycoParams.randomGenerator);
         this.hasFragmentProps = false;
+        name = this.toString();
     }
 
     /**
@@ -107,31 +110,29 @@ public class GlycanCandidate {
         initializeYFragmentsFromProps(oldCandidate.Yfragments, fragmentInfo, glycoParams.randomGenerator);
         initializeOxoniumFragmentsFromProps(oldCandidate.oxoniumFragments, fragmentInfo, glycoParams.randomGenerator);
         this.hasFragmentProps = true;
+        name = this.toString();
     }
 
     /**
      * Constructor for copying existing glycan candidate to new object to avoid concurrent access in multi-threading.
      * Take all information from previous candidate, just initialize as a new object. Also re-initialize Fragment
      * objects for same reason.
-     * @param inputGlycanComp composition
-     * @param isDecoy decoy bool
-     * @param monoisotopicMass intact mass
-     * @param yfragments list of Y fragments
-     * @param oxoniumFragments list of oxonium fragments
+     * @param otherCandidate candidate to copy
      */
-    public GlycanCandidate(Map<GlycanResidue, Integer> inputGlycanComp, boolean isDecoy, double monoisotopicMass, TreeMap<String, GlycanFragment> yfragments, TreeMap<String, GlycanFragment> oxoniumFragments) {
-        this.glycanComposition = inputGlycanComp;
-        this.isDecoy = isDecoy;
-        this.monoisotopicMass = monoisotopicMass;
+    public GlycanCandidate(GlycanCandidate otherCandidate) {
+        this.glycanComposition = otherCandidate.glycanComposition;
+        this.isDecoy = otherCandidate.isDecoy;
+        this.monoisotopicMass = otherCandidate.monoisotopicMass;
         this.Yfragments = new TreeMap<>();
-        for (Map.Entry<String, GlycanFragment> entry : yfragments.entrySet()) {
+        for (Map.Entry<String, GlycanFragment> entry : otherCandidate.Yfragments.entrySet()) {
             this.Yfragments.put(entry.getKey(), new GlycanFragment(entry.getValue()));
         }
         this.oxoniumFragments = new TreeMap<>();
-        for (Map.Entry<String, GlycanFragment> entry : oxoniumFragments.entrySet()) {
+        for (Map.Entry<String, GlycanFragment> entry : otherCandidate.oxoniumFragments.entrySet()) {
             this.oxoniumFragments.put(entry.getKey(), new GlycanFragment(entry.getValue()));
         }
         this.hasFragmentProps = false;
+        this.name = otherCandidate.name;
     }
 
     /**
@@ -144,6 +145,7 @@ public class GlycanCandidate {
         this.isDecoy = false;
         this.monoisotopicMass = 0;
         this.hasFragmentProps = false;
+        this.name = "";
     }
 
     // Helper method for determining decoy masses for various decoy mass generation settings

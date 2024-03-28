@@ -1473,7 +1473,7 @@ public class GlycoAnalysis {
                 if (glycan.monoisotopicMass >= massLo && glycan.monoisotopicMass <= massHi) {
                     // match. todo: check duplicates (could be if user inputs them)
                     // add copy of candidate to allow multi-threading without competing access
-                    matchingGlycans.add(new GlycanCandidate(glycan.glycanComposition, glycan.isDecoy, glycan.monoisotopicMass, glycan.Yfragments, glycan.oxoniumFragments));
+                    matchingGlycans.add(new GlycanCandidate(glycan));
                 }
             }
         }

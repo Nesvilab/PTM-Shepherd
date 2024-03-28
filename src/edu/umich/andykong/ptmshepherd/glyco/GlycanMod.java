@@ -4,13 +4,9 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 
 import java.util.ArrayList;
 
-public class GlycanMod {
-    public String name;
-    public double mass;
-    public boolean isLabile;
+public class GlycanMod extends GlycanResidue {
     public boolean isFixed;
     public int maxAllowed;
-    public GlycanResidue modResidue;
     public ArrayList<GlycanResidue> requiredResidues;
 
     /**
@@ -19,11 +15,8 @@ public class GlycanMod {
      * @param modTsvLine
      */
     public GlycanMod(String modTsvLine, GlycoParams glycoParams) {
-        modResidue = GlycanResidue.parseResidue(modTsvLine);
-        name = modResidue.name;
-        mass = modResidue.mass;
+        super(modTsvLine);
         String[] splits = modTsvLine.replace("\"", "").split("\t");
-        isLabile = modResidue.islabile;
         maxAllowed = Integer.parseInt(splits[6]);
         isFixed = Boolean.parseBoolean(splits[7]);
 
@@ -53,9 +46,9 @@ public class GlycanMod {
         }
 
         if (isFixed) {
-            return String.format("fixed: %s%s", modResidue.printParam(), requiredRes);
+            return String.format("fixed: %s%s", super.printParam(), requiredRes);
         } else if (maxAllowed > 0) {
-            return String.format("variable: %s, max %d%s", modResidue.printParam(), maxAllowed, requiredRes);
+            return String.format("variable: %s, max %d%s", super.printParam(), maxAllowed, requiredRes);
         } else {
             return "";
         }
