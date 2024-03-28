@@ -140,18 +140,24 @@ public class IterativeLocalizer {
                             float[] peakMzs = spec.getPeakMZ();
                             float[] peakInts = spec.getPeakInt();
 
+                            // Generate peptide and decoy peptide
+                            Peptide targetPep = new Peptide(pep, mods);
+                            Peptide decoyPep = targetPep.generateDecoy(this.rng, "mono-mutated");
+                            int mutationSite = decoyPep.mutatedResidue;
+
+                            // Get sites that are/would be shifted
+                            ArrayList<Float> sitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
+                                    targetPep, this.ionTypes, mutationSite);
+                            ArrayList<Float> decoySitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
+                                    decoyPep, this.ionTypes, mutationSite);
+
                             // Add target peptide values to matched ion histograms
-                            ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(
-                                    pep, mods, this.ionTypes, 1);
                             float[][] matchedIons = findMatchedIons(sitePepFrags, peakMzs, peakInts);
                             float[] matchedIonIntensities = matchedIons[0];
                             float[] matchedIonMassErrors = matchedIons[1];
                             this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, false);
 
                             // Add decoy peptide values to matched ion histogram
-                            Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng, "mutated");
-                            ArrayList<Float> decoySitePepFrags = Peptide.calculatePeptideFragments(
-                                    decoyPep.pepSeq, decoyPep.mods, this.ionTypes, 1);
                             float[][] decoyMatchedIons = findMatchedIons(decoySitePepFrags, peakMzs, peakInts);
                             float[] decoyMatchedIonIntensities = decoyMatchedIons[0];
                             float[] decoyMatchedMassErrors = decoyMatchedIons[1];
@@ -310,8 +316,8 @@ public class IterativeLocalizer {
                                 "delta_mass_maxloc", specNames, strMaxProbs);
                         psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1,
                                 "delta_mass_entropy", specNames, strEntropies);
-                        //psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1,
-                        //        "delta_mass_maxprob", specNames, strMaxProbs2);
+                        psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1,
+                                "delta_mass_maxprob", specNames, strMaxProbs2);
                         psmf.save(true); // Do not overwrite
                         complete = true;
                     }

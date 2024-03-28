@@ -40,7 +40,6 @@ public class PeptideTest {
         Peptide pep = new Peptide(seq, mods);
 
         ArrayList<Float> sitePepFrags = pep.calculatePeptideFragments("b", 1);
-        System.out.println(sitePepFrags.toString());
         ArrayList<Float> expectedFrags = new ArrayList<>(Arrays.asList(227.1027f, 324.1554f));
         assertEquals(expectedFrags.size(), sitePepFrags.size());
         for (int i = 0; i < expectedFrags.size(); i++)
