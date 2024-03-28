@@ -72,9 +72,8 @@ public class GlycoParams {
         // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
         glycanResidues = parseGlycoResiduesDB(glycanResiduesPath);
         glycanMods = parseGlycoModsDB(glycanModsPath);
-        for (GlycanMod mod: glycanMods) {
-            glycanResidues.add(mod.modResidue);     // add mod reference to the residue list
-        }
+        // add mod reference to the residue list
+        glycanResidues.addAll(glycanMods);
         glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, this);
     }
 
@@ -93,7 +92,7 @@ public class GlycoParams {
                 if (line.startsWith("#")) {
                     continue;
                 }
-                GlycanResidue residue = GlycanResidue.parseResidue(line);
+                GlycanResidue residue = new GlycanResidue(line);
                 residues.add(residue);
             }
         } catch (IOException ex) {
@@ -168,11 +167,40 @@ public class GlycoParams {
     }
 
     /**
+     * Parse a glycan database provided as a string parameter (e.g., from FragPipe).
+     * Glycans must be in Byonic-style format (e.g., HexNAc(1)Hex(1))
+     * @param databaseStr input glycan database string
+     * @return list of GlycanCandidates
+     */
+    public ArrayList<GlycanCandidate> parseGlycanDatabaseString(String databaseStr) {
+        ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
+        HashSet<String> glycansInDB = new HashSet<>();
+
+        String[] splits = databaseStr.trim().split(",");
+        for (String glycanStr : splits) {
+            TreeMap<GlycanResidue, Integer> glycanComp = parseGlycan(glycanStr, byonicPattern.matcher(glycanStr));
+            if (glycanComp.size() > 0) {
+                GlycanCandidate candidate = new GlycanCandidate(glycanComp, false, this);
+                // prevent addition of duplicates if user has them in database
+                if (!glycansInDB.contains(candidate.name)) {
+                    glycanDB.add(candidate);
+                    glycansInDB.add(candidate.name);
+                    // also add a decoy for this composition
+                    GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, this);
+                    glycanDB.add(decoy);
+                }
+            }
+        }
+        return glycanDB;
+    }
+
+    /**
+     * Deprecated method, retained for backwards compatibility and command line access.
      * Parse input glycan database file. Formatting: 1 glycan per line, "Residue1-count_Residue2-count_...\n"
      * @param inputPath path to input file
      * @return list of glycans to consider
      */
-    public ArrayList<GlycanCandidate> parseGlycanDatabase(String inputPath) {
+    public ArrayList<GlycanCandidate> parseGlycanDatabaseFile(String inputPath) {
         // read input glycan database or default database if none provided
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
         DatabaseType dbType;
@@ -277,7 +305,7 @@ public class GlycoParams {
                                 }
                                 if (!skipMod) {
                                     TreeMap<GlycanResidue, Integer> modComp = (TreeMap<GlycanResidue, Integer>) glycanComp.clone();
-                                    modComp.put(mod.modResidue, i + 1);
+                                    modComp.put(mod, i + 1);
                                     glycanDB.add(new GlycanCandidate(modComp, false, this));
                                     glycanDB.add(new GlycanCandidate(modComp, true, this));
                                 }
@@ -371,6 +399,17 @@ public class GlycoParams {
             for (String altName : residue.alternateNames) {
                 if (altName.equalsIgnoreCase(inputName)) {
                     return residue;
+                }
+            }
+        }
+        // check mods
+        for (GlycanMod mod: glycanMods) {
+            if (mod.name.equalsIgnoreCase(inputName)) {
+                return mod;
+            }
+            for (String altname: mod.alternateNames) {
+                if (altname.equalsIgnoreCase(inputName)) {
+                    return mod;
                 }
             }
         }

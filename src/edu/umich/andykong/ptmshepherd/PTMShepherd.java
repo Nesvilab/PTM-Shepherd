@@ -58,6 +58,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
@@ -1156,7 +1157,15 @@ public class PTMShepherd {
 		glycoParams.glycoPPMtol = getParam("glyco_ppm_tol").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_PPM_TOL : Double.parseDouble(getParam("glyco_ppm_tol"));
 		glycoParams.glycoIsotopes = GlycoParams.parseGlycoIsotopesParam();
 		glycoParams.nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
-		glycoParams.glycoDatabase = glycoParams.parseGlycanDatabase(getParam("glycodatabase"));
+		String glycanDB = getParam("glycodatabase");
+		Path testPath = Paths.get(glycanDB.replaceAll("['\"]", ""));
+		if (glycanDB.equals("") || Files.exists(testPath)) {
+			// use internal database or database file path
+			glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseFile(glycanDB);
+		} else {
+			// default method - glycans passed as string parameter
+			glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseString(glycanDB);
+		}
 		glycoParams.glycoYnorm = getParam("norm_Ys").equals("") || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
 		glycoParams.absScoreErrorParam = getParam("glyco_abs_score_base").equals("") ? GlycoAnalysis.DEFAULT_GLYCO_ABS_SCORE_BASE : Double.parseDouble(getParam("glyco_abs_score_base"));
 		String glycoFDRParam = getParam("glyco_fdr");
