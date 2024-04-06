@@ -172,9 +172,6 @@ public class LDAProcessor {
         // Perform eigen decomposition on the target matrix
         EigenDecomposition eigenDecomposition = new EigenDecomposition(targetMatrix);
 
-        for (int i = 0; i < eigenDecomposition.getRealEigenvalues().length; i++)
-            System.out.println(eigenDecomposition.getRealEigenvalue(i));
-
         // Sort eigenvectors by the magnitude of their corresponding eigenvalues in descending order
         List<Integer> sortedIndices = IntStream.range(0, eigenDecomposition.getRealEigenvalues().length)
                 .boxed()
