@@ -5,13 +5,18 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicIntegerArray;
+
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.executorService;
+
 
 public class MatchedIonDistribution {
     int[] pdf;
     int[] pdfDecoy;
     double[] cdf;
+    double[] qVals;
+
+    int[] projTargetCounts;
+    int[] projDecoyCounts;
 
     int[] pdfMassError;
     int[] pdfMassErrorDecoy;
@@ -19,10 +24,16 @@ public class MatchedIonDistribution {
     double[] ionPosteriorMassError;
     float resolution;
     int binMult;
+    MatchedIonTable datapoints;
+
+
+
+
 
     TwoDimJointPMF targetPMF;
     TwoDimJointPMF decoyPMF;
     TwoDimJointQValue qValues;
+    LDAProcessor ldaProcessor;
 
     public String mode = "ptminer-unmatched-theoretical";
 
@@ -35,6 +46,7 @@ public class MatchedIonDistribution {
         this.pdfMassErrorDecoy = new int[100]; // Default 100 ppm max, can make it dynamic TODO
         if (poissonBinomial) {
             this.mode = "poissonbinomial-matched-theoretical-decoy";
+            this.datapoints = new MatchedIonTable();
             this.targetPMF = new TwoDimJointPMF(101, 3001, true, true);
             this.decoyPMF = new TwoDimJointPMF(101, 3001, true, true);
         }
@@ -116,12 +128,14 @@ public class MatchedIonDistribution {
                 int intIndx = (int) (intensity);
                 int massErrorIndx = (int) (massError * 100.0);
                 this.targetPMF.addVal(intIndx, massErrorIndx);
+                datapoints.addRow(massError, intensity, isDecoy);
             }
         } else {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
                 int intIndx = (int) (intensity);
                 int massErrorIndx = (int) (massError * 100.0);
                 this.decoyPMF.addVal(intIndx, massErrorIndx);
+                datapoints.addRow(massError, intensity, isDecoy);
             }
         }
     }
@@ -174,9 +188,101 @@ public class MatchedIonDistribution {
         calculateIonMassErrorPosterior();
     }
      **/
+    /** todo Current posterior
     public void calculateIonPosterior() {
         this.qValues = new TwoDimJointQValue(this.targetPMF, this.decoyPMF);
     }
+     **/
+
+    public void calculateIonPosterior() {
+        // Sort table and find min and max
+        this.datapoints.sortRowsByProjVal();
+        // Set up arrays to hold ion counts for targets and decoys and q-values
+        int arraySize = (int) (100.0 * (Math.abs(this.datapoints.getMaxProjVal() -
+                this.datapoints.getMinProjVal()) + 1));
+        this.projTargetCounts = new int[arraySize];
+        this.projDecoyCounts = new int[arraySize];
+        this.qVals = new double[arraySize];
+
+        // Fill arrays with projected values
+        for (MatchedIonTable.MatchedIonRow row : this.datapoints.rows) {
+            int valIndex = translateLdaValToIndex(row.projVal);
+            if (row.isDecoy)
+                projDecoyCounts[valIndex]++;
+            else
+                projTargetCounts[valIndex]++;
+        }
+
+        boolean leftToRight = checkLdaProjectionLeftToRight();
+
+        // Fill q-value array with P(ion == true_positive | LDA score)
+        int nTargets = 0;
+        int nDecoys = 1;
+        double cMin = 10000.0;
+        if (leftToRight) {
+            // Fill array
+            for (int i = 0; i < arraySize; i++) {
+                nTargets += this.projTargetCounts[i];
+                nDecoys += this.projDecoyCounts[i];
+                this.qVals[i] = (double) nDecoys / (double) nTargets;
+            }
+            // Make array monotonic
+            for (int i = arraySize-1; i >= 0; i--) {
+                if (this.qVals[i] < cMin) {
+                    cMin = this.qVals[i];
+                } else {
+                    while ((i >= 0) && (this.qVals[i] >= cMin)) {
+                        this.qVals[i] = cMin;
+                        i--;
+                    }
+                    i++;
+                }
+            }
+        } else {
+            for (int i = arraySize-1; i >= 0; i--) {
+                nTargets += this.projTargetCounts[i];
+                nDecoys += this.projDecoyCounts[i];
+                this.qVals[i] = (double) nDecoys / (double) nTargets;
+            }
+            // Make array monotonic
+            for (int i = 0; i < arraySize; i++) {
+                if (this.qVals[i] < cMin) {
+                    cMin = this.qVals[i];
+                } else {
+                    while ((i < arraySize) && this.qVals[i] >= cMin) {
+                        this.qVals[i] = cMin;
+                        i++;
+                    }
+                    i--;
+                }
+            }
+        }
+    }
+
+    // Check which direction LDA projected by checking proportion of decoys in first and last half
+    public boolean checkLdaProjectionLeftToRight() {
+        int arraySize = this.projDecoyCounts.length;
+        boolean leftToRight = true;
+        int leftToRightDecoyCount = 0;
+        int rightToLeftDecoyCount = 0;
+        for (int i = 0; i < ((arraySize / 2) + 1); i++) {
+            leftToRightDecoyCount += this.projDecoyCounts[i];
+            rightToLeftDecoyCount += this.projDecoyCounts[arraySize - (i + 1)];
+        }
+
+        if (rightToLeftDecoyCount > leftToRightDecoyCount)
+            leftToRight = false;
+
+        return leftToRight;
+    }
+
+
+    public void calculateLdaWeights() throws Exception {
+        this.ldaProcessor = new LDAProcessor(this.datapoints);
+        this.ldaProcessor.solveLDA(executorService);
+        this.datapoints.mergeProjectedData(ldaProcessor.projectedData);
+    }
+
 
     private void calculateIonIntensityPosterior() {
         // Calculate local q-val estimate //todo terminology
@@ -280,6 +386,16 @@ public class MatchedIonDistribution {
         return prob;
     }
 
+    private int translateLdaValToIndex(double projVal) {
+        int valIndex = (int) ((projVal - this.datapoints.getMinProjVal()) * 100.0);
+        if (valIndex < 0)
+            return 0;
+        else if (valIndex >= this.qVals.length)
+            return (this.qVals.length - 1);
+        else
+            return valIndex;
+    }
+
     public double[] calcIonProbabilities(float [] intensities) {
         double[] probs = new double[intensities.length];
         for (int i = 0; i < intensities.length; i++)
@@ -303,10 +419,25 @@ public class MatchedIonDistribution {
         return prob;
     }
 
+    public double calculateIonProbabilityLda(float intensity, float massError) {
+        double projVal;
+        double prob;
+        if (intensity < 0)
+            prob = -1;
+        else {
+            projVal = this.ldaProcessor.projectData(massError, intensity).getEntry(0,0);
+            int projValIndex = translateLdaValToIndex(projVal);
+            prob = 1.0 - this.qVals[projValIndex];
+        }
+        return prob;
+    }
+
     public double[] calcIonProbabilities(float [] intensities, float[] massErrors) {
         double[] probs = new double[intensities.length];
-        for (int i = 0; i < intensities.length; i++)
-            probs[i] = calcIonProbability(intensities[i], massErrors[i]);
+        for (int i = 0; i < intensities.length; i++) {
+            //probs[i] = calcIonProbability(intensities[i], massErrors[i]); todo original function
+            probs[i] = calculateIonProbabilityLda(intensities[i], massErrors[i]);
+        }
         return probs;
     }
 
@@ -345,6 +476,26 @@ public class MatchedIonDistribution {
         PrintWriter out = new PrintWriter(new FileWriter(fname));
         out.print(this.massErrorToString());
         out.close();
+    }
+
+    public void printQVals(String fname) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(fname));
+        out.println("lda_val\tq_val");
+        for (int i = 0; i < qVals.length; i++)
+            out.println((i / 100.0) + "\t" +  qVals[i]);
+        out.close();
+    }
+
+    public void printFeatureTable(String fname) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(fname));
+        out.println("mass_error\tintensity\tprojected_value\tis_decoy");
+        for (MatchedIonTable.MatchedIonRow row : datapoints.rows)
+            out.println(row);
+        out.close();
+    }
+
+    public void printPriorProbabilities(String fname) throws IOException {
+        PrintWriter out = new PrintWriter(new FileWriter(fname));
     }
 
 }

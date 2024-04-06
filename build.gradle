@@ -67,6 +67,9 @@ dependencies {
     implementation ('com.github.chhh:batmass-io:1.32.1') {
         exclude group: 'org.slf4j', module: 'slf4j-api'
     }
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
+    implementation group: 'org.apache.commons', name: 'commons-math3', version: '3.0'
+
     // https://mvnrepository.com/artifact/org.hipparchus/hipparchus
     //implementation group: 'org.hipparchus', name: 'hipparchus', version: '1.8', ext: 'pom'
     implementation 'org.hipparchus:hipparchus-stat:1.8'

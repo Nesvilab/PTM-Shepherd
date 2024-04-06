@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.executorService;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import static edu.umich.andykong.ptmshepherd.utils.StringParsingUtils.subString;
 
@@ -169,10 +170,14 @@ public class IterativeLocalizer {
         }
         if (!this.poissonBinomialDistribution)
             this.matchedIonDist.calculateCdf();
-        else
+        else {
+            this.matchedIonDist.calculateLdaWeights();
             this.matchedIonDist.calculateIonPosterior();
+        }
         if (this.printIonDistribution) {
-            this.matchedIonDist.printIntensityHisto("matched_ion_intensity_distribution.tsv");
+            //this.matchedIonDist.printIntensityHisto("matched_ion_intensity_distribution.tsv");
+            this.matchedIonDist.printFeatureTable("ion_table.tsv");
+            this.matchedIonDist.printQVals("ion_qvals.tsv");
             //this.matchedIonDist.printMassErrorHisto("matched_ion_mass_error_distribution.tsv");
         }
 
@@ -184,7 +189,7 @@ public class IterativeLocalizer {
         System.out.println("\tCalculating PSM-level localization probabilities");
 
         // Set up missing spectra error handling
-        ArrayList<String> linesWithoutSpectra = new ArrayList<>(); //todo
+        ArrayList<String> linesWithoutSpectra = new ArrayList<>(); //TODO
 
         // Faster access to zero bin spectra to be ignored
         double zbL = this.peaks[1][this.zeroBin]; // TODO: set up custom bounds?
@@ -266,7 +271,7 @@ public class IterativeLocalizer {
                                 continue;
                             }
 
-                            //if (specName.equals("02330a_GB1_3990_02_PTM_TrainKit_Rmod_Methyl_200fmol_3xHCD_R1.34399.34399")) {
+                            //if (specName.equals("02330a_GC1_3990_03_PTM_TrainKit_Rmod_Dimethyl_asymm_200fmol_3xHCD_R1.15210.15210")) {
                             //    this.debugFlag = true;
                             //}
 
@@ -673,7 +678,7 @@ public class IterativeLocalizer {
 
         // Compute prior probability or use uniform prior if PSM does not belong to mass shift bin
         if (cBin == -1)
-            sitePriorProbs = BinPriorProbabilities.computeUniformPriorProbs(pep, allowedPoses); // TODO unclustered mass shifts should take the conditional prob as their final prob, not computed with a uniform prior
+            sitePriorProbs = BinPriorProbabilities.computeUniformPriorProbs(pep, allowedPoses);
         else
             sitePriorProbs = this.priorProbs[cBin].computePriorProbs(pep, allowedPoses);
 
@@ -804,7 +809,7 @@ public class IterativeLocalizer {
             float[] matchedIonIntensities = matchedIons[0];
             float[] matchedIonMassErrors = matchedIons[1];
             // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
-            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities, matchedIonMassErrors); //TODO input mass errors here
+            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities, matchedIonMassErrors);
             if (debugFlag) {
                 System.out.println("Matched ions");
                 System.out.println(pep);
