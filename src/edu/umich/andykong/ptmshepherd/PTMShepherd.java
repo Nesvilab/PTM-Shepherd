@@ -18,6 +18,7 @@ package edu.umich.andykong.ptmshepherd;
 
 import static java.lang.System.out;
 
+import edu.umich.andykong.ptmshepherd.paramhandling.*;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedExperimentsSummary;
 import edu.umich.andykong.ptmshepherd.cleaner.CombinedTable;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
@@ -69,8 +70,9 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "3.0.0-rc3";
+	public static final String version = "3.0.0-rc3";
 
+	static ParamHandlerSingleton paramHandler;
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
 	static HashMap<String,HashMap<String,File>> mzMap;
@@ -540,7 +542,7 @@ public class PTMShepherd {
 			print("Created modification summary\n");
 		}
 
-		//PTMiner-style iterative localization
+		//Iterative localization
 		Boolean iterLocMode = Boolean.parseBoolean(params.get("iterloc_mode"));
 		if (iterLocMode) {
 			out.println("Beginning iterative localization");
@@ -1165,6 +1167,17 @@ public class PTMShepherd {
 
 
 		return glycoParams;
+	}
+
+	private static void initParameters() {
+		// Add system-level parameters
+		paramHandler.addParamGroup("system");
+		params.put("threads", String.valueOf(Runtime.getRuntime().availableProcessors()));
+		paramHandler.addParam("system", "threads", new IntegerParameter(
+				"threads", 1, 0, 0, 1000, Runtime.getRuntime().availableProcessors(),
+				"Number of threads to be used, 0 = automatic.")
+		);
+
 	}
 
 }
