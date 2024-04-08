@@ -33,7 +33,6 @@ import java.util.regex.Pattern;
 public class GlycoParams {
 
     public Random randomGenerator;
-    public ArrayList<GlycanMod> glycanMods;
     public ArrayList<GlycanResidue> glycanResidues;
     public ArrayList<GlycanCandidate> glycoDatabase;
     public int decoyType;
@@ -70,20 +69,18 @@ public class GlycoParams {
 
     public GlycoParams(String glycanResiduesPath, String glycanModsPath, String oxoniumListPath) {
         // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
-        glycanResidues = parseGlycoResiduesDB(glycanResiduesPath);
-        glycanMods = parseGlycoModsDB(glycanModsPath);
-        // add mod reference to the residue list
-        glycanResidues.addAll(glycanMods);
+        glycanResidues = parseGlycoResiduesDB(glycanResiduesPath, defaultResiduePath);
+        glycanResidues.addAll(parseGlycoResiduesDB(glycanModsPath, defaultModsPath));
         glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, this);
     }
 
-    private ArrayList<GlycanResidue> parseGlycoResiduesDB(String glycanResiduesPath) {
+    private ArrayList<GlycanResidue> parseGlycoResiduesDB(String glycanResiduesPath, String defaultDefinitionsPath) {
         ArrayList<GlycanResidue> residues = new ArrayList<>();
         BufferedReader in;
         try {
             // no glycan database provided - fall back to default glycan list in PeakAnnotator
             if (glycanResiduesPath.matches("")) {
-                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(defaultResiduePath)));
+                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(defaultDefinitionsPath)));
             } else {
                 in = new BufferedReader(new FileReader(glycanResiduesPath));
             }
@@ -100,47 +97,6 @@ public class GlycoParams {
             PTMShepherd.die(String.format("Error parsing input monosaccharide table %s", glycanResiduesPath));
         }
         return residues;
-    }
-
-    /**
-     * Parse mods database. NOTE: must be called after parseGlycoResiduesDB as it depends on those definitions.
-     * @param glycanModsPath
-     * @return
-     */
-    private ArrayList<GlycanMod> parseGlycoModsDB(String glycanModsPath) {
-        ArrayList<GlycanMod> mods = new ArrayList<>();
-        BufferedReader in;
-        try {
-            // no glycan database provided - fall back to default glycan list in PeakAnnotator
-            if (glycanModsPath.matches("")) {
-                in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(defaultModsPath)));
-            } else {
-                in = new BufferedReader(new FileReader(glycanModsPath));
-            }
-            String line;
-            while ((line = in.readLine()) != null) {
-                if (line.startsWith("#")) {
-                    continue;
-                }
-                GlycanMod mod = new GlycanMod(line, this);
-                mods.add(mod);
-            }
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            PTMShepherd.die(String.format("Error parsing input glycan mods table %s", glycanModsPath));
-        }
-        return mods;
-    }
-
-    /**
-     * Update glyco mods parsed from table with parameters from user (fixed/variable, labile, max allowed).
-     */
-    public void updateGlycoMods() {
-        // todo: make specific rules for specific mods
-        for (GlycanMod mod: glycanMods) {
-            mod.maxAllowed = 1;
-            mod.isFixed = false;
-        }
     }
 
 
@@ -286,31 +242,6 @@ public class GlycoParams {
                         // also add a decoy for this composition
                         GlycanCandidate decoy = new GlycanCandidate(glycanComp, true, this);
                         glycanDB.add(decoy);
-
-                        // add mods
-                        for (GlycanMod mod: glycanMods) {
-                            boolean skipMod = false;
-                            for (int i=0; i < mod.maxAllowed; i++) {
-                                // filter by required residue(s), if present
-                                if (mod.requiredResidues.size() > 0) {
-                                    for (GlycanResidue requiredRes: mod.requiredResidues) {
-                                        if (!glycanComp.containsKey(requiredRes)) {
-                                            skipMod = true;
-                                        } else {
-                                            if (i > glycanComp.get(requiredRes)) {
-                                                skipMod = true;
-                                            }
-                                        }
-                                    }
-                                }
-                                if (!skipMod) {
-                                    TreeMap<GlycanResidue, Integer> modComp = (TreeMap<GlycanResidue, Integer>) glycanComp.clone();
-                                    modComp.put(mod, i + 1);
-                                    glycanDB.add(new GlycanCandidate(modComp, false, this));
-                                    glycanDB.add(new GlycanCandidate(modComp, true, this));
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -402,17 +333,6 @@ public class GlycoParams {
                 }
             }
         }
-        // check mods
-        for (GlycanMod mod: glycanMods) {
-            if (mod.name.equalsIgnoreCase(inputName)) {
-                return mod;
-            }
-            for (String altname: mod.alternateNames) {
-                if (altname.equalsIgnoreCase(inputName)) {
-                    return mod;
-                }
-            }
-        }
         // no match - return null and warn user
         return null;
     }
@@ -436,7 +356,6 @@ public class GlycoParams {
             String glycanToken = matcher.group();
             GlycanResidue residue = findResidueName(glycanToken);
             if (residue == null) {
-                // todo: try to match to a modification
                 PTMShepherd.print(String.format("Warning: glycan type %s in glycan %s not recognized. This glycan will not be included in search! Please add %s to the glycan_residues.tsv table.", glycanToken, line, glycanToken));
                 return new TreeMap<>();
             }
@@ -652,12 +571,6 @@ public class GlycoParams {
             PTMShepherd.print("\tGlycan residue definitions:");
             for (GlycanResidue residue : glycanResidues) {
                 PTMShepherd.print("\t\t" + residue.printParam());
-            }
-        }
-        PTMShepherd.print("\tGlycan mods/adducts:");
-        for (GlycanMod mod: glycanMods) {
-            if (!mod.printParam().equals("")) {
-                PTMShepherd.print("\t\t" + mod.printParam());
             }
         }
 
