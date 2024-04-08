@@ -31,30 +31,13 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
     public double[] yProbs;
     public String[] alternateNames;
     public boolean islabile;
-
-    private final static HashMap<String, Integer> residueOrder;
-    static {
-        residueOrder = new HashMap<>();
-        residueOrder.put("HexNAc", 0);
-        residueOrder.put("Hex", 1);
-        residueOrder.put("Fuc", 2);
-        residueOrder.put("NeuAc", 3);
-        residueOrder.put("NeuGc", 4);
-    }
-
-    public GlycanResidue(String name, double mass, double[] yProbs, String[] altNames, boolean isLabile) {
-        this.name = name;
-        this.mass = mass;
-        this.yProbs = yProbs;
-        this.alternateNames = altNames;
-        this.islabile = isLabile;
-    }
+    public int printOrder;
 
     /**
      * Parse a new Residue from a String entry in the database file
      * @param line tab separated database input
      */
-    public GlycanResidue(String line) {
+    public GlycanResidue(String line, int printOrder) {
         String[] splits = line.replace("\"", "").split("\t");
         name = splits[0];
         mass = Double.parseDouble(splits[1]);
@@ -66,6 +49,7 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
             PTMShepherd.die(String.format("Error parsing glycan residue defintions. Residue %s had only 1 Y ion probability defined, but must have 2 (or 0 if labile).", line));
         }
         yProbs = new double[]{yProbPlus, yProbMinus};
+        this.printOrder = printOrder;
     }
 
     // return -1 for any values not provided (not all rules are needed for all residues).
@@ -93,18 +77,6 @@ public class GlycanResidue implements Comparable<GlycanResidue> {
      */
     @Override
     public int compareTo(GlycanResidue o) {
-        if (residueOrder.containsKey(name)) {
-            if (residueOrder.containsKey(o.name)) {
-                return residueOrder.get(name).compareTo(residueOrder.get(o.name));
-            } else {
-                return -1;  // return the specifically ordered one first
-            }
-        } else {
-            if (residueOrder.containsKey(o.name)) {
-                return 1;
-            } else {
-                return name.compareTo(o.name);
-            }
-        }
+        return Integer.compare(this.printOrder, o.printOrder);
     }
 }
