@@ -55,6 +55,7 @@ public class GlycoParams {
     public HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase;
     public HashMap<Integer, Double> isotopeProbTable;
     public double massProbScaling;
+    private int glycanResidueCounter;   // used to print glycans with residues in the same order as they're provided in the residues database file
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -69,6 +70,7 @@ public class GlycoParams {
 
     public GlycoParams(String glycanResiduesPath, String glycanModsPath, String oxoniumListPath) {
         // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
+        glycanResidueCounter = 0;
         glycanResidues = parseGlycoResiduesDB(glycanResiduesPath, defaultResiduePath);
         glycanResidues.addAll(parseGlycoResiduesDB(glycanModsPath, defaultModsPath));
         glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, this);
@@ -89,7 +91,8 @@ public class GlycoParams {
                 if (line.startsWith("#")) {
                     continue;
                 }
-                GlycanResidue residue = new GlycanResidue(line);
+                GlycanResidue residue = new GlycanResidue(line, glycanResidueCounter);
+                glycanResidueCounter++;
                 residues.add(residue);
             }
         } catch (IOException ex) {
