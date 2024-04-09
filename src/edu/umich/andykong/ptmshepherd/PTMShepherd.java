@@ -550,7 +550,7 @@ public class PTMShepherd {
 					Double.parseDouble(params.get("precursor_tol")),
 					Integer.parseInt(params.get("precursor_mass_units")),
 					datasets, mzMap, Integer.parseInt(params.get("threads")),
-					params.get("localization_allowed_res"), Float.parseFloat(params.get("spectra_tol")),
+					params.get("localization_allowed_res"), Float.parseFloat(params.get("spectra_ppmtol")),
 					concatIonTypes(), Double.parseDouble(params.get("iterloc_convergeCriterion")),
 					Integer.parseInt(params.get("iterloc_maxEpoch"))
 			);
