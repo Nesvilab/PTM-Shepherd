@@ -228,7 +228,8 @@ public class IterativeLocalizer {
                     for (String cf : runToLine.keySet()) {
                         // Load current run
                         mr = new MXMLReader(mzMap.get(ds).get(cf), this.nThreads);
-                        mr.readFully();
+                        if (epoch == 1 || finalPass) //todo logic too complicated, need to create a state machine
+                            mr.readFully();
 
                         // Calculate PSM-level localization probabilities
                         for (int j : runToLine.get(cf)) {
@@ -271,10 +272,14 @@ public class IterativeLocalizer {
                             if (!finalPass && this.priorProbs[cBin].getIsConverged()) // Safe because left is first
                                 continue;
 
-                            Spectrum spec = mr.getSpectrum(specName);
-                            if (spec == null) {
-                                linesWithoutSpectra.add(specName);
-                                continue;
+                            // todo this logic is getting way too complex, need to handle execution states in a static context
+                            Spectrum spec = null;
+                            if (epoch == 1 || finalPass) { // or out of memory dataset
+                                spec = mr.getSpectrum(specName);
+                                if (spec == null) {
+                                    linesWithoutSpectra.add(specName);
+                                    continue; // todo handle this error
+                                }
                             }
 
                             //if (specName.equals("02330a_GC1_3990_03_PTM_TrainKit_Rmod_Dimethyl_asymm_200fmol_3xHCD_R1.15210.15210")) {
@@ -669,7 +674,8 @@ public class IterativeLocalizer {
      * P(Spec_i|Pep_{ij})                                       ->  Likelihood
      * Sum_{k=0}^{{L_i}+1} P(Pep_{ik})*P(Spec_i|Pep_{ik})       ->  Marginal probability
      *
-     * @param spec          Spectrum class opject containing pre-process mass spectrum
+     * @param psm           PSMFile.PSM object containing PSM information //todo most of the other values don't need to be preparsed if this is passed
+     * @param spec          Spectrum class object containing pre-processed mass spectrum
      * @param pep           pep sequence
      * @param mods          array containing masses to be added on to pep sequence at mods[i] position
      * @param dMass         delta mass of PSM
@@ -692,41 +698,6 @@ public class IterativeLocalizer {
         // Iterate through sites to compute likelihood for each site P(Spec_i|Pep_{ij})
         // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
         // is equal to the proximal AA
-
-        // First calculate the set of shifted and unshifted ions
-        ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
-        ArrayList<Float> shiftedPepFrags = new ArrayList<Float>(pepFrags.size());
-        for (Float frag : pepFrags)
-            shiftedPepFrags.add(frag + dMass);
-        pepFrags.addAll(shiftedPepFrags);
-
-        if (debugFlag)
-            System.out.println(pepFrags.stream().map(Object::toString)
-                .collect(Collectors.joining(", ")));
-
-        // Filter peakMzs and peakInts to only those that match at least one ion
-        float[] peakMzs = spec.getPeakMZ();
-        float[] peakInts = spec.getPeakInt();
-        float[] matchedIons = findMatchedIons(pepFrags, peakMzs, peakInts)[0]; // Returns -1 if unmatched, intensity otherwise // [0] is intensities, [1] is mass errors TODO rewrite
-        int matchedCount = 0;
-        for (int i = 0; i < matchedIons.length; i++) {
-            if (matchedIons[i] > 0.0)
-                matchedCount++;
-        }
-        float[] reducedMzs = new float[matchedCount];
-        float[] reducedInts = new float[matchedCount];
-        int j = 0;
-        for (int i = 0; i < matchedIons.length; i++) {
-            if (matchedIons[i] > 0.0) {
-                reducedMzs[j] = peakMzs[i];
-                reducedInts[j] = peakInts[i];
-                j++;
-            }
-        }
-
-        // Iterate through sites to compute likelihood for each site P(Spec_i|Pep_{ij})
-        // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
-        // is equal to the proximal AA
         /**
         for(int i = 0; i < pep.length(); i++) {
             if (allowedPoses[i+1] == false) {
@@ -745,6 +716,9 @@ public class IterativeLocalizer {
         }
          **/
 
+        // Iterate through sites to compute likelihood for each site P(Spec_i|Pep_{ij})
+        // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
+        // is equal to the proximal AA
         // Check to see if the likelihood has already been computed. If it has, grab it. If not, compute it.
         if (this.localizationLikelihoodMap.containsKey(psm.getSpec())) {
             siteLikelihoods = this.localizationLikelihoodMap.get(psm.getSpec()).getMod().getSiteLikelihoods();
