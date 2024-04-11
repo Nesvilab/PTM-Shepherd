@@ -69,7 +69,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "3.0.0-rc3";
+ 	public static final String version = "3.0.0-rc4";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;

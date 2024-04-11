@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+
 import umich.ms.datatypes.LCMSDataSubset;
 import umich.ms.datatypes.scan.IScan;
 import umich.ms.datatypes.scancollection.impl.ScanCollectionDefault;
@@ -187,8 +189,41 @@ public class MXMLReader {
 		};
 	}
 
+	public void readPartially(ArrayList<Integer> scanNums) throws Exception {
+		String fn = f.toPath().getFileName().toString().toLowerCase();
+		MZBINFile mzbinSource = null;
+
+		if (fn.endsWith(".mzbin") || fn.endsWith(".mzbin_cache")) {
+			mzbinSource = new MZBINFile(this.threads, f, false);
+			mzbinSource.loadMZBINScans(PTMShepherd.executorService, this.threads, scanNums);
+		}
+		if (mzbinSource == null) {
+			System.out.println("Cannot partially read non-mzBin file: " + f.getName());
+			System.exit(1);
+		}
+
+		specsByName = new HashMap<>();
+		specsByStrippedName = new HashMap<>();
+		readAsPartialMzBIN(mzbinSource);
+		for(int i = 0; i < specs.length; i++) {
+			specsByName.put(specs[i].scanName, specs[i]);
+			specsByStrippedName.put(stripChargeState(specs[i].scanName), specs[i]);
+		}
+	}
+
 	//400ngHeLaosmoothCE20-52lowguessSRIG450easy4_30tbl1_0NOexp12scansi_A1_01_3366.109793.109793.2
 	private void readAsMzBIN(MZBINFile mf) {
+		List<Spectrum> cspecs = new ArrayList<>();
+		for (MZBINSpectrum mzbinSpectrum : mf.specs) {
+			if (mzbinSpectrum.msLevel == 2)
+				cspecs.add(new Spectrum(mzbinSpectrum, mf.runName));
+		}
+		nSpecs =  cspecs.size();
+		specs = new Spectrum[nSpecs];
+		cspecs.toArray(specs);
+	}
+
+	private void readAsPartialMzBIN(MZBINFile mf) {
 		List<Spectrum> cspecs = new ArrayList<>();
 		for (MZBINSpectrum mzbinSpectrum : mf.specs) {
 			if (mzbinSpectrum.msLevel == 2)

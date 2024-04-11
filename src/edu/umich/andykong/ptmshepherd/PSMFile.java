@@ -60,7 +60,7 @@ public class PSMFile {
 		private int lineNum; // 0 indexed starting from header, 1 indexed starting from data
 		private ArrayList<String> spLine;
 		private String spec;
-		int specNum;
+		private int specNum;
 		private String pep;
 		private ArrayList<ImmutablePair<Integer, Float>> mods;
 		private float [] modArr;
@@ -70,6 +70,7 @@ public class PSMFile {
 			this.lineNum = lineNum;
 			this.spLine = new ArrayList<>(Arrays.asList(line.replace("\n","").split("\t", -1)));
 			this.spec = null;
+			this.specNum = -1;
 			this.pep = null;
 			this.mods = null;
 			this.modArr = null;
@@ -97,6 +98,18 @@ public class PSMFile {
 				this.spec = reNormName(spLine.get(getColumn("Spectrum")));
 			return this.spec;
 		}
+
+		public int getSpecNum() {
+			if (this.specNum == -1) {
+				if (this.spec == null) {
+					this.getSpec();
+				}
+				String[] spSpec = this.spec.split("\\.", -1);
+				this.specNum = Integer.parseInt(spSpec[spSpec.length-2]);
+			}
+			return this.specNum;
+		}
+
 		public String getPep() {
 			if (this.pep == null)
 				this.pep = spLine.get(getColumn("Peptide"));
