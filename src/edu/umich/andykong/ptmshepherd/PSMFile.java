@@ -40,6 +40,7 @@ public class PSMFile {
 
 	String [] headers;
 	public ArrayList<String> data;
+	public ArrayList<PSM> psms;
 	public ArrayList<String> mappedRuns;
 	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, calcMZcol, peptideCalcMassCol, chargeCol;
 	public String prefType;
@@ -60,6 +61,7 @@ public class PSMFile {
 		private int lineNum; // 0 indexed starting from header, 1 indexed starting from data
 		private ArrayList<String> spLine;
 		private String spec;
+		private String fileName;
 		private int specNum;
 		private String pep;
 		private ArrayList<ImmutablePair<Integer, Float>> mods;
@@ -69,6 +71,7 @@ public class PSMFile {
 		PSM(int lineNum, String line) {
 			this.lineNum = lineNum;
 			this.spLine = new ArrayList<>(Arrays.asList(line.replace("\n","").split("\t", -1)));
+			this.fileName = null;
 			this.spec = null;
 			this.specNum = -1;
 			this.pep = null;
@@ -108,6 +111,12 @@ public class PSMFile {
 				this.specNum = Integer.parseInt(spSpec[spSpec.length-2]);
 			}
 			return this.specNum;
+		}
+
+		public String getFileName() {
+			if (this.fileName == null)
+				this.fileName = this.getSpec().substring(0, this.getSpec().indexOf("."));
+			return this.fileName;
 		}
 
 		public String getPep() {
@@ -207,8 +216,23 @@ public class PSMFile {
 		return Long.toHexString(crc.getValue()) + Long.toHexString(f.length());
 	}
 
-	public PSM getLine(int i) {
+	/**
+	 * Returns a PSM based on the raw file line.
+	 * @param i file line, doesn't include header
+	 * @return PSM
+	 */
+	private PSM getRawLine(int i) {
 		PSM psm = new PSM(i, data.get(i));
+		return psm;
+	}
+
+	/**
+	 * Returns a PSM based on the file line
+	 * @param i file line, doesn't include headers
+	 * @return PSM
+	 */
+	public PSM getLine(int i) {
+		PSM psm = this.psms.get(i);
 		return psm;
 	}
 
@@ -230,12 +254,11 @@ public class PSMFile {
 	 */
 	public HashMap<String,ArrayList<Integer>> getRunMappings() {
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
-		for(int i = 0; i < this.data.size(); i++) {
-			String [] sp = this.data.get(i).split("\t");
-			String bn = sp[getColumn("Spectrum")].substring(0,sp[getColumn("Spectrum")].indexOf("."));
-			if(!mappings.containsKey(bn))
-				mappings.put(bn, new ArrayList<>());
-			mappings.get(bn).add(i);
+		for(int i = 0; i < this.psms.size(); i++) {
+			String fileName = this.psms.get(i).getFileName();
+			if(!mappings.containsKey(fileName))
+				mappings.put(fileName, new ArrayList<>());
+			mappings.get(fileName).add(i);
 		}
 		return mappings;
 	}
@@ -776,6 +799,7 @@ public class PSMFile {
 			col = getColumn("Original Delta Mass");
 		this.dMassCol = col;
 		this.data = new ArrayList<>();
+		this.psms = new ArrayList<>();
 		String cline;
 		while((cline = in.readLine()) != null) {
 			//if(cline.trim().length() > 0)
@@ -784,10 +808,11 @@ public class PSMFile {
 		}
 		in.close();
 
-		// Build index of PSM file lines to spectrum names
+		// Build index of PSM file lines to spectrum names and pre parse spec names
 		this.scanToLine = new HashMap<>();
 		for (int i = 0; i < this.data.size(); i++) {
-			PSM tPSM = this.getLine(i);
+			PSM tPSM = this.getRawLine(i);
+			psms.add(tPSM);
 			this.scanToLine.put(tPSM.getSpec(), i);
 		}
 	}
