@@ -1102,9 +1102,18 @@ public class PTMShepherd {
 		String[] sp = s.split("\\.");
 		if (sp[sp.length-2].equals(sp[sp.length-1])) // If the format is XXX.Spec.Spec already, return input string
 			return s;
-		int sn = Integer.parseInt(sp[1]);
-		//without charge state
-		return String.format("%s.%d.%d", sp[0], sn, sn);
+
+		// Remove leading zeros from the string
+		String snString = sp[1].replaceFirst("^0+", "");
+
+		// Using StringBuilder for potentially better performance
+		StringBuilder sb = new StringBuilder();
+		sb.append(sp[0]);
+		sb.append('.');
+		sb.append(snString);
+		sb.append('.');
+		sb.append(snString);
+		return sb.toString();
 	}
 
 	public static String reNormNameWithCharge(String s) {
