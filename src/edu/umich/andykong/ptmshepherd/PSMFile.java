@@ -24,6 +24,7 @@ import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
+import edu.umich.andykong.ptmshepherd.utils.StringParsingUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import java.io.*;
@@ -70,7 +71,7 @@ public class PSMFile {
 
 		PSM(int lineNum, String line) {
 			this.lineNum = lineNum;
-			this.spLine = new ArrayList<>(Arrays.asList(line.replace("\n","").split("\t", -1)));
+			this.spLine = new ArrayList<>(StringParsingUtils.splitStringByTab(line.replace("\n","")));
 			this.fileName = null;
 			this.spec = null;
 			this.specNum = -1;
