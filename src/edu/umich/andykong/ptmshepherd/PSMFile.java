@@ -71,7 +71,8 @@ public class PSMFile {
 
 		PSM(int lineNum, String line) {
 			this.lineNum = lineNum;
-			this.spLine = new ArrayList<>(StringParsingUtils.splitStringByTab(line.replace("\n","")));
+			this.spLine = new ArrayList<>(StringParsingUtils.splitStringByTab(
+					line.replace("\n","")));
 			this.fileName = null;
 			this.spec = null;
 			this.specNum = -1;
@@ -81,29 +82,58 @@ public class PSMFile {
 			this.dMass = null;
 		}
 
+		PSM(int lineNum) {
+			this.lineNum = lineNum;
+			this.spLine = null;
+			this.fileName = null;
+			this.spec = null;
+			this.specNum = -1;
+			this.pep = null;
+			this.mods = null;
+			this.modArr = null;
+			this.dMass = null;
+		}
+
+		private void calculateSpLine() {
+			this.spLine = new ArrayList<>(StringParsingUtils.splitStringByTab(
+					data.get(this.lineNum).replace("\n","")));
+		}
+
 		public void addValAtColumn(int colIdx, String val){
+			if (this.spLine == null)
+				this.calculateSpLine();
 			this.spLine.add(colIdx, val);
 		}
 
 		public void addValAtColumn(String colName, String val){
+			if (this.spLine == null)
+				this.calculateSpLine();
 			this.spLine.add(getColumn(colName), val);
 		}
 
 		public void replaceValAtColumn(int colIdx, String val){
+			if (this.spLine == null)
+				this.calculateSpLine();
 			this.spLine.set(colIdx, val);
 		}
 
 		public void replaceValAtColumn(String colName, String val){
+			if (this.spLine == null)
+				this.calculateSpLine();
 			this.spLine.set(getColumn(colName), val);
 		}
 
 		public String getSpec() {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			if (this.spec == null)
 				this.spec = reNormName(spLine.get(getColumn("Spectrum")));
 			return this.spec;
 		}
 
 		public int getSpecNum() {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			if (this.specNum == -1) {
 				if (this.spec == null) {
 					this.getSpec();
@@ -115,18 +145,24 @@ public class PSMFile {
 		}
 
 		public String getFileName() {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			if (this.fileName == null)
 				this.fileName = this.getSpec().substring(0, this.getSpec().indexOf("."));
 			return this.fileName;
 		}
 
 		public String getPep() {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			if (this.pep == null)
 				this.pep = spLine.get(getColumn("Peptide"));
 			return this.pep;
 		}
 
 		public ArrayList<ImmutablePair<Integer,Float>> getMods() {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			if (this.mods == null) {
 				this.mods = new ArrayList<>();
 				String strMods = spLine.get(getColumn("Assigned Modifications"));
@@ -152,6 +188,8 @@ public class PSMFile {
 		}
 
 		public float [] getModsAsArray() {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			if (this.modArr == null) {
 				this.modArr = new float[this.getPep().length()];
 				Arrays.fill(this.modArr, 0.0f);
@@ -166,13 +204,23 @@ public class PSMFile {
 		}
 
 		public float getDMass() {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			if (this.dMass == null)
 				this.dMass = Float.parseFloat(this.spLine.get(getColumn("Delta Mass")));
 			return this.dMass;
 		}
 
 		public String getColumnValue(String colName) {
+			if (this.spLine == null)
+				this.calculateSpLine();
 			return this.spLine.get(getColumn(colName));
+		}
+
+		public ArrayList<String> getSpLine() {
+			if (this.spLine == null)
+				this.calculateSpLine();
+			return this.spLine;
 		}
 
 		public String toString() {
@@ -223,7 +271,7 @@ public class PSMFile {
 	 * @return PSM
 	 */
 	private PSM getRawLine(int i) {
-		PSM psm = new PSM(i, data.get(i));
+		PSM psm = new PSM(i);
 		return psm;
 	}
 
@@ -809,13 +857,17 @@ public class PSMFile {
 		}
 		in.close();
 
-		// Build index of PSM file lines to spectrum names and pre parse spec names
-		this.scanToLine = new HashMap<>();
+		// Prefill PSM array with dummy variables so they can be constructed upon being called
 		for (int i = 0; i < this.data.size(); i++) {
 			PSM tPSM = this.getRawLine(i);
 			psms.add(tPSM);
-			this.scanToLine.put(tPSM.getSpec(), i);
 		}
+	}
+
+	private void constructScanToLineMap() {
+		this.scanToLine = new HashMap<>();
+		for (int i = 0; i < this.psms.size(); i++)
+			this.scanToLine.put(this.psms.get(i).getSpec(), i);
 	}
 
     public void annotateMassDiffs(String [] annotations) throws IOException {
@@ -935,6 +987,10 @@ public class PSMFile {
 			throw new ArrayIndexOutOfBoundsException("Input arrays and PSM table are not the same length, " +
 					"editing PSM table will fail\n");
 		}
+
+		// Check that the scan to line mapping has been constructed
+		if (this.scanToLine == null)
+			constructScanToLineMap();
 
 		//TODO if column not found and inserting to the right, it will insert at the beginning of the table
 		// This fixes it, but the error message should be different. Not sure how to check colIndx

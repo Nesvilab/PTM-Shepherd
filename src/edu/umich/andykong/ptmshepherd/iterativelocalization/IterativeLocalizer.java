@@ -43,6 +43,8 @@ public class IterativeLocalizer {
     static int scanNum;
 
     Map<String, LocalizationLikelihood> localizationLikelihoodMap;
+    Map<String, HashMap<String, ArrayList<Integer>>> psmToRunToLine;
+    Map<String, HashSet<Integer>> convergedPsmsMap;
     static boolean debugFlag;
     boolean printIonDistribution = true; // TODO make this a parameter
     boolean poissonBinomialDistribution = true; // TODO make this a parameter
@@ -197,6 +199,12 @@ public class IterativeLocalizer {
         // Set up likelihood store so that values can be accessed without recomputing
         this.localizationLikelihoodMap = new HashMap<>();
 
+        // Set up converged scans map so that PSMs are reprocessed if not necessary
+        this.convergedPsmsMap = new HashMap<>();
+
+        // Set up run -> line mapping so that the whole PSM table doesn't get parsed every iteration
+        this.psmToRunToLine = new HashMap<>();
+
         // Faster access to zero bin spectra to be ignored
         double zbL = this.peaks[1][this.zeroBin]; // TODO: set up custom bounds?
         double zbR = this.peaks[2][this.zeroBin]; // TODO: set up custom bounds?
@@ -216,8 +224,18 @@ public class IterativeLocalizer {
 
                 // Loop through PSM files
                 for (int i = 0; i < dsData.size(); i++) {
-                    PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
-                    HashMap<String, ArrayList<Integer>> runToLine = psmf.getRunMappings();
+                    String psmfStr = dsData.get(i)[0];
+                    PSMFile psmf = new PSMFile(psmfStr);
+
+                    // Get run to line mappings, if first run calculate, else get preprocessed list to prevent extra parsing
+                    HashMap<String, ArrayList<Integer>> runToLine;
+                    if (epoch == 1) {//todo simplify logic
+                        runToLine = psmf.getRunMappings(); //TODO this is what's parsing it every time
+                        this.psmToRunToLine.put(psmfStr, runToLine);
+                    } else
+                        runToLine = this.psmToRunToLine.get(psmfStr);
+
+                    // These hold the output to insert into the PSM table //todo only need to be declared on final run
                     ArrayList<String> specNames = new ArrayList<>();
                     ArrayList<String> strOutputProbs = new ArrayList<>();
                     ArrayList<String> strMaxProbs = new ArrayList<>();
@@ -236,6 +254,15 @@ public class IterativeLocalizer {
                             this.pep = null;
                             this.scanNum = -1;
                             debugFlag = false;
+
+                            // First, check if we can skip this line because the bin is converged
+                            if (!finalPass) {
+                                if (this.convergedPsmsMap.containsKey(cf)) { // check if run is in map
+                                    if (this.convergedPsmsMap.get(cf).contains(j)) { // check if scan is in converged bin
+                                        continue;
+                                    }
+                                }
+                            }
 
                             PSMFile.PSM psm = psmf.getLine(j);
                             float dMass = psm.getDMass();
@@ -268,9 +295,18 @@ public class IterativeLocalizer {
                                     continue;
                             }
 
-                            // If converged skip unless final round
-                            if (!finalPass && this.priorProbs[cBin].getIsConverged()) // Safe because left is first
+                            // If converged, skip. Unless final round, then calculate final values.
+                            // If converged and not in converged map, add to converged map.
+                            if (!finalPass && this.priorProbs[cBin].getIsConverged()) { // safe because left is first
+
+                                if (!finalPass) {
+                                    if (!this.convergedPsmsMap.containsKey(cf))  // check if run is in map
+                                        this.convergedPsmsMap.put(cf, new HashSet<>(runToLine.get(cf).size()+1,1.0f));
+                                    if (!this.convergedPsmsMap.get(cf).contains(j)) // check if scan is in converged bin
+                                            this.convergedPsmsMap.get(cf).add(j); // add scan to list of converged scans
+                                }
                                 continue;
+                            }
 
                             // todo this logic is getting way too complex, need to handle execution states in a static context
                             Spectrum spec = null;
@@ -1139,5 +1175,4 @@ public class IterativeLocalizer {
         else
             return (double) x / (double) y;
     }
-
 }
