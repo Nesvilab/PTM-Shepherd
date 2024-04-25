@@ -9,7 +9,11 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.chhh</groupId>
   <artifactId>batmass-io</artifactId>
+<<<<<<<< HEAD:lib/batmass-io-1.32.4.pom
   <version>1.32.4</version>
+========
+  <version>1.32.5</version>
+>>>>>>>> f4a9a78 (switch to using batmass-io for glycan parsing):lib/batmass-io-1.32.5.pom
   <dependencies>
     <dependency>
       <groupId>com.google.guava</groupId>

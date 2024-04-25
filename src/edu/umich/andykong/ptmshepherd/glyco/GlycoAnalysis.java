@@ -23,6 +23,8 @@ import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
+import umich.ms.glyco.GlycanParser;
+import umich.ms.glyco.GlycanResidue;
 
 import java.io.*;
 import java.util.*;
@@ -1559,8 +1561,8 @@ public class GlycoAnalysis {
                 if (line.startsWith("#"))
                     continue;
                 String[] splits = line.split("\t");
-                GlycanResidue residue = glycoParams.findResidueName(splits[0].trim().toLowerCase(Locale.ROOT));
-                TreeMap<GlycanResidue, Integer> ionComposition = glycoParams.parseGlycanString(splits[1]);
+                GlycanResidue residue = GlycanParser.findResidueName(splits[0].trim().toLowerCase(Locale.ROOT), glycoParams.glycanResiduesMap);
+                HashMap<GlycanResidue, Integer> ionComposition = GlycanParser.parseGlycanString(splits[1], glycoParams.glycanResiduesMap).composition;
                 double massShift = Double.parseDouble(splits[2]);
                 String comment = splits.length > 3 ? splits[3] : "";
                 double hitProb = GlycanResidue.getOrDefault(splits[4]);
