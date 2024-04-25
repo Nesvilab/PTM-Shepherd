@@ -1145,8 +1145,6 @@ public class PTMShepherd {
 		String glycanModDB = getParam("glyco_mod_list");
 		String glycoOxoDB = getParam("glyco_oxonium_list");
 		GlycoParams glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
-		// todo: add user params for easy mod editing from FragPipe
-//		glycoParams.updateGlycoMods();
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.initIsotopeProbs(getParam("prob_isotope"));

@@ -16,7 +16,12 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import umich.ms.glyco.Glycan;
+import umich.ms.glyco.GlycanParser;
+import umich.ms.glyco.GlycanResidue;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
@@ -43,7 +48,7 @@ public class GlycanFragment {
      * @param expectedIntensity observed relative intensity todo: might be able to remove this if not using later
      */
     public GlycanFragment(String glycanStr, double expectedIntensity, FragType fragType, GlycoParams glycoParams) {
-        this.requiredComposition = glycoParams.parseGlycanString(glycanStr);
+        this.requiredComposition = GlycanParser.parseGlycanString(glycanStr, glycoParams.glycanResiduesMap).composition;
         this.expectedIntensity = expectedIntensity;
         this.isDecoy = false;
         this.foundIntensity = 0;
@@ -178,8 +183,8 @@ public class GlycanFragment {
         }
 
         // special cases todo: fix/generalize
-        GlycanResidue hexNAc = glycoParams.findResidueName("HexNAc");
-        GlycanResidue hexRes = glycoParams.findResidueName("Hex");
+        GlycanResidue hexNAc = GlycanParser.findResidueName("HexNAc", glycoParams.glycanResiduesMap);
+        GlycanResidue hexRes = GlycanParser.findResidueName("Hex", glycoParams.glycanResiduesMap);
         if (this.requiredComposition.containsKey(hexRes) && this.requiredComposition.containsKey(hexNAc)) {
             if (this.requiredComposition.get(hexRes) > 0 && !(this.requiredComposition.get(hexNAc) > 0)) {
                 // Hex required but NOT HexNAc. Return false if candidate contains HexNAc
@@ -201,11 +206,11 @@ public class GlycanFragment {
         double minProbPlus = 100000;
         double maxProbMinus = -1;
         for (GlycanResidue residue: requiredComposition.keySet()) {
-            if (residue.yProbs[0] < minProbPlus && residue.yProbs[0] > 0) {
-                minProbPlus = residue.yProbs[0];
+            if (residue.yProbPlus < minProbPlus && residue.yProbPlus > 0) {
+                minProbPlus = residue.yProbPlus;
             }
-            if (residue.yProbs[1] > maxProbMinus) {
-                maxProbMinus = residue.yProbs[1];
+            if (residue.yProbMinus > maxProbMinus) {
+                maxProbMinus = residue.yProbMinus;
             }
         }
         return new double[]{minProbPlus, maxProbMinus};
@@ -240,13 +245,7 @@ public class GlycanFragment {
         if (isDecoy) {
             stringBuilder.append("Decoy_");
         }
-        ArrayList<String> residues = new ArrayList<>();
-        for (GlycanResidue residueKey : glycanComposition.keySet()) {
-            if (glycanComposition.getOrDefault(residueKey, 0) > 0) {
-                residues.add(String.format("%s(%d)", residueKey.name, glycanComposition.get(residueKey)));
-            }
-        }
-        stringBuilder.append(String.join("", residues));
+        stringBuilder.append(Glycan.toGlycanString(glycanComposition));
         stringBuilder.append(comment);
         return stringBuilder.toString();
     }

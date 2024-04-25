@@ -20,19 +20,20 @@ import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
-import edu.umich.andykong.ptmshepherd.glyco.GlycanResidue;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.utils.StringParsingUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import umich.ms.glyco.Glycan;
+import umich.ms.glyco.GlycanResidue;
+import umich.ms.glyco.GlycanParser;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.zip.CRC32;
 
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
@@ -599,7 +600,6 @@ public class PSMFile {
 	 */
 	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, int charge, GlycoParams glycoParams) {
 		// parse glycan composition from recently edited observed mods col
-		TreeMap<GlycanResidue, Integer> glycanComp;
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
 		boolean failOrDecoy = rawGlycan.contains("FailFDR") || rawGlycan.contains("Decoy");
 
@@ -614,19 +614,22 @@ public class PSMFile {
 			}
 		}
 
+		if (glycanOnly.contains("no target matches") || glycanOnly.contains("No Glycan Matched")) {
+			return newLine;		// skip, no target glycan info to propagate
+		}
+
 		/* Get glycan mass */
-		try {
-			glycanComp = glycoParams.parseGlycanString(glycanOnly);
-		} catch (Exception ex) {
-			try {
-				// try old format in case of old PSM file
-				glycanComp = glycoParams.parseGlycanStringOld(glycanOnly);
-			} catch (Exception ex2) {
-				// Not a glycan (PTM-S or Philosopher may put other string formats here) - ignore and continue
+		Glycan glyc;
+		glyc = GlycanParser.parseGlycanString(glycanOnly, glycoParams.glycanResiduesMap);
+		if (glyc == null) {
+			// try old format in case of old PSM file
+			glyc = GlycanParser.parseOldPTMSGlycanString(glycanOnly, glycoParams.glycanResiduesMap);
+			if (glyc == null) {
+				// Not a glycan (PTM-S may put other string formats here) - ignore and continue
 				return newLine;
 			}
 		}
-		double glycanMass = GlycanCandidate.computeMonoisotopicMass(glycanComp);
+		double glycanMass = glyc.mass;
 		if (glycanMass == 0) {
 			// do not edit entry if no matches found to the delta mass
 			editPSMGlycoEntry = false;

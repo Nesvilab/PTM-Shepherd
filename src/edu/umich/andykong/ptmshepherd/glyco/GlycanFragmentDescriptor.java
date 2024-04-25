@@ -16,6 +16,8 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import umich.ms.glyco.GlycanResidue;
+
 import java.util.Map;
 
 /**

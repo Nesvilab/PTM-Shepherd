@@ -17,6 +17,9 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
+import umich.ms.glyco.Glycan;
+import umich.ms.glyco.GlycanParser;
+import umich.ms.glyco.GlycanResidue;
 
 import java.util.*;
 
@@ -41,8 +44,9 @@ public class GlycanCandidate {
      * @param parsedFragmentInfo list of strings containing fragment ion info
      */
     public GlycanCandidate(String glycanStr, String[] parsedFragmentInfo, GlycoParams glycoParams){
-        glycanComposition = glycoParams.parseGlycanString(glycanStr);
-        monoisotopicMass = computeMonoisotopicMass(glycanComposition);
+        Glycan g = GlycanParser.parseGlycanString(glycanStr, glycoParams.glycanResiduesMap);
+        glycanComposition = g.composition;
+        monoisotopicMass = g.mass;
 
         Yfragments = new TreeMap<>();
         oxoniumFragments = new TreeMap<>();
@@ -238,11 +242,11 @@ public class GlycanCandidate {
      */
     public void initializeYFragments(GlycoParams glycoParams) {
         Yfragments = new TreeMap<>();
-        GlycanResidue hexnac = glycoParams.findResidueName("HexNAc");
+        GlycanResidue hexnac = GlycanParser.findResidueName("HexNAc", glycoParams.glycanResiduesMap);
         List<Map.Entry<GlycanResidue, Integer>> remainingComp = new ArrayList<>();
         for (Map.Entry<GlycanResidue, Integer> compEntry : glycanComposition.entrySet()) {
             // Do not include labile residues in Y ions
-            if (compEntry.getValue() > 0 && !compEntry.getKey().islabile) {
+            if (compEntry.getValue() > 0 && !compEntry.getKey().isLabile) {
                 remainingComp.add(compEntry);
             }
         }
@@ -276,7 +280,7 @@ public class GlycanCandidate {
                 continue;
             }
             if (glycoParams.nGlycan && glycanComposition.getOrDefault(hexnac, 0) > 0) {
-                if (Ycomp.containsKey(glycoParams.findResidueName("Hex")) && Ycomp.get(hexnac) < 2) {
+                if (Ycomp.containsKey(GlycanParser.findResidueName("Hex", glycoParams.glycanResiduesMap)) && Ycomp.get(hexnac) < 2) {
                     continue;
                 }
             }
