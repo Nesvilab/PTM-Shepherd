@@ -17,21 +17,13 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
-import edu.umich.andykong.ptmshepherd.peakpicker.PeakAnnotator;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanMod;
 import umich.ms.glyco.GlycanParser;
 import umich.ms.glyco.GlycanResidue;
 
 import java.io.*;
-import java.lang.reflect.Array;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Organization - putting a bunch of glyco-specific utilities here rather than cluttering the main PTM-S.java
@@ -82,6 +74,7 @@ public class GlycoParams {
         }
         glycanResiduesMap.putAll(modsMap);
         glycanResidues = new ArrayList<>(glycanResiduesMap.values());
+        glycanResidues.sort(GlycanResidue::compareTo);
 
         glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, this);
     }
