@@ -3,7 +3,7 @@ package edu.umich.andykong.ptmshepherd.iterativelocalization;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-class BinPriorProbabilities {
+public class BinPriorProbabilities {
     //Holds the values to compute prior probability Pr(Pep_{ij})
     //Note: the original manuscript has 104 values, we use 62 because we do not consider protein n and c termini
     //Note: the length of these is 26 to make character indexing possible, but only the 20 AAs will be valid
@@ -32,7 +32,7 @@ class BinPriorProbabilities {
     final char[] AAs = {'A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L',
             'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'};
 
-    BinPriorProbabilities() {
+    public BinPriorProbabilities() {
         this.probs = new double[26];
         this.nProbs = new double[26];
         this.cProbs = new double[26];
@@ -61,38 +61,29 @@ class BinPriorProbabilities {
 
     }
 
-    double[] computePriorProbs(String pep, boolean[] allowedPoses) {
-        double[] priorProbs = new double[pep.length()+2];
+    public double[] computePriorProbs(String pep, boolean[] allowedPoses) {
+        double[] priorProbs = new double[pep.length()];
         double sumProbs = 0.0;
 
         // Build peptide prior probability distribution
         // The prior probability function includes two extra values for N- and C-term modifications
         for (int i = 0; i < pep.length(); i++) { // Iterate over middle n-2 indices
             char cAA = pep.charAt(i);
-            if (allowedPoses[i+1] == true) {
+            if (allowedPoses[i] == true) {
                 if (i == 0) { // Pick max probability for N-terminal options
-                    double curProb = Math.max(this.nProbs[cAA-'A'], this.probs[cAA-'A']);
-                    priorProbs[i+1] = curProb;
+                    double curProb = Math.max(this.n, Math.max(this.nProbs[cAA-'A'], this.probs[cAA-'A']));
+                    priorProbs[i] = curProb;
                     sumProbs += curProb;
                 } else if (i == pep.length()-1) { // Pick max probability for C-terminal options
-                    double curProb = Math.max(this.cProbs[cAA-'A'], this.probs[cAA-'A']);
-                    priorProbs[i+1] = curProb;
+                    double curProb = Math.max(this.c, Math.max(this.cProbs[cAA-'A'], this.probs[cAA-'A']));
+                    priorProbs[i] = curProb;
                     sumProbs += curProb;
                 } else {
                     double curProb = this.probs[cAA-'A'];
-                    priorProbs[i+1] = curProb;
+                    priorProbs[i] = curProb;
                     sumProbs += curProb;
                 }
             }
-        }
-        // Add termini //TODO this will not handle the case where termini are allowed but n* is not
-        if (allowedPoses[0]) {
-            priorProbs[0] = this.n;
-            sumProbs += this.n;
-        }
-        if (allowedPoses[allowedPoses.length-1]) {
-            priorProbs[priorProbs.length - 1] = this.c;
-            sumProbs += this.c;
         }
 
         // Normalize prior probability distribution
@@ -102,12 +93,12 @@ class BinPriorProbabilities {
         return priorProbs;
     }
 
-    static double[] computeUniformPriorProbs(String pep, boolean[] allowedPoses) {
-        double[] priorProbs = new double[pep.length()+2];
+    public static double[] computeUniformPriorProbs(String pep, boolean[] allowedPoses) {
+        double[] priorProbs = new double[pep.length()];
         double sumProbs = 0.0;
 
         // Build peptide prior probability distribution
-        for (int i = 0; i < pep.length()+2; i++) {
+        for (int i = 0; i < pep.length(); i++) {
             if (allowedPoses[i] == true) {
                 priorProbs[i] = 1.0;
                 sumProbs += 1.0;
@@ -128,7 +119,7 @@ class BinPriorProbabilities {
             this.nT1Count++;
         }
         if (allowedPoses[allowedPoses.length-1]) {
-            this.cT1 += siteProbs[siteProbs.length - 1];
+            this.cT1 += siteProbs[siteProbs.length-1];
             this.cT1Count++;
         }
 
@@ -136,19 +127,18 @@ class BinPriorProbabilities {
         for (int i = 0; i < pep.length(); i++) {
             char cAA = pep.charAt(i);
 
-            if (i == 0 && allowedPoses[1]) { // Update N-terminal AA probabilities
-                this.nProbsT1[cAA-'A'] += siteProbs[1];
+            if (i == 0 && allowedPoses[0]) { // Update N-terminal AA probabilities
+                this.nProbsT1[cAA-'A'] += siteProbs[0];
                 this.nProbsT1Count[cAA-'A']++;
-
-            } else if (i == pep.length()-1 && allowedPoses[pep.length()]) { // Update C-termini AA probabilities
-                this.cProbsT1[cAA-'A'] += siteProbs[pep.length()];
+            } else if (i == pep.length()-1 && allowedPoses[pep.length()-1]) { // Update C-termini AA probabilities
+                this.cProbsT1[cAA-'A'] += siteProbs[pep.length()-1];
                 this.cProbsT1Count[cAA-'A']++;
             }
 
             // Update base AA probabilities
-            if (allowedPoses[i+1]) {
-                this.probsT1[cAA - 'A'] += siteProbs[i + 1];
-                this.probsT1Count[cAA - 'A']++;
+            if (allowedPoses[i]) {
+                this.probsT1[cAA-'A'] += siteProbs[i];
+                this.probsT1Count[cAA-'A']++;
             }
         }
         this.nPsms++;

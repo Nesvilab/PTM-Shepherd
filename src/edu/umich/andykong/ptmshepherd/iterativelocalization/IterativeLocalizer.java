@@ -418,7 +418,7 @@ public class IterativeLocalizer {
 
     //todo mods should be parsed here if we don't want to localize on top of var mods
     public static boolean[] parseAllowedPositions(String seq, String allowedAAs, float[] mods) {
-        boolean[] allowedPoses = new boolean[seq.length()+2];
+        boolean[] allowedPoses = new boolean[seq.length()];
         if (allowedAAs.equals("all") || allowedAAs.equals(""))
             Arrays.fill(allowedPoses, true);
         else {
@@ -428,24 +428,20 @@ public class IterativeLocalizer {
                     i++;
                     if ((allowedAAs.charAt(i) == '*') || (allowedAAs.charAt(i) == '^')) {
                         allowedPoses[0] = true;
-                        allowedPoses[1] = true;
                     } else if (allowedAAs.charAt(i) == seq.charAt(0)) {
                         allowedPoses[0] = true;
-                        allowedPoses[1] = true;
                     }
                 } else if (allowedAAs.charAt(i) == 'c') {
                     i++;
                     if ((allowedAAs.charAt(i) == '*') || (allowedAAs.charAt(i) == '^')) {
-                        allowedPoses[seq.length()] = true;
-                        allowedPoses[seq.length() + 1] = true;
+                        allowedPoses[seq.length() - 1] = true;
                     } else if (allowedAAs.charAt(i) == seq.charAt(seq.length()-1)) {
-                        allowedPoses[seq.length()] = true;
-                        allowedPoses[seq.length() + 1] = true;
+                        allowedPoses[seq.length() - 1] = true;
                     }
                 } else {
                     for (int j = 0; j < seq.length(); j++) {
                         if (seq.charAt(j) == allowedAAs.charAt(i))
-                            allowedPoses[j+1] = true;
+                            allowedPoses[j] = true;
                     }
                 }
             }
@@ -791,9 +787,9 @@ public class IterativeLocalizer {
      */
     private double[] localizePsm (PSMFile.PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses) {
         double[] sitePriorProbs;
-        double[] siteLikelihoods = new double[pep.length()+2];
+        double[] siteLikelihoods = new double[pep.length()];
         double marginalProb = 0.0;
-        double[] sitePosteriorProbs = new double[pep.length()+2];
+        double[] sitePosteriorProbs = new double[pep.length()];
 
         // Compute prior probability or use uniform prior if PSM does not belong to mass shift bin
         if (cBin == -1)
@@ -832,13 +828,6 @@ public class IterativeLocalizer {
             siteLikelihoods = computePoissonBinomialLikelihood(pep, mods, dMass, allowedPoses, spec);
             this.localizationLikelihoodMap.put(psm.getSpec(), new LocalizationLikelihood(dMass, siteLikelihoods));
         }
-
-
-        // Propagate terminal AA likelihoods to each terminus //TODO this isn't going to handle cases when termini are allowed but the first residue isnt
-        if (allowedPoses[0])
-            siteLikelihoods[0] = siteLikelihoods[1]; // N-term
-        if (allowedPoses[allowedPoses.length-1])
-            siteLikelihoods[siteLikelihoods.length-1] = siteLikelihoods[siteLikelihoods.length-2]; // C-term
 
         // Compute marginal probability for peptide Sum_{k=0}^{{L_i}+1} P(Pep_{ik})*P(Spec_i|Pep_{ik})
         // Sum (site prior * site likelihoods)
@@ -914,7 +903,7 @@ public class IterativeLocalizer {
 
         // Set up structures to hold site matched ion probabilities
         int nAllowedPoses = 0;
-        for (int i = 1; i < allowedPoses.length-1; i++) { // Ignore C- and N-term, will be propogated at the end
+        for (int i = 0; i < allowedPoses.length; i++) { // Ignore C- and N-term, will be propogated at the end
             if (allowedPoses[i])
                 nAllowedPoses++;
         }
@@ -923,7 +912,7 @@ public class IterativeLocalizer {
         // Loop through sites and calculate the matched ions
         int cAllowedPos = 0;
         for(int i = 0; i < pep.length(); i++) {
-            if (!allowedPoses[i + 1])
+            if (!allowedPoses[i])
                 continue;
             mods[i] += dMass;
             ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
@@ -947,12 +936,12 @@ public class IterativeLocalizer {
             mods[i] -= dMass;
         }
 
-        // Compute site likelihoods, add N- and C-termini to likelihood output
+        // Compute site likelihoods
         double[] pepAALikelihoods = PoissonBinomialLikelihood.calculateProbXMax(ionProbs);
-        double[] siteLikelihoods = IntStream.rangeClosed(0, pepAALikelihoods.length + 1).mapToDouble(
-                i -> (i == 0 || i == pepAALikelihoods.length + 1) ? 0 : pepAALikelihoods[i - 1]).toArray();
+        //double[] siteLikelihoods = IntStream.rangeClosed(0, pepAALikelihoods.length + 1).mapToDouble(
+        //        i -> (i == 0 || i == pepAALikelihoods.length + 1) ? 0 : pepAALikelihoods[i - 1]).toArray();
 
-        return siteLikelihoods;
+        return pepAALikelihoods; //TODO this won't be tolerant to site restriction
     }
 
     /**
@@ -1168,13 +1157,7 @@ public class IterativeLocalizer {
             }
         }
 
-        String site;
-        if (maxI == 0)
-            site = "N-term";
-        else if (maxI == locProbs.length-1)
-            site = "C-term";
-        else
-            site = pep.charAt(maxI-1) + Integer.toString(maxI);
+        String site = pep.charAt(maxI) + Integer.toString(maxI+1);
 
         return site;
     }
@@ -1217,15 +1200,11 @@ public class IterativeLocalizer {
 
         sb.append(new DecimalFormat("0.0000").format(dMass));
         sb.append("@");
-        if (allowedPoses[0])
-            sb.append("("+new DecimalFormat("0.0000").format(probs[0])+")");
         for (int i = 0; i < pep.length(); i++) {
             sb.append(pep.charAt(i));
-            if (allowedPoses[i + 1])
-                sb.append("("+new DecimalFormat("0.0000").format(probs[i+1])+")");
+            if (allowedPoses[i])
+                sb.append("("+new DecimalFormat("0.0000").format(probs[i])+")");
         }
-        if (allowedPoses[allowedPoses.length - 1])
-            sb.append("("+new DecimalFormat("0.0000").format(probs[0])+")");
 
         return sb.toString();
     }
