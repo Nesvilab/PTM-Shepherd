@@ -1027,8 +1027,8 @@ public class PSMFile {
 		int colIndx = getColumn(header);
 
 		if (colIndx < 0 || colIndx >= (this.headers.length)) {
-			throw new ArrayIndexOutOfBoundsException(String.format("Column index %d is out of bounds for a %d column" +
-					"wide table", colIndx, this.headers.length));
+			throw new ArrayIndexOutOfBoundsException(String.format("Cannot fetch %s column. Column index %d is out of bounds for a %d column" +
+					"wide table", header, colIndx, this.headers.length));
 		}
 
 		ArrayList<String> values = new ArrayList<>(this.data.size());

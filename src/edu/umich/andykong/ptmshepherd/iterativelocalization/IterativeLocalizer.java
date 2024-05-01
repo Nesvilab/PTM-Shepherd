@@ -5,6 +5,7 @@ import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.utils.Peptide;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.text.DecimalFormat;
@@ -363,13 +364,13 @@ public class IterativeLocalizer {
                     if (finalPass) {
                         // Update PSM table with new columns
                         psmf.addColumn(psmf.getColumn("Observed Modifications") + 1,
-                                "delta_mass_loc", specNames, strOutputProbs);
-                        psmf.addColumn(psmf.getColumn("delta_mass_loc") + 1,
-                                "delta_mass_maxloc", specNames, strMaxProbs);
-                        psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1,
-                                "delta_mass_entropy", specNames, strEntropies);
-                        psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1,
-                                "delta_mass_maxprob", specNames, strMaxProbs2);
+                                "PTM-Shepherd Localization", specNames, strOutputProbs);
+                        psmf.addColumn(psmf.getColumn("PTM-Shepherd Localization") + 1,
+                                "PTM-Shepherd Best Localization", specNames, strMaxProbs);
+                        //psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1,
+                        //        "delta_mass_entropy", specNames, strEntropies);
+                        //psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
+                        //        "PTM-Shepherd Max Probability", specNames, strMaxProbs2);
                         psmf.save(true); // Do not overwrite
                         complete = true;
                     }
@@ -478,6 +479,9 @@ public class IterativeLocalizer {
      * which may not be desirable under all circumstances. This is calculated using the unbiased estimator (d+1)/t
      * from Levitsky J Proteome Res. (2017), but adjusted by the ratio of decoy AAs/target AAs.
      *
+     * //TODO clean up
+     * //TODO figure out double-decoy system
+     *
      * @return
      */
     private void calculateFalseLocalizationRates() throws Exception { //TODO this needs to be modularized so it can be unit tested
@@ -495,6 +499,31 @@ public class IterativeLocalizer {
         int[] targetEntropies = new int[1000+1]; //4 digit accuracy, plus one bin for 1.0000
         int[] decoyEntropies = new int[1000+1];
 
+
+        // Create container that will allow us to sort on probabilities while retaining PSM level mapping
+        class SpecProbQ implements Comparable<SpecProbQ> {
+            String spec;
+            double prob;
+            double q;
+
+            SpecProbQ(String spec, double prob) {
+                this.spec = spec;
+                this.prob = prob;
+            }
+
+            @Override
+            public int compareTo(SpecProbQ o) {
+                if (this.prob < o.prob) {
+                    return -1;  // Return -1 if this object's prob is less than the other object's prob
+                } else if (this.prob > o.prob) {
+                    return 1;   // Return 1 if this object's prob is greater than the other object's prob
+                }
+                return 0;       // Return 0 if they are equal
+            }
+        }
+
+        ArrayList<SpecProbQ> spqs = new ArrayList<>();
+
         // Loop through datasets
         for (String ds : this.datasets.keySet()) {
             ArrayList<String[]> dsData = this.datasets.get(ds);
@@ -503,9 +532,10 @@ public class IterativeLocalizer {
 
                 // Get values we're working with on first pass
                 PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                ArrayList<String> specs = psmf.getColumnValues("Spectrum");
                 ArrayList<String> peps = psmf.getColumnValues("Peptide");
-                ArrayList<String> maxProbs = psmf.getColumnValues("delta_mass_maxloc");
-                ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
+                ArrayList<String> maxProbs = psmf.getColumnValues("PTM-Shepherd Best Localization");
+                //ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
 
                 // Add probs to target and decoy histos and calculate nTarget and nDecoyAAs
                 for (int j = 0; j < peps.size(); j++) {
@@ -527,17 +557,56 @@ public class IterativeLocalizer {
 
                     // Add max probability and entropy
                     float p = Float.parseFloat(subString(maxProb, "(", ")"));
-                    float entropy = Float.parseFloat(entropies.get(j));
+                    //float entropy = Float.parseFloat(entropies.get(j));
                     if (isDecoyAA(maxProb.charAt(0))) {
                         decoyProbs[(int) (p * 1000.0)]++;
-                        decoyEntropies[(int) (entropy * 1000.0)]++;
+                    //    decoyEntropies[(int) (entropy * 1000.0)]++;
                     } else {
                         targetProbs[(int) (p * 1000.0)]++;
-                        targetEntropies[(int) (entropy * 1000.0)]++;
+                    //    targetEntropies[(int) (entropy * 1000.0)]++;
                     }
                 }
+                for (int j = 0; j < specs.size(); j++) {
+                    String maxProb = maxProbs.get(j);
+                    if (maxProb.equals(""))
+                        continue;
+                    double prob = Double.parseDouble(subString(maxProb, "(", ")"));
+                    spqs.add(new SpecProbQ(specs.get(j), prob));
+                }
+
             }
         }
+
+        // Sort in descending probability order
+        Collections.sort(spqs, Collections.reverseOrder());
+
+        // Calculate local q-val
+        double runningQSum = 0.0;
+        int runningCount = 0;
+        for (SpecProbQ spq : spqs) {
+            runningQSum += 1.0 - spq.prob;
+            runningCount++;
+            spq.q = runningQSum / runningCount;
+        }
+
+        // Ensure q-val monotonicity
+        double cMin = 10000.0;
+         for (int i = spqs.size() - 1; i >= 0; i--) {
+             double tQ = spqs.get(i).q;
+             if (spqs.get(i).q < cMin) {
+                 cMin = tQ;
+             } else {
+                 while ((i >= 0) && (spqs.get(i).q >= cMin)) {
+                     spqs.get(i).q = cMin;
+                     i--;
+                 }
+                 i++;
+             }
+         }
+        // Extract spectrum to q-val and probability mappings in matched order
+        HashMap<String, Double> qValsMap = new HashMap<>();
+        for (SpecProbQ spq : spqs)
+            qValsMap.put(spq.spec, spq.q);
 
         // Calculate the FLRs of each type
         // Three different FLRs to compute
@@ -610,6 +679,9 @@ public class IterativeLocalizer {
             qEntropyDecoyModel[i] = min;
         }
 
+
+
+
         /**
         // Print to test
         for (int i = flrProb.length-1; i >= 0; i--) {
@@ -645,46 +717,44 @@ public class IterativeLocalizer {
                 // Get values to map to q-vals
                 PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
                 ArrayList<String> specNames = psmf.getColumnValues("Spectrum");
-                ArrayList<String> maxProbs = psmf.getColumnValues("delta_mass_maxloc");
-                ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
+                ArrayList<String> maxProbs = psmf.getColumnValues("PTM-Shepherd Best Localization");
+                //ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
 
                 // Assign each q-Val
-                ArrayList<String> probModelVals = new ArrayList<>(specNames.size());
-                ArrayList<String> probDecoyModelVals = new ArrayList<>(specNames.size());
-                ArrayList<String> entropyDecoyModelVals = new ArrayList<>(specNames.size());
+                ArrayList<String> probModelQVals = new ArrayList<>(specNames.size());
+                //ArrayList<String> probDecoyModelVals = new ArrayList<>(specNames.size());
+                //ArrayList<String> entropyDecoyModelVals = new ArrayList<>(specNames.size());
                 for (int j = 0; j < specNames.size(); j++) {
-
                     // Check if peptide is unmod and deal with it if it is
-                    boolean unmodFlag = maxProbs.get(i).equals("") ? true : false;
+                    boolean unmodFlag = maxProbs.get(j).equals("") ? true : false;
                     if (unmodFlag) {
                         // prob model
-                        probModelVals.add("");
+                        probModelQVals.add("");
                         // prob model with decoys
-                        probDecoyModelVals.add("");
+                        //probDecoyModelVals.add("");
                         // entropy model
-                        entropyDecoyModelVals.add("");
+                        //entropyDecoyModelVals.add("");
                     } else {
                         // prob model
-                        double maxProb = Double.parseDouble(subString(maxProbs.get(i), "(", ")"));
-                        probModelVals.add(new DecimalFormat("0.0000").format(qProbModel[(int) (maxProb * 1000)]));
+                        probModelQVals.add(new DecimalFormat("0.0000").format(qValsMap.get(specNames.get(j))));
                         // prob model with decoys
-                        probDecoyModelVals.add(new DecimalFormat("0.0000").format(qProbDecoyModel[(int) (maxProb * 1000)]));
+                        //probDecoyModelVals.add(new DecimalFormat("0.0000").format(qProbDecoyModel[(int) (maxProb * 1000)]));
                         // entropy model
-                        double entropy = Double.parseDouble(entropies.get(i));
-                        entropyDecoyModelVals.add(new DecimalFormat("0.0000").format(qEntropyDecoyModel[(int) (entropy * 1000)]));
+                        //double entropy = Double.parseDouble(entropies.get(i));
+                        //entropyDecoyModelVals.add(new DecimalFormat("0.0000").format(qEntropyDecoyModel[(int) (entropy * 1000)]));
                     }
                 }
 
                 // Send to PSM file
-                psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1, "delta_mass_BH_loc_q",
-                        specNames, probModelVals);
+                psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1, "PTM-Shepherd q-val",
+                        specNames, probModelQVals);
                 /** //TODO figure out what's going on with these before implementing them, assuming they're even worth doing
                 psmf.addColumn(psmf.getColumn("delta_mass_BH_loc_q") + 1, "delta_mass_prob_decoyAA_q",
                         specNames, probDecoyModelVals);
                 psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1, "delta_mass_entropy_decoyAA_q",
                         specNames, entropyDecoyModelVals);
-                psmf.save(true); //TODO this will add these columns
-                **/
+                 **/
+                psmf.save(true); // add columns
             }
         }
 
