@@ -176,18 +176,6 @@ public class MatchedIonDistribution {
         this.cdf[this.cdf.length-1] = this.cdf[this.cdf.length-2] = lastBinsAverage;
     }
 
-    /**
-    public void calculateIonPosterior() {
-        calculateIonIntensityPosterior();
-        calculateIonMassErrorPosterior();
-    }
-     **/
-    /** todo Current posterior
-    public void calculateIonPosterior() {
-        this.qValues = new TwoDimJointQValue(this.targetPMF, this.decoyPMF);
-    }
-     **/
-
     public void calculateIonPosterior() {
         // Sort table and find min and max
         this.datapoints.sortRowsByProjVal();

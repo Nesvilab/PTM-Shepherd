@@ -5,13 +5,13 @@ import edu.umich.andykong.ptmshepherd.utils.Peptide;
 import java.util.ArrayList;
 
 public class DownstreamPepFragGenerator {
-    public static ArrayList<Float> calculatePeptideFragments(Peptide pep, String ionTypes, int fromResidue) {
+    public static ArrayList<Float> calculatePeptideFragments(Peptide pep, String ionTypes, int fromResidue, int maxCharge) {
         ArrayList<Float> pepFrags = new ArrayList<>();
 
         ArrayList<Float> tmpPepFrags;
         int startIndex = fromResidue;
         for (Character it : ionTypes.toCharArray()) {
-            tmpPepFrags = pep.calculatePeptideFragments(Character.toString(it), 1);
+            tmpPepFrags = pep.calculatePeptideFragments(Character.toString(it), maxCharge);
             if (it == 'a' || it == 'b' || it == 'c') { //if n-term ion series {
                 if (fromResidue < pep.pepSeq.length()-1) {
                     if (fromResidue != 0) // fragmentation doesn't produce a/b/c_1 ion

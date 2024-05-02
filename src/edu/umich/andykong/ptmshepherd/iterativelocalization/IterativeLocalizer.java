@@ -154,9 +154,9 @@ public class IterativeLocalizer {
 
                             // Get sites that are/would be shifted
                             ArrayList<Float> sitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
-                                    targetPep, this.ionTypes, mutationSite);
+                                    targetPep, this.ionTypes, mutationSite, 1);
                             ArrayList<Float> decoySitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
-                                    decoyPep, this.ionTypes, mutationSite);
+                                    decoyPep, this.ionTypes, mutationSite, 1);
 
                             // Add target peptide values to matched ion histograms
                             float[][] matchedIons = findMatchedIons(sitePepFrags, peakMzs, peakInts);

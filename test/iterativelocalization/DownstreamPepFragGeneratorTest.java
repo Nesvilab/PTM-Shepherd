@@ -18,14 +18,14 @@ public class DownstreamPepFragGeneratorTest {
         Peptide pep = new Peptide(seq, mods);
 
         // Only b2, b3
-        ArrayList<Float> pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "b", 0);
+        ArrayList<Float> pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "b", 0, 1);
         ArrayList<Float> expectedFrags = new ArrayList<>(Arrays.asList(227.1027f, 324.1554f));
         assertEquals(expectedFrags.size(), pepFrags.size());
         for (int i = 0; i < expectedFrags.size(); i++)
             assertEquals(expectedFrags.get(i), pepFrags.get(i), 0.0001, "Mismatch at index " + i);
 
         // Only b2, b3, so empty
-        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "y", 0);
+        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "y", 0, 1);
         expectedFrags = new ArrayList<>(Arrays.asList());
         assertEquals(expectedFrags.size(), pepFrags.size());
         for (int i = 0; i < expectedFrags.size(); i++)
@@ -33,14 +33,14 @@ public class DownstreamPepFragGeneratorTest {
 
 
         // y1, y2, y3, so empty
-        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "b", 3);
+        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "b", 3, 1);
         expectedFrags = new ArrayList<>(Arrays.asList());
         assertEquals(expectedFrags.size(), pepFrags.size());
         for (int i = 0; i < expectedFrags.size(); i++)
             assertEquals(expectedFrags.get(i), pepFrags.get(i), 0.0001, "Mismatch at index " + i);
 
         // y1, y2, y3
-        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "y", 3);
+        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "y", 3, 1);
         expectedFrags = new ArrayList<>(Arrays.asList(120.06556f, 217.11833f, 346.16092f));
         assertEquals(expectedFrags.size(), pepFrags.size());
         for (int i = 0; i < expectedFrags.size(); i++)
@@ -48,14 +48,14 @@ public class DownstreamPepFragGeneratorTest {
 
 
         // b3, y2, y3
-        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "by", 2);
+        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "by", 2, 1);
         expectedFrags = new ArrayList<>(Arrays.asList(324.15544f, 217.11833f, 346.16092f));
         assertEquals(expectedFrags.size(), pepFrags.size());
         for (int i = 0; i < expectedFrags.size(); i++)
             assertEquals(expectedFrags.get(i), pepFrags.get(i), 0.0001, "Mismatch at index " + i);
 
         // b2, b3, y3
-        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "by", 1);
+        pepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(pep, "by", 1, 1);
         expectedFrags = new ArrayList<>(Arrays.asList(227.1027f, 324.1554f, 346.16092f));
         assertEquals(expectedFrags.size(), pepFrags.size());
         for (int i = 0; i < expectedFrags.size(); i++)
