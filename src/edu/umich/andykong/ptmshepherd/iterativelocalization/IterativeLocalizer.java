@@ -676,9 +676,7 @@ public class IterativeLocalizer {
             qEntropyDecoyModel[i] = min;
         }
 
-
-
-
+        
         /**
         // Print to test
         for (int i = flrProb.length-1; i >= 0; i--) {

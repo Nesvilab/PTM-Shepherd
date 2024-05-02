@@ -81,6 +81,13 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             return null; //TODO
     }
 
+    public Peptide generateDecoy(Random rng, String method, int pos) {
+        if (method.equals("swap"))
+            return generateSwappedDecoy(this.pepSeq, this.mods, pos, rng);
+        else
+            return null; //TODO
+    }
+
     public static Peptide generateDecoy(String pep, float[] mods, Random rng, String method) {
         if (method.equals("shuffled"))
             return generateShuffledDecoy(pep, mods, rng);
@@ -148,6 +155,10 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return new Peptide(newPep.toString(), mods, mutSite);
     }
 
+    public static Peptide generateSwappedDecoy(String pepSeq, float[] mods, int pos, Random rng) {
+        //TODO
+        return new Peptide(pepSeq, mods);
+    }
 
     static class Site {
         char aa;
