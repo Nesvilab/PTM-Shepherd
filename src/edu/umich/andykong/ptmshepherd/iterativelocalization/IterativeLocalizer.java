@@ -599,6 +599,7 @@ public class IterativeLocalizer {
                  i++;
              }
          }
+
         // Extract spectrum to q-val and probability mappings in matched order
         HashMap<String, Double> qValsMap = new HashMap<>();
         for (SpecProbQ spq : spqs)

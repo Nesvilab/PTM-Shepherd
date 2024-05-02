@@ -125,16 +125,10 @@ public class MatchedIonDistribution {
     public void addIon(float intensity, float massError, boolean isDecoy) {
         if (!isDecoy) {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
-                int intIndx = (int) (intensity);
-                int massErrorIndx = (int) (massError * 100.0);
-                this.targetPMF.addVal(intIndx, massErrorIndx);
                 datapoints.addRow(massError, intensity, isDecoy);
             }
         } else {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
-                int intIndx = (int) (intensity);
-                int massErrorIndx = (int) (massError * 100.0);
-                this.decoyPMF.addVal(intIndx, massErrorIndx);
                 datapoints.addRow(massError, intensity, isDecoy);
             }
         }
