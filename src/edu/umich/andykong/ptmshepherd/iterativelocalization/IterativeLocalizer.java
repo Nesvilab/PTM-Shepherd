@@ -153,10 +153,13 @@ public class IterativeLocalizer {
                             int mutationSite = decoyPep.mutatedResidue;
 
                             // Get sites that are/would be shifted
-                            ArrayList<Float> sitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
-                                    targetPep, this.ionTypes, mutationSite, 1);
-                            ArrayList<Float> decoySitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
-                                    decoyPep, this.ionTypes, mutationSite, 1);
+                            //ArrayList<Float> sitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
+                            //        targetPep, this.ionTypes, mutationSite, 1);
+                            //ArrayList<Float> decoySitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
+                            //        decoyPep, this.ionTypes, mutationSite, 1);
+
+                            ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragments(this.ionTypes, 1);
+                            ArrayList<Float> decoySitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 1);
 
                             // Add target peptide values to matched ion histograms
                             float[][] matchedIons = findMatchedIons(sitePepFrags, peakMzs, peakInts);
@@ -240,6 +243,7 @@ public class IterativeLocalizer {
                     ArrayList<String> specNames = new ArrayList<>();
                     ArrayList<String> strOutputProbs = new ArrayList<>();
                     ArrayList<String> strMaxProbs = new ArrayList<>();
+                    ArrayList<String> strMaxProbsDecoy = new ArrayList<>();
                     ArrayList<String> strEntropies = new ArrayList<>();
                     ArrayList<String> strMaxProbs2 = new ArrayList<>();
 
@@ -288,6 +292,7 @@ public class IterativeLocalizer {
                                     specNames.add(specName);
                                     strOutputProbs.add(""); // Add empty string if zero bin
                                     strMaxProbs.add("");
+                                    strMaxProbsDecoy.add("");
                                     strEntropies.add("");
                                     strMaxProbs2.add("");
                                     continue;
@@ -335,20 +340,21 @@ public class IterativeLocalizer {
                                 specNames.add(specName);
                                 strOutputProbs.add(probabilitiesToPepString(pep, dMass, siteProbs, allowedPoses));
                                 double maxProb = findMaxLocalizationProbability(siteProbs);
-                                strMaxProbs2.add(Double.toString(maxProb));
                                 String maxProbAA = findMaxLocalizationProbabilitySite(siteProbs, pep);
+                                int maxProbI = findMaxLocalizationProbabilitySiteIndex(siteProbs);
                                 strMaxProbs.add(maxProbToString(maxProb, maxProbAA));
                                 double locEntropy = calculateLocalizationEntropy(siteProbs, allowedPoses);
                                 strEntropies.add(entropyToString(locEntropy));
 
                                 // TODO check decoy usefulness
-                                Peptide decoyPep = Peptide.generateDecoy(pep, mods, this.rng, "mutated");
+                                Peptide decoyPep = Peptide.generateDecoy(pep, mods, maxProbI, this.rng, "mono-swapped");
                                 boolean[] decoyAllowedPoses = parseAllowedPositions(decoyPep.pepSeq,
                                         this.allowedAAs, decoyPep.mods);
                                 double[] decoySiteProbs = localizePsm(psm, spec, decoyPep.pepSeq, decoyPep.mods, dMassApex,
                                         cBin, decoyAllowedPoses);
                                 double decoyMaxProb = findMaxLocalizationProbability(decoySiteProbs);
                                 String decoyMaxProbAA = findMaxLocalizationProbabilitySite(decoySiteProbs, decoyPep.pepSeq);
+                                strMaxProbsDecoy.add(maxProbToString(decoyMaxProb, decoyMaxProbAA));
                                 if (debugFlag) {
                                     if (decoyMaxProb >= maxProb) {
                                         System.out.println(specName + "\t" + pep + "\t" + decoyPep.pepSeq + "\t" +
@@ -367,6 +373,8 @@ public class IterativeLocalizer {
                                 "PTM-Shepherd Localization", specNames, strOutputProbs);
                         psmf.addColumn(psmf.getColumn("PTM-Shepherd Localization") + 1,
                                 "PTM-Shepherd Best Localization", specNames, strMaxProbs);
+                        psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
+                                "PTM-Shepherd Best Decoy Localization", specNames, strMaxProbsDecoy);
                         //psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1,
                         //        "delta_mass_entropy", specNames, strEntropies);
                         //psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
@@ -500,11 +508,14 @@ public class IterativeLocalizer {
         class SpecProbQ implements Comparable<SpecProbQ> {
             String spec;
             double prob;
+            double probDecoy;
             double q;
+            double qDecoy;
 
-            SpecProbQ(String spec, double prob) {
+            SpecProbQ(String spec, double prob, double probDecoy) {
                 this.spec = spec;
                 this.prob = prob;
+                this.probDecoy = probDecoy;
             }
 
             @Override
@@ -531,6 +542,7 @@ public class IterativeLocalizer {
                 ArrayList<String> specs = psmf.getColumnValues("Spectrum");
                 ArrayList<String> peps = psmf.getColumnValues("Peptide");
                 ArrayList<String> maxProbs = psmf.getColumnValues("PTM-Shepherd Best Localization");
+                ArrayList<String> maxProbsDecoy = psmf.getColumnValues("PTM-Shepherd Best Decoy Localization");
                 //ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
 
                 // Add probs to target and decoy histos and calculate nTarget and nDecoyAAs
@@ -564,10 +576,12 @@ public class IterativeLocalizer {
                 }
                 for (int j = 0; j < specs.size(); j++) {
                     String maxProb = maxProbs.get(j);
+                    String maxProbDecoy = maxProbsDecoy.get(j);
                     if (maxProb.equals(""))
                         continue;
                     double prob = Double.parseDouble(subString(maxProb, "(", ")"));
-                    spqs.add(new SpecProbQ(specs.get(j), prob));
+                    double probDecoy = Double.parseDouble(subString(maxProbDecoy, "(", ")"));
+                    spqs.add(new SpecProbQ(specs.get(j), prob, probDecoy));
                 }
 
             }
@@ -576,7 +590,7 @@ public class IterativeLocalizer {
         // Sort in descending probability order
         Collections.sort(spqs, Collections.reverseOrder());
 
-        // Calculate local q-val
+        // Calculate local q-val using probability model
         double runningQSum = 0.0;
         int runningCount = 0;
         for (SpecProbQ spq : spqs) {
@@ -585,7 +599,17 @@ public class IterativeLocalizer {
             spq.q = runningQSum / runningCount;
         }
 
-        // Ensure q-val monotonicity
+        // Calculate local q-val using decoy model
+        runningCount = 0;
+        int runningDecoy = 1;
+        for (SpecProbQ spq : spqs) {
+            if (spq.probDecoy > spq.prob)
+                runningDecoy++;
+            runningCount++;
+            spq.qDecoy = (double) runningDecoy / (double) runningCount;
+        }
+
+        // Ensure q-val monotonicity for probability model
         double cMin = 10000.0;
          for (int i = spqs.size() - 1; i >= 0; i--) {
              double tQ = spqs.get(i).q;
@@ -600,10 +624,28 @@ public class IterativeLocalizer {
              }
          }
 
+        // Ensure q-val monotonicity for decoy model
+        cMin = 10000.0;
+        for (int i = spqs.size() - 1; i >= 0; i--) {
+            double tQ = spqs.get(i).qDecoy;
+            if (spqs.get(i).qDecoy < cMin) {
+                cMin = tQ;
+            } else {
+                while ((i >= 0) && (spqs.get(i).qDecoy >= cMin)) {
+                    spqs.get(i).qDecoy = cMin;
+                    i--;
+                }
+                i++;
+            }
+        }
+
         // Extract spectrum to q-val and probability mappings in matched order
         HashMap<String, Double> qValsMap = new HashMap<>();
-        for (SpecProbQ spq : spqs)
+        HashMap<String, Double> qValsDecoyMap = new HashMap<>();
+        for (SpecProbQ spq : spqs) {
             qValsMap.put(spq.spec, spq.q);
+            qValsDecoyMap.put(spq.spec, spq.qDecoy);
+        }
 
         // Calculate the FLRs of each type
         // Three different FLRs to compute
@@ -676,7 +718,7 @@ public class IterativeLocalizer {
             qEntropyDecoyModel[i] = min;
         }
 
-        
+
         /**
         // Print to test
         for (int i = flrProb.length-1; i >= 0; i--) {
@@ -717,6 +759,7 @@ public class IterativeLocalizer {
 
                 // Assign each q-Val
                 ArrayList<String> probModelQVals = new ArrayList<>(specNames.size());
+                ArrayList<String> decoyModelQVals = new ArrayList<>(specNames.size());
                 //ArrayList<String> probDecoyModelVals = new ArrayList<>(specNames.size());
                 //ArrayList<String> entropyDecoyModelVals = new ArrayList<>(specNames.size());
                 for (int j = 0; j < specNames.size(); j++) {
@@ -725,6 +768,7 @@ public class IterativeLocalizer {
                     if (unmodFlag) {
                         // prob model
                         probModelQVals.add("");
+                        decoyModelQVals.add("");
                         // prob model with decoys
                         //probDecoyModelVals.add("");
                         // entropy model
@@ -732,6 +776,7 @@ public class IterativeLocalizer {
                     } else {
                         // prob model
                         probModelQVals.add(new DecimalFormat("0.0000").format(qValsMap.get(specNames.get(j))));
+                        decoyModelQVals.add(new DecimalFormat("0.0000").format(qValsDecoyMap.get(specNames.get(j))));
                         // prob model with decoys
                         //probDecoyModelVals.add(new DecimalFormat("0.0000").format(qProbDecoyModel[(int) (maxProb * 1000)]));
                         // entropy model
@@ -743,6 +788,8 @@ public class IterativeLocalizer {
                 // Send to PSM file
                 psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1, "PTM-Shepherd q-val",
                         specNames, probModelQVals);
+                psmf.addColumn(psmf.getColumn("PTM-Shepherd q-val") + 1, "PTM-Shepherd decoy q-val",
+                        specNames, decoyModelQVals);
                 /** //TODO figure out what's going on with these before implementing them, assuming they're even worth doing
                 psmf.addColumn(psmf.getColumn("delta_mass_BH_loc_q") + 1, "delta_mass_prob_decoyAA_q",
                         specNames, probDecoyModelVals);
@@ -1159,6 +1206,19 @@ public class IterativeLocalizer {
         String site = pep.charAt(maxI) + Integer.toString(maxI+1);
 
         return site;
+    }
+
+    private int findMaxLocalizationProbabilitySiteIndex(double[] locProbs) {
+        double max = 0.0;
+        int maxI = -1;
+        for (int i  = 0; i < locProbs.length; i++) {
+            if (locProbs[i] > max) {
+                max = locProbs[i];
+                maxI = i;
+            }
+        }
+
+        return maxI;
     }
 
     private void advanceEpochBins(double convCriterion) {

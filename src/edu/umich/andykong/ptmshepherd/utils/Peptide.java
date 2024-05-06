@@ -72,18 +72,15 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
 
     public Peptide generateDecoy(Random rng, String method) {
         if (method.equals("shuffled"))
-            return generateShuffledDecoy(this.pepSeq, mods, rng);
+            return generateShuffledDecoy(this.pepSeq, this.mods, rng);
+        else if (method.equals("full-shuffled"))
+            return generateFullShuffledDecoy(this.pepSeq, this.mods, rng);
+        else if (method.equals("swapped"))
+            return generateSwappedDecoy(this.pepSeq, this.mods, rng);
         else if (method.equals("mutated"))
-            return generateMutatedDecoy(this.pepSeq, mods);
+            return generateMutatedDecoy(this.pepSeq, this.mods);
         else if (method.equals("mono-mutated"))
             return generateMonoMutatedDecoy(this.pepSeq, mods, rng);
-        else
-            return null; //TODO
-    }
-
-    public Peptide generateDecoy(Random rng, String method, int pos) {
-        if (method.equals("swap"))
-            return generateSwappedDecoy(this.pepSeq, this.mods, pos, rng);
         else
             return null; //TODO
     }
@@ -91,6 +88,10 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
     public static Peptide generateDecoy(String pep, float[] mods, Random rng, String method) {
         if (method.equals("shuffled"))
             return generateShuffledDecoy(pep, mods, rng);
+        else if (method.equals("full-shuffled"))
+            return generateFullShuffledDecoy(pep, mods, rng);
+        else if (method.equals("swapped"))
+            return generateSwappedDecoy(pep, mods, rng);
         else if (method.equals("mutated"))
             return generateMutatedDecoy(pep, mods);
         else if (method.equals("mono-mutated"))
@@ -99,6 +100,12 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             return null; //TODO
     }
 
+    public static Peptide generateDecoy(String pep, float[] mods, int pos, Random rng, String method) {
+        if (method.equals("mono-swapped"))
+            return generateMonoSwappedDecoy(pep, mods, pos, rng);
+        else
+            return null; //TODO
+    }
 
     public static Peptide generateShuffledDecoy(String pep, float[] mods, Random rng) {
         ArrayList<Site> sites = new ArrayList<>(pep.length());
@@ -120,6 +127,25 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         // C-term AA
         newPep.append(pep.charAt(pep.length()-1));
         newMods[newMods.length-1] = mods[mods.length-1];
+
+        return new Peptide(newPep.toString(), newMods);
+    }
+
+    public static Peptide generateFullShuffledDecoy(String pep, float[] mods, Random rng) {
+        ArrayList<Site> sites = new ArrayList<>(pep.length());
+
+        // Shuffle pep
+        for (int i = 0; i < pep.length(); i++)
+            sites.add(new Site(pep.charAt(i), mods[i]));
+        Collections.shuffle(sites, rng);
+
+        StringBuilder newPep = new StringBuilder();
+        float[] newMods = new float[mods.length];
+
+        for (int i = 0; i < sites.size(); i++) {
+            newPep.append(sites.get(i).aa);
+            newMods[i] = sites.get(i).mod;
+        }
 
         return new Peptide(newPep.toString(), newMods);
     }
@@ -155,9 +181,41 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return new Peptide(newPep.toString(), mods, mutSite);
     }
 
-    public static Peptide generateSwappedDecoy(String pepSeq, float[] mods, int pos, Random rng) {
-        //TODO
-        return new Peptide(pepSeq, mods);
+    public static Peptide generateSwappedDecoy(String pepSeq, float[] mods, Random rng) {
+        int pos = rng.nextInt(pepSeq.length());
+        int swapPos = pos;
+        while (swapPos == pos)
+            swapPos = rng.nextInt(pepSeq.length());
+
+        char swapAA = pepSeq.charAt(swapPos);
+        float swapMod = mods[swapPos];
+
+        char[] pepSeqArray = pepSeq.toCharArray();
+        pepSeqArray[swapPos] = pepSeqArray[pos];
+        mods[swapPos] = mods[pos];
+
+        pepSeqArray[pos] = swapAA;
+        mods[pos] = swapMod;
+
+        return new Peptide(pepSeqArray.toString(), mods);
+    }
+
+    public static Peptide generateMonoSwappedDecoy(String pepSeq, float[] mods, int pos, Random rng) {
+        int swapPos = pos;
+        while (Math.abs(swapPos - pos) < (pepSeq.length() / 2))
+            swapPos = rng.nextInt(pepSeq.length());
+
+        char swapAA = pepSeq.charAt(swapPos);
+        float swapMod = mods[swapPos];
+
+        char[] pepSeqArray = pepSeq.toCharArray();
+        pepSeqArray[swapPos] = pepSeqArray[pos];
+        mods[swapPos] = mods[pos];
+
+        pepSeqArray[pos] = swapAA;
+        mods[pos] = swapMod;
+
+        return new Peptide(String.valueOf(pepSeqArray), mods);
     }
 
     static class Site {
