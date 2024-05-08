@@ -1,6 +1,7 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
 import edu.umich.andykong.ptmshepherd.PSMFile;
+import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
@@ -8,6 +9,7 @@ import edu.umich.andykong.ptmshepherd.utils.Peptide;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.lang.reflect.Array;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -152,17 +154,43 @@ public class IterativeLocalizer {
                             Peptide decoyPep = targetPep.generateDecoy(this.rng, "mono-mutated");
                             int mutationSite = decoyPep.mutatedResidue;
 
+                            // Calculate fake PTM mass shift
+                            float massShift = AAMasses.monoisotopic_masses[targetPep.pepSeq.charAt(mutationSite) - 'A'] -
+                                    AAMasses.monoisotopic_masses[decoyPep.pepSeq.charAt(mutationSite) - 'A'];
+
+                            // Get set of reduced ions that match at least one configuration
+                            float[][] reducedIons = getReducedIons(spec, decoyPep, massShift);
+                            float[] reducedMzs = reducedIons[0];
+                            float[] reducedInts = reducedIons[1];
+
                             // Get sites that are/would be shifted
                             //ArrayList<Float> sitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
                             //        targetPep, this.ionTypes, mutationSite, 1);
                             //ArrayList<Float> decoySitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
                             //        decoyPep, this.ionTypes, mutationSite, 1);
+                            // Generate target and decoy fragments
+                            ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragments(this.ionTypes, 2);
+                            ArrayList<Float> decoySitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 2);
 
-                            ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragments(this.ionTypes, 1);
-                            ArrayList<Float> decoySitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 1);
-
+                            // Score over all possible sites
+                            /**
+                            for (int k = 0; k < decoyPep.pepSeq.length(); k++) {
+                                decoyPep.addMod(dMass, k);
+                                ArrayList<Float> sitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 2);
+                                float[][] matchedIons = findMatchedIons(sitePepFrags, reducedMzs, reducedInts);
+                                float[] matchedIonIntensities = matchedIons[0];
+                                float[] matchedIonMassErrors = matchedIons[1];
+                                if (k == mutationSite) {
+                                    this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, false);
+                                } else {
+                                    this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, true);
+                                }
+                                decoyPep.addMod(-1*dMass, k);
+                            }
+                             **/
                             // Add target peptide values to matched ion histograms
-                            float[][] matchedIons = findMatchedIons(sitePepFrags, peakMzs, peakInts);
+
+                            float[][] matchedIons = findMatchedIons(sitePepFrags, reducedMzs, reducedInts);
                             float[] matchedIonIntensities = matchedIons[0];
                             float[] matchedIonMassErrors = matchedIons[1];
                             this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, false);
@@ -182,6 +210,8 @@ public class IterativeLocalizer {
         else {
             this.matchedIonDist.calculateLdaWeights();
             this.matchedIonDist.calculateIonPosterior();
+            this.matchedIonDist.calculateNegativePredictiveValue();
+            System.out.println(this.matchedIonDist.negPredictiveValue); //XXXQQQ
         }
         if (this.printIonDistribution) {
             //this.matchedIonDist.printIntensityHisto("matched_ion_intensity_distribution.tsv");
@@ -846,32 +876,12 @@ public class IterativeLocalizer {
         // Iterate through sites to compute likelihood for each site P(Spec_i|Pep_{ij})
         // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
         // is equal to the proximal AA
-        /**
-        for(int i = 0; i < pep.length(); i++) {
-            if (allowedPoses[i+1] == false) {
-                siteLikelihoods[i+1] = 0.0;
-                continue;
-            }
-            mods[i] += dMass;
-            ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
-            if (debugFlag) {
-                System.out.println(pep);
-                System.out.println("Position " + (i + 1));
-                System.out.println(spec);
-            }
-            siteLikelihoods[i+1] = computeLikelihood(sitePepFrags, reducedMzs, reducedInts);
-            mods[i] -= dMass;
-        }
-         **/
-
-        // Iterate through sites to compute likelihood for each site P(Spec_i|Pep_{ij})
-        // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
-        // is equal to the proximal AA
         // Check to see if the likelihood has already been computed. If it has, grab it. If not, compute it.
         if (this.localizationLikelihoodMap.containsKey(psm.getSpec())) {
             siteLikelihoods = this.localizationLikelihoodMap.get(psm.getSpec()).getMod().getSiteLikelihoods();
         } else {
-            siteLikelihoods = computePoissonBinomialLikelihood(pep, mods, dMass, allowedPoses, spec);
+            //siteLikelihoods = computePoissonBinomialLikelihood(pep, mods, dMass, allowedPoses, spec);
+            siteLikelihoods = computeLikelihoods(pep, mods, dMass, allowedPoses, spec);
             this.localizationLikelihoodMap.put(psm.getSpec(), new LocalizationLikelihood(dMass, siteLikelihoods));
         }
 
@@ -999,6 +1009,109 @@ public class IterativeLocalizer {
      *
      * P(Spec_i|Pep_{ij}) is given by prod(Peak_k|Pep_{ij}),
      * where P(Peak_k|Pep_{ij}) = CDF(intensity_i) if matched and 1-CDF(intensity_i) if unmatched.
+     * @param pep
+     * @param mods
+     * @param dMass
+     * @param allowedPoses
+     * @param spec
+     * @return likelihood of a particular site
+     */
+    private double[] computeLikelihoods(String pep, float[] mods, float dMass, boolean[] allowedPoses,
+                                      Spectrum spec) {
+        // First calculate the set of shifted and unshifted ions
+        ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
+        ArrayList<Float> shiftedPepFrags = new ArrayList<Float>(pepFrags.size());
+        for (Float frag : pepFrags)
+            shiftedPepFrags.add(frag + dMass);
+        pepFrags.addAll(shiftedPepFrags);
+
+        if (debugFlag)
+            System.out.println(pepFrags.stream().map(Object::toString)
+                    .collect(Collectors.joining(", ")));
+
+        // Filter peakMzs and peakInts to only those that match at least one ion
+        float[] peakMzs = spec.getPeakMZ();
+        float[] peakInts = spec.getPeakInt();
+        float[] matchedAtLeastOneIons = findMatchedIons(pepFrags, peakMzs, peakInts)[0]; // Returns -1 if unmatched, intensity otherwise // [0] is intensities, [1] is mass errors TODO rewrite
+        int matchedCount = 0;
+        for (int i = 0; i < matchedAtLeastOneIons.length; i++) {
+            if (matchedAtLeastOneIons[i] > 0.0)
+                matchedCount++;
+        }
+        float[] reducedMzs = new float[matchedCount];
+        float[] reducedInts = new float[matchedCount];
+        int j = 0;
+        for (int i = 0; i < matchedAtLeastOneIons.length; i++) {
+            if (matchedAtLeastOneIons[i] > 0.0) {
+                reducedMzs[j] = peakMzs[i];
+                reducedInts[j] = peakInts[i];
+                j++;
+            }
+        }
+
+        // Set up structures to hold site matched ion probabilities
+        double[][] ionProbs = new double[pep.length()][peakMzs.length];
+
+        // Loop through sites and calculate the matched ions
+        for(int i = 0; i < pep.length(); i++) {
+            if (!allowedPoses[i])
+                continue;
+            mods[i] += dMass;
+            ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 2);
+            // Find matched ion intensities. Matched ions will have positive intensities, unmatched ions will have negative
+            float[][] matchedIons = findMatchedIons(sitePepFrags, reducedMzs, reducedInts);
+            float[] matchedIonIntensities = matchedIons[0];
+            float[] matchedIonMassErrors = matchedIons[1];
+            // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
+            double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities, matchedIonMassErrors);
+            if (debugFlag) {
+                System.out.println("Matched ions");
+                System.out.println(pep);
+                System.out.println("Position " + (i + 1));;
+                System.out.println(Arrays.toString(matchedIonIntensities));
+                System.out.println(Arrays.toString(matchedIonProbabilities));
+                System.out.println("Matched ions done");
+            }
+            // Store for likelihood calculation
+            ionProbs[i] = matchedIonProbabilities;
+            // Remove delta mass to prepare for next position
+            mods[i] -= dMass;
+        }
+
+        // Compute site likelihoods
+        double[] siteLikelihoods = new double[pep.length()];
+        for (int i = 0; i < pep.length(); i++) {
+            if (allowedPoses[i]) {
+                siteLikelihoods[i] = computeSiteLikelihood(ionProbs[i]);
+            }
+        }
+
+        return siteLikelihoods;
+    }
+
+    public static double computeSiteLikelihood(double[] ionProbs) {
+        double likelihood = 1.0;
+        for (int i = 0; i < ionProbs.length; i++) {
+            likelihood *= ionProbs[i];
+            //if (ionProbs[i] > 0.0)
+            //    likelihood *= ionProbs[i];
+            //else
+            //    likelihood *= 0.05;
+                //likelihood *= ionProbs[i] * -1;
+        }
+        return likelihood;
+    }
+
+
+    /**
+     * Computes the likelihood P(Spec_i|Pep_{ij}) of a particular localization site using either the PTMiner model
+     * or the adapted PTMiner model. Matched and unmatched ion intensities are retrieved from the spectrum.
+     * Unmatched ions have their intensities multiplied by -1. Matched ions are mapped to the MatchedIonDistribution
+     * with negative (unmatched) intensities ignored, then the array is flipped and the unmatched ions in the spectrum
+     * are mapped to the MatchedIonDistribution.
+     *
+     * P(Spec_i|Pep_{ij}) is given by prod(Peak_k|Pep_{ij}),
+     * where P(Peak_k|Pep_{ij}) = CDF(intensity_i) if matched and 1-CDF(intensity_i) if unmatched.
      * @param pepFrags  theoretical peptide fragments
      * @param peakMzs   spectrum peak M/Zs
      * @param peakInts  spectrum peak intensities
@@ -1055,6 +1168,40 @@ public class IterativeLocalizer {
         }
 
         return likelihood;
+    }
+
+    public float[][] getReducedIons(Spectrum spec, Peptide pep, float dMass) {
+        // First calculate the set of shifted and unshifted ions
+        ArrayList<Float> pepFrags = pep.calculatePeptideFragments(this.ionTypes, 2);
+        ArrayList<Float> shiftedPepFrags = new ArrayList<>(pepFrags.size());
+        for (Float frag : pepFrags)
+            shiftedPepFrags.add(frag + dMass);
+        pepFrags.addAll(shiftedPepFrags);
+
+        // Filter peakMzs and peakInts to only those that match at least one ion
+        float[] peakMzs = spec.getPeakMZ();
+        float[] peakInts = spec.getPeakInt();
+        float[] matchedAtLeastOneIons = findMatchedIons(pepFrags, peakMzs, peakInts)[0]; // Returns -1 if unmatched, intensity otherwise // [0] is intensities, [1] is mass errors TODO rewrite
+        int matchedCount = 0;
+        for (int i = 0; i < matchedAtLeastOneIons.length; i++) {
+            if (matchedAtLeastOneIons[i] > 0.0)
+                matchedCount++;
+        }
+        float[][] reducedIons = new float[2][matchedCount];
+        float[] reducedMzs = new float[matchedCount];
+        float[] reducedInts = new float[matchedCount];
+        int j = 0;
+        for (int i = 0; i < matchedAtLeastOneIons.length; i++) {
+            if (matchedAtLeastOneIons[i] > 0.0) {
+                reducedMzs[j] = peakMzs[i]; //todo remove
+                reducedInts[j] = peakInts[i];
+                reducedIons[0][j] = peakMzs[i];
+                reducedIons[1][j] = peakInts[i];
+                j++;
+            }
+        }
+
+        return reducedIons;
     }
 
     /**

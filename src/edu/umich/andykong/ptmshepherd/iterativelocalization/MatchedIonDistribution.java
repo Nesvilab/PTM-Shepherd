@@ -15,6 +15,10 @@ public class MatchedIonDistribution {
     double[] cdf;
     double[] qVals;
 
+    int dNegCount;
+    int tNegCount;
+    double negPredictiveValue;
+
     int[] projTargetCounts;
     int[] projDecoyCounts;
 
@@ -50,6 +54,8 @@ public class MatchedIonDistribution {
             this.targetPMF = new TwoDimJointPMF(101, 3001, true, true);
             this.decoyPMF = new TwoDimJointPMF(101, 3001, true, true);
         }
+        this.tNegCount = 0;
+        this.dNegCount = 0;
     }
 
     // Original was ptminer mode
@@ -125,11 +131,15 @@ public class MatchedIonDistribution {
     public void addIon(float intensity, float massError, boolean isDecoy) {
         if (!isDecoy) {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
-                datapoints.addRow(massError, intensity, isDecoy);
+                this.datapoints.addRow(massError, intensity, isDecoy);
+            } else {
+                this.tNegCount++;
             }
         } else {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
-                datapoints.addRow(massError, intensity, isDecoy);
+                this.datapoints.addRow(massError, intensity, isDecoy);
+            } else {
+                this.dNegCount++;
             }
         }
     }
@@ -206,7 +216,7 @@ public class MatchedIonDistribution {
             for (int i = 0; i < arraySize; i++) {
                 nTargets += this.projTargetCounts[i];
                 nDecoys += this.projDecoyCounts[i];
-                this.qVals[i] = (double) nDecoys / (double) nTargets;
+                this.qVals[i] = (double) nDecoys / (double) (nTargets);
             }
             // Make array monotonic
             for (int i = arraySize-1; i >= 0; i--) {
@@ -224,7 +234,7 @@ public class MatchedIonDistribution {
             for (int i = arraySize-1; i >= 0; i--) {
                 nTargets += this.projTargetCounts[i];
                 nDecoys += this.projDecoyCounts[i];
-                this.qVals[i] = (double) nDecoys / (double) nTargets;
+                this.qVals[i] = (double) nDecoys / (double) (nTargets);
             }
             // Make array monotonic
             for (int i = 0; i < arraySize; i++) {
@@ -246,13 +256,17 @@ public class MatchedIonDistribution {
         int arraySize = this.projDecoyCounts.length;
         boolean leftToRight = true;
         int leftToRightDecoyCount = 0;
+        int leftToRightTargetCount = 0;
         int rightToLeftDecoyCount = 0;
+        int rightToLeftTargetCount = 0;
         for (int i = 0; i < ((arraySize / 2) + 1); i++) {
             leftToRightDecoyCount += this.projDecoyCounts[i];
+            leftToRightTargetCount += this.projTargetCounts[i];
             rightToLeftDecoyCount += this.projDecoyCounts[arraySize - (i + 1)];
+            rightToLeftTargetCount += this.projTargetCounts[arraySize - (i + 1)];
         }
 
-        if (rightToLeftDecoyCount > leftToRightDecoyCount)
+        if ((rightToLeftDecoyCount / rightToLeftTargetCount) > (leftToRightDecoyCount / leftToRightTargetCount))
             leftToRight = false;
 
         return leftToRight;
@@ -263,6 +277,11 @@ public class MatchedIonDistribution {
         this.ldaProcessor = new LDAProcessor(this.datapoints);
         this.ldaProcessor.solveLDA(executorService);
         this.datapoints.mergeProjectedData(ldaProcessor.projectedData);
+    }
+
+    public void calculateNegativePredictiveValue() { // todo see if adding 1 here helps
+        this.negPredictiveValue = (double) (this.tNegCount + 1) / (double) (this.dNegCount);
+        //this.negPredictiveValue = Math.max(this.negPredictiveValue, 0.01);
     }
 
 
@@ -405,7 +424,7 @@ public class MatchedIonDistribution {
         double projVal;
         double prob;
         if (intensity < 0)
-            prob = -1;
+            prob = this.negPredictiveValue;
         else {
             projVal = this.ldaProcessor.projectData(massError, intensity).getEntry(0,0);
             int projValIndex = translateLdaValToIndex(projVal);
@@ -468,12 +487,17 @@ public class MatchedIonDistribution {
         out.close();
     }
 
-    public void printFeatureTable(String fname) throws IOException {
-        PrintWriter out = new PrintWriter(new FileWriter(fname));
-        out.println("mass_error\tintensity\tprojected_value\tis_decoy");
-        for (MatchedIonTable.MatchedIonRow row : datapoints.rows)
-            out.println(row);
-        out.close();
+    public void printFeatureTable(String fname) {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(fname));
+            out.println("mass_error\tintensity\tprojected_value\tis_decoy");
+            for (MatchedIonTable.MatchedIonRow row : datapoints.rows)
+                out.println(row);
+            out.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+          System.exit(1);
+        }
     }
 
     public void printPriorProbabilities(String fname) throws IOException {

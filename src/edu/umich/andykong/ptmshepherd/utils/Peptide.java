@@ -22,6 +22,11 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         this.mutatedResidue = mutatedResidue;
     }
 
+    // Add mod, 0-index
+    public void addMod(float dmass, int residue) {
+        this.mods[residue] += dmass;
+    }
+
     public ArrayList<Float> calculatePeptideFragments(String ionTypes, int maxCharge) {
        return  calculatePeptideFragments(this.pepSeq, this.mods, ionTypes, maxCharge);
     }

@@ -52,8 +52,15 @@ public class IterativeLocalizerTest {
         assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));
     }
 
+    //@Test
+    void computeSiteLikelihoodTest() {
+        double[] ionProbs = new double[]{1, 0.5, -1};
+        double siteLikelihood = IterativeLocalizer.computeSiteLikelihood(ionProbs);
+        double expectedLikelihood = 0.005;
+        assertEquals(siteLikelihood, expectedLikelihood, 0.01);
+    }
     @Test
-    void computePoissonBinomialLikelihood() { // TODO test
+    void computePoissonBinomialLikelihood() {
         String pep = "PASGAGAGAGAGKR";
         float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
         float dMass = 100.0188f;
