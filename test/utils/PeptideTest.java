@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,7 +37,7 @@ public class PeptideTest {
     @Test
     void calculatePeptideFragments() {
         String seq = "PEPT";
-        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f};
         Peptide pep = new Peptide(seq, mods);
 
         ArrayList<Float> sitePepFrags = pep.calculatePeptideFragments("b", 1);
@@ -51,5 +52,14 @@ public class PeptideTest {
         for (int i = 0; i < expectedFrags.size(); i++) {
             assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
         }
+
+        seq = "PASGAGAGAGAGKR";
+        mods = new float[]{114.0448f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        pep = new Peptide(seq, mods);
+
+        sitePepFrags = pep.calculatePeptideFragments("b", 1);
+
+        System.out.println(sitePepFrags.toString());
+
     }
 }

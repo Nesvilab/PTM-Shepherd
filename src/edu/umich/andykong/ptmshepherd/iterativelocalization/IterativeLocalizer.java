@@ -173,8 +173,8 @@ public class IterativeLocalizer {
                             //ArrayList<Float> decoySitePepFrags = DownstreamPepFragGenerator.calculatePeptideFragments(
                             //        decoyPep, this.ionTypes, mutationSite, 1);
                             // Generate target and decoy fragments
-                            ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragments(this.ionTypes, 2);
-                            ArrayList<Float> decoySitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 2);
+                            ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragments(this.ionTypes, 1);
+                            ArrayList<Float> decoySitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 1);
 
                             // Score over all possible sites
                             /**
@@ -318,9 +318,9 @@ public class IterativeLocalizer {
                                     dMassApex = dMass;
                                 else
                                     continue;
+                            } else {
+                                dMassApex = dMass; // Using real dmass prevents bad peakpicking from distorting loc
                             }
-                            else
-                                dMassApex = (float) this.peaks[0][cBin]; // TODO which ones to use?
 
                             // Ignore zero bin, unless on the last pass and writing results TODO: set up custom bounds?
                             if ((zbL <= dMass) && (dMass <= zbR)) {
@@ -360,14 +360,14 @@ public class IterativeLocalizer {
                                 }
                             }
 
-                            //if (specName.equals("02330a_GC1_3990_03_PTM_TrainKit_Rmod_Dimethyl_asymm_200fmol_3xHCD_R1.15210.15210")) {
-                            //    this.debugFlag = true;
-                            //}
+                            if (specName.equals("02330a_GH3_3991_13_PTM_TrainKit_Pmod_Hydroxyproline_200fmol_3xHCD_R1.07708.07708")) {
+                                this.debugFlag = true;
+                            }
 
                             // Calculate site-specific localization probabilities
                             float[] mods = psm.getModsAsArray();
                             boolean[] allowedPoses = parseAllowedPositions(pep, this.allowedAAs, mods);
-                            double[] siteProbs = localizePsm(psm, spec, pep, mods, dMassApex, cBin, allowedPoses); // TODO check whether raw, theoretical, or peakapex is better
+                            double[] siteProbs = localizePsm(psm, spec, pep, mods, dMassApex, cBin, allowedPoses, false); // TODO check whether raw, theoretical, or peakapex is better
 
                             // Update prior probabilities
                             if (!finalPass)
@@ -387,7 +387,7 @@ public class IterativeLocalizer {
                                 boolean[] decoyAllowedPoses = parseAllowedPositions(decoyPep.pepSeq,
                                         this.allowedAAs, decoyPep.mods);
                                 double[] decoySiteProbs = localizePsm(psm, spec, decoyPep.pepSeq, decoyPep.mods, dMassApex,
-                                        cBin, decoyAllowedPoses);
+                                        cBin, decoyAllowedPoses, true);
                                 double decoyMaxProb = findMaxLocalizationProbability(decoySiteProbs);
                                 String decoyMaxProbAA = findMaxLocalizationProbabilitySite(decoySiteProbs, decoyPep.pepSeq);
                                 strMaxProbsDecoy.add(maxProbToString(decoyMaxProb, decoyMaxProbAA));
@@ -879,7 +879,7 @@ public class IterativeLocalizer {
      * @param allowedPoses  array of allowed positions based on peptide sequence localization restrictions TODO add mods
      * @return double[] of localization probabilities
      */
-    private double[] localizePsm (PSMFile.PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses) {
+    private double[] localizePsm (PSMFile.PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
         double[] sitePriorProbs;
         double[] siteLikelihoods = new double[pep.length()];
         double marginalProb = 0.0;
@@ -895,12 +895,13 @@ public class IterativeLocalizer {
         // There are no ions that can differentiate termini and terminal AAs, so the likelihood for each terminus
         // is equal to the proximal AA
         // Check to see if the likelihood has already been computed. If it has, grab it. If not, compute it.
-        if (this.localizationLikelihoodMap.containsKey(psm.getSpec())) {
+        if (this.localizationLikelihoodMap.containsKey(psm.getSpec()) && !isDecoy) {
             siteLikelihoods = this.localizationLikelihoodMap.get(psm.getSpec()).getMod().getSiteLikelihoods();
         } else {
             //siteLikelihoods = computePoissonBinomialLikelihood(pep, mods, dMass, allowedPoses, spec);
             siteLikelihoods = computeLikelihoods(pep, mods, dMass, allowedPoses, spec);
-            this.localizationLikelihoodMap.put(psm.getSpec(), new LocalizationLikelihood(dMass, siteLikelihoods));
+            if (!isDecoy)
+                this.localizationLikelihoodMap.put(psm.getSpec(), new LocalizationLikelihood(dMass, siteLikelihoods));
         }
 
         // Compute marginal probability for peptide Sum_{k=0}^{{L_i}+1} P(Pep_{ik})*P(Spec_i|Pep_{ik})
@@ -997,9 +998,10 @@ public class IterativeLocalizer {
             // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
             double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities, matchedIonMassErrors);
             if (debugFlag) {
-                System.out.println("Matched ions");
+                System.out.println("Start");
                 System.out.println(pep);
                 System.out.println("Position " + (i + 1));;
+                System.out.println("Matched ions");
                 System.out.println(Arrays.toString(matchedIonIntensities));
                 System.out.println(Arrays.toString(matchedIonProbabilities));
                 System.out.println("Matched ions done");
@@ -1075,7 +1077,7 @@ public class IterativeLocalizer {
             if (!allowedPoses[i])
                 continue;
             mods[i] += dMass;
-            ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 2);
+            ArrayList<Float> sitePepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
             // Find matched ion intensities. Matched ions will have positive intensities, unmatched ions will have negative
             float[][] matchedIons = findMatchedIons(sitePepFrags, reducedMzs, reducedInts);
             float[] matchedIonIntensities = matchedIons[0];
@@ -1190,7 +1192,7 @@ public class IterativeLocalizer {
 
     public float[][] getReducedIons(Spectrum spec, Peptide pep, float dMass) {
         // First calculate the set of shifted and unshifted ions
-        ArrayList<Float> pepFrags = pep.calculatePeptideFragments(this.ionTypes, 2);
+        ArrayList<Float> pepFrags = pep.calculatePeptideFragments(this.ionTypes, 1);
         ArrayList<Float> shiftedPepFrags = new ArrayList<>(pepFrags.size());
         for (Float frag : pepFrags)
             shiftedPepFrags.add(frag + dMass);
