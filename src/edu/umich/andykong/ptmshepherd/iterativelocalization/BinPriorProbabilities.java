@@ -27,7 +27,6 @@ public class BinPriorProbabilities {
     int nPsms;
     double priorVectorNorm;
     boolean isConverged;
-    int epoch;
     final double INITVAL = 1.0 / 62.0;
     final char[] AAs = {'A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L',
             'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'};
@@ -55,7 +54,6 @@ public class BinPriorProbabilities {
         this.nT1 = 0.0;
         this.cT1 = 0.0;
 
-        this.epoch = 0;
         this.priorVectorNorm = 0.0;
         this.isConverged = false;
 
@@ -71,11 +69,11 @@ public class BinPriorProbabilities {
             char cAA = pep.charAt(i);
             if (allowedPoses[i] == true) {
                 if (i == 0) { // Pick max probability for N-terminal options
-                    double curProb = Math.max(this.n, Math.max(this.nProbs[cAA-'A'], this.probs[cAA-'A']));
+                    double curProb = (this.n + this.nProbs[cAA-'A'] + this.probs[cAA-'A']) / 3.0;
                     priorProbs[i] = curProb;
                     sumProbs += curProb;
                 } else if (i == pep.length()-1) { // Pick max probability for C-terminal options
-                    double curProb = Math.max(this.c, Math.max(this.cProbs[cAA-'A'], this.probs[cAA-'A']));
+                    double curProb = (this.c + this.cProbs[cAA-'A'] + this.probs[cAA-'A']) / 3.0;
                     priorProbs[i] = curProb;
                     sumProbs += curProb;
                 } else {
@@ -216,6 +214,30 @@ public class BinPriorProbabilities {
         return this.isConverged;
     }
 
+    static public String fileHeaderToString() {
+        return new String("mass_shift\tepoch\tlocation\tvalue\n");
+    }
+
+    public String fileLinesToString(float dMass, int epoch) {
+        StringBuffer sb = new StringBuffer();
+
+        sb.append(String.format("%f\t%d\t%s\t%.4f\n", dMass, epoch, "n", this.n));
+        sb.append(String.format("%f\t%d\t%s\t%.4f\n", dMass, epoch, "c", this.c));
+
+        for (Character c : this.AAs) {
+            sb.append(String.format("%f\t%d\tn%c\t%.4f\n", dMass, epoch, c, this.nProbs[c-'A']));
+        }
+
+        for (Character c : this.AAs) {
+            sb.append(String.format("%f\t%d\tc%c\t%.4f\n", dMass, epoch, c, this.cProbs[c-'A']));
+        }
+
+        for (Character c : this.AAs) {
+            sb.append(String.format("%f\t%d\t%c\t%.4f\n", dMass, epoch, c, this.probs[c-'A']));
+        }
+
+        return sb.toString();
+    }
 
     public String toString() {
         StringBuffer sb = new StringBuffer("\nprobs\t");

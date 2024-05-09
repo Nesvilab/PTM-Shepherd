@@ -1,6 +1,7 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
 import edu.umich.andykong.ptmshepherd.PSMFile;
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
@@ -9,6 +10,9 @@ import edu.umich.andykong.ptmshepherd.utils.Peptide;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.reflect.Array;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -211,7 +215,6 @@ public class IterativeLocalizer {
             this.matchedIonDist.calculateLdaWeights();
             this.matchedIonDist.calculateIonPosterior();
             this.matchedIonDist.calculateNegativePredictiveValue();
-            System.out.println(this.matchedIonDist.negPredictiveValue); //XXXQQQ
         }
         if (this.printIonDistribution) {
             //this.matchedIonDist.printIntensityHisto("matched_ion_intensity_distribution.tsv");
@@ -226,6 +229,9 @@ public class IterativeLocalizer {
 
     private void calculateLocalizationProbabilities() throws Exception {
         System.out.println("\tCalculating PSM-level localization probabilities");
+
+        // Set up bin-wise prior probability string to be updated every epoch
+        StringBuffer priorString = new StringBuffer(BinPriorProbabilities.fileHeaderToString());
 
         // Set up missing spectra error handling
         ArrayList<String> linesWithoutSpectra = new ArrayList<>(); //TODO
@@ -450,8 +456,20 @@ public class IterativeLocalizer {
             if (finalPass)
                 System.out.println("\tUpdating PSM tables with localization information");
 
+            // Update output for prior probabilities
+            for (int i = 0; i < this.peaks[0].length; i++) {
+                if (i == this.zeroBin)
+                    continue;
+                float dMassApex = (float) this.peaks[0][i];
+                priorString.append(this.priorProbs[i].fileLinesToString(dMassApex, epoch));
+            }
+
             epoch++;
         }
+
+        // Output prior probabilities
+        writePriorProbabilitiesOutput("prior_probabilities.tsv", priorString.toString());
+
     }
 
     //todo mods should be parsed here if we don't want to localize on top of var mods
@@ -1429,5 +1447,16 @@ public class IterativeLocalizer {
             return 0;
         else
             return (double) x / (double) y;
+    }
+
+    private void writePriorProbabilitiesOutput(String fname, String content) throws IOException {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(PTMShepherd.normFName(fname)));
+            out.write(content);
+            out.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 }
