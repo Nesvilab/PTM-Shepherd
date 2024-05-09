@@ -69,11 +69,11 @@ public class BinPriorProbabilities {
             char cAA = pep.charAt(i);
             if (allowedPoses[i] == true) {
                 if (i == 0) { // Pick max probability for N-terminal options
-                    double curProb = (this.n + this.nProbs[cAA-'A'] + this.probs[cAA-'A']) / 3.0;
+                    double curProb = Math.max(this.n, Math.max(this.nProbs[cAA-'A'], this.probs[cAA-'A']));
                     priorProbs[i] = curProb;
                     sumProbs += curProb;
                 } else if (i == pep.length()-1) { // Pick max probability for C-terminal options
-                    double curProb = (this.c + this.cProbs[cAA-'A'] + this.probs[cAA-'A']) / 3.0;
+                    double curProb = Math.max(this.c, Math.max(this.cProbs[cAA-'A'], this.probs[cAA-'A']));
                     priorProbs[i] = curProb;
                     sumProbs += curProb;
                 } else {
@@ -146,21 +146,22 @@ public class BinPriorProbabilities {
         if (this.isConverged == true)
             return true;
         // Normalize T1 probabilities values
-        //System.out.println(nT1);
-        //System.out.println(cT1);
-        //System.out.println(Arrays.toString(nProbsT1));
-        //System.out.println(Arrays.toString(cProbsT1));
-        //System.out.println(Arrays.toString(probsT1));
-        //System.out.println(Arrays.toString(probsT1Count));
-
-        this.nT1 = safeDivide(this.nT1, this.nT1Count);
-        this.cT1 = safeDivide(this.cT1, this.cT1Count);
-        for (int i = 0; i < this.nProbsT1.length; i++)
-            this.nProbsT1[i] = safeDivide(this.nProbsT1[i], this.nProbsT1Count[i]);
-        for (int i = 0; i < this.cProbsT1.length; i++)
-            this.cProbsT1[i] = safeDivide(this.cProbsT1[i], this.cProbsT1Count[i]);
-        for (int i = 0; i < this.probsT1.length; i++)
-            this.probsT1[i] = safeDivide(this.probsT1[i], this.probsT1Count[i]);
+        //this.nT1 = safeDivide(this.nT1, this.nT1Count);
+        this.nT1 = safeDivide(this.nT1, this.nPsms);
+        //this.cT1 = safeDivide(this.cT1, this.cT1Count);
+        this.cT1 = safeDivide(this.cT1, this.nPsms);
+        for (int i = 0; i < this.nProbsT1.length; i++) {
+            //this.nProbsT1[i] = safeDivide(this.nProbsT1[i], this.nProbsT1Count[i]);
+            this.nProbsT1[i] = safeDivide(this.nProbsT1[i], this.nPsms);
+        }
+        for (int i = 0; i < this.cProbsT1.length; i++) {
+            //this.cProbsT1[i] = safeDivide(this.cProbsT1[i], this.cProbsT1Count[i]);
+            this.cProbsT1[i] = safeDivide(this.cProbsT1[i], this.nPsms);
+        }
+        for (int i = 0; i < this.probsT1.length; i++) {
+            //this.probsT1[i] = safeDivide(this.probsT1[i], this.probsT1Count[i]);
+            this.probsT1[i] = safeDivide(this.probsT1[i], this.nPsms);
+        }
 
         // Calculate L1 norm of t1 - t0
         double norm = 0.0;
@@ -189,6 +190,8 @@ public class BinPriorProbabilities {
         Arrays.fill(this.nProbsT1Count, 0);
         Arrays.fill(this.cProbsT1Count, 0);
         Arrays.fill(this.probsT1Count, 0);
+
+        this.nPsms = 0;
 
         this.priorVectorNorm = norm;
 
