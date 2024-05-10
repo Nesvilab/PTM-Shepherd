@@ -35,6 +35,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.zip.CRC32;
 
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.concatIonTypes;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 public class PSMFile {
@@ -251,6 +252,15 @@ public class PSMFile {
 		}
 		return res;
 	}
+
+	private static String removeCalTag(String fileBaseName) {
+		if (fileBaseName.contains("_calibrated"))
+			return fileBaseName.replace("_calibrated", "");
+		else if (fileBaseName.contains("_uncalibrated"))
+			return fileBaseName.replace("_uncalibrated", "");
+		else
+			return fileBaseName;
+	}
 	
 	public static String getCRC32(File f) throws Exception {
 		CRC32 crc = new CRC32();
@@ -385,46 +395,59 @@ public class PSMFile {
 	}
 
 	public static void getMappings(File path, HashMap<String,File> mappings, HashSet<String> runNames) {
-		HashMap<String, Integer> datTypes = new HashMap<>();
-		datTypes.put("mgf", 4);
-		datTypes.put("mzBIN_cache", 7);
-		datTypes.put("mzBIN", 3);
-		datTypes.put("mzML", 2);
-		datTypes.put("mzXML", 2);
-		datTypes.put("raw", 1);
+		// File priority list, this will return the first one matched so insertion order must be consistent
+		LinkedHashMap<String, Integer> priorities = new LinkedHashMap<>();
+		priorities.put(".mzBIN_cache", 20);
+		priorities.put("_calibrated.mzML", 19);
+		priorities.put("_uncalibrated.mzML", 18);
+		priorities.put("_calibrated.mgf", 17);
+		priorities.put("_uncalibrated.mgf", 16);
+		priorities.put(".mzML", 15);
+		priorities.put(".mzXML", 14);
+		priorities.put(".mzBIN", 13);
+		priorities.put(".mgf", 4);
+		priorities.put(".raw", 1);
+		priorities.put("None", 0);
 
-		int fileScore = 0;
-		if(path.isDirectory()) {		
+		// Recursively search all directories
+		if(path.isDirectory()) {
 			File [] ls = path.listFiles();
-			//get mapping for each file
+			// get mapping for each file
 			for(int i = 0; i < ls.length; i++) {
 				getMappings(ls[i],mappings, runNames);
 			}
-		} else {
-			String [] ns = splitName(path.getName());
-			if (ns[0].contains("_calibrated")) {
-				fileScore += 6;
-				ns[0] = ns[0].substring(0, ns[0].indexOf("_calibrated"));
-			}
-			else if (ns[0].contains("_uncalibrated")) {
-				fileScore += 5;
-				ns[0] = ns[0].substring(0, ns[0].indexOf("_uncalibrated"));
-			}
-			if (!runNames.contains(ns[0]))
-				return;
-			if (mappings.containsKey(ns[0]) && (ns[1].equals("mzXML") || ns[1].equals("mzML") || ns[1].equals("raw") || ns[1].equals("mzBIN") || ns[1].equals("mgf")) || ns[1].equals("mzBIN_cache")) {
-				if (mappings.get(ns[0]) == null)
-					mappings.put(ns[0], path);
-				else {
-					File storedPath = mappings.get(ns[0]);
-					String[] storedNs = splitName(storedPath.getName());
-					fileScore += datTypes.get(ns[1]);
-					if (fileScore > datTypes.get(storedNs[1]))
-						mappings.put(ns[0], path);
+		} else { // see if valid file ext
+			String matchedKey = getMatchingExtension(path, priorities);
+			if (matchedKey != null) { // end of name exists in priorities map
+				String rawFileName = removeCalTag(splitName(path.getName())[0]);
+				// If raw file not part of this analysis, continue
+				if (!mappings.containsKey(rawFileName))
+					return;
+				// New raw file info
+				int newRawFilePriority = priorities.get(matchedKey);
+				// Existing raw file info
+				File previousRawFile = mappings.getOrDefault(rawFileName, null);
+				if (previousRawFile == null) // no file mapped yet
+					mappings.put(rawFileName, path);
+				else { // Compare and replace if appropriate
+					int previousRawFilePriority = priorities.get(getMatchingExtension(previousRawFile, priorities));
+					if (newRawFilePriority > previousRawFilePriority) {
+						mappings.put(rawFileName, path);
+					}
 				}
 			}
 		}
 	}
+
+	private static String getMatchingExtension(File file, HashMap<String, Integer> priority) {
+		for (String key : priority.keySet()) {
+			if (file.getName().endsWith(key)) {
+				return key;  // Returns the extension key if the file name ends with it
+			}
+		}
+		return null;  // No matching extension found
+	}
+
 
 	public TreeMap<String, Integer> getMS2Counts() {
 		TreeMap<String, Integer> cnts = new TreeMap<>();

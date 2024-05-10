@@ -53,8 +53,8 @@ public class PeptideTest {
             assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
         }
 
-        seq = "PASGAGAGAGAGKR";
-        mods = new float[]{114.0448f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        seq = "GDRGEIGPPGPR";
+        mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0004f, 0.0f, 0.0f, 0.0f, 0.0f};
         pep = new Peptide(seq, mods);
 
         sitePepFrags = pep.calculatePeptideFragments("b", 1);

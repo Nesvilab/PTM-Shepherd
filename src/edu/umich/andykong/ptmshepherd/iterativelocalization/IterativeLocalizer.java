@@ -360,9 +360,9 @@ public class IterativeLocalizer {
                                 }
                             }
 
-                            if (specName.equals("02330a_GH3_3991_13_PTM_TrainKit_Pmod_Hydroxyproline_200fmol_3xHCD_R1.07708.07708")) {
-                                this.debugFlag = true;
-                            }
+                            //if (specName.equals("02330a_GH3_3991_13_PTM_TrainKit_Pmod_Hydroxyproline_200fmol_3xHCD_R1.7708.7708")) {
+                            //    this.debugFlag = true;
+                            //}
 
                             // Calculate site-specific localization probabilities
                             float[] mods = psm.getModsAsArray();
