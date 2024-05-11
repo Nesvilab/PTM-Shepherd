@@ -62,4 +62,19 @@ public class PeptideTest {
         System.out.println(sitePepFrags.toString());
 
     }
+
+    @Test
+    void calculatePeptideFragmentsBetween() {
+        String seq = "PEPTIDE";
+        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        Peptide pep = new Peptide(seq, mods);
+
+        ArrayList<Float> expectedFrags = new ArrayList<>(Arrays.asList(324.1554f, 425.20306f, 376.17145f, 477.21912f));
+        ArrayList<Float> sitePepFrags = pep.calculatePeptideFragmentsBetween("by", 2, 4, 1);
+
+        assertEquals(expectedFrags.size(), sitePepFrags.size());
+        for (int i = 0; i < expectedFrags.size(); i++) {
+            assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
+        }
+    }
 }

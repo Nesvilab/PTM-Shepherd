@@ -75,6 +75,72 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return knownFrags;
     }
 
+    /**
+     * Generate peptide ions between two sites, exclusive of the final site (e.g., left for y-ions, right for b-ions).
+     * @param ionTypes
+     * @param siteA
+     * @param siteB
+     * @param maxCharge
+     * @return
+     */
+    public ArrayList<Float> calculatePeptideFragmentsBetween(String ionTypes, int siteA, int siteB, int maxCharge) {
+        ArrayList<Float> knownFrags = new ArrayList<>(this.pepSeq.length() * ionTypes.length());
+
+        // If the sites are the same, there are no fragments between
+        if (siteA == siteB)
+            return knownFrags;
+
+        // Make sure sites are in correct order
+        int leftI = Math.min(siteA, siteB);
+        int rightI = Math.max(siteA, siteB);
+
+        // Set up ion types to be identified
+        ArrayList<Character> nIonTypes = new ArrayList<>();
+        ArrayList<Character> cIonTypes = new ArrayList<>();
+        for (int i = 0; i < ionTypes.length(); i++) {
+            char curIonType = ionTypes.charAt(i);
+            if (curIonType == 'a' || curIonType == 'b' || curIonType == 'c')
+                nIonTypes.add(curIonType);
+            else if (curIonType == 'x' || curIonType == 'y' || curIonType == 'z')
+                cIonTypes.add(curIonType);
+        }
+
+        float [] aaMasses = AAMasses.monoisotopic_masses;
+        float [] fragTypeShifts = AAMasses.ionTypeShifts;
+        int cLen = this.pepSeq.length();
+
+        float nTermMass;
+        for (Character iType : nIonTypes) {
+            nTermMass = fragTypeShifts[iType - 'a'];
+            for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
+                float cmass = AAMasses.protMass + nTermMass;
+                for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
+                    cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + mods[i]) / ccharge;
+                    if (i != 0) { // todo skip a1/b1 ion, check if this needs to be skipped for c too
+                        if ((leftI <= i) && (i < rightI)) {
+                            knownFrags.add(cmass);
+                        }
+                    }
+                }
+            }
+        }
+        float cTermMass;
+        for (Character iType : cIonTypes) {
+            cTermMass = fragTypeShifts[iType - 'x' + 3];
+            for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+                float cmass = (cTermMass + ccharge * AAMasses.protMass) / ccharge;
+                for (int i = 0; i < cLen - 1; i++) {
+                    cmass += (aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+                    if (((rightI - 1) >= i) && ( i > (leftI - 1))) {
+                        knownFrags.add(cmass);
+                    }
+                }
+            }
+        }
+
+        return knownFrags;
+    }
+
     public Peptide generateDecoy(Random rng, String method) {
         if (method.equals("shuffled"))
             return generateShuffledDecoy(this.pepSeq, this.mods, rng);

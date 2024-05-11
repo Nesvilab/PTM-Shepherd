@@ -162,6 +162,9 @@ public class IterativeLocalizer {
                             float massShift = AAMasses.monoisotopic_masses[targetPep.pepSeq.charAt(mutationSite) - 'A'] -
                                     AAMasses.monoisotopic_masses[decoyPep.pepSeq.charAt(mutationSite) - 'A'];
 
+                            // Generate site-determining ions
+                            //XXXQQQ
+
                             // Get set of reduced ions that match at least one configuration
                             float[][] reducedIons = getReducedIons(spec, decoyPep, massShift);
                             float[] reducedMzs = reducedIons[0];
@@ -360,14 +363,14 @@ public class IterativeLocalizer {
                                 }
                             }
 
-                            //if (specName.equals("02330a_GH3_3991_13_PTM_TrainKit_Pmod_Hydroxyproline_200fmol_3xHCD_R1.7708.7708")) {
+                            //if (specName.equals("02330a_GF2_3991_03_PTM_TrainKit_Kmod_Succinyl_200fmol_3xHCD_R1.20972.20972")) {
                             //    this.debugFlag = true;
                             //}
 
                             // Calculate site-specific localization probabilities
                             float[] mods = psm.getModsAsArray();
                             boolean[] allowedPoses = parseAllowedPositions(pep, this.allowedAAs, mods);
-                            double[] siteProbs = localizePsm(psm, spec, pep, mods, dMassApex, cBin, allowedPoses, false); // TODO check whether raw, theoretical, or peakapex is better
+                            double[] siteProbs = localizePsm(psm, spec, pep, mods, dMassApex, cBin, allowedPoses, false);
 
                             // Update prior probabilities
                             if (!finalPass)
@@ -383,6 +386,7 @@ public class IterativeLocalizer {
                                 strEntropies.add(entropyToString(locEntropy));
 
                                 // TODO check decoy usefulness
+                                /**
                                 Peptide decoyPep = Peptide.generateDecoy(pep, mods, maxProbI, this.rng, "mono-swapped");
                                 boolean[] decoyAllowedPoses = parseAllowedPositions(decoyPep.pepSeq,
                                         this.allowedAAs, decoyPep.mods);
@@ -398,6 +402,7 @@ public class IterativeLocalizer {
                                                 maxProbToString(decoyMaxProb, decoyMaxProbAA));
                                     }
                                 }
+                                 **/
 
                             }
                         }
@@ -409,8 +414,8 @@ public class IterativeLocalizer {
                                 "PTM-Shepherd Localization", specNames, strOutputProbs);
                         psmf.addColumn(psmf.getColumn("PTM-Shepherd Localization") + 1,
                                 "PTM-Shepherd Best Localization", specNames, strMaxProbs);
-                        psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
-                                "PTM-Shepherd Best Decoy Localization", specNames, strMaxProbsDecoy);
+                        //psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
+                        //        "PTM-Shepherd Best Decoy Localization", specNames, strMaxProbsDecoy);
                         //psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1,
                         //        "delta_mass_entropy", specNames, strEntropies);
                         //psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
@@ -807,7 +812,7 @@ public class IterativeLocalizer {
 
                 // Assign each q-Val
                 ArrayList<String> probModelQVals = new ArrayList<>(specNames.size());
-                ArrayList<String> decoyModelQVals = new ArrayList<>(specNames.size());
+                //ArrayList<String> decoyModelQVals = new ArrayList<>(specNames.size());
                 //ArrayList<String> probDecoyModelVals = new ArrayList<>(specNames.size());
                 //ArrayList<String> entropyDecoyModelVals = new ArrayList<>(specNames.size());
                 for (int j = 0; j < specNames.size(); j++) {
@@ -816,7 +821,7 @@ public class IterativeLocalizer {
                     if (unmodFlag) {
                         // prob model
                         probModelQVals.add("");
-                        decoyModelQVals.add("");
+                        //decoyModelQVals.add("");
                         // prob model with decoys
                         //probDecoyModelVals.add("");
                         // entropy model
@@ -824,7 +829,7 @@ public class IterativeLocalizer {
                     } else {
                         // prob model
                         probModelQVals.add(new DecimalFormat("0.0000").format(qValsMap.get(specNames.get(j))));
-                        decoyModelQVals.add(new DecimalFormat("0.0000").format(qValsDecoyMap.get(specNames.get(j))));
+                        //decoyModelQVals.add(new DecimalFormat("0.0000").format(qValsDecoyMap.get(specNames.get(j))));
                         // prob model with decoys
                         //probDecoyModelVals.add(new DecimalFormat("0.0000").format(qProbDecoyModel[(int) (maxProb * 1000)]));
                         // entropy model
@@ -836,8 +841,8 @@ public class IterativeLocalizer {
                 // Send to PSM file
                 psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1, "PTM-Shepherd q-val",
                         specNames, probModelQVals);
-                psmf.addColumn(psmf.getColumn("PTM-Shepherd q-val") + 1, "PTM-Shepherd decoy q-val",
-                        specNames, decoyModelQVals);
+                //psmf.addColumn(psmf.getColumn("PTM-Shepherd q-val") + 1, "PTM-Shepherd decoy q-val",
+                //        specNames, decoyModelQVals);
                 /** //TODO figure out what's going on with these before implementing them, assuming they're even worth doing
                 psmf.addColumn(psmf.getColumn("delta_mass_BH_loc_q") + 1, "delta_mass_prob_decoyAA_q",
                         specNames, probDecoyModelVals);
@@ -950,11 +955,13 @@ public class IterativeLocalizer {
         ArrayList<Float> shiftedPepFrags = new ArrayList<Float>(pepFrags.size());
         for (Float frag : pepFrags)
             shiftedPepFrags.add(frag + dMass);
-        pepFrags.addAll(shiftedPepFrags);
+        pepFrags.addAll(shiftedPepFrags); // todo this wont work with charge state 2
 
-        if (debugFlag)
+        if (debugFlag) {
+            System.out.println("All pep frags");
             System.out.println(pepFrags.stream().map(Object::toString)
                     .collect(Collectors.joining(", ")));
+        }
 
         // Filter peakMzs and peakInts to only those that match at least one ion
         float[] peakMzs = spec.getPeakMZ();
@@ -997,7 +1004,8 @@ public class IterativeLocalizer {
             float[] matchedIonMassErrors = matchedIons[1];
             // Map matched ion intensities to MatchedIonDistribution, negative intensities will be returned as -1
             double[] matchedIonProbabilities = this.matchedIonDist.calcIonProbabilities(matchedIonIntensities, matchedIonMassErrors);
-            if (debugFlag) {
+            if (debugFlag && (i == 8 || i == 10)) {
+                System.out.println("\n");
                 System.out.println("Start");
                 System.out.println(pep);
                 System.out.println("Position " + (i + 1));;
@@ -1005,6 +1013,7 @@ public class IterativeLocalizer {
                 System.out.println(Arrays.toString(matchedIonIntensities));
                 System.out.println(Arrays.toString(matchedIonProbabilities));
                 System.out.println("Matched ions done");
+                System.out.println("End\n");
             }
             // Format these for Poisson Binomial input
             ionProbs[cAllowedPos] = matchedIonProbabilities;
@@ -1045,9 +1054,12 @@ public class IterativeLocalizer {
             shiftedPepFrags.add(frag + dMass);
         pepFrags.addAll(shiftedPepFrags);
 
-        if (debugFlag)
+        if (debugFlag) {
+            System.out.println("All pep frags");
             System.out.println(pepFrags.stream().map(Object::toString)
                     .collect(Collectors.joining(", ")));
+            System.out.println();
+        }
 
         // Filter peakMzs and peakInts to only those that match at least one ion
         float[] peakMzs = spec.getPeakMZ();
@@ -1241,9 +1253,19 @@ public class IterativeLocalizer {
         float[] matchedIonErrors = new float[peakMzs.length];
         Collections.sort(pepFrags);
 
-        if (debugFlag)
+        if (debugFlag) {
+            System.out.println("PepFrags:");
             System.out.println(pepFrags.stream().map(Object::toString)
                     .collect(Collectors.joining(", ")));
+            System.out.println();
+
+            System.out.println("Spectrum or reduced spectrum");
+            for (int i = 0; i < peakMzs.length; i++) {
+                System.out.println(peakMzs[i] + "\t\t" + peakInts[i]);
+            }
+            System.out.println();
+        }
+
 
         int specIdx = 0;
         int maxSpecIdx = peakMzs.length;
@@ -1277,15 +1299,11 @@ public class IterativeLocalizer {
             }
             wIndex--;
             if (matchedIons == 1) { // If only matched one ion in minVal->maxVal window
-                if (debugFlag)
-                    System.out.println(peakMzs[wIndex]);
                 matchedIonIntensities[startIdx] = maxInt;
                 matchedIonErrors[startIdx] = Math.abs(frag - peakMzs[startIdx]) / peakMzs[startIdx] * 1000000.0f;
             } else { // If more than one ion in minVal->maxVal window, max is matched and rest are unmatched
                 for (int i = startIdx; i <= wIndex; i++) {
                     if (Math.abs(peakInts[i] - maxInt) < 0.001) {
-                        if (debugFlag)
-                            System.out.println(peakMzs[wIndex] + "\t" + peakInts[wIndex]);
                         matchedIonIntensities[i] = maxInt;
                         matchedIonErrors[i] = Math.abs(frag - peakMzs[i]) / peakMzs[i] * 1000000.0f;
                         break;
@@ -1299,8 +1317,13 @@ public class IterativeLocalizer {
             specIdx++;
         }
 
-        if (debugFlag)
+        if (debugFlag) {
+            System.out.println();
+            System.out.println("Matched ions");
             System.out.println(Arrays.toString(matchedIonIntensities));
+            System.out.println(Arrays.toString(matchedIonErrors));
+            System.out.println();
+        }
 
         float[][] matchedIons = new float[][]{
                 matchedIonIntensities,

@@ -31,4 +31,14 @@ public class LocalizationLikelihood {
             return this.siteLikelihoods;
         }
     }
+
+    public String toString() {
+        StringBuffer sb = new StringBuffer("(");
+        for (Mod m : this.mods) {
+            for (int i = 0; i < m.siteLikelihoods.length; i++) {
+                sb.append(Double.toString(m.siteLikelihoods[i]) + ")");
+            }
+        }
+        return sb.toString();
+    }
 }
