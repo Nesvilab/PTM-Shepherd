@@ -1157,7 +1157,23 @@ public class PTMShepherd {
 		glycoParams.nGlycan = getParam("n_glyco").equals("") || Boolean.parseBoolean(getParam("n_glyco"));		// default true
 		String glycanDB = getParam("glycodatabase");
 		Path testPath = Paths.get(glycanDB.replaceAll("['\"]", ""));
-		if (glycanDB.equals("") || Files.exists(testPath)) {
+		if (glycanDB.isEmpty()) {
+			// no glycan database provided - fall back to default glycan list
+			String defaultDB;
+			if (glycoParams.nGlycan) {
+				defaultDB = "glyco_mods_20210127.txt";
+			} else {
+				defaultDB = "glyco_mods_N-O_20211025.txt";
+			}
+			try {
+				URI uri = PeakAnnotator.class.getResource(defaultDB).toURI();
+				Path path = Paths.get(uri);
+				glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseFile(String.valueOf(path));
+			} catch (URISyntaxException e) {
+				PTMShepherd.die("Error when loading default internal glycan database");
+				e.printStackTrace();
+			}
+		} else if (Files.exists(testPath)) {
 			// use internal database or database file path
 			glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseFile(glycanDB);
 		} else {
