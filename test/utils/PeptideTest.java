@@ -76,5 +76,62 @@ public class PeptideTest {
         for (int i = 0; i < expectedFrags.size(); i++) {
             assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
         }
+
+        expectedFrags = new ArrayList<>(Arrays.asList(227.102633f, 324.155397f));
+        sitePepFrags = pep.calculatePeptideFragmentsBetween("b", 1, 3, 1);
+
+        assertEquals(expectedFrags.size(), sitePepFrags.size());
+        for (int i = 0; i < expectedFrags.size(); i++) {
+            assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
+        }
+
+        expectedFrags = new ArrayList<>(Arrays.asList(477.219120f, 574.271884f));
+        sitePepFrags = pep.calculatePeptideFragmentsBetween("y", 1, 3, 1);
+
+        assertEquals(expectedFrags.size(), sitePepFrags.size());
+        for (int i = 0; i < expectedFrags.size(); i++) {
+            assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
+        }
+    }
+
+    @Test
+    void calculateComplementaryPeptideFragments() {
+        String seq = "PEPT";
+        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        Peptide pep = new Peptide(seq, mods);
+
+        // Simulate 1.0f dmass on position P3
+        ArrayList<Float> expectedFrags = new ArrayList<>(Arrays.asList(228.102633f, 324.155397f));
+        ArrayList<Float> sitePepFrags = pep.calculateComplementaryFragments("b", 1.0f, 2, 1);
+
+        assertEquals(expectedFrags.size(), sitePepFrags.size());
+        for (int i = 0; i < expectedFrags.size(); i++) {
+            assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
+        }
+
+        // Simulate 1.0f dmass on position P3
+        expectedFrags = new ArrayList<>(Arrays.asList(121.065520f, 217.118284f, 346.160877f));
+        sitePepFrags = pep.calculateComplementaryFragments("y", 1.0f, 2, 1);
+
+        assertEquals(expectedFrags.size(), sitePepFrags.size());
+        for (int i = 0; i < expectedFrags.size(); i++) {
+            assertEquals(expectedFrags.get(i), sitePepFrags.get(i), 0.0001, "Mismatch at index " + i);
+        }
+
+    }
+
+    @Test
+    void AddModTest() {
+        String seq = "PEP";
+        float[] mods = new float[]{1.0f, 0.0f, 0.0f};
+        float[] expectedMods = new float[]{0.0f, 0.0f, 0.0f};
+        Peptide pep =  new Peptide(seq, mods);
+
+        pep.addMod(-1*1.0f, 0);
+        assertArrayEquals(pep.mods, expectedMods);
+
+        pep.addMod(1.0f, 0);
+        expectedMods = new float[]{1.0f, 0.0f, 0.0f};
+        assertArrayEquals(pep.mods, expectedMods);
     }
 }
