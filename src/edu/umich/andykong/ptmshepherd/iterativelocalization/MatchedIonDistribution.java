@@ -133,12 +133,16 @@ public class MatchedIonDistribution {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
                 this.datapoints.addRow(massError, intensity, isDecoy);
             } else {
+                int intensityIndex = (int) (-1 * intensity);
+                this.pdf[intensityIndex]++;
                 this.tNegCount++;
             }
         } else {
             if (intensity > 0.0f) { // Only include matched ions, unmatched ions have negative intensity
                 this.datapoints.addRow(massError, intensity, isDecoy);
             } else {
+                int intensityIndex = (int) (-1 * intensity);
+                this.pdfDecoy[intensityIndex]++;
                 this.dNegCount++;
             }
         }
@@ -190,7 +194,7 @@ public class MatchedIonDistribution {
         // Sort table and find min and max
         this.datapoints.sortRowsByProjVal();
         // Set up arrays to hold ion counts for targets and decoys and q-values
-        int arraySize = (int) (100.0 * (Math.abs(this.datapoints.getMaxProjVal() -
+        int arraySize = (int) (10.0 * (Math.abs(this.datapoints.getMaxProjVal() -
                 this.datapoints.getMinProjVal()) + 1));
         this.projTargetCounts = new int[arraySize];
         this.projDecoyCounts = new int[arraySize];
@@ -208,17 +212,21 @@ public class MatchedIonDistribution {
         boolean leftToRight = checkLdaProjectionLeftToRight();
 
         // Fill q-value array with P(ion == true_positive | LDA score)
-        int nTargets = 0;
+        int nTargets = 1;
         int nDecoys = 1;
         double cMin = 10000.0;
+        double cmax = -10000.0;
         if (leftToRight) {
             // Fill array
             for (int i = 0; i < arraySize; i++) {
-                nTargets += this.projTargetCounts[i];
-                nDecoys += this.projDecoyCounts[i];
-                this.qVals[i] = (double) nDecoys / (double) (nTargets);
+                nTargets = this.projTargetCounts[i];
+                nDecoys = this.projDecoyCounts[i];
+                double q = (double) (nDecoys + 1) / (double) (nDecoys + nTargets + 2);
+                this.qVals[i] = q;
+                System.out.println(this.qVals[i]);
             }
             // Make array monotonic
+            /**
             for (int i = arraySize-1; i >= 0; i--) {
                 if (this.qVals[i] < cMin) {
                     cMin = this.qVals[i];
@@ -230,13 +238,17 @@ public class MatchedIonDistribution {
                     i++;
                 }
             }
+             **/
         } else {
             for (int i = arraySize-1; i >= 0; i--) {
-                nTargets += this.projTargetCounts[i];
-                nDecoys += this.projDecoyCounts[i];
-                this.qVals[i] = (double) nDecoys / (double) (nTargets);
+                nTargets = this.projTargetCounts[i];
+                nDecoys = this.projDecoyCounts[i];
+                double q = (double) (nDecoys + 1) / (double) (nDecoys + nTargets + 2);
+                this.qVals[i] = q;
+                System.out.println(this.qVals[i]);
             }
             // Make array monotonic
+            /**
             for (int i = 0; i < arraySize; i++) {
                 if (this.qVals[i] < cMin) {
                     cMin = this.qVals[i];
@@ -248,6 +260,7 @@ public class MatchedIonDistribution {
                     i--;
                 }
             }
+             **/
         }
     }
 
@@ -281,6 +294,12 @@ public class MatchedIonDistribution {
 
     public void calculateNegativePredictiveValue() { // todo see if adding 1 here helps
         this.negPredictiveValue = (double) (this.tNegCount + 1) / (double) (this.dNegCount);
+
+        this.ionPosterior = new double[((int) (100.0 * this.binMult + 1))];
+        for (int i = 0; i < this.ionPosterior.length; i++) {
+            this.ionPosterior[i] = (double) ((this.pdf[i]) / (double) (this.pdf[i] + this.pdfDecoy[i]));
+            System.out.println(this.ionPosterior[i]);
+        }
         //this.negPredictiveValue = Math.max(this.negPredictiveValue, 0.01);
     }
 
@@ -388,7 +407,7 @@ public class MatchedIonDistribution {
     }
 
     private int translateLdaValToIndex(double projVal) {
-        int valIndex = (int) ((projVal - this.datapoints.getMinProjVal()) * 100.0);
+        int valIndex = (int) ((projVal - this.datapoints.getMinProjVal()) * 10.0);
         if (valIndex < 0)
             return 0;
         else if (valIndex >= this.qVals.length)
@@ -423,9 +442,10 @@ public class MatchedIonDistribution {
     public double calculateIonProbabilityLda(float intensity, float massError) {
         double projVal;
         double prob;
-        if (intensity < 0)
+        if (intensity < 0) {
+            //prob = this.ionPosterior[(int) (intensity * -1 * this.binMult)];
             prob = this.negPredictiveValue;
-        else {
+        } else {
             projVal = this.ldaProcessor.projectData(massError, intensity).getEntry(0,0);
             int projValIndex = translateLdaValToIndex(projVal);
             prob = 1.0 - this.qVals[projValIndex];

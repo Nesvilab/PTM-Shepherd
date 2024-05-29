@@ -131,7 +131,71 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
                 float cmass = (cTermMass + ccharge * AAMasses.protMass) / ccharge;
                 for (int i = 0; i < cLen - 1; i++) {
                     cmass += (aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
-                    if (((rightI - 1) >= i) && ( i > (leftI - 1))) {
+                    if ((leftI < (cLen - 1 - i)) && ((cLen - 1 - i) <= rightI)) {
+                        knownFrags.add(cmass);
+                    }
+                }
+            }
+        }
+
+        return knownFrags;
+    }
+
+    /**
+     * Generate peptide ions that are complementary to a modification site (e.g., unshifted where they should be shifted).
+     * This is designed to be used on a mono-mutated decoy that does not have the mutated mass differene/pseudo delta-mass
+     * in its modification list.
+     * @param ionTypes
+     * @param dmass
+     * @param site
+     * @param maxCharge
+     * @return
+     */
+    public ArrayList<Float> calculateComplementaryFragments(String ionTypes, float dmass, int site, int maxCharge) {
+        ArrayList<Float> knownFrags = new ArrayList<>(this.pepSeq.length() * ionTypes.length());
+
+        // Set up ion types to be identified
+        ArrayList<Character> nIonTypes = new ArrayList<>();
+        ArrayList<Character> cIonTypes = new ArrayList<>();
+        for (int i = 0; i < ionTypes.length(); i++) {
+            char curIonType = ionTypes.charAt(i);
+            if (curIonType == 'a' || curIonType == 'b' || curIonType == 'c')
+                nIonTypes.add(curIonType);
+            else if (curIonType == 'x' || curIonType == 'y' || curIonType == 'z')
+                cIonTypes.add(curIonType);
+        }
+
+        float [] aaMasses = AAMasses.monoisotopic_masses;
+        float [] fragTypeShifts = AAMasses.ionTypeShifts;
+        int cLen = this.pepSeq.length();
+
+        float nTermMass;
+        for (Character iType : nIonTypes) {
+            nTermMass = fragTypeShifts[iType - 'a'];
+            for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
+                float cmass = AAMasses.protMass + nTermMass; //todo this doesn't account for charge?
+                for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
+                    cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + mods[i]) / ccharge;
+                    if (i != 0) { // todo skip a1/b1 ion, check if this needs to be skipped for c too
+                        if (i < site) {
+                            knownFrags.add(cmass + (dmass / ccharge));
+                        } else {
+                            knownFrags.add(cmass);
+                        }
+                    }
+                }
+            }
+        }
+        float cTermMass;
+        for (Character iType : cIonTypes) {
+            cTermMass = fragTypeShifts[iType - 'x' + 3];
+            for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+                float cmass = (cTermMass + ccharge * AAMasses.protMass) / ccharge;
+                for (int i = 0; i < cLen - 1; i++) {
+                    cmass += (aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+                    if ((cLen - 1 - i) > site) {
+                        knownFrags.add(cmass + (dmass / ccharge));
+                    } else {
                         knownFrags.add(cmass);
                     }
                 }

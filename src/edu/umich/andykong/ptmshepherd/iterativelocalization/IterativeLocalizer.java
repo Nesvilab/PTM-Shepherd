@@ -159,14 +159,14 @@ public class IterativeLocalizer {
                             int mutationSite = decoyPep.mutatedResidue;
 
                             // Calculate fake PTM mass shift
-                            float massShift = AAMasses.monoisotopic_masses[targetPep.pepSeq.charAt(mutationSite) - 'A'] -
+                            float mutatedMassShift = AAMasses.monoisotopic_masses[targetPep.pepSeq.charAt(mutationSite) - 'A'] -
                                     AAMasses.monoisotopic_masses[decoyPep.pepSeq.charAt(mutationSite) - 'A'];
 
                             // Generate site-determining ions
                             //XXXQQQ
 
                             // Get set of reduced ions that match at least one configuration
-                            float[][] reducedIons = getReducedIons(spec, decoyPep, massShift);
+                            float[][] reducedIons = getReducedIons(spec, decoyPep, mutatedMassShift);
                             float[] reducedMzs = reducedIons[0];
                             float[] reducedInts = reducedIons[1];
 
@@ -177,26 +177,39 @@ public class IterativeLocalizer {
                             //        decoyPep, this.ionTypes, mutationSite, 1);
                             // Generate target and decoy fragments
                             ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragments(this.ionTypes, 1);
-                            ArrayList<Float> decoySitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 1);
+                            ArrayList<Float> decoySitePepFrags = targetPep.calculateComplementaryFragments(this.ionTypes, mutatedMassShift, mutationSite, 1);
 
                             // Score over all possible sites
                             /**
+                            System.out.println("Decoy\t" + decoyPep.pepSeq + "\t" + Arrays.toString(decoyPep.mods));
+                            System.out.println("Target\t" + targetPep.pepSeq + "\t" + Arrays.toString(targetPep.mods));
+                            System.out.println(mutatedMassShift);
                             for (int k = 0; k < decoyPep.pepSeq.length(); k++) {
-                                decoyPep.addMod(dMass, k);
-                                ArrayList<Float> sitePepFrags = decoyPep.calculatePeptideFragments(this.ionTypes, 2);
-                                float[][] matchedIons = findMatchedIons(sitePepFrags, reducedMzs, reducedInts);
+                                if (k == mutationSite)
+                                    continue;
+                                // Add decoy ions
+                                decoyPep.addMod(mutatedMassShift, k);
+                                ArrayList<Float> decoySitePepFrags = decoyPep.calculatePeptideFragmentsBetween(this.ionTypes, k, mutationSite, 1);
+                                System.out.println("Decoy\t" + k + "\t" + mutationSite + "\t" + decoySitePepFrags);
+                                float[][] matchedIons = findMatchedIons(decoySitePepFrags, reducedMzs, reducedInts);
                                 float[] matchedIonIntensities = matchedIons[0];
+                                System.out.println("Decoy\t" + k + "\t" + mutationSite + "\t" + Arrays.toString(matchedIonIntensities));
                                 float[] matchedIonMassErrors = matchedIons[1];
-                                if (k == mutationSite) {
-                                    this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, false);
-                                } else {
-                                    this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, true);
-                                }
-                                decoyPep.addMod(-1*dMass, k);
+                                this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, true);
+                                decoyPep.addMod(-1*mutatedMassShift, k);
+
+                                // Add target ions
+                                ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragmentsBetween(this.ionTypes, k, mutationSite, 1);
+                                System.out.println("Target\t" + k + "\t" + mutationSite + "\t" + sitePepFrags);
+                                matchedIons = findMatchedIons(sitePepFrags, reducedMzs, reducedInts);
+                                matchedIonIntensities = matchedIons[0];
+                                System.out.println("Target\t" + k + "\t" + mutationSite + "\t" + Arrays.toString(matchedIonIntensities));
+                                matchedIonMassErrors = matchedIons[1];
+                                this.matchedIonDist.addIons(matchedIonIntensities, matchedIonMassErrors, false);
                             }
                              **/
-                            // Add target peptide values to matched ion histograms
 
+                            // Add target peptide values to matched ion histograms
                             float[][] matchedIons = findMatchedIons(sitePepFrags, reducedMzs, reducedInts);
                             float[] matchedIonIntensities = matchedIons[0];
                             float[] matchedIonMassErrors = matchedIons[1];
@@ -207,6 +220,7 @@ public class IterativeLocalizer {
                             float[] decoyMatchedIonIntensities = decoyMatchedIons[0];
                             float[] decoyMatchedMassErrors = decoyMatchedIons[1];
                             this.matchedIonDist.addIons(decoyMatchedIonIntensities, decoyMatchedMassErrors, true);
+
                         }
                     }
                 }
