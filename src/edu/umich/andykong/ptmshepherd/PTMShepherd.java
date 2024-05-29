@@ -28,9 +28,9 @@ import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidateFragments;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
+import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.iterativelocalization.IterativeLocalizer;
-import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.peakpicker.Histogram;
@@ -60,7 +60,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
@@ -72,7 +71,7 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "3.0.0-rc7";
+ 	public static final String version = "3.0.0";
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
