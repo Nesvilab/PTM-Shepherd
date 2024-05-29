@@ -297,7 +297,7 @@ public class MatchedIonDistribution {
 
         this.ionPosterior = new double[((int) (100.0 * this.binMult + 1))];
         for (int i = 0; i < this.ionPosterior.length; i++) {
-            this.ionPosterior[i] = (double) ((this.pdf[i] + 1) / (double) (this.pdf[i] + this.pdfDecoy[i] + 2));
+            this.ionPosterior[i] = (double) ((this.pdf[i]) / (double) (this.pdf[i] + this.pdfDecoy[i]));
             System.out.println(this.ionPosterior[i]);
         }
         //this.negPredictiveValue = Math.max(this.negPredictiveValue, 0.01);
@@ -442,9 +442,10 @@ public class MatchedIonDistribution {
     public double calculateIonProbabilityLda(float intensity, float massError) {
         double projVal;
         double prob;
-        if (intensity < 0)
-            prob = this.ionPosterior[(int) (intensity * -1 * this.binMult)];
-        else {
+        if (intensity < 0) {
+            //prob = this.ionPosterior[(int) (intensity * -1 * this.binMult)];
+            prob = this.negPredictiveValue;
+        } else {
             projVal = this.ldaProcessor.projectData(massError, intensity).getEntry(0,0);
             int projValIndex = translateLdaValToIndex(projVal);
             prob = 1.0 - this.qVals[projValIndex];
