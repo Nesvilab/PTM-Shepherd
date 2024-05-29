@@ -223,7 +223,6 @@ public class MatchedIonDistribution {
                 nDecoys = this.projDecoyCounts[i];
                 double q = (double) (nDecoys + 1) / (double) (nDecoys + nTargets + 2);
                 this.qVals[i] = q;
-                System.out.println(this.qVals[i]);
             }
             // Make array monotonic
             /**
@@ -245,7 +244,6 @@ public class MatchedIonDistribution {
                 nDecoys = this.projDecoyCounts[i];
                 double q = (double) (nDecoys + 1) / (double) (nDecoys + nTargets + 2);
                 this.qVals[i] = q;
-                System.out.println(this.qVals[i]);
             }
             // Make array monotonic
             /**
@@ -298,7 +296,6 @@ public class MatchedIonDistribution {
         this.ionPosterior = new double[((int) (100.0 * this.binMult + 1))];
         for (int i = 0; i < this.ionPosterior.length; i++) {
             this.ionPosterior[i] = (double) ((this.pdf[i]) / (double) (this.pdf[i] + this.pdfDecoy[i]));
-            System.out.println(this.ionPosterior[i]);
         }
         //this.negPredictiveValue = Math.max(this.negPredictiveValue, 0.01);
     }
