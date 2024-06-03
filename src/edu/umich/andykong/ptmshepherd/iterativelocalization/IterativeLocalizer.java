@@ -177,7 +177,7 @@ public class IterativeLocalizer {
                             //        decoyPep, this.ionTypes, mutationSite, 1);
                             // Generate target and decoy fragments
                             ArrayList<Float> sitePepFrags = targetPep.calculatePeptideFragments(this.ionTypes, 1);
-                            ArrayList<Float> decoySitePepFrags = targetPep.calculateComplementaryFragments(this.ionTypes, mutatedMassShift, mutationSite, 1);
+                            ArrayList<Float> decoySitePepFrags = decoyPep.calculateComplementaryFragments(this.ionTypes, mutatedMassShift, mutationSite, 1);
 
                             // Score over all possible sites
                             /**
