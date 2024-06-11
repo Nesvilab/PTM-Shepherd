@@ -28,6 +28,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -93,10 +94,17 @@ public class DiagnosticExtractor {
 
         //write header
         StringBuilder diagnosticHeader = new StringBuilder(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift"));
+        String ionTypes = PTMShepherd.concatIonTypes();
 
         for (double capYShift : capYShifts) diagnosticHeader.append(String.format("\tY_%.4f_intensity", capYShift));
         for (double oxoniumIon : oxoniumIons) diagnosticHeader.append(String.format("\tox_%.4f_intensity", oxoniumIon));
-        for (double remainderMass : remainderMasses) diagnosticHeader.append(String.format("\tdeltascore_%.4f\tlocalization_%.4f", remainderMass, remainderMass));
+        for (double remainderMass : remainderMasses) {
+            diagnosticHeader.append(String.format("\tdeltascore_%.4f\tlocalization_%.4f", remainderMass, remainderMass));
+            for (int k=0; k < ionTypes.length(); k++) {
+                diagnosticHeader.append(String.format("\tCount_%s_%.4f", ionTypes.charAt(k), remainderMass));
+                diagnosticHeader.append(String.format("\tInt_%s_%.4f", ionTypes.charAt(k), remainderMass));
+            }
+        }
         diagnosticOut.println(diagnosticHeader);
         //get necessary col indices
         specCol = pf.getColumn("Spectrum");
@@ -201,7 +209,10 @@ public class DiagnosticExtractor {
         for (double oxoniumIonIntensity : oxoniumIonIntensities)
             diagnosticResultString.append(String.format("\t%.2f", oxoniumIonIntensity));
         float[] deltaScores = new float[remainderMasses.length];
-        boolean[][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores);
+        String ionTypes = PTMShepherd.concatIonTypes();
+        float[][] remainderIntensities = new float[remainderMasses.length][ionTypes.length()];
+        int[][] remainderCounts = new int[remainderMasses.length][ionTypes.length()];
+        boolean[][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores, remainderIntensities, remainderCounts);
 
         for (int i = 0; i < remainderMasses.length; i++) {
             diagnosticResultString.append(String.format("\t%.1f", deltaScores[i]));
@@ -210,6 +221,11 @@ public class DiagnosticExtractor {
                 if (isMaxScores[i][j]) {
                     locSb.append(String.format("%d%c", j + 1, seq.charAt(j))); //position (1 indexed), character
                 }
+            }
+            // add remainder intensities
+            for (int k=0; k < ionTypes.length(); k++) {
+                locSb.append(String.format("\t%d", remainderCounts[i][k]));
+                locSb.append(String.format("\t%.1f", remainderIntensities[i][k]));
             }
             diagnosticResultString.append(locSb);
         }
@@ -271,7 +287,7 @@ public class DiagnosticExtractor {
         return oxoniumIonIntensities;
     }
 
-    public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, String[] smods, float[] deltaScores) {
+    public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, String[] smods, float[] deltaScores, float[][] remainderInts, int[][] remainderCounts) {
         //initialize allowed positions
         boolean [] allowedPoses = SiteLocalization.parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
         //initialize remainder delta scores
@@ -305,6 +321,7 @@ public class DiagnosticExtractor {
         boolean [][] isMaxScores = new boolean[remainderMasses.length][seq.length()]; //1 if localized AND = max score
         //these 3 variables store values that are constant for the PSM
 
+        String ionTypes = PTMShepherd.concatIonTypes();
         float baseScore = spec.getHyper(seq, mods, ppmTol);
         int baseFrags = spec.getFrags(seq, mods, ppmTol);
         //these 3 variables need to be reinitialized every remainder mass
@@ -319,6 +336,7 @@ public class DiagnosticExtractor {
             frags = new int[seq.length()];
             maxScores[i] = baseScore;
             maxFrags[i] = baseFrags;
+
             //localize at each position
             for(int j = 0; j < seq.length(); j++) {
                 if (allowedPoses[j])
@@ -326,13 +344,16 @@ public class DiagnosticExtractor {
                 scores[j] = spec.getHyper(seq, mods, ppmTol);
                 //System.out.println(scores[j] + "score");
                 frags[j] = spec.getFrags(seq, mods, ppmTol);
-                if(frags[j] > maxFrags[i])
+                if(frags[j] > maxFrags[i]) {
                     maxFrags[i] = frags[j];
-                if(scores[j] > maxScores[i])
+                }
+                if(scores[j] > maxScores[i]) {
                     maxScores[i] = scores[j];
+                }
                 if (allowedPoses[j])
                     mods[j] -= dmass;
             }
+
             //System.out.println(maxScores[i]+"maxscore");
             //determine if localized and record max positions
             if (maxScores[i] > baseScore) {
@@ -340,6 +361,16 @@ public class DiagnosticExtractor {
                 for (int j = 0; j < seq.length(); j++) {
                     if (scores[j] == maxScores[i]) {
                         isMaxScores[i][j] = true;
+                        // save remainder fragment intensities for best position only
+                        TreeMap<Character, Float> ionIntensities = initIonIntensities();
+                        TreeMap<Character, Integer> ionCounts = initIonCounts();
+                        mods[j] += (float) dmass;
+                        spec.getRemainderFrags(seq, mods, ppmTol, ionIntensities, ionCounts, j);
+                        mods[j] -= (float) dmass;
+                        for (int k=0; k < ionIntensities.size(); k++) {
+                            remainderInts[i][k] = ionIntensities.get(ionTypes.charAt(k));
+                            remainderCounts[i][k] = ionCounts.get(ionTypes.charAt(k));
+                        }
                     } else {
                         isMaxScores[i][j] = false;
                     }
@@ -369,6 +400,25 @@ public class DiagnosticExtractor {
         }
         return false;
     }
+
+    private TreeMap<Character, Float> initIonIntensities() {
+        TreeMap<Character, Float> ionIntensities = new TreeMap<>();
+        String ionTypes = PTMShepherd.concatIonTypes();
+        for (int i=0; i < ionTypes.length(); i++) {
+            ionIntensities.put(ionTypes.charAt(i), 0.0F);
+        }
+        return ionIntensities;
+    }
+
+    private TreeMap<Character, Integer> initIonCounts() {
+        TreeMap<Character, Integer> ionCounts = new TreeMap<>();
+        String ionTypes = PTMShepherd.concatIonTypes();
+        for (int i=0; i < ionTypes.length(); i++) {
+            ionCounts.put(ionTypes.charAt(i), 0);
+        }
+        return ionCounts;
+    }
+
     public void completeDiagnostic() throws Exception {
         PrintWriter out = new PrintWriter(new FileWriter(rawDiagnosticFile,true));
         out.println("COMPLETE");

@@ -302,6 +302,78 @@ public class Spectrum implements Comparable<Spectrum> {
 		
 		return score;
 	}
+
+	public void getRemainderFrags(String seq, float [] mods, double ppmTol, TreeMap<Character, Float> ionIntensities, TreeMap<Character, Integer> ionCounts, int modPos) {
+		int maxCharge = (charge==2)?1:2;
+
+		float [] aaMasses = AAMasses.monoisotopic_masses;
+		float [] fragTypeShifts = AAMasses.ionTypeShifts;
+
+		float cM = 0;
+		double tol;
+		int fP = 0;
+		int cLen = seq.length();
+
+		float nTermMass;
+		for (Character iType : ionIntensities.keySet()) {
+			if (iType < 'd') {
+				nTermMass = fragTypeShifts[iType - 'a'];
+				for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+					double cmass = AAMasses.monoisotopic_nterm_mass + nTermMass;
+					float iB = 0.0f;
+					int nB = 0;
+					fP = 0;
+					for (int i = 0; i < cLen - 1; i++) {
+						cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
+						if (i >= modPos) {		// only record fragment remainder intensity including the provided mod site
+							tol = cmass * (ppmTol / 1000000.0);
+							while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+								fP++;
+							if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+								cM = peakInt[fP];
+							} else
+								cM = 0;
+							if (cM > 0) {
+								nB++;
+								iB += cM;
+							}
+						}
+					}
+					ionIntensities.put(iType, ionIntensities.get(iType) + iB);
+					ionCounts.put(iType, ionCounts.get(iType) + nB);
+				}
+			} else {
+				float cTermMass;
+				cTermMass = fragTypeShifts[iType - 'x' + 3];
+				for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
+					float iY = 0.0f;
+					int nY = 0;
+					//double cmass = (AAMasses.monoisotopic_cterm_mass + (ccharge + 1) * AAMasses.monoisotopic_nterm_mass) / ccharge;
+					double cmass = (cTermMass + ccharge * AAMasses.monoisotopic_nterm_mass) / ccharge;
+					fP = 0;
+					for (int i = 0; i < cLen - 1; i++) {
+						cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+						if (cLen - 1 - i <= modPos) {
+							tol = cmass * (ppmTol / 1000000.0);
+							while (fP < peakMZ.length && peakMZ[fP] < (cmass - tol))
+								fP++;
+							if (fP < peakMZ.length && Math.abs(peakMZ[fP] - cmass) < tol) {
+								cM = peakInt[fP];
+							} else
+								cM = 0;
+							if (cM > 0) {
+								nY++;
+								iY += cM;
+							}
+						}
+					}
+					ionIntensities.put(iType, ionIntensities.get(iType) + iY);
+					ionCounts.put(iType, ionCounts.get(iType) + nY);
+				}
+			}
+		}
+	}
+
 	
 	public int getFrags(String seq, float [] mods, double ppmTol) {
 		float iB = 0.0f, iY = 0.0f;
@@ -316,21 +388,8 @@ public class Spectrum implements Comparable<Spectrum> {
 		int fP = 0;
 		int cLen = seq.length();
 
-		ArrayList<Character> nIonTypes = new ArrayList<>();
-		ArrayList<Character> cIonTypes = new ArrayList<>();
-
-		if (PTMShepherd.getParam("iontype_a").trim().equals("1"))
-			nIonTypes.add('a');
-		if (PTMShepherd.getParam("iontype_b").trim().equals("1"))
-			nIonTypes.add('b');
-		if (PTMShepherd.getParam("iontype_c").trim().equals("1"))
-			nIonTypes.add('c');
-		if (PTMShepherd.getParam("iontype_x").trim().equals("1"))
-			cIonTypes.add('x');
-		if (PTMShepherd.getParam("iontype_y").trim().equals("1"))
-			cIonTypes.add('y');
-		if (PTMShepherd.getParam("iontype_z").trim().equals("1"))
-			cIonTypes.add('z');
+		ArrayList<Character> nIonTypes = PTMShepherd.getNionTypes();
+		ArrayList<Character> cIonTypes = PTMShepherd.getCionTypes();
 
 		float nTermMass;
 		for (Character iType : nIonTypes) {

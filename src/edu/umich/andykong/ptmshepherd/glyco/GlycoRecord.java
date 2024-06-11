@@ -82,7 +82,7 @@ public class GlycoRecord {
         }
         //get instances of remainder frag identified
         startCol = endCol;
-        endCol = sp.length;
+        endCol = startCol + remFragCounts.length;
         for(int i = startCol; i < endCol; i++){
             cInt = Double.parseDouble(sp[i]); //is actually delta score, not intensity
             if (cInt > 0.0) {

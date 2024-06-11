@@ -1141,6 +1141,29 @@ public class PTMShepherd {
 			sb.append("z");
 		return sb.toString();
 	}
+
+	public static ArrayList<Character> getNionTypes() {
+		ArrayList<Character> nIonTypes = new ArrayList<>();
+		if (PTMShepherd.getParam("iontype_a").trim().equals("1"))
+			nIonTypes.add('a');
+		if (PTMShepherd.getParam("iontype_b").trim().equals("1"))
+			nIonTypes.add('b');
+		if (PTMShepherd.getParam("iontype_c").trim().equals("1"))
+			nIonTypes.add('c');
+		return nIonTypes;
+	}
+
+	public static ArrayList<Character> getCionTypes() {
+		ArrayList<Character> cIonTypes = new ArrayList<>();
+		if (PTMShepherd.getParam("iontype_x").trim().equals("1"))
+			cIonTypes.add('x');
+		if (PTMShepherd.getParam("iontype_y").trim().equals("1"))
+			cIonTypes.add('y');
+		if (PTMShepherd.getParam("iontype_z").trim().equals("1"))
+			cIonTypes.add('z');
+		return cIonTypes;
+	}
+
 	private static GlycoParams parseGlycoParams() {
 		String glycanResidueDB = getParam("glyco_residue_list");
 		String glycanModDB = getParam("glyco_mod_list");
