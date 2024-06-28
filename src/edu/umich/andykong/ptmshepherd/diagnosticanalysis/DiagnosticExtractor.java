@@ -44,9 +44,9 @@ public class DiagnosticExtractor {
     int condPeaks;
     int specCol, pepCol, modpepCol, chargecol, deltaCol, rtCol, intCol, pmassCol, modCol;
     double condRatio;
-    double[] capYShifts;// = new double[]{0,203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
-    double[] oxoniumIons;//= new double[]{204.086646,186.076086,168.065526,366.139466,144.0656,138.055,512.197375,292.1026925,274.0921325,657.2349,243.026426,405.079246,485.045576,308.09761};
-    double[] remainderMasses;// = new double[]{203.07937,406.15874,568.21156,730.26438,892.3172,349.137279};
+    double[] capYShifts;
+    double[] oxoniumIons;
+    double[] remainderMasses;
 
     public DiagnosticExtractor(String dsName) {
         this.dsName = dsName;
@@ -66,8 +66,8 @@ public class DiagnosticExtractor {
         condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
         //cap y ions
         String[] capYstrs;
-        if (PTMShepherd.getParam("cap_y_ions").length() > 0)
-            capYstrs = PTMShepherd.getParam("cap_y_ions").split(",| |/");
+        if (!PTMShepherd.getParam("cap_y_ions").isEmpty())
+            capYstrs = PTMShepherd.getParam("cap_y_ions").split("[,/\\s]+");
         else
             capYstrs = new String[0];
         capYShifts = new double[capYstrs.length];
@@ -75,8 +75,8 @@ public class DiagnosticExtractor {
             capYShifts[i] = Double.parseDouble(capYstrs[i]);
         //oxonium ions
         String[] oxStrs;
-        if (PTMShepherd.getParam("diag_ions").length() > 0)
-            oxStrs = PTMShepherd.getParam("diag_ions").split(",| |/");
+        if (!PTMShepherd.getParam("diag_ions").isEmpty())
+            oxStrs = PTMShepherd.getParam("diag_ions").split("[,/\\s]+");
         else
             oxStrs = new String[0];
         oxoniumIons = new double[oxStrs.length];
@@ -84,8 +84,8 @@ public class DiagnosticExtractor {
             oxoniumIons[i] = Double.parseDouble(oxStrs[i]);
         //remainder masses
         String[] remainderStrs;
-        if (PTMShepherd.getParam("remainder_masses").length() > 0)
-            remainderStrs = PTMShepherd.getParam("remainder_masses").split(",| |/");
+        if (!PTMShepherd.getParam("remainder_masses").isEmpty())
+            remainderStrs = PTMShepherd.getParam("remainder_masses").split("[,/\\s]+");
         else
             remainderStrs = new String[0];
         remainderMasses = new double[remainderStrs.length];
