@@ -613,7 +613,7 @@ public class Spectrum implements Comparable<Spectrum> {
 
 	public double findIonNeutral(double neutralIonMass, double ppmTol, int maxCharge) {
 		double ionIntensity = 0;
-		int charge = Math.min(this.charge, maxCharge);
+		int charge = this.charge == 0 ? maxCharge : Math.min(this.charge, maxCharge);	// use max charge if charge was not read from spectrum file
 		for (int z = 1; z <= charge; z++) {
 			double ion = (neutralIonMass + (1.00727 * (double) z)) / (double) z;
 			double ppmRange = ppmTol * (1.0 / 1000000) * ion;
