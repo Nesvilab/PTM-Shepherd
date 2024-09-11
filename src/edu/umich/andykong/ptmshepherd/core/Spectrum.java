@@ -31,7 +31,7 @@ public class Spectrum implements Comparable<Spectrum> {
 
 	public int scanNum;
 	public int charge;
-	double precursorMass, rt;
+	public double precursorMass, rt;
 	double monoMass, targetMass;
 	public float [] peakMZ;
 	public float [] peakInt;
