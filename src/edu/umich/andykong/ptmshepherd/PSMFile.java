@@ -254,13 +254,24 @@ public class PSMFile {
 		return res;
 	}
 
+	/**
+	 * Uses name with file extension to support handling user-named files like "_calibrated.raw", which became
+	 * "_calibrated_calibrated.mzML" and crashed before. Returns filename without extension after removing
+	 * _(un)calibrated.mzML/MGF.
+	 */
 	private static String removeCalTag(String fileBaseName) {
-		if (fileBaseName.contains("_calibrated"))
-			return fileBaseName.replace("_calibrated", "");
-		else if (fileBaseName.contains("_uncalibrated"))
-			return fileBaseName.replace("_uncalibrated", "");
+		String nameWithExt;
+		if (fileBaseName.contains("_calibrated.mzML"))
+			nameWithExt = fileBaseName.replace("_calibrated.mzML", ".mzML");
+		else if (fileBaseName.contains("_uncalibrated.mzML"))
+			nameWithExt = fileBaseName.replace("_uncalibrated.mzML", ".mzML");
+		else if (fileBaseName.contains("_calibrated.MGF"))
+			nameWithExt = fileBaseName.replace("_calibrated.MGF", ".MGF");
+		else if (fileBaseName.contains("_uncalibrated.MGF"))
+			nameWithExt = fileBaseName.replace("_uncalibrated.MGF", ".MGF");
 		else
-			return fileBaseName;
+			nameWithExt = fileBaseName;
+		return splitName(nameWithExt)[0];
 	}
 	
 	public static String getCRC32(File f) throws Exception {
@@ -420,7 +431,7 @@ public class PSMFile {
 		} else { // see if valid file ext
 			String matchedKey = getMatchingExtension(path, priorities);
 			if (matchedKey != null) { // end of name exists in priorities map
-				String rawFileName = removeCalTag(splitName(path.getName())[0]);
+				String rawFileName = removeCalTag(path.getName());
 				// If raw file not part of this analysis, continue
 				if (!mappings.containsKey(rawFileName))
 					return;
