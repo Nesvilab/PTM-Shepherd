@@ -88,7 +88,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	}
 
 	public MZBINFile.MZBINSpectrum toMZBINSpectrum() {
-		return new MZBINFile.MZBINSpectrum(scanNum, scanName, peakMZ.length, (float) rt, (float) precursorMass, msLevel, charge, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, precursorMass, 0, 0, Doubles.toArray(Floats.asList(peakMZ)), peakInt);
+		return new MZBINFile.MZBINSpectrum(scanNum, scanName, peakMZ.length, (float) rt, (float) precursorMass, msLevel, charge, 0, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, precursorMass, 0, 0, Doubles.toArray(Floats.asList(peakMZ)), peakInt);
 	}
 
 	public String toString() {

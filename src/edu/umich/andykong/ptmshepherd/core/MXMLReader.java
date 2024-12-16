@@ -18,14 +18,14 @@ package edu.umich.andykong.ptmshepherd.core;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import java.io.File;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
-
 import umich.ms.datatypes.LCMSDataSubset;
 import umich.ms.datatypes.scan.IScan;
 import umich.ms.datatypes.scancollection.impl.ScanCollectionDefault;
@@ -194,8 +194,16 @@ public class MXMLReader {
 		MZBINFile mzbinSource = null;
 
 		if (fn.endsWith(".mzbin") || fn.endsWith(".mzbin_cache")) {
+			RandomAccessFile raf = new RandomAccessFile(f, "r");
+			byte[] MZBNhead = new byte[28];
+			raf.read(MZBNhead);
+			ByteBuffer byteBuffer = ByteBuffer.wrap(MZBNhead);
+			byteBuffer.getInt();
+			int mzBINFileVersion = byteBuffer.getInt();
+			raf.close();
+
 			mzbinSource = new MZBINFile(this.threads, f, false);
-			mzbinSource.loadMZBINScans(PTMShepherd.executorService, this.threads, scanNums);
+			mzbinSource.loadMZBINScans(PTMShepherd.executorService, this.threads, scanNums, mzBINFileVersion);
 		}
 		if (mzbinSource == null) {
 			System.out.println("Cannot partially read non-mzBin file: " + f.getName());
