@@ -94,16 +94,16 @@ public class IterativeLocalizer {
         this.zeroBin = this.locate.getIndex(0.0);
     }
 
-    public void localize() throws Exception {
+    public void localize(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
         // Step 1: use matched intensities of unmodified peptides to fit nonparametric distribution
-        fitMatchedIonDistribution();
+        fitMatchedIonDistribution(psmFiles);
         // Step 2: draw the rest of the fucking owl
-        calculateLocalizationProbabilities();
+        calculateLocalizationProbabilities(psmFiles);
         // Step 3: calculate FLRs
-        calculateFalseLocalizationRates();
+        calculateFalseLocalizationRates(psmFiles);
     }
 
-    private void fitMatchedIonDistribution() throws Exception {
+    private void fitMatchedIonDistribution(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
         System.out.println("\tFitting distribution to matched zero-bin fragments");
         // Set up distribution
         this.matchedIonDist = new MatchedIonDistribution(1.0f, this.poissonBinomialDistribution);
@@ -119,7 +119,7 @@ public class IterativeLocalizer {
             ArrayList<String[]> dsData = this.datasets.get(ds);
             // Loop through PSM files
             for (int i = 0; i < dsData.size(); i++) {
-                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                PSMFile psmf = psmFiles.get(ds).get(i);
                 HashMap<String, ArrayList<Integer>> runToLine = psmf.getRunMappings();
                 // Loop through runs
                 for (String cf : runToLine.keySet()) {
@@ -244,7 +244,7 @@ public class IterativeLocalizer {
         System.out.printf("\tDone fitting distribution to matched zero-bin fragments (%d ms processing)\n", t2-t1);
     }
 
-    private void calculateLocalizationProbabilities() throws Exception {
+    private void calculateLocalizationProbabilities(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
         System.out.println("\tCalculating PSM-level localization probabilities");
 
         // Set up bin-wise prior probability string to be updated every epoch
@@ -282,7 +282,7 @@ public class IterativeLocalizer {
                 // Loop through PSM files
                 for (int i = 0; i < dsData.size(); i++) {
                     String psmfStr = dsData.get(i)[0];
-                    PSMFile psmf = new PSMFile(psmfStr);
+                    PSMFile psmf = psmFiles.get(ds).get(i);
 
                     // Get run to line mappings, if first run calculate, else get preprocessed list to prevent extra parsing
                     HashMap<String, ArrayList<Integer>> runToLine;
@@ -555,7 +555,7 @@ public class IterativeLocalizer {
      *
      * @return
      */
-    private void calculateFalseLocalizationRates() throws Exception { //TODO this needs to be modularized so it can be unit tested
+    private void calculateFalseLocalizationRates(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception { //TODO this needs to be modularized so it can be unit tested
         System.out.println("\tEstimating false localization rates");
 
         long t1 = System.currentTimeMillis();
@@ -605,7 +605,7 @@ public class IterativeLocalizer {
             for (int i = 0; i < dsData.size(); i++) {
 
                 // Get values we're working with on first pass
-                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                PSMFile psmf = psmFiles.get(ds).get(i);
                 ArrayList<String> specs = psmf.getColumnValues("Spectrum");
                 ArrayList<String> peps = psmf.getColumnValues("Peptide");
                 ArrayList<String> maxProbs = psmf.getColumnValues("PTM-Shepherd Best Localization");
@@ -819,7 +819,7 @@ public class IterativeLocalizer {
             for (int i = 0; i < dsData.size(); i++) {
 
                 // Get values to map to q-vals
-                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                PSMFile psmf = psmFiles.get(ds).get(i);
                 ArrayList<String> specNames = psmf.getColumnValues("Spectrum");
                 ArrayList<String> maxProbs = psmf.getColumnValues("PTM-Shepherd Best Localization");
                 //ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");

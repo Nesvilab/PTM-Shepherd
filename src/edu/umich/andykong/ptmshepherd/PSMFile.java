@@ -52,10 +52,6 @@ public class PSMFile {
 	public File fname;
 	boolean alreadyWarned;
 
-	public PSMFile(String fn) throws Exception {
-		this(new File(fn));
-		alreadyWarned = false;
-	}
 
 	/**
 	 * PSM class to hold parsed line info.

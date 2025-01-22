@@ -76,6 +76,7 @@ public class PTMShepherd {
 
 	static HashMap<String,String> params;
 	static TreeMap<String,ArrayList<String []>> datasets;
+	static HashMap<String, ArrayList<PSMFile>> psmFiles;
 	static HashMap<String,HashMap<String,File>> mzMap;
 	static HashMap<String,Integer> datasetMS2;
 	static ArrayList<String> cacheFiles;
@@ -339,6 +340,9 @@ public class PTMShepherd {
 
 		init(args);
 
+		// load PSM data
+		loadPSMFiles();
+
 		//Get mzData mapping
 		print("Finding spectral data");
 		getMzDataMapping();
@@ -514,9 +518,7 @@ public class PTMShepherd {
 	private static void prepForIonQuant(double[][] peakBounds) throws Exception {
 		out.println("Prepping PSM tables for IonQuant");
 		for (String ds : datasets.keySet()) {
-			ArrayList<String[]> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf : psmFiles.get(ds)) {
 				pf.preparePsmTableForIonQuant(peakBounds, Integer.parseInt(params.get("precursor_mass_units")), Double.parseDouble(params.get("precursor_tol")));
 			}
 		}
@@ -554,9 +556,7 @@ public class PTMShepherd {
 				glycoParams.printGlycoParams();
 				alreadyPrintedParams = true;
 			}
-			ArrayList<String[]> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf : psmFiles.get(ds)) {
 				ga.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
 			}
 			ga.completeGlyco();
@@ -590,9 +590,7 @@ public class PTMShepherd {
 				ga2.glycanMassBinMap = ga.glycanMassBinMap;
 				ga2.useFragmentSpecificProbs = true;
 				ga2.defaultPropensity = glycoParams.defaultProp;
-				ArrayList<String[]> dsData = datasets.get(ds);
-				for (String[] dsDatum : dsData) {
-					PSMFile pf = new PSMFile(new File(dsDatum[0]));
+				for (PSMFile pf: psmFiles.get(ds)) {
 					ga2.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
 				}
 				if (!glycoParams.useNewFDR) {
@@ -615,9 +613,7 @@ public class PTMShepherd {
 
 		/* Save best glycan information from glyco report to psm tables */
 		for (String ds : datasets.keySet()) {
-			ArrayList<String[]> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf: psmFiles.get(ds)) {
 				pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, glycoParams);
 			}
 		}
@@ -635,9 +631,7 @@ public class PTMShepherd {
 				print(String.format("\tDiagnostic extraction already done for dataset %s, skipping", ds));
 				continue;
 			}
-			ArrayList<String[]> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf: psmFiles.get(ds)) {
 				da.extractDiagPSMs(pf, mzMap.get(ds), executorService, numThreads);
 			}
 			da.completeDiagnostic();
@@ -669,9 +663,7 @@ public class PTMShepherd {
 			//	continue;
 			//}
 			da.initializeBinBoundaries(peakBoundaries);
-			ArrayList<String[]> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf: psmFiles.get(ds)) {
 				da.diagIonsPSMs(pf, mzMap.get(ds), executorService, Integer.parseInt(params.get("threads")));
 			}
 			//da.complete();
@@ -683,9 +675,7 @@ public class PTMShepherd {
 				Double.parseDouble(params.get("diagmine_maxP")), Double.parseDouble(params.get("diagmine_minAuc")), Double.parseDouble(params.get("diagmine_minSpecDiff")), Double.parseDouble(params.get("diagmine_minFoldChange")), Integer.parseInt(params.get("diagmine_minIonsPerSpec")),
 				Integer.parseInt(params.get("diagmine_twoTailedTests")), Integer.parseInt(params.get("spectra_condPeaks")), Double.parseDouble(params.get("spectra_condRatio")), pa.getPeakApexMappings());
 		for (String ds : datasets.keySet()) {
-			ArrayList<String[]> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf: psmFiles.get(ds)) {
 				dpp.addPepkeysToIndex(pf);
 			}
 		}
@@ -696,9 +686,7 @@ public class PTMShepherd {
 		out.println("\tExtracting ions from spectra");
 		dpp.initDiagProfRecs();
 		for (String ds : datasets.keySet()) {
-			ArrayList<String[]> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf: psmFiles.get(ds)) {
 				dpp.diagIonsPSMs(pf, mzMap.get(ds), executorService);
 			}
 		}
@@ -713,9 +701,7 @@ public class PTMShepherd {
 			SimRTAnalysis sra = new SimRTAnalysis(ds);
 			if(sra.isComplete())
 				continue;
-			ArrayList<String []> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf: psmFiles.get(ds)) {
 				sra.simrtPSMs(pf, mzMap.get(ds), Boolean.parseBoolean(params.get("compare_betweenRuns")));
 			}
 			sra.complete();
@@ -744,9 +730,7 @@ public class PTMShepherd {
 			SiteLocalization sl = new SiteLocalization(ds);
 			if(sl.isComplete())
 				continue;
-			ArrayList<String []> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
-				PSMFile pf = new PSMFile(new File(dsDatum[0]));
+			for (PSMFile pf: psmFiles.get(ds)) {
 				sl.localizePSMs(pf, mzMap.get(ds));
 			}
 			sl.complete();
@@ -780,7 +764,7 @@ public class PTMShepherd {
 				concatIonTypes(), Double.parseDouble(params.get("iterloc_convergeCriterion")),
 				Integer.parseInt(params.get("iterloc_maxEpoch"))
 		);
-		IterLoc.localize();
+		IterLoc.localize(psmFiles);
 		out.println("Done\n");
 	}
 
@@ -792,9 +776,7 @@ public class PTMShepherd {
 			print("Annotated summary table\n");
 			print("Mapping modifications back into PSM lists\n");
 			for(String ds : datasets.keySet()) {
-				ArrayList<String []> dsData = datasets.get(ds);
-				for (String[] dsDatum : dsData) {
-					PSMFile pf = new PSMFile(new File(dsDatum[0]));
+				for (PSMFile pf: psmFiles.get(ds)) {
 					pa.loadAnnotatedFile(peakannotated, Double.parseDouble(params.get("precursor_tol")), Integer.parseInt(params.get("precursor_mass_units")));
 					ArrayList<Float> dmasses = pf.getMassDiffs();
 					ArrayList<Float> precs = pf.getPrecursorMasses();
@@ -833,9 +815,7 @@ public class PTMShepherd {
 					Integer.parseInt(params.get("peakpicking_minPsm")), Integer.parseInt(params.get("histo_intensity")));
 			for(String ds : datasets.keySet()) {
 				ps.reset();
-				ArrayList<String []> dsData = datasets.get(ds);
-				for (String[] dsDatum : dsData) {
-					PSMFile pf = new PSMFile(new File(dsDatum[0]));
+				for (PSMFile pf: psmFiles.get(ds)) {
 					ps.appendPSMs(pf);
 				}
 				ps.commit(ds,datasetMS2.get(ds));
@@ -858,11 +838,9 @@ public class PTMShepherd {
 			for(String ds : datasets.keySet()) {
 				File histoFile = new File(normFName(ds+histoName));
 				if(!histoFile.exists()) {
-					ArrayList<String []> dsData = datasets.get(ds);
 					ArrayList<Float> vals = new ArrayList<>();
 					ArrayList<Double> ints =  new ArrayList<>();
-					for (String[] dsDatum : dsData) {
-						PSMFile pf = new PSMFile(new File(dsDatum[0]));
+					for (PSMFile pf : psmFiles.get(ds)) {
 						vals.addAll(pf.getMassDiffs());
 						ints.addAll(pf.getIntensities());
 					}
@@ -902,10 +880,8 @@ public class PTMShepherd {
 			if(!countsFile.exists()) {
 				print("Counting MS2 scans for dataset " + ds);
 				if (params.get("histo_normalizeTo").equals("psms")) {
-					ArrayList<String []> dsData = datasets.get(ds);
-					for (String[] dsDatum : dsData) {
-						File tpf = new File(dsDatum[0]);
-						PSMFile pf = new PSMFile(tpf);
+					ArrayList<PSMFile> dsFiles = psmFiles.get(ds);
+					for (PSMFile pf : dsFiles) {
 						counts = pf.getMS2Counts();
 					}
 				} else if (params.get("histo_normalizeTo").equals("scans")) {
@@ -980,6 +956,21 @@ public class PTMShepherd {
 		}
 	}
 
+	/**
+	 * Load all PSM tables into memory for rapid access by all subsequent functions.
+	 */
+	private static void loadPSMFiles() throws Exception {
+		psmFiles = new HashMap<>();
+		for(String ds : datasets.keySet()) {
+			ArrayList<PSMFile> datasetPSMFiles = new ArrayList<>();
+			for (String[] dsData : datasets.get(ds)) {
+				PSMFile pf = new PSMFile(new File(dsData[0]));
+				datasetPSMFiles.add(pf);
+			}
+			psmFiles.put(ds, datasetPSMFiles);
+		}
+	}
+
 	private static void deleteFile(Path p, boolean printOnDeletion) throws IOException {
 		if (Files.deleteIfExists(p) && printOnDeletion) {
 			print("Deleted file: " + p.toAbsolutePath().normalize().toString());
@@ -993,14 +984,14 @@ public class PTMShepherd {
 		for(String ds : datasets.keySet()) {
 			ArrayList<String []> dsData = datasets.get(ds);
 			mzMap.put(ds, new HashMap<>());
-			for (String[] dsDatum : dsData) {
-				File tpf = new File(dsDatum[0]);
+			for (int i = 0; i < dsData.size(); i++) {
+				File tpf = new File(dsData.get(i)[0]);
 				String crc = PSMFile.getCRC32(tpf);
 				File cacheFile = new File(normFName("cache-" + crc + ".txt"));
 				cacheFiles.add(crc);
 				HashSet<String> fNames;
 				if (!cacheFile.exists()) {
-					PSMFile pf = new PSMFile(tpf);
+					PSMFile pf = psmFiles.get(ds).get(i);
 					fNames = pf.getRunNames();
 					PrintWriter out = new PrintWriter(new FileWriter(cacheFile));
 					for (String cn : fNames)
@@ -1018,8 +1009,8 @@ public class PTMShepherd {
 					mzMap.get(ds).put(cname, null);
 				}
 				PTMShepherd.print("\tIndexing data from " + ds);
-				PSMFile pf = new PSMFile(dsDatum[0]);
-				PSMFile.getMappings(new File(dsDatum[1]), mzMap.get(ds), pf.getRunNames());
+				PSMFile pf = psmFiles.get(ds).get(i);
+				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), pf.getRunNames());
 			}
 			// Assure that mzData was found
 			for(String crun : mzMap.get(ds).keySet()) {
@@ -1033,10 +1024,8 @@ public class PTMShepherd {
 	// Rewrite mzData to MZBIN files
 	private static void rewriteDataToMzBin() throws Exception {
 		for(String ds : datasets.keySet()) {
-			ArrayList<String []> dsData = datasets.get(ds);
-			for (String[] dsDatum : dsData) {
+			for (PSMFile pf: psmFiles.get(ds)) {
 				PTMShepherd.print("\tCaching data from " + ds);
-				PSMFile pf = new PSMFile(dsDatum[0]);
 				rewriteMzDataToMzBin(pf, mzMap.get(ds), Integer.parseInt(params.get("spectra_condPeaks")), Float.parseFloat(params.get("spectra_condRatio")));
 				PTMShepherd.print("\tDone caching data from " + ds);
 			}
