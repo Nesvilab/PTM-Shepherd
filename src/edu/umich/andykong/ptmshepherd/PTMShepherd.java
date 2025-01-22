@@ -339,9 +339,6 @@ public class PTMShepherd {
 
 		init(args);
 
-		//TODO initialize program blocks here so that they can be accessed outside their modules and stored internally
-		PeakAnnotator pa = new PeakAnnotator();
-
 		//Get mzData mapping
 		print("Finding spectral data");
 		getMzDataMapping();
@@ -354,46 +351,7 @@ public class PTMShepherd {
 		rewriteDataToMzBin();
 		print("Done caching spectral data\n");
 
-
 		countMS2scans();
-
-		//Generate histograms
-		File combinedHisto = generateHistograms();
-
-		//Perform peak detection
-		File peaksummary = detectPeaks(combinedHisto);
-
-		//Assign peak IDs
-		annotatePeaks(pa, peaksummary);
-
-		//PTMiner-style iterative localization
-		boolean iterLocMode = Boolean.parseBoolean(params.get("iterloc_mode"));
-		if (iterLocMode) {
-			runIterativeLocalization(peaksummary);
-		}
-
-		//Localization analysis
-		double[][] peakBounds = runLocalization(peaksummary);
-
-		//Perform similarity and RT annotation
-		boolean calcIntensity = runSimilarityAndRT(peakBounds);
-
-		//Diagnostic mining
-		boolean diagMineMode = Boolean.parseBoolean(params.get("run_diagmine_mode"));
-		if (diagMineMode) {
-			runDiagnosticMining(peaksummary, pa);
-		}
-
-		// diagnostic ion extraction (original glyco/labile mode)
-		boolean extractDiagnosticIons = Boolean.parseBoolean(params.get("run_diagextract_mode"));
-		if (extractDiagnosticIons) {
-			runDiagnosticExtraction();
-			runOldGlycoProfiling(peakBounds);
-			System.out.println("Done with diagnostic ion extraction\n");
-		}
-
-		//Combine tables
-		combineHistogramTables(calcIntensity);
 
 		//Glycan assignment
 		boolean glycoMode = Boolean.parseBoolean(params.get("run_glyco_mode"));
@@ -401,14 +359,57 @@ public class PTMShepherd {
 			runGlycanAssignment();
 		}
 
-		/* Make psm table IonQuant compatible */
-		if (Boolean.parseBoolean(params.get("prep_for_ionquant"))) {
-			prepForIonQuant(peakBounds);
+		boolean glycoOnlyMode = Boolean.parseBoolean(params.get("glyco_only_mode"));
+		if (!glycoOnlyMode) {
+			//TODO initialize program blocks here so that they can be accessed outside their modules and stored internally
+			PeakAnnotator pa = new PeakAnnotator();
+
+			//Generate histograms
+			File combinedHisto = generateHistograms();
+
+			//Perform peak detection
+			File peaksummary = detectPeaks(combinedHisto);
+
+			//Assign peak IDs
+			annotatePeaks(pa, peaksummary);
+
+			//PTMiner-style iterative localization
+			boolean iterLocMode = Boolean.parseBoolean(params.get("iterloc_mode"));
+			if (iterLocMode) {
+				runIterativeLocalization(peaksummary);
+			}
+
+			//Localization analysis
+			double[][] peakBounds = runLocalization(peaksummary);
+
+			//Perform similarity and RT annotation
+			boolean calcIntensity = runSimilarityAndRT(peakBounds);
+
+			//Diagnostic mining
+			boolean diagMineMode = Boolean.parseBoolean(params.get("run_diagmine_mode"));
+			if (diagMineMode) {
+				runDiagnosticMining(peaksummary, pa);
+			}
+
+			// diagnostic ion extraction (original glyco/labile mode)
+			boolean extractDiagnosticIons = Boolean.parseBoolean(params.get("run_diagextract_mode"));
+			if (extractDiagnosticIons) {
+				runDiagnosticExtraction();
+				runOldGlycoProfiling(peakBounds);
+				System.out.println("Done with diagnostic ion extraction\n");
+			}
+
+			//Combine tables
+			combineHistogramTables(calcIntensity);
+
+			/* Make psm table IonQuant compatible */
+			if (Boolean.parseBoolean(params.get("prep_for_ionquant"))) {
+				prepForIonQuant(peakBounds);
+			}
+
+			/* Make experiment-level table */
+			makeExperimentLevelTables(calcIntensity);
 		}
-
-		/* Make experiment-level table */
-		makeExperimentLevelTables(calcIntensity);
-
 		deleteFilesOnClose();
 
 		executorService.shutdown();
@@ -736,7 +737,7 @@ public class PTMShepherd {
 		return calcIntensity;
 	}
 
-	private static double[] @NotNull [] runLocalization(File peaksummary) throws Exception {
+	private static double[][] runLocalization(File peaksummary) throws Exception {
 		//Perform initial annotation
 		print("Begin localization annotation");
 		for(String ds : datasets.keySet()) {
