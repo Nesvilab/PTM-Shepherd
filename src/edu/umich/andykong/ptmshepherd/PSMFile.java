@@ -170,20 +170,20 @@ public class PSMFile {
 				String strMods = spLine.get(getColumn("Assigned Modifications"));
 				if (!strMods.isEmpty()) {
 					String[] spMods = strMods.split(",", -1);
-					for (int i = 0; i < spMods.length; i++) {
-						int p = spMods[i].indexOf("(");
-						int q = spMods[i].indexOf(")");
-						String spos = spMods[i].substring(0, p).trim();
-						float mass = Float.parseFloat(spMods[i].substring(p + 1, q).trim());
-						int pos;
-						if (spos.equals("N-term"))
-							pos = 0;
-						else if (spos.equals("c"))
-							pos = this.getPep().length();
-						else
-							pos = Integer.parseInt(spos.substring(0, spos.length() - 1));
-						this.mods.add(new ImmutablePair<>(pos, mass));
-					}
+                    for (String spMod : spMods) {
+                        int p = spMod.indexOf("(");
+                        int q = spMod.indexOf(")");
+                        String spos = spMod.substring(0, p).trim();
+                        float mass = Float.parseFloat(spMod.substring(p + 1, q).trim());
+                        int pos;
+                        if (spos.equals("N-term"))
+                            pos = 0;
+                        else if (spos.equals("c"))
+                            pos = this.getPep().length();
+                        else
+                            pos = Integer.parseInt(spos.substring(0, spos.length() - 1));
+                        this.mods.add(new ImmutablePair<>(pos, mass));
+                    }
 				}
 			}
 			return this.mods;
@@ -226,8 +226,7 @@ public class PSMFile {
 		}
 
 		public String toString() {
-			String newStr = String.join("\t", this.spLine);
-			return newStr;
+            return String.join("\t", this.spLine);
 		}
 
 		public void updateLine() {
@@ -244,7 +243,7 @@ public class PSMFile {
 
 	public static String [] splitName(String fn) {
 		String [] res = new String[2];
-		if(fn.indexOf(".") < 0) {
+		if(!fn.contains(".")) {
 			res[0] = fn;
 			res[1] = "";
 		} else {
@@ -278,7 +277,7 @@ public class PSMFile {
 		CRC32 crc = new CRC32();
 		byte [] buf = new byte[1024*1024];
 		int nread = 0;
-		DataInputStream dis = new DataInputStream(new FileInputStream(f));
+		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
 		while(dis.available() > 0) {
 			nread = dis.read(buf);
 			crc.update(buf,0,nread);
@@ -310,11 +309,11 @@ public class PSMFile {
 	public HashSet<String> getRunNames() {
 		HashSet<String> res = new HashSet<>();
 		int col = getColumn("Spectrum");
-		for(int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			String d = sp[col];
-			res.add(d.substring(0, d.indexOf(".")));
-		}
+        for (String datum : data) {
+            String[] sp = datum.split("\t");
+            String d = sp[col];
+            res.add(d.substring(0, d.indexOf(".")));
+        }
 		return res;
 	}
 
@@ -344,10 +343,10 @@ public class PSMFile {
 			col = getColumn("Original Delta Mass");
 		}
 		this.dMassCol = col;
-		for(int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			res.add(Float.parseFloat(sp[col]));
-		}
+        for (String datum : data) {
+            String[] sp = datum.split("\t");
+            res.add(Float.parseFloat(sp[col]));
+        }
 		return res;
 	}
 
@@ -361,28 +360,28 @@ public class PSMFile {
 		if (intCol == -1 || intPeaks == 0) {
 			if (intPeaks == 1)
 				System.out.printf("\tCould not identify 'Intensity' column in %s. Defaulting to spectral counts.", this.fname);
-			for (int i = 0; i < this.data.size(); i++) {
-				String[] sp = this.data.get(i).split("\t");
-				ints.add(1.0);
-			}
+            for (String datum : this.data) {
+                String[] sp = datum.split("\t");
+                ints.add(1.0);
+            }
 		}
 		/* if intensity column found, collect counts */
 		else {
 			double total = 0;
-			for (int i = 0; i < this.data.size(); i++) {
-				String[] sp = this.data.get(i).split("\t");
-				double cInt = Double.parseDouble(sp[intCol]);
-				ints.add(cInt);
-				total += cInt;
-			}
+            for (String s : this.data) {
+                String[] sp = s.split("\t");
+                double cInt = Double.parseDouble(sp[intCol]);
+                ints.add(cInt);
+                total += cInt;
+            }
 			/* if column is invalid, redo calculation with spectral counts */
 			if (total < 1) {
 				ints = new ArrayList<>();
 				System.out.printf("\tEmpty 'Intensity' column in %s. Defaulting to spectral counts.", this.fname);
-				for (int i = 0; i < this.data.size(); i++) {
-					String[] sp = this.data.get(i).split("\t");
-					ints.add(1.0);
-				}
+                for (String datum : this.data) {
+                    String[] sp = datum.split("\t");
+                    ints.add(1.0);
+                }
 			}
 		}
 
@@ -392,10 +391,10 @@ public class PSMFile {
 	public ArrayList<Float> getPrecursorMasses() {
 		ArrayList<Float> precs = new ArrayList<>();
 		int col = getPrecursorCol();
-		for (int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			precs.add(Float.parseFloat(sp[col]));
-		}
+        for (String datum : data) {
+            String[] sp = datum.split("\t");
+            precs.add(Float.parseFloat(sp[col]));
+        }
 		return precs;
 	}
 
@@ -425,9 +424,9 @@ public class PSMFile {
 		if(path.isDirectory()) {
 			File [] ls = path.listFiles();
 			// get mapping for each file
-			for(int i = 0; i < ls.length; i++) {
-				getMappings(ls[i],mappings, runNames);
-			}
+            for (File l : ls) {
+                getMappings(l, mappings, runNames);
+            }
 		} else { // see if valid file ext
 			String matchedKey = getMatchingExtension(path, priorities);
 			if (matchedKey != null) { // end of name exists in priorities map
@@ -464,14 +463,14 @@ public class PSMFile {
 	public TreeMap<String, Integer> getMS2Counts() {
 		TreeMap<String, Integer> cnts = new TreeMap<>();
 		int col = getColumn("Spectrum");
-		for(int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			String d = sp[col];
-			String crun = d.substring(0, d.indexOf("."));
-			if (!cnts.containsKey(crun))
-				cnts.put(crun, 0);
-			cnts.put(crun, cnts.get(crun) + 1);
-		}
+        for (String datum : data) {
+            String[] sp = datum.split("\t");
+            String d = sp[col];
+            String crun = d.substring(0, d.indexOf("."));
+            if (!cnts.containsKey(crun))
+                cnts.put(crun, 0);
+            cnts.put(crun, cnts.get(crun) + 1);
+        }
 		return cnts;
 	}
 
@@ -559,7 +558,7 @@ public class PSMFile {
 			// check if a glycan was found
 			if (glyLines.containsKey(pSpec)) {
 				ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
-				if (glyLine.get(mergeFromCol).length() > 0) {
+				if (!glyLine.get(mergeFromCol).isEmpty()) {
 					String rawGlycan = glyLine.get(mergeFromCol);
 					String observedGlycan;
 					String glycanScore = glyLine.get(glycanScoreCol);
@@ -694,7 +693,7 @@ public class PSMFile {
 		boolean prevGlycanWritten = false;
 		double previousGlycanMass = 0;
 		for (String mod: modSplits) {
-			if (mod.length() > 0) {
+			if (!mod.isEmpty()) {
 				int modLocation = parseModLocation(mod);
 				if (modLocation == glycanLocation + 1) {
 					// a mod is already present at this site in the PSM table. Probably an existing glycan mod, but check the mass too to confirm
@@ -721,7 +720,7 @@ public class PSMFile {
 
 		/* Write mass and location to Modified Pep */
 		String modifiedPep = newLine.get(modPeptideCol);
-		if (modifiedPep.length() == 0) {
+		if (modifiedPep.isEmpty()) {
 			// no previous mods here, copy from peptide
 			modifiedPep = newLine.get(peptideCol);
 		}
@@ -817,7 +816,7 @@ public class PSMFile {
 				allowedPositions.add(i);
 			}
 		}
-		if (allowedPositions.size() >= 1) {
+		if (!allowedPositions.isEmpty()) {
 			// 1 or more positions - take first position if ambiguous
 			glycanLocation = allowedPositions.get(0);
 		} else {
@@ -855,16 +854,16 @@ public class PSMFile {
 		out.println(String.join("\t", this.headers) + "\tTheoretical Modification Mass");
 
 		/* For each line in the file, find the peak apex from the delta mass*/
-		for (int i = 0; i < this.data.size(); i++) {
-			String[] sp = this.data.get(i).split("\t");
-			double dmass = Double.parseDouble(sp[this.dMassCol]);
-			double theoreticalDmass;
-			if (locator.getIndex(dmass) == -1)
-				theoreticalDmass = dmass;
-			else
-				theoreticalDmass = peakBounds[0][locator.getIndex(dmass)];
-			out.println(this.data.get(i) + "\t" + String.format("%.4f", theoreticalDmass));
-		}
+        for (String datum : this.data) {
+            String[] sp = datum.split("\t");
+            double dmass = Double.parseDouble(sp[this.dMassCol]);
+            double theoreticalDmass;
+            if (locator.getIndex(dmass) == -1)
+                theoreticalDmass = dmass;
+            else
+                theoreticalDmass = peakBounds[0][locator.getIndex(dmass)];
+            out.println(datum + "\t" + String.format("%.4f", theoreticalDmass));
+        }
 
 		out.close();
 
@@ -889,7 +888,7 @@ public class PSMFile {
 		String cline;
 		while((cline = in.readLine()) != null) {
 			//if(cline.trim().length() > 0)
-			if (cline.length() > 0)
+			if (!cline.isEmpty())
 				this.data.add(cline);
 		}
 		in.close();
@@ -922,7 +921,7 @@ public class PSMFile {
 		ArrayList<String> newLines = new ArrayList<>();
 		for (int i = 0; i < this.data.size(); i++) {
 			ArrayList<String> sp = new ArrayList<String>(Arrays.asList(this.data.get(i).split("\t")));
-			if (overwrite == true)
+			if (overwrite)
 				sp.set(annoCol, annotations[i]);
 			else
 				sp.add(annoCol, annotations[i]);
@@ -930,7 +929,7 @@ public class PSMFile {
 		}
 
 		/* fix up headers */
-		if (overwrite == false) {
+		if (!overwrite) {
 			ArrayList<String> heads = new ArrayList<>(Arrays.asList(this.headers));
 			heads.add(annoCol, "Observed Modifications");
 			heads.toArray(this.headers);
@@ -943,8 +942,7 @@ public class PSMFile {
 		/* write the new header */
 		out.println(String.join("\t", this.headers));
 		/* write file lines */
-		for (int i = 0; i < newLines.size(); i ++)
-			out.println(newLines.get(i));
+        for (String newLine : newLines) out.println(newLine);
 
 		/* close and rename temp file */
 		out.close();
@@ -1131,44 +1129,44 @@ public class PSMFile {
 		out.println(String.join("\t", this.headers));
 
 		/* For each line in the file, modify accordingly */
-		for (int i = 0; i < this.data.size(); i++) {
-			ArrayList<String> sp = new ArrayList<>(Arrays.asList(this.data.get(i).split("\t")));
-			//Shift variable mod info into delta mass
-			if (varModMasses.size() > 0) {
-				double oldDmass = Double.parseDouble(sp.get(this.dMassCol));
-				double newDmass = oldDmass;
-				double oldPepmass = Double.parseDouble(sp.get(getColumn("Calculated Peptide Mass")));
-				double newPepmass = oldPepmass;
-				String[] oldAssignedMods = sp.get(getColumn("Assigned Modifications")).split(",");
-				ArrayList<String> newAssignedMods = new ArrayList<>(Arrays.asList(oldAssignedMods));
-				ArrayList<Integer> dropMods = new ArrayList<>();
-				for (int j = 0; j < oldAssignedMods.length; j++) {
-					System.out.println(oldAssignedMods[j]);
-					String modStr = oldAssignedMods[j];
-					int p = modStr.indexOf("(");
-					int q = modStr.indexOf(")");
-					double modMass = Double.parseDouble(modStr.substring(p + 1, q).trim());
-					for (int k = 0; k < varModMasses.size(); k++) {
-						if (Math.abs(modMass - varModMasses.get(k)) < 0.001) {
-							dropMods.add(j);
-							newDmass += modMass;
-							newPepmass -= modMass;
-							break;
-						}
-					}
-				}
-				for (int k = dropMods.size() - 1; k > 0; k--)
-					newAssignedMods.remove(k);
-				// reassign adjusted values
-				sp.set(this.deltaMassCol, Double.toString(newDmass));
-				sp.set(getColumn("Calculated Peptide Mass"), Double.toString(newPepmass));
-				sp.set(getColumn("Assigned Modifications"), String.join(", ", newAssignedMods));
-				sp.add(Double.toString(oldDmass));
-				sp.add(Double.toString(oldPepmass));
-				sp.add(String.join(", ", newAssignedMods));
-			}
-			out.println(this.data.get(i));
-		}
+        for (String datum : this.data) {
+            ArrayList<String> sp = new ArrayList<>(Arrays.asList(datum.split("\t")));
+            //Shift variable mod info into delta mass
+            if (!varModMasses.isEmpty()) {
+                double oldDmass = Double.parseDouble(sp.get(this.dMassCol));
+                double newDmass = oldDmass;
+                double oldPepmass = Double.parseDouble(sp.get(getColumn("Calculated Peptide Mass")));
+                double newPepmass = oldPepmass;
+                String[] oldAssignedMods = sp.get(getColumn("Assigned Modifications")).split(",");
+                ArrayList<String> newAssignedMods = new ArrayList<>(Arrays.asList(oldAssignedMods));
+                ArrayList<Integer> dropMods = new ArrayList<>();
+                for (int j = 0; j < oldAssignedMods.length; j++) {
+                    System.out.println(oldAssignedMods[j]);
+                    String modStr = oldAssignedMods[j];
+                    int p = modStr.indexOf("(");
+                    int q = modStr.indexOf(")");
+                    double modMass = Double.parseDouble(modStr.substring(p + 1, q).trim());
+                    for (Double varModMass : varModMasses) {
+                        if (Math.abs(modMass - varModMass) < 0.001) {
+                            dropMods.add(j);
+                            newDmass += modMass;
+                            newPepmass -= modMass;
+                            break;
+                        }
+                    }
+                }
+                for (int k = dropMods.size() - 1; k > 0; k--)
+                    newAssignedMods.remove(k);
+                // reassign adjusted values
+                sp.set(this.deltaMassCol, Double.toString(newDmass));
+                sp.set(getColumn("Calculated Peptide Mass"), Double.toString(newPepmass));
+                sp.set(getColumn("Assigned Modifications"), String.join(", ", newAssignedMods));
+                sp.add(Double.toString(oldDmass));
+                sp.add(Double.toString(oldPepmass));
+                sp.add(String.join(", ", newAssignedMods));
+            }
+            out.println(datum);
+        }
 
 		out.close();
 	}

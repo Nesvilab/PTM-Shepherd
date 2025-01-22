@@ -778,7 +778,7 @@ public class GlycoAnalysis {
         // Determine possible glycan candidates from mass
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(glycoResult.pepMass, glycoResult.deltaMass, glycanDatabase, glycoParams.glycoIsotopes, glycoParams.glycoPPMtol);
         String output;
-        if (searchCandidates.size() > 0) {
+        if (!searchCandidates.isEmpty()) {
             // Search Y and oxonium ions in spectrum for each candidate
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
             for (GlycanCandidate candidate : searchCandidates) {
@@ -940,7 +940,7 @@ public class GlycoAnalysis {
         for (int isotope : glycoParams.glycoIsotopes) {
             int massBin = (int) Math.floor(deltaMass + isotope);
             HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
-            if (glycanCountMap.size() > 0) {
+            if (!glycanCountMap.isEmpty()) {
                 // count instances of glycan 1, glycan 2, and all glycans
                 glyc1Count = glyc1Count + glycanCountMap.getOrDefault(glycan1.toString(), 0);
                 for (int glycanCount : glycanCountMap.values()) {

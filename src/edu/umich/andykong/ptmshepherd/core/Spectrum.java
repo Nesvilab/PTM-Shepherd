@@ -92,8 +92,8 @@ public class Spectrum implements Comparable<Spectrum> {
 	}
 
 	public String toString() {
-		StringBuffer sb = new StringBuffer();
-		sb.append(scanNum+" -");
+		StringBuilder sb = new StringBuilder();
+		sb.append(scanNum).append(" -");
 		for(int i = 0; i < peakMZ.length; i++)
 			sb.append(String.format(" [%.2f %.2f]",peakMZ[i],peakInt[i]));
 		return sb.toString();
@@ -155,22 +155,18 @@ public class Spectrum implements Comparable<Spectrum> {
 				mv = peakInt[i];
 		}
 
-		Collections.sort(peaks, new Comparator<Peak>() {
-			public int compare(Peak o1, Peak o2) {
-				return -1*Float.valueOf(o1.Int).compareTo(o2.Int);
-			}
-		});
+		peaks.sort(new Comparator<Peak>() {
+            public int compare(Peak o1, Peak o2) {
+                return -1 * Float.compare(o1.Int, o2.Int);
+            }
+        });
 		
 		while(peaks.size() > topN)
 			peaks.remove(peaks.size()-1);
-		while(peaks.size() > 0 && (peaks.get(peaks.size()-1).Int < peaks.get(0).Int*ratio))
+		while(!peaks.isEmpty() && (peaks.get(peaks.size()-1).Int < peaks.get(0).Int*ratio))
 			peaks.remove(peaks.size()-1);
 
-		Collections.sort(peaks, new Comparator<Peak>() {
-			public int compare(Peak o1, Peak o2) {
-				return Float.valueOf(o1.MZ).compareTo(o2.MZ);
-			}
-		});
+		peaks.sort((o1, o2) -> Float.compare(o1.MZ, o2.MZ));
 
 		peakMZ = new float[peaks.size()];
 		peakInt = new float[peaks.size()];
@@ -189,22 +185,18 @@ public class Spectrum implements Comparable<Spectrum> {
 				mv = peakInt[i];
 		}
 
-		Collections.sort(peaks, new Comparator<Peak>() {
-			public int compare(Peak o1, Peak o2) {
-				return -1*Float.valueOf(o1.Int).compareTo(o2.Int);
-			}
-		});
+		peaks.sort(new Comparator<Peak>() {
+            public int compare(Peak o1, Peak o2) {
+                return -1 * Float.compare(o1.Int, o2.Int);
+            }
+        });
 
 		while(peaks.size() > topN)
 			peaks.remove(peaks.size()-1);
-		while(peaks.size() > 0 && (peaks.get(peaks.size()-1).Int < peaks.get(0).Int*ratio))
+		while(!peaks.isEmpty() && (peaks.get(peaks.size()-1).Int < peaks.get(0).Int*ratio))
 			peaks.remove(peaks.size()-1);
 
-		Collections.sort(peaks, new Comparator<Peak>() {
-			public int compare(Peak o1, Peak o2) {
-				return Float.valueOf(o1.MZ).compareTo(o2.MZ);
-			}
-		});
+		peaks.sort((o1, o2) -> Float.compare(o1.MZ, o2.MZ));
 
 		peakMZ = new float[peaks.size()];
 		peakInt = new float[peaks.size()];
@@ -296,9 +288,9 @@ public class Spectrum implements Comparable<Spectrum> {
 		
 		score = fact[nB] + fact[nY];
 		if(iB > 1)
-			score += Math.log(iB);
+			score += (float) Math.log(iB);
 		if(iY > 1)
-			score += Math.log(iY);
+			score += (float) Math.log(iY);
 		
 		return score;
 	}
@@ -630,10 +622,10 @@ public class Spectrum implements Comparable<Spectrum> {
 
 	public double findBasePeakInt() {
 		double bpInt = 0;
-		for (int i = 0; i < peakInt.length; i++) {
-			if (peakInt[i] > bpInt)
-				bpInt = peakInt[i];
-		}
+        for (float v : peakInt) {
+            if (v > bpInt)
+                bpInt = v;
+        }
 		return bpInt;
 	}
 
@@ -641,8 +633,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	 * Convert neutral mass to m/z [M+H+]x+, where x is the provided charge
 	 * @param neutralMass neutral mass
 	 * @param charge charge
-	 * @return
-	 */
+     */
 	public static float neutralMassToMZ(float neutralMass, int charge) {
 		return (neutralMass + charge * protMass) / (float) charge;
 	}
@@ -651,8 +642,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	 * Convert m/z [M+H+]x+ to neutral mass M
 	 * @param mz m/z
 	 * @param charge z
-	 * @return
-	 */
+     */
 	public static float mzToNeutralMass(float mz, int charge) {
 		return (mz - protMass) * charge;
 	}
@@ -678,7 +668,7 @@ public class Spectrum implements Comparable<Spectrum> {
 						break;
 					}
 				}
-				if (skipFlag == false) {
+				if (!skipFlag) {
 					ps.add(new Peak(peakMZ[i], peakInt[i], (float)absTol));
 					this.averageIonMass += peakMZ[i];
 				}
@@ -714,7 +704,7 @@ public class Spectrum implements Comparable<Spectrum> {
 				}
 				//if (Math.abs(peakMZ[i] - adjPepMass < 0.01))
 				//	skipFlag = true;
-				if (skipFlag == false)
+				if (!skipFlag)
 					if ((peakMZ[i] - adjPepMass) < minPeptideIon)
 						ps.add(new Peak((float)((peakMZ[i] - adjPepMass) * z), 0, (float)absTol));
 					else
@@ -839,8 +829,7 @@ public class Spectrum implements Comparable<Spectrum> {
 						}
 					}
 				}
-				for(int i = 0; i < cPeaksNaked.size(); i++)
-					ps.add(cPeaksNaked.get(i));
+                ps.addAll(cPeaksNaked);
 			}
 			squigglePeaks.put(iType, peaksWTolToArray(ps));
 			iTypeIndx++;
@@ -876,8 +865,7 @@ public class Spectrum implements Comparable<Spectrum> {
 						}
 					}
 				}
-				for(int i = 0; i < cPeaksNaked.size(); i++)
-					ps.add(cPeaksNaked.get(i));
+                ps.addAll(cPeaksNaked);
 			}
 			squigglePeaks.put(iType, peaksWTolToArray(ps));
 			iTypeIndx++;

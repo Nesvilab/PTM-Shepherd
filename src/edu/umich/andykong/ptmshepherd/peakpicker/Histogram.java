@@ -18,6 +18,7 @@ package edu.umich.andykong.ptmshepherd.peakpicker;
 
 import java.io.*;
 import java.nio.*;
+import java.nio.file.Files;
 import java.util.*;
 
 import org.apache.commons.math3.distribution.NormalDistribution;
@@ -40,13 +41,13 @@ public class Histogram {
 		
 		this.expSize = expSize;
 		this.binDivs = binDivs;
-		
-		for(int i = 0; i < vals.size(); i++) {
-			if(vals.get(i) > max)
-				max = vals.get(i);
-			if(vals.get(i) < min)
-				min = vals.get(i);
-		}
+
+        for (Float val : vals) {
+            if (val > max)
+                max = val;
+            if (val < min)
+                min = val;
+        }
 		
 		start = (int)(min-5);
 		end = (int)(max + 5);
@@ -106,15 +107,14 @@ public class Histogram {
 		int len = merged.get(keys[0]).length;
 		for(int i = 0; i < len; i++) {
 			out.printf("%.5f", start + i*(1.0/binDivs));
-			for(int j = 0; j < keys.length; j++)
-				out.printf("\t%.8f",merged.get(keys[j])[i]);
+            for (String key : keys) out.printf("\t%.8f", merged.get(key)[i]);
 			out.println();
 		}
 		out.close();
 	}
 	
 	public void writeHistogram(File f) throws Exception {
-		DataOutputStream dos = new DataOutputStream(new FileOutputStream(f));
+		DataOutputStream dos = new DataOutputStream(Files.newOutputStream(f.toPath()));
 		dos.writeInt(start); //tres
 		dos.writeInt(end); //quatro
 		dos.writeInt(binDivs);
@@ -125,7 +125,7 @@ public class Histogram {
 	
 	public static Histogram readHistogram(File f) throws Exception {
 		Histogram h = new Histogram();
-		DataInputStream dis = new DataInputStream(new FileInputStream(f));
+		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
 		h.start = dis.readInt();
 		h.end = dis.readInt();
 		h.binDivs = dis.readInt();
@@ -138,7 +138,7 @@ public class Histogram {
 	
 	public static Histogram readHistogramHeader(File f) throws Exception {
 		Histogram h = new Histogram();
-		DataInputStream dis = new DataInputStream(new FileInputStream(f));
+		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
 		h.start = dis.readInt();
 		h.end = dis.readInt();
 		h.binDivs = dis.readInt();
