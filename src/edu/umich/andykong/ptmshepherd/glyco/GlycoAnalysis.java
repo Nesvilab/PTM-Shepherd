@@ -187,13 +187,13 @@ public class GlycoAnalysis {
             String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
             // only read lines with glycan info (after column 5, don't include lines with no glycan matched (entry in 5, but nothing after))
             if (splits.length > 6) {
-                String glycanString = splits[glycanCol];
-                boolean isDecoy = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
+                String glycanString = splits[glycanCol].replace("FailFDR_", "").replace("Decoy_", "");
+                boolean failedFDR = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
                 String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
                 GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo, glycoParams);
                 String glycanHash = fragmentInfoContainer.toString();
-                // only include targets in fragment info
-                if (!isDecoy) {
+                // only include good targets in fragment info
+                if (!failedFDR) {
                     if (glycanInputMap.containsKey(glycanHash)) {
                         glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
                     } else {
