@@ -357,12 +357,6 @@ public class PTMShepherd {
 
 		countMS2scans();
 
-		//Glycan assignment
-		boolean glycoMode = Boolean.parseBoolean(params.get("run_glyco_mode"));
-		if (glycoMode) {
-			runGlycanAssignment();
-		}
-
 		boolean glycoOnlyMode = Boolean.parseBoolean(params.get("glyco_only_mode"));
 		if (!glycoOnlyMode) {
 			//TODO initialize program blocks here so that they can be accessed outside their modules and stored internally
@@ -414,6 +408,13 @@ public class PTMShepherd {
 			/* Make experiment-level table */
 			makeExperimentLevelTables(calcIntensity);
 		}
+
+		//Glycan assignment
+		boolean glycoMode = Boolean.parseBoolean(params.get("run_glyco_mode"));
+		if (glycoMode) {
+			runGlycanAssignment();
+		}
+
 		deleteFilesOnClose();
 
 		executorService.shutdown();
