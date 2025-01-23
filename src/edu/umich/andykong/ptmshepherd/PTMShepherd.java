@@ -817,7 +817,7 @@ public class PTMShepherd {
 			for(String ds : datasets.keySet()) {
 				ps.reset();
 				for (PSMFile pf: psmFiles.get(ds)) {
-					ps.appendPSMs(pf, Boolean.parseBoolean(params.get("use_assigned_mods")));
+					ps.appendPSMs(pf, Boolean.parseBoolean(params.get("annotate_assigned_mods")));
 				}
 				ps.commit(ds,datasetMS2.get(ds));
 			}
