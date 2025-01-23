@@ -18,11 +18,12 @@ package edu.umich.andykong.ptmshepherd.localization;
 
 import java.io.*;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import edu.umich.andykong.ptmshepherd.*;
 import edu.umich.andykong.ptmshepherd.core.*;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
-import org.apache.commons.math3.linear.SparseFieldMatrix;
 
 
 public class SiteLocalization {
@@ -32,7 +33,7 @@ public class SiteLocalization {
 	MXMLReader mr;
 	double ppmTol, condRatio;
 	int condPeaks;
-	int specCol, pepCol, modCol, deltaCol;
+	int specCol, pepCol, assignedModCol, deltaCol;
 	List<String> linesWithoutSpectra;
 	
 	public SiteLocalization(String dsName) {
@@ -64,7 +65,7 @@ public class SiteLocalization {
 	}
 	
 	
-	public void localizePSMs(PSMFile pf, HashMap<String,File> mzMappings) throws Exception {
+	public void localizePSMs(PSMFile pf, HashMap<String,File> mzMappings, boolean useMSFraggerLoc) throws Exception {
 		//assemble PSMs into per file groupings
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(localizationFile,true));
@@ -73,9 +74,9 @@ public class SiteLocalization {
 		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mods","Shift","Localized_Pep",
 				"MaxHyper_Unloc", "MaxHyper_Loc", "MaxPeaks_Unloc", "MaxPeaks_Loc");
 
-		specCol = pf.getColumn("Spectrum");
-		pepCol = pf.getColumn("Peptide");
-		modCol = pf.getColumn("Assigned Modifications");
+		specCol = pf.specCol;
+		pepCol = pf.peptideCol;
+		assignedModCol = pf.assignedModCol;
 		deltaCol = pf.dMassCol;
 		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
 		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
@@ -83,32 +84,49 @@ public class SiteLocalization {
 		linesWithoutSpectra = new ArrayList<>();
 		int totalLines;
 
+		if (useMSFraggerLoc && pf.msfraggerLocalizationCol == -1) {
+			throw new Exception(String.format("MSFragger localization requested, but localization columns not found in PSM file %s.", pf.fname.toString()));
+		}
+
 		initSpectrumMappings(pf, mappings, specCol);
 
-		//iterate and localize each file
-		for(String cf : mappings.keySet()) { //cf = fraction
-			long t1 = System.currentTimeMillis();
-			mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
-			mr.readFully();
-			long t2 = System.currentTimeMillis();
-			ArrayList<Integer> clines = mappings.get(cf);
-			totalLines = 0;
-			for(int i = 0; i < clines.size(); i++) {
-				try {
-					out.println(annotateLine(pf.data.get(clines.get(i))));
-				} catch(Exception e) {
-					e.printStackTrace();
-					System.out.println("Error in: " +pf.data.get(clines.get(i)));
+		if (useMSFraggerLoc) {
+			for (String cf : mappings.keySet()) { //cf = fraction
+				long t1 = System.currentTimeMillis();
+				ArrayList<Integer> clines = mappings.get(cf);
+				totalLines = 0;
+				for (Integer cline : clines) {
+					out.println(annotateLineUsingMSFragger(pf, pf.data.get(cline)));
+					totalLines++;
 				}
-				totalLines++;
+				totalLines--;
+				out.flush();
+
+				long t2 = System.currentTimeMillis();
+				warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
+				PTMShepherd.print(String.format("\t%s - %d lines (%d ms processing)", cf, clines.size(), t2 - t1));
 			}
-			totalLines--;
-			out.flush();
-			long t3 = System.currentTimeMillis();
+		} else {
+			//iterate and localize each file
+			for (String cf : mappings.keySet()) { //cf = fraction
+				long t1 = System.currentTimeMillis();
+				mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+				mr.readFully();
+				long t2 = System.currentTimeMillis();
+				ArrayList<Integer> clines = mappings.get(cf);
+				totalLines = 0;
+				for (Integer cline : clines) {
+					out.println(annotateLine(pf.data.get(cline)));
+					totalLines++;
+				}
+				totalLines--;
+				out.flush();
+				long t3 = System.currentTimeMillis();
 
-			warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
+				warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
 
-			PTMShepherd.print(String.format("\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));
+				PTMShepherd.print(String.format("\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2 - t1, t3 - t2));
+			}
 		}
 		out.close();
 	}
@@ -141,16 +159,10 @@ public class SiteLocalization {
 		float [] scores = new float[seq.length()];
 		int [] frags = new int[seq.length()];
 		String specName = sp[specCol];
-		String [] smods = sp[modCol].split(",");
+		String [] assignedMods = sp[assignedModCol].split(",");
 
-		sb.append(String.format("%s\t%s\t%s\t%.4f", specName, seq, sp[modCol], dmass));
-
-		//System.out.println(mr.specs.length);
-		//for(int k = 0; k < mr.specs.length; k++) {
-		//	System.out.println(mr.specs[k].scanName + "\t" + reNormName(specName));
-		//}
+		sb.append(String.format("%s\t%s\t%s\t%.4f", specName, seq, sp[assignedModCol], dmass));
 		Spectrum spec = mr.getSpectrum(reNormName(specName));
-		//System.out.println(mr.specs.length);
 
 		boolean [] allowedPoses = parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
 
@@ -172,7 +184,7 @@ public class SiteLocalization {
 		float maxScore = baseScore;
 		int maxFrags = baseFrags;
 		for(int i = 0; i < seq.length(); i++) {
-			if (allowedPoses[i] == true)
+			if (allowedPoses[i])
 				mods[i] += dmass;
 			scores[i] = spec.getHyper(seq, mods, ppmTol);
 			frags[i] = spec.getFrags(seq,mods, ppmTol);
@@ -180,11 +192,11 @@ public class SiteLocalization {
 				maxFrags = frags[i];
 			if(scores[i] > maxScore)
 				maxScore = scores[i];
-			if (allowedPoses[i] == true)
+			if (allowedPoses[i])
 				mods[i] -= dmass;
 		}
 		
-		StringBuffer annoSeq = new StringBuffer();
+		StringBuilder annoSeq = new StringBuilder();
 		for(int i  = 0; i < seq.length(); i++) {
 			if(frags[i] == maxFrags)
 				annoSeq.append(seq.charAt(i));
@@ -192,14 +204,88 @@ public class SiteLocalization {
 				annoSeq.append((char)(seq.charAt(i)+('a'-'A')));
 		}
 		
-		sb.append(String.format("\t%s\t%.2f\t%.2f\t%d\t%d",annoSeq.toString(),baseScore,maxScore,baseFrags,maxFrags));
+		sb.append(String.format("\t%s\t%.2f\t%.2f\t%d\t%d",annoSeq,baseScore,maxScore,baseFrags,maxFrags));
 		
 		for(int i = 0; i < scores.length; i++)
 			sb.append(String.format("\t%.2f\t%d", scores[i],frags[i]));
 		
 		return sb.toString();
 	}
-	
+
+	/**
+	 * Use the MSFragger localization result instead of recalculating the localization, but format
+	 * so that it can be used for the downstream localization summary.
+	 * @param line PSM line
+	 * @return string: [Spectrum, Peptide, Assigned Mods, Delta Mass, Localized_Pep, MaxHyper_Unloc, MaxHyper_Loc, MaxPeaks_Unloc, MaxPeaks_Loc, scores, frags]
+	 */
+	public String annotateLineUsingMSFragger(PSMFile psmFile, String line) {
+		StringBuilder sb = new StringBuilder();
+		String [] sp = line.split("\\t");
+		String seq = sp[pepCol];
+		float dmass = Float.parseFloat(sp[deltaCol]);
+		float [] scores = new float[seq.length()];
+		int [] frags = new int[seq.length()];
+		String specName = sp[specCol];
+		String [] assignedMods = sp[assignedModCol].split(",");
+
+		sb.append(String.format("%s\t%s\t%s\t%.4f", specName, seq, sp[assignedModCol], dmass));
+
+		double baseScore, maxScore;
+		int baseFrags, maxFrags;
+		String annoSeq;
+		if (sp[psmFile.positionScoresCol].isEmpty()) {
+			// no localization result from MSFragger
+			baseScore = 0;
+			maxScore = 0;
+			baseFrags = 0;
+			maxFrags = 0;
+			annoSeq = seq;
+		} else {
+			baseScore = Float.parseFloat(sp[psmFile.scoreAllUnshiftedCol]);
+			baseFrags = Integer.parseInt(sp[psmFile.ionsAllUnshiftedCol]);
+			maxScore = Float.parseFloat(sp[psmFile.scoreBestPositionCol]);
+			maxFrags = Integer.parseInt(sp[psmFile.ionsBestPosCol]);
+			annoSeq = swapCase(sp[psmFile.msfraggerLocalizationCol]);
+			scores = extractMSFraggerScores(sp[psmFile.positionScoresCol], seq.length());
+		}
+
+		sb.append(String.format("\t%s\t%.2f\t%.2f\t%d\t%d",annoSeq,baseScore,maxScore,baseFrags,maxFrags));
+
+		for(int i = 0; i < scores.length; i++)
+			sb.append(String.format("\t%.2f\t%d", scores[i],frags[i]));		// note: frags (number of ions at each site) is not recorded by MSFragger, and is left blank
+
+		return sb.toString();
+	}
+
+	public String swapCase(String input) {
+		StringBuilder swapped = new StringBuilder(input.length());
+		for (int i = 0; i < input.length(); i++) {
+			char c = input.charAt(i);
+			if (Character.isUpperCase(c)) {
+				swapped.append(Character.toLowerCase(c));
+			} else {
+				swapped.append(Character.toUpperCase(c));
+			}
+		}
+		return swapped.toString();
+	}
+
+	/**
+	 * Extract the position scores from the MSFragger scores string. Format is "A(0.1)B(0.2)C(0.3)..."
+	 */
+	private float[] extractMSFraggerScores(String positionScores, int length) {
+		Pattern pattern = Pattern.compile("\\(([\\d.]+)\\)");
+		Matcher matcher = pattern.matcher(positionScores);
+		float[] scores = new float[length];
+
+		int i = 0;
+		while (matcher.find()) {
+			scores[i] = Float.parseFloat(matcher.group(1));
+			i++;
+		}
+		return scores;
+	}
+
 	public static void localizeMods(String[] smods, float[] mods) {
 		for(int i = 0; i < smods.length; i++) {
 			smods[i] = smods[i].trim();

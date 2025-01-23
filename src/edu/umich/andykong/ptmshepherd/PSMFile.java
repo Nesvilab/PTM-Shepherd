@@ -47,7 +47,9 @@ public class PSMFile {
 	public ArrayList<String> data;
 	public ArrayList<PSM> psms;
 	public ArrayList<String> mappedRuns;
-	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol, calcMZcol, peptideCalcMassCol, chargeCol, intensityCol;
+	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol,
+			calcMZcol, peptideCalcMassCol, chargeCol, intensityCol, specCol, msfraggerLocalizationCol, positionScoresCol,
+			bestPositionsCol, ionsBestPosCol, scoreBestPositionCol, scoreAllUnshiftedCol, ionsAllUnshiftedCol;
 	public String prefType;
 
 	private HashMap<String, Integer> scanToLine;
@@ -250,6 +252,14 @@ public class PSMFile {
 		peptideCalcMassCol = getColumn("Calculated Peptide Mass");
 		calcMZcol = getColumn("Calculated M/Z");
 		intensityCol = getColumn("Intensity");
+		specCol = getColumn("Spectrum");
+		msfraggerLocalizationCol = getColumn("MSFragger Localization");
+		positionScoresCol = getColumn("Position Scores");
+		bestPositionsCol = getColumn("Best Positions");
+		scoreBestPositionCol = getColumn("Score Best Position");
+		ionsBestPosCol = getColumn("Ions Best Position");
+		scoreAllUnshiftedCol = getColumn("Score All Unshifted");
+		ionsAllUnshiftedCol = getColumn("Ions All Unshifted");
 
 		//find delta mass column for different philosopher versions
 		int col = getColumn("Delta Mass");

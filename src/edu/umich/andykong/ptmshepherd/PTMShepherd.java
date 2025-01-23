@@ -378,7 +378,7 @@ public class PTMShepherd {
 			}
 
 			//Localization analysis
-			double[][] peakBounds = runLocalization(peaksummary);
+			double[][] peakBounds = runLocalization(peaksummary, Boolean.parseBoolean(params.get("use_msfragger_localization")));
 
 			//Perform similarity and RT annotation
 			boolean calcIntensity = runSimilarityAndRT(peakBounds);
@@ -724,7 +724,7 @@ public class PTMShepherd {
 		return calcIntensity;
 	}
 
-	private static double[][] runLocalization(File peaksummary) throws Exception {
+	private static double[][] runLocalization(File peaksummary, boolean useMSFraggerLoc) throws Exception {
 		//Perform initial annotation
 		print("Begin localization annotation");
 		for(String ds : datasets.keySet()) {
@@ -732,7 +732,7 @@ public class PTMShepherd {
 			if(sl.isComplete())
 				continue;
 			for (PSMFile pf: psmFiles.get(ds)) {
-				sl.localizePSMs(pf, mzMap.get(ds));
+				sl.localizePSMs(pf, mzMap.get(ds), useMSFraggerLoc);
 			}
 			sl.complete();
 		}
