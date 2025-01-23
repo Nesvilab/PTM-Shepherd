@@ -45,7 +45,7 @@ public class PSMFile {
 	public ArrayList<String> data;
 	public ArrayList<PSM> psms;
 	public ArrayList<String> mappedRuns;
-	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, calcMZcol, peptideCalcMassCol, chargeCol;
+	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol, calcMZcol, peptideCalcMassCol, chargeCol, intensityCol;
 	public String prefType;
 
 	private HashMap<String, Integer> scanToLine;
@@ -237,6 +237,27 @@ public class PSMFile {
 		return -1;
 	}
 
+	private void initColumns() {
+		/* dynamically detect columns */
+		observedModCol = getColumn("Observed Modifications");
+		assignedModCol = getColumn("Assigned Modifications");
+		fraggerLocCol = getColumn("MSFragger Localization");
+		peptideCol = getColumn("Peptide");
+		modPeptideCol = getColumn("Modified Peptide");
+		chargeCol = getColumn("Charge");
+		peptideCalcMassCol = getColumn("Calculated Peptide Mass");
+		calcMZcol = getColumn("Calculated M/Z");
+		intensityCol = getColumn("Intensity");
+
+		//find delta mass column for different philosopher versions
+		int col = getColumn("Delta Mass");
+		if (col == -1)
+			col = getColumn("Adjusted Delta Mass");
+		if (col == -1)
+			col = getColumn("Original Delta Mass");
+		this.dMassCol = col;
+	}
+
 	public static String [] splitName(String fn) {
 		String [] res = new String[2];
 		if(!fn.contains(".")) {
@@ -331,17 +352,9 @@ public class PSMFile {
 	
 	public ArrayList<Float> getMassDiffs() {
 		ArrayList<Float> res = new ArrayList<>();
-		int col = getColumn("Delta Mass");
-		if (col == -1) {
-			col = getColumn("Adjusted Delta Mass");
-		}
-		if (col == -1) {
-			col = getColumn("Original Delta Mass");
-		}
-		this.dMassCol = col;
         for (String datum : data) {
             String[] sp = datum.split("\t");
-            res.add(Float.parseFloat(sp[col]));
+            res.add(Float.parseFloat(sp[dMassCol]));
         }
 		return res;
 	}
@@ -496,20 +509,11 @@ public class PSMFile {
 			return;
 		}
 
-		/* Find headers, dynamically detect columns */
-		observedModCol = getColumn("Observed Modifications");
-		assignedModCol = getColumn("Assigned Modifications");
-		fraggerLocCol = getColumn("MSFragger Localization");
-		peptideCol = getColumn("Peptide");
-		modPeptideCol = getColumn("Modified Peptide");
-		deltaMassCol = getColumn("Delta Mass");
-		chargeCol = getColumn("Charge");
-		peptideCalcMassCol = getColumn("Calculated Peptide Mass");
-		calcMZcol = getColumn("Calculated M/Z");
+
 		if (warnPSMcolNotFound(observedModCol, "Observed Modifications")) {
 			observedModCol = 27;		// default is 27
 		}
-		if (warnPSMcolNotFound(assignedModCol, "Assigned Modifications") || warnPSMcolNotFound(fraggerLocCol, "MSFragger Localization") || warnPSMcolNotFound(peptideCol, "Peptide") || warnPSMcolNotFound(modPeptideCol, "Modified Peptide") || warnPSMcolNotFound(deltaMassCol, "Delta Mass")) {
+		if (warnPSMcolNotFound(assignedModCol, "Assigned Modifications") || warnPSMcolNotFound(fraggerLocCol, "MSFragger Localization") || warnPSMcolNotFound(peptideCol, "Peptide") || warnPSMcolNotFound(modPeptideCol, "Modified Peptide") || warnPSMcolNotFound(dMassCol, "Delta Mass")) {
 			glycoParams.writeGlycansToAssignedMods = false;		// can't write to assigned mods without these columns, disable
 		}
 
@@ -759,7 +763,7 @@ public class PSMFile {
 
 		/* Update delta mass AND calc m/z columns */
 		if (glycoParams.removeGlycanDeltaMass) {
-			double prevDeltaMass = Double.parseDouble(newLine.get(deltaMassCol));
+			double prevDeltaMass = Double.parseDouble(newLine.get(dMassCol));
 			double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
 			double prevNeutralMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);
 			double prevCalcPeptideMass = Double.parseDouble(newLine.get(peptideCalcMassCol));
@@ -780,13 +784,13 @@ public class PSMFile {
 					correctedDelta = prevDeltaMass + previousGlycanMass;
 					correctedMass = prevCalcPeptideMass - previousGlycanMass;
 				}
-				newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
+				newLine.set(dMassCol, String.format("%.4f", correctedDelta - glycanMass));
 				newLine.set(peptideCalcMassCol, String.format("%.4f", correctedMass + glycanMass));
 				newLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) (correctedMass + glycanMass), charge)));
 
 			} else {
 				// subtract glycan mass from delta mass, add to calc peptide mass and MZ
-				newLine.set(deltaMassCol, String.format("%.4f", prevDeltaMass - glycanMass));
+				newLine.set(dMassCol, String.format("%.4f", prevDeltaMass - glycanMass));
 				newLine.set(peptideCalcMassCol, String.format("%.4f", prevCalcPeptideMass + glycanMass));
 				newLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) (prevCalcPeptideMass + glycanMass), charge)));
 			}
@@ -872,13 +876,8 @@ public class PSMFile {
 		BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
 		this.fname = f;
 		this.headers = in.readLine().split("\t");
-		//find delta mass column for different philosopher versions
-		int col = getColumn("Delta Mass");
-		if (col == -1)
-			col = getColumn("Adjusted Delta Mass");
-		if (col == -1)
-			col = getColumn("Original Delta Mass");
-		this.dMassCol = col;
+		initColumns();
+
 		this.data = new ArrayList<>();
 		this.psms = new ArrayList<>();
 		String cline;
@@ -1047,6 +1046,9 @@ public class PSMFile {
 				tPSM.updateLine();
 			}
 		}
+
+		// re-initialize column indices in case any have changed
+		initColumns();
 	}
 
 	/**
@@ -1154,7 +1156,7 @@ public class PSMFile {
                 for (int k = dropMods.size() - 1; k > 0; k--)
                     newAssignedMods.remove(k);
                 // reassign adjusted values
-                sp.set(this.deltaMassCol, Double.toString(newDmass));
+                sp.set(dMassCol, Double.toString(newDmass));
                 sp.set(getColumn("Calculated Peptide Mass"), Double.toString(newPepmass));
                 sp.set(getColumn("Assigned Modifications"), String.join(", ", newAssignedMods));
                 sp.add(Double.toString(oldDmass));
