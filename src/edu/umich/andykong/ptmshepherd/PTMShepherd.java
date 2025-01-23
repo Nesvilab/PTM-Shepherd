@@ -817,7 +817,7 @@ public class PTMShepherd {
 			for(String ds : datasets.keySet()) {
 				ps.reset();
 				for (PSMFile pf: psmFiles.get(ds)) {
-					ps.appendPSMs(pf);
+					ps.appendPSMs(pf, Boolean.parseBoolean(params.get("use_assigned_mods")));
 				}
 				ps.commit(ds,datasetMS2.get(ds));
 			}
@@ -839,10 +839,10 @@ public class PTMShepherd {
 			for(String ds : datasets.keySet()) {
 				File histoFile = new File(normFName(ds+histoName));
 				if(!histoFile.exists()) {
-					ArrayList<Float> vals = new ArrayList<>();
+					ArrayList<ArrayList<Float>> vals = new ArrayList<>();
 					ArrayList<Double> ints =  new ArrayList<>();
 					for (PSMFile pf : psmFiles.get(ds)) {
-						vals.addAll(pf.getMassDiffs());
+						vals.addAll(pf.getMassDiffsWithVarmods(Boolean.parseBoolean(params.get("use_assigned_mods"))));
 						ints.addAll(pf.getIntensities());
 					}
 					Histogram chisto = new Histogram(vals, ints, datasetMS2.get(ds), Integer.parseInt(params.get("histo_bindivs")),Integer.parseInt(params.get("histo_smoothbins"))*2+1);

@@ -34,6 +34,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.CRC32;
 
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.concatIonTypes;
@@ -51,7 +53,7 @@ public class PSMFile {
 	private HashMap<String, Integer> scanToLine;
 	public File fname;
 	boolean alreadyWarned;
-
+	public static final Pattern massPattern = Pattern.compile("\\(([-.\\d]+)\\)");
 
 	/**
 	 * PSM class to hold parsed line info.
@@ -356,6 +358,29 @@ public class PSMFile {
             String[] sp = datum.split("\t");
             res.add(Float.parseFloat(sp[dMassCol]));
         }
+		return res;
+	}
+
+	public ArrayList<ArrayList<Float>> getMassDiffsWithVarmods(boolean useAssignedMods) {
+		ArrayList<ArrayList<Float>> res = new ArrayList<>();
+		for (String datum : data) {
+			ArrayList<Float> psmMods = new ArrayList<>();
+			String[] sp = datum.split("\t");
+			psmMods.add(Float.parseFloat(sp[dMassCol]));
+			if (useAssignedMods) {
+				String mods = sp[assignedModCol];
+				if (!mods.isEmpty()) {
+					String[] modArr = mods.split(",");
+					for (String mod : modArr) {
+						Matcher m = massPattern.matcher(mod);
+						if (m.find()) {
+							psmMods.add(Float.parseFloat(m.group(1)));
+						}
+					}
+				}
+			}
+			res.add(psmMods);
+		}
 		return res;
 	}
 
