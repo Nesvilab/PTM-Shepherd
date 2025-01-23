@@ -21,6 +21,8 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
+
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 import java.io.*;
@@ -468,13 +470,7 @@ public class DiagnosticPeakPicker {
 
         /* Map PSM lines to each fraction */
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-        for (int i = 0; i < pf.data.size(); i++) {
-            String[] sp = pf.data.get(i).split("\t");
-            String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-            if (!mappings.containsKey(bn))
-                mappings.put(bn, new ArrayList<>());
-            mappings.get(bn).add(i);
-        }
+        SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
 
         // Process spectral files one at a time
         for (String cf : mappings.keySet()) {
@@ -582,23 +578,7 @@ public class DiagnosticPeakPicker {
     public float[] formatMods(String[] smods, String seq) {
         float [] mods = new float[seq.length()];
         Arrays.fill(mods, 0f);
-        for(int i = 0; i < smods.length; i++) {
-            smods[i] = smods[i].trim();
-            if (smods[i].length() == 0)
-                continue;
-            int p = smods[i].indexOf("(");
-            int q = smods[i].indexOf(")");
-            String spos = smods[i].substring(0, p).trim();
-            double mass = Double.parseDouble(smods[i].substring(p + 1, q).trim());
-            int pos = -1;
-            if (spos.equals("N-term"))
-                pos = 0;
-            else if (spos.equals("c"))
-                pos = mods.length - 1;
-            else
-                pos = Integer.parseInt(spos.substring(0, spos.length() - 1)) - 1;
-            mods[pos] += mass;
-        }
+        SiteLocalization.localizeMods(smods, mods);
         return mods;
     }
 

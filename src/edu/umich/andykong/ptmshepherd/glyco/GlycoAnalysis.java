@@ -21,6 +21,7 @@ import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import umich.ms.glyco.GlycanParser;
@@ -98,13 +99,7 @@ public class GlycoAnalysis {
         intCol = pf.getColumn("Intensity");
 
         //map PSMs to file
-        for (int i = 0; i < pf.data.size(); i++) {
-            String[] sp = pf.data.get(i).split("\t");
-            String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-            if (!mappings.containsKey(bn))
-                mappings.put(bn, new ArrayList<>());
-            mappings.get(bn).add(i);
-        }
+        SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
 
         /* Loop through spectral files -> indexed lines in PSM -> process each line */
         for (String cf : mappings.keySet()) { //for file in relevant spectral files

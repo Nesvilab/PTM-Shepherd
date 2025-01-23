@@ -117,13 +117,7 @@ public class DiagnosticExtractor {
         intCol = pf.getColumn("Intensity");
 
         //map PSMs to file
-        for (int i = 0; i < pf.data.size(); i++) {
-            String[] sp = pf.data.get(i).split("\t");
-            String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-            if (!mappings.containsKey(bn))
-                mappings.put(bn, new ArrayList<>());
-            mappings.get(bn).add(i);
-        }
+        SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
 
         /* Loop through spectral files -> indexed lines in PSM -> process each line */
         for (String cf : mappings.keySet()) { //for file in relevant spectral files
@@ -295,25 +289,7 @@ public class DiagnosticExtractor {
         //add variable and fixed mods to frag masses for peptide
         float [] mods = new float[seq.length()];
         Arrays.fill(mods, 0f);
-        for(int i = 0; i < smods.length; i++) {
-            smods[i] = smods[i].trim();
-            if(smods[i].length() == 0)
-                continue;
-            int p = smods[i].indexOf("(");
-            int q = smods[i].indexOf(")");
-            String spos = smods[i].substring(0, p).trim();
-            double mass = Double.parseDouble(smods[i].substring(p+1, q).trim());
-            int pos = -1;
-            if(spos.equals("N-term")) {
-                pos = 0;
-            }
-            else if(spos.equals("c")) {
-                pos = mods.length - 1;
-            }
-            else
-                pos = Integer.parseInt(spos.substring(0,spos.length()-1)) - 1;
-            mods[pos] += mass;
-        }
+        SiteLocalization.localizeMods(smods, mods);
         //iterate through remainder masses
         //these 3 variables store values for each remainder mass
         float [] maxScores = new float[remainderMasses.length];

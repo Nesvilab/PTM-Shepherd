@@ -27,6 +27,7 @@ import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.utils.Variance;
 
 import java.util.List;
@@ -106,13 +107,7 @@ public class SimRTAnalysis {
 		precursorUnits = Integer.parseInt(PTMShepherd.getParam("precursor_mass_units"));
 
 		if (!interRunComparisons) {
-			for (int i = 0; i < pf.data.size(); i++) {
-				String[] sp = pf.data.get(i).split("\t");
-				String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-				if (!mappings.containsKey(bn))
-					mappings.put(bn, new ArrayList<>());
-				mappings.get(bn).add(i);
-			}
+			SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
 		} else {
 			for (int i = 0; i < pf.data.size(); i++) {
 				String[] sp = pf.data.get(i).split("\t");
@@ -225,15 +220,9 @@ public class SimRTAnalysis {
 				avgzSim.put(pepZ, zSimSum / relLines.size());
 			}
 
-			if (!linesWithoutSpectra.isEmpty()) {
-				System.out.printf("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), totalLines,
-						100.0*((double)linesWithoutSpectra.size()/totalLines));
-				int previewSize = Math.min(linesWithoutSpectra.size(), 5);
-				System.out.printf("\tShowing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
-						String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize)));
-			}
-			
-			//calculate zeroRT
+            SiteLocalization.warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
+
+            //calculate zeroRT
 			for(String pep : zTolRT.keySet()) {
 				ArrayList<Double> rts = zTolRT.get(pep);
 				double rtsum = 0;

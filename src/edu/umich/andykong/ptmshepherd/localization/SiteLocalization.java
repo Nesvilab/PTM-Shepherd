@@ -83,14 +83,8 @@ public class SiteLocalization {
 		linesWithoutSpectra = new ArrayList<>();
 		int totalLines;
 
-		for(int i = 0; i < pf.data.size(); i++) {
-			String [] sp = pf.data.get(i).split("\t");
-			String bn = sp[specCol].substring(0,sp[specCol].indexOf("."));
-			if(!mappings.containsKey(bn))
-				mappings.put(bn, new ArrayList<>());
-			mappings.get(bn).add(i);
-		}
-		
+		initSpectrumMappings(pf, mappings, specCol);
+
 		//iterate and localize each file
 		for(String cf : mappings.keySet()) { //cf = fraction
 			long t1 = System.currentTimeMillis();
@@ -112,21 +106,35 @@ public class SiteLocalization {
 			out.flush();
 			long t3 = System.currentTimeMillis();
 
-			if (!linesWithoutSpectra.isEmpty()) {
-				System.out.printf("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), totalLines,
-						100.0*((double)linesWithoutSpectra.size()/totalLines));
-				int previewSize = Math.min(linesWithoutSpectra.size(), 5);
-				System.out.printf("\tShowing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
-						String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize)));
-			}
+			warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
 
 			PTMShepherd.print(String.format("\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));
 		}
 		out.close();
 	}
-	
-	public String annotateLine(String line) throws Exception {
-		StringBuffer sb = new StringBuffer();
+
+	public static void initSpectrumMappings(PSMFile pf, HashMap<String, ArrayList<Integer>> mappings, int specCol) {
+		for(int i = 0; i < pf.data.size(); i++) {
+			String [] sp = pf.data.get(i).split("\t");
+			String bn = sp[specCol].substring(0,sp[specCol].indexOf("."));
+			if(!mappings.containsKey(bn))
+				mappings.put(bn, new ArrayList<>());
+			mappings.get(bn).add(i);
+		}
+	}
+
+	public static void warnLinesWithoutSpectra(int totalLines, List<String> linesWithoutSpectra) {
+		if (!linesWithoutSpectra.isEmpty()) {
+			System.out.printf("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), totalLines,
+					100.0*((double) linesWithoutSpectra.size()/totalLines));
+			int previewSize = Math.min(linesWithoutSpectra.size(), 5);
+			System.out.printf("\tShowing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
+					String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize)));
+		}
+	}
+
+	public String annotateLine(String line) {
+		StringBuilder sb = new StringBuilder();
 		String [] sp = line.split("\\t");
 		String seq = sp[pepCol];
 		float dmass = Float.parseFloat(sp[deltaCol]);
@@ -156,30 +164,8 @@ public class SiteLocalization {
 		spec.condition(condPeaks, condRatio);
 		
 		float [] mods = new float[seq.length()];
-		
-		for(int i = 0; i < smods.length; i++) {
-			smods[i] = smods[i].trim();
-			if(smods[i].length() == 0)
-				continue;
-			int p = smods[i].indexOf("(");
-			int q = smods[i].indexOf(")");
-			String spos = smods[i].substring(0, p).trim();
-			double mass = Double.parseDouble(smods[i].substring(p+1, q).trim());
-			int pos = -1;
-			if(spos.equals("N-term")) {
-				pos = 0;
-//				This subtraction is necessary when the over mass is reported instead of the mass difference
-//				mass -= AAMasses.monoisotopic_nterm_mass;
-			}
-			else if(spos.equals("c")) {
-				pos = mods.length - 1;
-//				This subtraction is necessary when the over mass is reported instead of the mass difference
-//				mass -= (AAMasses.monoisotopic_cterm_mass + AAMasses.protMass);
-			}
-			else
-				pos = Integer.parseInt(spos.substring(0,spos.length()-1)) - 1;
-			mods[pos] += mass;
-		}
+
+		localizeMods(assignedMods, mods);
 
 		float baseScore = spec.getHyper(seq, mods, ppmTol);
 		int baseFrags = spec.getFrags(seq, mods, ppmTol);
@@ -214,6 +200,32 @@ public class SiteLocalization {
 		return sb.toString();
 	}
 	
+	public static void localizeMods(String[] smods, float[] mods) {
+		for(int i = 0; i < smods.length; i++) {
+			smods[i] = smods[i].trim();
+			if(smods[i].isEmpty())
+				continue;
+			int p = smods[i].indexOf("(");
+			int q = smods[i].indexOf(")");
+			String spos = smods[i].substring(0, p).trim();
+			double mass = Double.parseDouble(smods[i].substring(p+1, q).trim());
+			int pos = -1;
+			if(spos.equals("N-term")) {
+				pos = 0;
+//				This subtraction is necessary when the over mass is reported instead of the mass difference
+//				mass -= AAMasses.monoisotopic_nterm_mass;
+			}
+			else if(spos.equals("c")) {
+				pos = mods.length - 1;
+//				This subtraction is necessary when the over mass is reported instead of the mass difference
+//				mass -= (AAMasses.monoisotopic_cterm_mass + AAMasses.protMass);
+			}
+			else
+				pos = Integer.parseInt(spos.substring(0,spos.length()-1)) - 1;
+			mods[pos] += mass;
+		}
+	}
+
 	public void updateLocalizationProfiles(LocalizationProfile [] profiles) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(localizationFile));
 		String cline;

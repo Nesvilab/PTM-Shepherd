@@ -1037,13 +1037,7 @@ public class PTMShepherd {
 		// Get PSM scan num -> spectral file mapping
 		HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
 		int specCol = pf.getColumn("Spectrum");
-		for (int i = 0; i < pf.data.size(); i++) {
-			String[] sp = pf.data.get(i).split("\t");
-			String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-			if (!mappings.containsKey(bn))
-				mappings.put(bn, new ArrayList<>());
-			mappings.get(bn).add(i);
-		}
+		SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
 
 		// Loop through spectral files -> indexed lines in PSM -> process each line
 		HashMap<Integer, String> linesWithoutSpectra = new HashMap<>();
