@@ -28,6 +28,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -39,7 +40,6 @@ public class DiagnosticAnalysis {
     float precursorTol, spectraTol;
     int condPeaks;
     int precursorMassUnits;
-    int specCol, pepCol, modPepCol, deltaCol, rtCol, intCol, pmassCol, modCol, pepMassCol;
     double condRatio;
     int minImmon = 0;
     int maxImmon = 10000;
@@ -69,16 +69,7 @@ public class DiagnosticAnalysis {
     public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int nThread) throws Exception {
         /* Map PSM lines to each fraction */
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-        SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
-
-        /* Get PSM table headers for parsing */
-        specCol = pf.getColumn("Spectrum");
-        pepCol = pf.getColumn("Peptide");
-        deltaCol = pf.dMassCol;
-        pepMassCol = pf.getPrecursorCol();
-        pmassCol = pf.getColumn("Calculated Peptide Mass");
-        intCol = pf.getColumn("Intensity");
-        modCol = pf.getColumn("Assigned Modifications");
+        SiteLocalization.initSpectrumMappings(pf, mappings);
 
         /* Process spectral file one at a time */
         for (String cf : mappings.keySet()) {
@@ -107,9 +98,9 @@ public class DiagnosticAnalysis {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<String> cBlock = new ArrayList<>();
+                ArrayList<PSMFile.PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
-                    cBlock.add(pf.data.get(clines.get(j)));
+                    cBlock.add(pf.psms.get(clines.get(j)));
                 futureList.add(executorService.submit(() -> processLinesBlock(cBlock)));
             }
 
@@ -127,7 +118,7 @@ public class DiagnosticAnalysis {
 
     }
 
-    public void processLinesBlock(ArrayList<String> cBlock) {
+    public void processLinesBlock(ArrayList<PSMFile.PSM> cBlock) {
         /* Temporary arrays that hold blocks of spectra to be added to shared Collections synchronously */
         ArrayList<DiagnosticRecord> diagnosticRecords = new ArrayList<>();
 
@@ -142,17 +133,15 @@ public class DiagnosticAnalysis {
         addAllTempDiagnosticRecords(diagnosticRecords);
     }
 
-    /* Processes line in PSM list and turns turns it into a DiagnosticRecord of transformed spectra */
-    public DiagnosticRecord processLine(String s) {
+    /* Processes line in PSM list and turns it into a DiagnosticRecord of transformed spectra */
+    public DiagnosticRecord processLine(PSMFile.PSM psm) {
         /* Get metadata from PSM list line */
-        String[] sp = s.split("\t");
-        String specName = sp[specCol];
-        int charge = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 1]);
-        String pepSeq = sp[pepCol];
-        String mods = sp[modCol];
-        String [] smods = mods.split(",");
-        float dmass = Float.parseFloat(sp[deltaCol]);
-        float pepMass = Float.parseFloat(sp[pmassCol]);
+        String specName = psm.getSpec();
+        int charge = psm.getCharge();
+        String pepSeq = psm.getPep();
+        float dmass = psm.getDMass();
+        float pepMass = psm.getCalcPepmass();
+        TreeMap<Integer, Float> smods = psm.getAssignedMods();
 
         /* Prep spec and normalize to base peak */
         Spectrum spec = mr.getSpectrum(reNormName(specName));
@@ -194,14 +183,14 @@ public class DiagnosticAnalysis {
         return peaks;
     }
 
-    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, String pepSeq, String[] smods, String ionTypes, String filterIonTypes, int maxCharge) {
+    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, String pepSeq, TreeMap<Integer, Float> smods, String ionTypes, String filterIonTypes, int maxCharge) {
         //Get dem mods and put 'em on the peptide
         float [] mods = parseModifications(smods, pepSeq);
         HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(specTol, pepSeq, mods, ionTypes, filterIonTypes, maxCharge);
         return squigglePeaks;
     }
 
-    public float[] parseModifications(String[] smods, String pepSeq) {
+    public float[] parseModifications(TreeMap<Integer, Float> smods, String pepSeq) {
         float [] mods = new float[pepSeq.length()];
         Arrays.fill(mods, 0f);
         SiteLocalization.localizeMods(smods, mods);

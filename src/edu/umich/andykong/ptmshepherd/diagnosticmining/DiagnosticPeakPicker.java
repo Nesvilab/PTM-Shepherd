@@ -130,24 +130,16 @@ public class DiagnosticPeakPicker {
     }
 
     public void addPepkeysToIndex(PSMFile pf) {
-        int dmassCol = pf.dMassCol;
-        int eValCol = pf.getColumn("Expectation");
-        int pepSeqCol = pf.getColumn("Peptide");
-        int chargeCol = pf.getColumn("Charge");
-        int modCol = pf.getColumn("Assigned Modifications");
-        int specCol = pf.getColumn("Spectrum");
-
-        for (int i = 0; i < pf.data.size(); i++) {
-            String[] sp = pf.data.get(i).split("\t");
-            String charge = sp[chargeCol];
-            String pepSeq = sp[pepSeqCol];
-            String[] specSp = sp[specCol].split("\\.");
-            String mzFile = specSp[0];
-            int scanNum = Integer.parseInt(specSp[specSp.length-2]);
-            String mods = sp[modCol];
-            float eVal = Float.parseFloat(sp[eValCol]);
-            float dmass = Float.parseFloat(sp[dmassCol]);
-            int peakIndx = this.locate.getIndex(dmass);
+        for (int i = 0; i < pf.psms.size(); i++) {
+            PSMFile.PSM psm = pf.psms.get(i);
+            String charge = String.valueOf(psm.getCharge());
+            String pepSeq = psm.getPep();
+            String mzFile = psm.getFileName();
+            int scanNum = psm.getScanNum();
+            String mods = psm.printAssignedMods();
+            float eVal = Float.parseFloat(psm.getSpLine().get(pf.eValCol));
+            float dmass = psm.getDMass();
+            int peakIndx = locate.getIndex(dmass);
             String pepKey = pepSeq + mods + charge;
 
             if (peakIndx == -1)
@@ -461,16 +453,9 @@ public class DiagnosticPeakPicker {
 
     /* This function goes back into the scans to get PSM-level info on diagnostic ion propensity */
     public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService) throws Exception {
-        /* Get PSM table headers for parsing */
-        int specCol = pf.getColumn("Spectrum");
-        int pepCol = pf.getColumn("Peptide");
-        int deltaCol = pf.dMassCol;
-        int modCol = pf.getColumn("Assigned Modifications");
-        int pepMassCol = pf.getColumn("Calculated Peptide Mass");
-
         /* Map PSM lines to each fraction */
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-        SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
+        SiteLocalization.initSpectrumMappings(pf, mappings);
 
         // Process spectral files one at a time
         for (String cf : mappings.keySet()) {
@@ -491,10 +476,10 @@ public class DiagnosticPeakPicker {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<String> cBlock = new ArrayList<>();
+                ArrayList<PSMFile.PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
-                    cBlock.add(pf.data.get(clines.get(j)));
-                futureList.add(executorService.submit(() -> extractIonsBlock(cBlock, specCol, pepCol, deltaCol, modCol, pepMassCol)));
+                    cBlock.add(pf.psms.get(clines.get(j)));
+                futureList.add(executorService.submit(() -> extractIonsBlock(cBlock)));
             }
 
             /* Wait for all processes to finish */
@@ -507,23 +492,21 @@ public class DiagnosticPeakPicker {
 
     }
 
-    public void extractIonsBlock(ArrayList<String> cBlock, int specCol, int pepCol, int deltaCol, int modCol, int pepMassCol) {
-        for (int i = 0; i < cBlock.size(); i++)
-            extractIonsLine(cBlock.get(i), specCol, pepCol, deltaCol, modCol, pepMassCol);
+    public void extractIonsBlock(ArrayList<PSMFile.PSM> cBlock) {
+        for (PSMFile.PSM psm : cBlock) extractIonsLine(psm);
     }
 
     // Gets the intensities for diagnostic ions for a single PSM
-    public void extractIonsLine(String in, int specCol, int pepCol, int deltaCol, int modCol, int pepMassCol) {
+    public void extractIonsLine(PSMFile.PSM psm) {
         // PSM metadata
-        String[] sp = in.split("\t");
-        String specName = sp[specCol];
+        String specName = psm.getSpec();
         String cf = specName.split("\\.")[0] + ".diagBIN";
-        int charge = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 1]);
-        int scanNum = Integer.parseInt(specName.split("\\.")[specName.split("\\.").length - 2]);
-        String pepSeq = sp[pepCol];
-        String [] smods = sp[modCol].split(",");
-        float dmass = Float.parseFloat(sp[deltaCol]);
-        float pepMass = Float.parseFloat(sp[pepMassCol]);
+        int charge = psm.getCharge();
+        int scanNum = psm.getScanNum();
+        String pepSeq = psm.getPep();
+        TreeMap<Integer, Float> smods = psm.getAssignedMods();
+        float dmass = psm.getDMass();
+        float pepMass = psm.getCalcPepmass();
 
         // Make sure PSM falls into PTMS MS1 bin
         int dmassIndx = locate.getIndex(dmass);
@@ -575,7 +558,7 @@ public class DiagnosticPeakPicker {
     }
 
 
-    public float[] formatMods(String[] smods, String seq) {
+    public float[] formatMods(TreeMap<Integer, Float> smods, String seq) {
         float [] mods = new float[seq.length()];
         Arrays.fill(mods, 0f);
         SiteLocalization.localizeMods(smods, mods);

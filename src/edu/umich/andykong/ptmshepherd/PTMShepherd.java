@@ -1036,8 +1036,7 @@ public class PTMShepherd {
 	private static void rewriteMzDataToMzBin(PSMFile pf, HashMap<String, File> mzMappings, int topNPeaks, float minPeakRatio) throws Exception {
 		// Get PSM scan num -> spectral file mapping
 		HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-		int specCol = pf.getColumn("Spectrum");
-		SiteLocalization.initSpectrumMappings(pf, mappings, specCol);
+		SiteLocalization.initSpectrumMappings(pf, mappings);
 
 		// Loop through spectral files -> indexed lines in PSM -> process each line
 		HashMap<Integer, String> linesWithoutSpectra = new HashMap<>();
@@ -1060,12 +1059,10 @@ public class PTMShepherd {
 			long t2 = System.currentTimeMillis();
 			ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
 			for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
-				String line = pf.data.get(clines.get(i));
-				String [] sp = line.split("\\t");
-				String specName = sp[specCol];
+				String specName = pf.psms.get(i).getSpec();
 				Spectrum spec =  mr.getSpectrum(reNormName(specName));
 				if (spec == null)
-					linesWithoutSpectra.put(i, line);
+					linesWithoutSpectra.put(i, pf.psms.get(i).printLine());
 				else {
 					spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
 					specs.add(spec.toMZBINSpectrum());

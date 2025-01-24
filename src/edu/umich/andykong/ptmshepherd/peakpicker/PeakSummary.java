@@ -18,13 +18,10 @@ package edu.umich.andykong.ptmshepherd.peakpicker;
 
 import java.io.*;
 import java.util.*;
-import java.util.regex.Matcher;
 
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static edu.umich.andykong.ptmshepherd.PSMFile.massPattern;
 
 public class PeakSummary {
 	private static final Logger log = LoggerFactory.getLogger(PeakSummary.class);
@@ -233,34 +230,31 @@ public class PeakSummary {
 	}
 	
 	public void appendPSMs(PSMFile pf, boolean useAssignedMods) {
-		for(int i = 0; i < pf.data.size(); i++) {
-			String [] sp = pf.data.get(i).split("\t");
-			double deltaMass = Double.parseDouble(sp[pf.dMassCol]);
-			appendPSMsHelper(pf, sp, deltaMass);
+		for(int i = 0; i < pf.psms.size(); i++) {
+			PSMFile.PSM psm = pf.psms.get(i);
+			double deltaMass = psm.getDMass();
+			appendPSMsHelper(pf, psm, deltaMass);
 			if (useAssignedMods) {
-				String[] mods = sp[pf.assignedModCol].split(",");
-				for (String mod : mods) {
-					Matcher m = massPattern.matcher(mod);
-					if (m.find()) {
-						appendPSMsHelper(pf, sp, Float.parseFloat(m.group(1)));
-					}
+				TreeMap<Integer, Float> mods = psm.getAssignedMods();
+				for (Map.Entry<Integer, Float> mod : mods.entrySet()) {
+					appendPSMsHelper(pf, psm, mod.getValue());
 				}
 			}
 		}
 	}
 
-	private void appendPSMsHelper(PSMFile pf, String[] sp, double modMass) {
+	private void appendPSMsHelper(PSMFile pf, PSMFile.PSM psm, double modMass) {
 		if (topFeature != null) {
 			if (modMass >= topFeature.peakLower && modMass <= topFeature.peakUpper) {
-				topFeature.peps.add(sp[pf.peptideCol]);
+				topFeature.peps.add(psm.getPep());
 				topFeature.psms++;
 			} else {
 				PeakFeature fast = PeakFeature.getMatchedFeature(features, modMass);
 				if (fast != null) {
-					fast.peps.add(sp[pf.peptideCol]);
+					fast.peps.add(psm.getPep());
 					fast.psms++;
 					if (this.useIntensity == 1) {
-						fast.intensity += Double.parseDouble(sp[pf.intensityCol]);
+						fast.intensity += Double.parseDouble(psm.spLine.get(pf.intensityCol));
 					}
 				}
 			}
