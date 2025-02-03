@@ -157,10 +157,8 @@ public class SimRTAnalysis {
 				if(!isZero)
 					continue;
 				
-				String key = psm.getPep(); //using pep seq as key
-				if(!psm.spLine.get(pf.modPeptideCol).isEmpty())
-					key = psm.spLine.get(pf.modPeptideCol).trim();
-				
+				String key = generateKey(psm); //using pep seq as key
+
 				if(!zTolRT.containsKey(key)) //structure {modpep:<rt>}
 					zTolRT.put(key, new ArrayList<>());
 				zTolRT.get(key).add(Double.parseDouble(psm.spLine.get(pf.retentionCol)));
@@ -235,9 +233,7 @@ public class SimRTAnalysis {
 					cPeakTol = calculatePeakTol(1500, peakTol, 0.0);
 				boolean isZero = (psm.getDMass() <= cPeakTol);
 
-				String key = psm.getPep(); //using pep seq as key
-				if(!psm.spLine.get(pf.modPeptideCol).isEmpty())
-					key = psm.spLine.get(pf.modPeptideCol).trim();
+				String key = generateKey(psm); //using pep seq as key
 
 				int rtSize = 0, specSimSize = 0, intSize = 0;
 				double rtDelta = -1e20;
@@ -315,5 +311,14 @@ public class SimRTAnalysis {
 
 	public boolean getCalcIntensity() {
 		return calcIntensity;
+	}
+
+	// key is peptide_assignedMods. Replaced modified peptide to support massdiff-to-varmod and reruns
+	private String generateKey(PSMFile.PSM psm) {
+		String key = psm.getPep(); //using pep seq as key
+		if(!psm.getAssignedMods().isEmpty()) {
+			key += "_" + psm.printAssignedMods();
+		}
+		return key;
 	}
 }

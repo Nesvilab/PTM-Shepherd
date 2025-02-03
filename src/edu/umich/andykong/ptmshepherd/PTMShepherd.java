@@ -615,7 +615,7 @@ public class PTMShepherd {
 		/* Save best glycan information from glyco report to psm tables */
 		for (String ds : datasets.keySet()) {
 			for (PSMFile pf: psmFiles.get(ds)) {
-				pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), GlycoAnalysis.NUM_ADDED_GLYCO_PSM_COLUMNS, glycoParams);
+				pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), glycoParams, Integer.parseInt(params.get("msfragger_massdiff_to_varmod")));
 			}
 		}
 
@@ -965,7 +965,7 @@ public class PTMShepherd {
 		for(String ds : datasets.keySet()) {
 			ArrayList<PSMFile> datasetPSMFiles = new ArrayList<>();
 			for (String[] dsData : datasets.get(ds)) {
-				PSMFile pf = new PSMFile(new File(dsData[0]));
+				PSMFile pf = new PSMFile(new File(dsData[0]), Integer.parseInt(getParam("msfragger_massdiff_to_varmod")));
 				datasetPSMFiles.add(pf);
 			}
 			psmFiles.put(ds, datasetPSMFiles);
