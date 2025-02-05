@@ -1,5 +1,6 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
@@ -128,7 +129,7 @@ public class IterativeLocalizer {
                     mr.readFully();
                     // Get matched ion intensities for unmodified peptides
                     for (int j : runToLine.get(cf)) {
-                        PSMFile.PSM psm = psmf.getLine(j);
+                        PSM psm = psmf.getLine(j);
                         float dMass = psm.getDMass();
 
                         // Limit to unmodified peptides
@@ -322,7 +323,7 @@ public class IterativeLocalizer {
                                 }
                             }
 
-                            PSMFile.PSM psm = psmf.getLine(j);
+                            PSM psm = psmf.getLine(j);
                             float dMass = psm.getDMass();
                             String pep = psm.getPep();
                             String specName = psm.getSpec();
@@ -889,7 +890,7 @@ public class IterativeLocalizer {
      * P(Spec_i|Pep_{ij})                                       ->  Likelihood
      * Sum_{k=0}^{{L_i}+1} P(Pep_{ik})*P(Spec_i|Pep_{ik})       ->  Marginal probability
      *
-     * @param psm           PSMFile.PSM object containing PSM information //todo most of the other values don't need to be preparsed if this is passed
+     * @param psm           PSM object containing PSM information //todo most of the other values don't need to be preparsed if this is passed
      * @param spec          Spectrum class object containing pre-processed mass spectrum
      * @param pep           pep sequence
      * @param mods          array containing masses to be added on to pep sequence at mods[i] position
@@ -898,7 +899,7 @@ public class IterativeLocalizer {
      * @param allowedPoses  array of allowed positions based on peptide sequence localization restrictions TODO add mods
      * @return double[] of localization probabilities
      */
-    private double[] localizePsm (PSMFile.PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
+    private double[] localizePsm (PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
         double[] sitePriorProbs;
         double[] siteLikelihoods = new double[pep.length()];
         double marginalProb = 0.0;

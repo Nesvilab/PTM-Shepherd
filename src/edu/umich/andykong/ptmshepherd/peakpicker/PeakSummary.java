@@ -19,6 +19,7 @@ package edu.umich.andykong.ptmshepherd.peakpicker;
 import java.io.*;
 import java.util.*;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -231,7 +232,7 @@ public class PeakSummary {
 	
 	public void appendPSMs(PSMFile pf, boolean useAssignedMods) {
 		for(int i = 0; i < pf.psms.size(); i++) {
-			PSMFile.PSM psm = pf.psms.get(i);
+			PSM psm = pf.psms.get(i);
 			double deltaMass = psm.getDMass();
 			appendPSMsHelper(pf, psm, deltaMass);
 			if (useAssignedMods) {
@@ -243,7 +244,7 @@ public class PeakSummary {
 		}
 	}
 
-	private void appendPSMsHelper(PSMFile pf, PSMFile.PSM psm, double modMass) {
+	private void appendPSMsHelper(PSMFile pf, PSM psm, double modMass) {
 		if (topFeature != null) {
 			if (modMass >= topFeature.peakLower && modMass <= topFeature.peakUpper) {
 				topFeature.peps.add(psm.getPep());

@@ -1,5 +1,6 @@
 package psm;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ public class PSMFileTest {
         assert psmFile.dMassCol != -1;
         assert psmFile.assignedModCol != -1;
 
-        PSMFile.PSM psm1 = psmFile.psms.get(0);
+        PSM psm1 = psmFile.psms.get(0);
         assert psm1.getScanNum() == 382;
         assert psm1.getDMass() + -0.0045 < tol;
         assert psm1.getAssignedMods().isEmpty();
@@ -37,9 +38,9 @@ public class PSMFileTest {
         File testFile = new File("test-resources/test_psms.tsv");
         PSMFile psmFile = new PSMFile(testFile, 0);
 
-        PSMFile.PSM psm = psmFile.psms.get(3);
+        PSM psm = psmFile.psms.get(3);
         double prevCalcMass = Double.parseDouble(psm.spLine.get(psmFile.peptideCalcMassCol));
-        psm.updateDeltaMass(2512, 0, 0);
+        psm.updateDeltaMass(2512, 0, 0, psmFile.peptideCalcMassCol, psmFile.calcMZcol, psmFile.dMassCol, psmFile.assignedModCol);
         assert psm.getDMass() - 0.8503 < tol;
         assert Double.parseDouble(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512) < tol;
 

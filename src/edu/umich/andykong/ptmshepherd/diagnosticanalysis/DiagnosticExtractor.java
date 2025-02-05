@@ -17,12 +17,12 @@
 package edu.umich.andykong.ptmshepherd.diagnosticanalysis;
 
 import edu.umich.andykong.ptmshepherd.PSMFile;
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -130,7 +130,7 @@ public class DiagnosticExtractor {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<PSMFile.PSM> cBlock = new ArrayList<>();
+                ArrayList<PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.psms.get(clines.get(j)));
                 futureList.add(executorService.submit(() -> processLinesBlock(cBlock, diagnosticOut)));
@@ -153,9 +153,9 @@ public class DiagnosticExtractor {
         }
     }
 
-    public void processLinesBlock(ArrayList<PSMFile.PSM> cBlock, PrintWriter out) {
+    public void processLinesBlock(ArrayList<PSM> cBlock, PrintWriter out) {
         StringBuilder newBlock  = new StringBuilder();
-        for (PSMFile.PSM psm : cBlock) {
+        for (PSM psm : cBlock) {
             newBlock.append(processLine(psm)).append("\n");
         }
         printLines(out, newBlock.toString());
@@ -165,7 +165,7 @@ public class DiagnosticExtractor {
         out.print(linesBlock);
     }
 
-    public String processLine(PSMFile.PSM psm) {
+    public String processLine(PSM psm) {
         StringBuilder diagnosticResultString = new StringBuilder();
 
         diagnosticResultString.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", psm.getSpec(), psm.getPep(), psm.printAssignedMods(), psm.getCalcPepmass(), psm.getDMass()));

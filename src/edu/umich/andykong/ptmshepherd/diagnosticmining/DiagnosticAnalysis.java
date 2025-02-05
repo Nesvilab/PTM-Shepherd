@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
@@ -98,7 +99,7 @@ public class DiagnosticAnalysis {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<PSMFile.PSM> cBlock = new ArrayList<>();
+                ArrayList<PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.psms.get(clines.get(j)));
                 futureList.add(executorService.submit(() -> processLinesBlock(cBlock)));
@@ -118,7 +119,7 @@ public class DiagnosticAnalysis {
 
     }
 
-    public void processLinesBlock(ArrayList<PSMFile.PSM> cBlock) {
+    public void processLinesBlock(ArrayList<PSM> cBlock) {
         /* Temporary arrays that hold blocks of spectra to be added to shared Collections synchronously */
         ArrayList<DiagnosticRecord> diagnosticRecords = new ArrayList<>();
 
@@ -134,7 +135,7 @@ public class DiagnosticAnalysis {
     }
 
     /* Processes line in PSM list and turns it into a DiagnosticRecord of transformed spectra */
-    public DiagnosticRecord processLine(PSMFile.PSM psm) {
+    public DiagnosticRecord processLine(PSM psm) {
         /* Get metadata from PSM list line */
         String specName = psm.getSpec();
         int charge = psm.getCharge();

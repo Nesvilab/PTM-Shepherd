@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
@@ -150,7 +151,7 @@ public class SimRTAnalysis {
 
 			//get zero bin data and calculate baselines
 			for(int i = 0; i < clines.size(); i++) {
-				PSMFile.PSM psm = pf.psms.get(clines.get(i));
+				PSM psm = pf.psms.get(clines.get(i));
 				if(precursorUnits == 1)//ppm
 					cPeakTol = calculatePeakTol(1500, peakTol, 0.0);
 				boolean isZero = (psm.getDMass() <= cPeakTol);
@@ -184,7 +185,7 @@ public class SimRTAnalysis {
 				int nComp = Math.min(relLines.size(), MAX_ZERO_COMPARE);
 				zTolSpecs.put(pepZ, new ArrayList<>());
 				for(int i = 0; i < nComp; i++) {
-					PSMFile.PSM psm = pf.psms.get(relLines.get(i));
+					PSM psm = pf.psms.get(relLines.get(i));
 					String targetFrac = psm.getFileName();
 					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(psm.getSpec()));
 				}
@@ -192,7 +193,7 @@ public class SimRTAnalysis {
 				double zSimSum = 0;
 				totalLines += relLines.size();
 				for(int i = 0; i < relLines.size(); i++) {
-					PSMFile.PSM psm = pf.psms.get(relLines.get(i));
+					PSM psm = pf.psms.get(relLines.get(i));
 					String specNormName = psm.getSpec();
 					String targetFrac = psm.getFileName();
 					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(specNormName);
@@ -228,7 +229,7 @@ public class SimRTAnalysis {
 			
 			//calculate metrics
 			for(int i = 0; i < clines.size(); i++) {
-				PSMFile.PSM psm = pf.psms.get(clines.get(i));
+				PSM psm = pf.psms.get(clines.get(i));
 				if(precursorUnits == 1)//ppm
 					cPeakTol = calculatePeakTol(1500, peakTol, 0.0);
 				boolean isZero = (psm.getDMass() <= cPeakTol);
@@ -314,7 +315,7 @@ public class SimRTAnalysis {
 	}
 
 	// key is peptide_assignedMods. Replaced modified peptide to support massdiff-to-varmod and reruns
-	private String generateKey(PSMFile.PSM psm) {
+	private String generateKey(PSM psm) {
 		String key = psm.getPep(); //using pep seq as key
 		if(!psm.getAssignedMods().isEmpty()) {
 			key += "_" + psm.printAssignedMods();

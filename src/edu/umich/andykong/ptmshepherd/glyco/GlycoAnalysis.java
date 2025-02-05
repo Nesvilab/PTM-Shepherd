@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
@@ -112,7 +113,7 @@ public class GlycoAnalysis {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<PSMFile.PSM> cBlock = new ArrayList<>();
+                ArrayList<PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.psms.get(clines.get(j)));
                 futureList.add(executorService.submit(() -> processLinesBlock(cBlock, glycoOut)));
@@ -135,9 +136,9 @@ public class GlycoAnalysis {
         }
     }
 
-    public void processLinesBlock(ArrayList<PSMFile.PSM> cBlock, PrintWriter fragmentOutWriter) {
+    public void processLinesBlock(ArrayList<PSM> cBlock, PrintWriter fragmentOutWriter) {
         StringBuilder fragmentBlock = new StringBuilder();
-        for (PSMFile.PSM psm : cBlock) {
+        for (PSM psm : cBlock) {
             GlycanAssignmentResult glycoResult = processLine(psm);
             fragmentBlock.append(glycoResult.printGlycoFragmentInfo());
         }
@@ -712,7 +713,7 @@ public class GlycoAnalysis {
      * @param psm String of a single PSM line
      * @return result container
      */
-    public GlycanAssignmentResult processLine(PSMFile.PSM psm) {
+    public GlycanAssignmentResult processLine(PSM psm) {
         // get basic info
         GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.getPep(), psm.getDMass(), psm.getCalcPepmass(), psm.printAssignedMods(), psm.getSpec());
 

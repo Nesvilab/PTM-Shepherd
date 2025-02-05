@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
@@ -131,7 +132,7 @@ public class DiagnosticPeakPicker {
 
     public void addPepkeysToIndex(PSMFile pf) {
         for (int i = 0; i < pf.psms.size(); i++) {
-            PSMFile.PSM psm = pf.psms.get(i);
+            PSM psm = pf.psms.get(i);
             String charge = String.valueOf(psm.getCharge());
             String pepSeq = psm.getPep();
             String mzFile = psm.getFileName();
@@ -476,7 +477,7 @@ public class DiagnosticPeakPicker {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<PSMFile.PSM> cBlock = new ArrayList<>();
+                ArrayList<PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
                     cBlock.add(pf.psms.get(clines.get(j)));
                 futureList.add(executorService.submit(() -> extractIonsBlock(cBlock)));
@@ -492,12 +493,12 @@ public class DiagnosticPeakPicker {
 
     }
 
-    public void extractIonsBlock(ArrayList<PSMFile.PSM> cBlock) {
-        for (PSMFile.PSM psm : cBlock) extractIonsLine(psm);
+    public void extractIonsBlock(ArrayList<PSM> cBlock) {
+        for (PSM psm : cBlock) extractIonsLine(psm);
     }
 
     // Gets the intensities for diagnostic ions for a single PSM
-    public void extractIonsLine(PSMFile.PSM psm) {
+    public void extractIonsLine(PSM psm) {
         // PSM metadata
         String specName = psm.getSpec();
         String cf = specName.split("\\.")[0] + ".diagBIN";

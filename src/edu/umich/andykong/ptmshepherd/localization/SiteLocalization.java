@@ -147,7 +147,7 @@ public class SiteLocalization {
 
 	public String annotateLine(PSMFile psmFile, int lineIndex) {
 		StringBuilder sb = new StringBuilder();
-		PSMFile.PSM psm = psmFile.psms.get(lineIndex);
+		PSM psm = psmFile.psms.get(lineIndex);
 		String seq = psm.getPep();
 		float dmass = psm.getDMass();
 		float [] scores = new float[seq.length()];
@@ -212,7 +212,7 @@ public class SiteLocalization {
 	 */
 	public String annotateLineUsingMSFragger(PSMFile psmFile, int lineIndex) {
 		StringBuilder sb = new StringBuilder();
-		PSMFile.PSM psm = psmFile.psms.get(lineIndex);
+		PSM psm = psmFile.psms.get(lineIndex);
 		String seq = psm.getPep();
 		float dmass = psm.getDMass();
 		float [] scores = new float[seq.length()];
