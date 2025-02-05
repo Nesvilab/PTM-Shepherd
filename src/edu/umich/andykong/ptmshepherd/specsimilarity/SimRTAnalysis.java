@@ -184,15 +184,15 @@ public class SimRTAnalysis {
 				int nComp = Math.min(relLines.size(), MAX_ZERO_COMPARE);
 				zTolSpecs.put(pepZ, new ArrayList<>());
 				for(int i = 0; i < nComp; i++) {
-					PSMFile.PSM psm = pf.psms.get(clines.get(i));
+					PSMFile.PSM psm = pf.psms.get(relLines.get(i));
 					String targetFrac = psm.getFileName();
-					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(reNormName(psm.getSpec())));
+					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(psm.getSpec()));
 				}
 				
 				double zSimSum = 0;
 				totalLines += relLines.size();
 				for(int i = 0; i < relLines.size(); i++) {
-					PSMFile.PSM psm = pf.psms.get(clines.get(i));
+					PSMFile.PSM psm = pf.psms.get(relLines.get(i));
 					String specNormName = psm.getSpec();
 					String targetFrac = psm.getFileName();
 					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(specNormName);
@@ -255,7 +255,7 @@ public class SimRTAnalysis {
 				key += "." + psm.getCharge(); //based on charge state
 				if(zTolSpecs.containsKey(key)) {
 					String targetFrac = psm.getFileName();
-					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(reNormName(psm.getSpec()));
+					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(psm.getSpec());
 					if(cspec != null) {
 						avgSim = cspec.averageSimilarity(zTolSpecs.get(key), ppmTol); //all v all comparison
 						avgZeroSim = avgzSim.get(key);
