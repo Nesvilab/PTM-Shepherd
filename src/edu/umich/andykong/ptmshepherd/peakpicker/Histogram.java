@@ -54,7 +54,7 @@ public class Histogram {
 		histo = new double[(end-start)*binDivs];
 		calcWeights(smoothBins);
 		for(int i = 0; i < vals.size(); i++) {
-			int cb = (int)(binDivs*(vals.get(i) + Math.random()/1000000 - 0.0000005 - start + 1.0 / binDivs));
+			int cb = (int)(binDivs*(vals.get(i) - start + 1.0 / binDivs));
 			for(int j = cb - smoothBins/2; j <= (cb + smoothBins/2); j++) {
 				histo[j] += intensities.get(i) * gweights[j - (cb - smoothBins/2)];
 			}
