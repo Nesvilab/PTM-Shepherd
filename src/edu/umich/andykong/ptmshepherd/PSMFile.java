@@ -495,12 +495,6 @@ public class PSMFile {
 		}
 		in.close();
 
-		if (glyLines.size() < 2) {
-			// no glycan information found (empty file or only line is "COMPLETE") - do not edit PSM table
-			PTMShepherd.print("Warning: no modified spectra found, no glycans written to PSM table. Check input data and parameters");
-			return;
-		}
-
 		/* Find headers, dynamically detect columns */
 		observedModCol = getColumn("Observed Modifications");
 		assignedModCol = getColumn("Assigned Modifications");
