@@ -91,10 +91,72 @@ public class PSMFileTest {
         PSMFile psmFile = new PSMFile(testFile, 0);
 
         PSM psm = psmFile.psms.get(3);
-        double prevCalcMass = Double.parseDouble(psm.spLine.get(psmFile.peptideCalcMassCol));
-        psm.updateDeltaMass(2512, 0, 0, psmFile.peptideCalcMassCol, psmFile.calcMZcol, psmFile.dMassCol, psmFile.assignedModCol);
-        assert psm.getDMass() - 0.8503 < tol;
-        assert Double.parseDouble(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512) < tol;
+        float prevCalcMass = psm.getCalcPepMass();
+        float prevDMass = psm.getDMass();
 
+        psm.updateDeltaMass(2512.8455f, 0, 0, psmFile.peptideCalcMassCol, psmFile.calcMZcol, psmFile.dMassCol, psmFile.assignedModCol);
+        assert psm.getDMass() - 0.8503 < tol;
+        assert psm.getDMass() - prevDMass < tol;
+        assert psm.getCalcPepMass() - (prevCalcMass + 2512.8455f) < tol;
+        assert Float.parseFloat(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512.8455) < tol;
+
+        psm.updateDeltaMass(2512.8455f, 1, 2512.8455f, psmFile.peptideCalcMassCol, psmFile.calcMZcol, psmFile.dMassCol, psmFile.assignedModCol);
+        assert psm.getDMass() - 0.8503 < tol;
+        assert psm.getCalcPepMass() - (prevCalcMass + 2512.8455f) < tol;
+    }
+
+    @Test
+    public void editModifiedPeptideTest0() throws Exception {
+        File testFile = new File("test-resources/test_psms.tsv");
+        PSMFile psmFile = new PSMFile(testFile, 0);
+
+        PSM psm = psmFile.psms.get(3);
+        assert psm.getOriginalModifiedPeptide().equals("NFNDSSTK");
+        assert psm.getModifiedPeptide().equals("NFNDSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).isEmpty();
+
+        psm.editModifiedPeptide(3, 2512.8455, 0, psmFile.modPeptideCol);
+        assert psm.getModifiedPeptide().equals("NFN[2627]DSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2627]DSSTK");
+
+        // test re-run of the same file with previous mod
+        psm.editModifiedPeptide(3, 2512.8455, 1, psmFile.modPeptideCol);
+        assert psm.getModifiedPeptide().equals("NFN[2627]DSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2627]DSSTK");
+
+        // test re-run of the same file with a new mod
+        psm.editModifiedPeptide(3, 2000, 1, psmFile.modPeptideCol);
+        assert psm.getModifiedPeptide().equals("NFN[2115]DSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2115]DSSTK");
+    }
+
+    @Test
+    public void editModifiedPeptideTest1() throws Exception {
+        File testFile = new File("test-resources/test_psms_remove-delta.tsv");
+        PSMFile psmFile = new PSMFile(testFile, 1);
+
+        PSM psm = psmFile.psms.get(3);
+        assert psm.getOriginalModifiedPeptide().equals("NFN[2627]DSSTK");
+        assert psm.getModifiedPeptide().equals("NFNDSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2627]DSSTK");
+
+        psm.editModifiedPeptide(3, 2512.8455, 1, psmFile.modPeptideCol);
+        assert psm.getModifiedPeptide().equals("NFN[2627]DSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2627]DSSTK");
+    }
+
+    @Test
+    public void editModifiedPeptideTest2() throws Exception {
+        File testFile = new File("test-resources/test_psms_keep-delta.tsv");
+        PSMFile psmFile = new PSMFile(testFile, 2);
+
+        PSM psm = psmFile.psms.get(3);
+        assert psm.getOriginalModifiedPeptide().equals("NFN[2627]DSSTK");
+        assert psm.getModifiedPeptide().equals("NFNDSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2627]DSSTK");
+
+        psm.editModifiedPeptide(3, 2512.8455, 1, psmFile.modPeptideCol);
+        assert psm.getModifiedPeptide().equals("NFN[2627]DSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2627]DSSTK");
     }
 }

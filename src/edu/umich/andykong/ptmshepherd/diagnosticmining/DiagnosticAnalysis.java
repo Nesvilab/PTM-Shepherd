@@ -139,7 +139,7 @@ public class DiagnosticAnalysis {
         /* Get metadata from PSM list line */
         String specName = psm.getSpec();
         int charge = psm.getCharge();
-        String pepSeq = psm.getPep();
+        String pepSeq = psm.getPeptide();
         float dmass = psm.getDMass();
         float pepMass = psm.getCalcPepmass();
         TreeMap<Integer, Float> smods = psm.getAssignedMods();

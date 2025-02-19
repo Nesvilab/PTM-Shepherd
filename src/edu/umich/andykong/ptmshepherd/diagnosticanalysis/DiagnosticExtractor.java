@@ -168,7 +168,7 @@ public class DiagnosticExtractor {
     public String processLine(PSM psm) {
         StringBuilder diagnosticResultString = new StringBuilder();
 
-        diagnosticResultString.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", psm.getSpec(), psm.getPep(), psm.printAssignedMods(), psm.getCalcPepmass(), psm.getDMass()));
+        diagnosticResultString.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", psm.getSpec(), psm.getPeptide(), psm.printAssignedMods(), psm.getCalcPepmass(), psm.getDMass()));
 
         Spectrum spec = mr.getSpectrum(psm.getSpec());
         if (spec == null) {
@@ -191,14 +191,14 @@ public class DiagnosticExtractor {
         String ionTypes = PTMShepherd.concatIonTypes();
         float[][] remainderIntensities = new float[remainderMasses.length][ionTypes.length()];
         int[][] remainderCounts = new int[remainderMasses.length][ionTypes.length()];
-        boolean[][] isMaxScores = localizeRemainderFragments(spec, psm.getPep(), psm.getAssignedMods(), deltaScores, remainderIntensities, remainderCounts);
+        boolean[][] isMaxScores = localizeRemainderFragments(spec, psm.getPeptide(), psm.getAssignedMods(), deltaScores, remainderIntensities, remainderCounts);
 
         for (int i = 0; i < remainderMasses.length; i++) {
             diagnosticResultString.append(String.format("\t%.1f", deltaScores[i]));
             StringBuilder locSb = new StringBuilder("\t");
-            for (int j = 0; j < psm.getPep().length(); j++) {
+            for (int j = 0; j < psm.getPeptide().length(); j++) {
                 if (isMaxScores[i][j]) {
-                    locSb.append(String.format("%d%c", j + 1, psm.getPep().charAt(j))); //position (1 indexed), character
+                    locSb.append(String.format("%d%c", j + 1, psm.getPeptide().charAt(j))); //position (1 indexed), character
                 }
             }
             // add remainder intensities

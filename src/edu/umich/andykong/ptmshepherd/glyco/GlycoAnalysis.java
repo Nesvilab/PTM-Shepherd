@@ -33,8 +33,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
-
 public class GlycoAnalysis {
     String dsName;
     File glycoFile;                     // .rawglyco file
@@ -715,7 +713,7 @@ public class GlycoAnalysis {
      */
     public GlycanAssignmentResult processLine(PSM psm) {
         // get basic info
-        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.getPep(), psm.getDMass(), psm.getCalcPepmass(), psm.printAssignedMods(), psm.getSpec());
+        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.getPeptide(), psm.getDMass(), psm.getCalcPepmass(), psm.printAssignedMods(), psm.getSpec());
 
         // read spectrum and condition
         Spectrum spec = mr.getSpectrum(psm.getSpec());

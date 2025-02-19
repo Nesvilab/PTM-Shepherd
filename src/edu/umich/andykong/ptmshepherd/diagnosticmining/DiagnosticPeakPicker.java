@@ -134,7 +134,7 @@ public class DiagnosticPeakPicker {
         for (int i = 0; i < pf.psms.size(); i++) {
             PSM psm = pf.psms.get(i);
             String charge = String.valueOf(psm.getCharge());
-            String pepSeq = psm.getPep();
+            String pepSeq = psm.getPeptide();
             String mzFile = psm.getFileName();
             int scanNum = psm.getScanNum();
             String mods = psm.printAssignedMods();
@@ -504,7 +504,7 @@ public class DiagnosticPeakPicker {
         String cf = specName.split("\\.")[0] + ".diagBIN";
         int charge = psm.getCharge();
         int scanNum = psm.getScanNum();
-        String pepSeq = psm.getPep();
+        String pepSeq = psm.getPeptide();
         TreeMap<Integer, Float> smods = psm.getAssignedMods();
         float dmass = psm.getDMass();
         float pepMass = psm.getCalcPepmass();

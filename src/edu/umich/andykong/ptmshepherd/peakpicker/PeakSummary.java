@@ -247,12 +247,12 @@ public class PeakSummary {
 	private void appendPSMsHelper(PSMFile pf, PSM psm, double modMass) {
 		if (topFeature != null) {
 			if (modMass >= topFeature.peakLower && modMass <= topFeature.peakUpper) {
-				topFeature.peps.add(psm.getPep());
+				topFeature.peps.add(psm.getPeptide());
 				topFeature.psms++;
 			} else {
 				PeakFeature fast = PeakFeature.getMatchedFeature(features, modMass);
 				if (fast != null) {
-					fast.peps.add(psm.getPep());
+					fast.peps.add(psm.getPeptide());
 					fast.psms++;
 					if (this.useIntensity == 1) {
 						fast.intensity += Double.parseDouble(psm.spLine.get(pf.intensityCol));

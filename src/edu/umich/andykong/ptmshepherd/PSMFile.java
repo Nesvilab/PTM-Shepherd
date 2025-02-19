@@ -44,6 +44,7 @@ public class PSMFile {
 			bestPositionsCol, ionsBestPosCol, scoreBestPositionCol, scoreAllUnshiftedCol, ionsAllUnshiftedCol,
 			eValCol, retentionCol, glycanCompCol, glycanScoreCol, glycanQvalCol;
 
+	public int massdiffToVarmod;
 	private final HashMap<String, Integer> scanToLineMap;
 	public File fname;
 	public static final Pattern massPattern = Pattern.compile("\\(([-.\\d]+)\\)");
@@ -389,7 +390,7 @@ public class PSMFile {
 					}
 					// update assigned mods column
 					if (glycoParams.writeGlycansToAssignedMods) {
-						writeGlycanToAssignedMod(psm, rawGlycan, glycoParams, massdiffToVarmod);
+						writeGlycanToAssignedMod(psm, rawGlycan, glycoParams);
 					}
 				}
 			} else {
@@ -454,7 +455,7 @@ public class PSMFile {
 	 * Also writes to modified peptide and delta mass columns.
 	 * Handles cases where information was previously written to the PSM table by removing/replacing the previous ID if present
 	 */
-	public void writeGlycanToAssignedMod(PSM psm, String rawGlycan, GlycoParams glycoParams, int massdiffToVarmod) {
+	public void writeGlycanToAssignedMod(PSM psm, String rawGlycan, GlycoParams glycoParams) {
 		// parse glycan composition from recently edited observed mods col
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
 		boolean failOrDecoy = rawGlycan.contains("FailFDR") || rawGlycan.contains("Decoy");
@@ -507,61 +508,12 @@ public class PSMFile {
 		}
 		psm.spLine.set(assignedModCol, psm.printAssignedMods());
 
-		/* Write mass and location to Modified Pep */
-		String modifiedPep = psm.spLine.get(modPeptideCol);
-		if (modifiedPep.isEmpty()) {
-			// no previous mods here, copy from peptide
-			modifiedPep = psm.spLine.get(peptideCol);
-		}
-		String newModPep = editModifiedPeptide(modifiedPep, glycanLocation, glycanMass, editPSMGlycoEntry);
-		psm.spLine.set(modPeptideCol, newModPep);
+		psm.editModifiedPeptide(glycanLocation + 1, glycanMass, massdiffToVarmod, modPeptideCol);
 
 		/* Update delta mass AND calc m/z columns */
 		if (glycoParams.removeGlycanDeltaMass) {
 			psm.updateDeltaMass((float) glycanMass, massdiffToVarmod, (float) prevGlycanMass, peptideCalcMassCol, calcMZcol, dMassCol, assignedModCol);
 		}
-	}
-
-	/**
-	 * Add a modification to a modified peptide string.
-	 */
-	private static String editModifiedPeptide(String previousModPep, int modLocation, double modMass, boolean overwrite) {
-		String newModPep = previousModPep;
-		int residueIndex = -1;
-		for (int i = 0; i < previousModPep.length(); i++) {
-			if (previousModPep.charAt(i) >= 'A' && previousModPep.charAt(i) <= 'Z') {
-				// actual peptide residue, not modification info
-				residueIndex++;
-			}
-			if (residueIndex == modLocation) {
-				// found the mod location. Check for existing mod
-				int AAindex = previousModPep.charAt(i) - 65;		// capital alphabet starts at 65
-				int roundedModMass = (int) Math.round(modMass + AAMasses.monoisotopic_masses[AAindex]);
-				int secondSubstringStart = i + 1;
-				// Skip checking for modification if we've already reached the end of the modified peptide string
-				if (!(secondSubstringStart == previousModPep.length())) {
-					if (previousModPep.charAt(i + 1) > 'Z' || previousModPep.charAt(i + 1) < 'A') {
-						// non-residue character is next, so a modification has previously been written here. Remove it and replace
-						int j = i + 1;
-						// find length of the modification at this site (could vary if glycan has mass < 1000 or not)
-						while (previousModPep.charAt(j) > 'Z' || previousModPep.charAt(j) < 'A') {
-							j++;
-							if (j == previousModPep.length())
-								break;
-						}
-						secondSubstringStart = j;
-					}
-				}
-				if (overwrite) {
-					newModPep = previousModPep.substring(0, i + 1) + String.format("[%d]", roundedModMass) + previousModPep.substring(secondSubstringStart);
-				} else {
-					// if failed or no mod, write no modification at this position (but do remove previous mod if one was present from an older analysis)
-					newModPep = previousModPep.substring(0, i + 1) + previousModPep.substring(secondSubstringStart);
-				}
-				break;
-			}
-		}
-		return newModPep;
 	}
 
 	/**
@@ -649,9 +601,10 @@ public class PSMFile {
 			PTMShepherd.die("Invalid MSFragger mass-diff-to-variable-mod configuration");
 		}
 		if (glycanScoreCol != -1) {
-			// todo: handle previous run (set massdifftovarmod = 1?)
+			// handle previous glyco run removing mass diffs
 			massdiffToVarmod = 1;
 		}
+		this.massdiffToVarmod = massdiffToVarmod;
 
 		psms = new ArrayList<>();
 		scanToLineMap = new HashMap<>();
@@ -659,7 +612,7 @@ public class PSMFile {
 		String cline;
 		while((cline = in.readLine()) != null) {
 			if (!cline.isEmpty()) {
-				PSM thisPSM = new PSM(i, cline, massdiffToVarmod, specCol, peptideCol, chargeCol, peptideCalcMassCol, dMassCol, assignedModCol, msfraggerLocalizationCol);
+				PSM thisPSM = new PSM(i, cline, this.massdiffToVarmod, specCol, peptideCol, modPeptideCol, chargeCol, peptideCalcMassCol, dMassCol, assignedModCol, msfraggerLocalizationCol);
 				psms.add(thisPSM);
 				scanToLineMap.put(thisPSM.getSpec(), i);
 				i++;

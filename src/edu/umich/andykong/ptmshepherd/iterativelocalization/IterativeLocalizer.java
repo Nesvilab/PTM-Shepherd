@@ -8,21 +8,15 @@ import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.utils.Peptide;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Array;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.executorService;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import static edu.umich.andykong.ptmshepherd.utils.StringParsingUtils.subString;
 
 
@@ -136,7 +130,7 @@ public class IterativeLocalizer {
                         if ((dMass <= zbL) || (dMass >= zbR))
                             continue;
                         String specName = psm.getSpec();
-                        String pep = psm.getPep();
+                        String pep = psm.getPeptide();
                         float[] mods = psm.getModsAsArray();
 
                         Spectrum spec = mr.getSpectrum(specName);
@@ -325,7 +319,7 @@ public class IterativeLocalizer {
 
                             PSM psm = psmf.getLine(j);
                             float dMass = psm.getDMass();
-                            String pep = psm.getPep();
+                            String pep = psm.getPeptide();
                             String specName = psm.getSpec();
                             int cBin = this.locate.getIndex(dMass);
 

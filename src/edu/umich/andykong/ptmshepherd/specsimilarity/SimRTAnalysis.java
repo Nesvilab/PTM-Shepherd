@@ -26,7 +26,6 @@ import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.utils.Variance;
@@ -264,10 +263,10 @@ public class SimRTAnalysis {
 					}
 				}
 				if (calcIntensity) {
-					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\t%.5f\t%d\n", psm.getSpec(), psm.getPep(), psm.spLine.get(pf.modPeptideCol), psm.getDMass(), isZero ? 1 : 0,
+					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\t%.5f\t%d\n", psm.getSpec(), psm.getPeptide(), psm.getModifiedPeptide(), psm.getDMass(), isZero ? 1 : 0,
 							rtDelta, rtSize, avgSim, avgZeroSim, specSimSize, intDelta, intSize);
 				} else {
-					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\n", psm.getSpec(), psm.getPep(), psm.spLine.get(pf.modPeptideCol), psm.getDMass(),isZero?1:0,
+					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\n", psm.getSpec(), psm.getPeptide(), psm.getModifiedPeptide(), psm.getDMass(),isZero?1:0,
 							rtDelta, rtSize, avgSim, avgZeroSim, specSimSize);
 				}
 			}
@@ -316,7 +315,7 @@ public class SimRTAnalysis {
 
 	// key is peptide_assignedMods. Replaced modified peptide to support massdiff-to-varmod and reruns
 	private String generateKey(PSM psm) {
-		String key = psm.getPep(); //using pep seq as key
+		String key = psm.getPeptide(); //using pep seq as key
 		if(!psm.getAssignedMods().isEmpty()) {
 			key += "_" + psm.printAssignedMods();
 		}
