@@ -31,6 +31,58 @@ public class PSMFileTest {
         assert psm1.getDMass() + -0.0045 < tol;
         assert psm1.getAssignedMods().isEmpty();
 
+        PSM psm4 = psmFile.psms.get(3);
+        assert psm4.getScanNum() == 2903;
+        assert psm4.getDMass() - 0.0048 - 2512.8455 < tol;
+        assert psm4.getAssignedMods().isEmpty();
+    }
+
+    @Test
+    public void parsePSMFileRemoveDeltaTest() {
+        File testFile = new File("test-resources/test_psms_remove-delta.tsv");
+        PSMFile psmFile = null;
+        try {
+            psmFile = new PSMFile(testFile, 1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        assert psmFile != null;
+        PSM psm1 = psmFile.psms.get(0);
+        assert psm1.getScanNum() == 382;
+        assert psm1.getDMass() + -0.0045 < tol;
+        assert psm1.getAssignedMods().isEmpty();
+
+        PSM psm4 = psmFile.psms.get(3);
+        assert psm4.getScanNum() == 2903;
+        assert psm4.getDMass() - 0.0048 - 2512.8455 < tol;
+        assert psm4.getOriginalDeltaMass() - 0.0048 < tol;
+        assert psm4.getAssignedMods().isEmpty();
+        assert psm4.getOriginalAssignedMods().get(3) - 2512.8455 < tol;
+    }
+
+    @Test
+    public void parsePSMFileKeepDeltaTest() {
+        File testFile = new File("test-resources/test_psms_keep-delta.tsv");
+        PSMFile psmFile = null;
+        try {
+            psmFile = new PSMFile(testFile, 2);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        assert psmFile != null;
+        PSM psm1 = psmFile.psms.get(0);
+        assert psm1.getScanNum() == 382;
+        assert psm1.getDMass() + -0.0045 < tol;
+        assert psm1.getAssignedMods().isEmpty();
+
+        PSM psm4 = psmFile.psms.get(3);
+        assert psm4.getScanNum() == 2903;
+        assert psm4.getDMass() - 0.0048 - 2512.8455 < tol;
+        assert psm4.getOriginalDeltaMass() - 0.0048 - 2512.8455 < tol;
+        assert psm4.getAssignedMods().isEmpty();
+        assert psm4.getOriginalAssignedMods().get(3) - 2512.8455 < tol;
     }
 
     @Test

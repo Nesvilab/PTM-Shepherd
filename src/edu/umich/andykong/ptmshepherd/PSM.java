@@ -78,6 +78,10 @@ public class PSM {
         return calcPepMass;
     }
 
+    public float getOriginalDeltaMass() {
+        return originalDeltaMass;
+    }
+
     /**
      * Initialize delta mass and assigned mods, accounting for mass-diff-to-varmod setting
      * from MSFragger and any previous modifications to the PSM table (e.g., if this is a re-run)
@@ -172,6 +176,10 @@ public class PSM {
 
     public TreeMap<Integer, Float> getAssignedMods() {
         return assignedMods;
+    }
+
+    public TreeMap<Integer, Float> getOriginalAssignedMods() {
+        return originalAssignedMods;
     }
 
     public String printAssignedMods() {
