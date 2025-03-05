@@ -395,7 +395,7 @@ public class IterativeLocalizer {
                                 strEntropies.add(entropyToString(locEntropy));
 
                                 // TODO check decoy usefulness
-                                /**
+
                                 Peptide decoyPep = Peptide.generateDecoy(pep, mods, maxProbI, this.rng, "mono-swapped");
                                 boolean[] decoyAllowedPoses = parseAllowedPositions(decoyPep.pepSeq,
                                         this.allowedAAs, decoyPep.mods);
@@ -411,7 +411,7 @@ public class IterativeLocalizer {
                                                 maxProbToString(decoyMaxProb, decoyMaxProbAA));
                                     }
                                 }
-                                 **/
+
 
                             }
                         }
@@ -419,16 +419,13 @@ public class IterativeLocalizer {
                     // If models have converged, update PSM tables
                     if (finalPass) {
                         // Update PSM table with new columns
-                        psmf.addColumn(psmf.getColumn("Observed Modifications") + 1,
-                                "PTM-Shepherd Localization", specNames, strOutputProbs);
-                        psmf.addColumn(psmf.getColumn("PTM-Shepherd Localization") + 1,
-                                "PTM-Shepherd Best Localization", specNames, strMaxProbs);
-                        //psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
-                        //        "PTM-Shepherd Best Decoy Localization", specNames, strMaxProbsDecoy);
-                        //psmf.addColumn(psmf.getColumn("delta_mass_maxloc") + 1,
-                        //        "delta_mass_entropy", specNames, strEntropies);
-                        //psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1,
-                        //        "PTM-Shepherd Max Probability", specNames, strMaxProbs2);
+                        int obsModsCol = psmf.getColumn("Observed Modifications");
+//                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Max Probability", specNames, strMaxProbs2);
+                        psmf.addColumn(obsModsCol + 1, "delta_mass_entropy", specNames, strEntropies);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Decoy Localization", specNames, strMaxProbsDecoy);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Localization", specNames, strMaxProbs);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Localization", specNames, strOutputProbs);
+
                         psmf.save(true); // Do not overwrite
                         complete = true;
                     }
