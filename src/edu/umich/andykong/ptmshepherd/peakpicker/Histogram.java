@@ -18,6 +18,7 @@ package edu.umich.andykong.ptmshepherd.peakpicker;
 
 import java.io.*;
 import java.nio.*;
+import java.nio.file.Files;
 import java.util.*;
 
 import org.apache.commons.math3.distribution.NormalDistribution;
@@ -33,19 +34,21 @@ public class Histogram {
 	
 	public TreeMap<String,double []> merged;
 	
-	public Histogram(ArrayList<Float> vals, ArrayList<Double> intensities, int expSize, int binDivs, int smoothBins) {
+	public Histogram(ArrayList<ArrayList<Float>> vals, ArrayList<Double> intensities, int expSize, int binDivs, int smoothBins) {
 		//System.out.println(smoothBins);
 		double min = 1e100;
 		double max = -1e100;
 		
 		this.expSize = expSize;
 		this.binDivs = binDivs;
-		
-		for(int i = 0; i < vals.size(); i++) {
-			if(vals.get(i) > max)
-				max = vals.get(i);
-			if(vals.get(i) < min)
-				min = vals.get(i);
+
+		for (ArrayList<Float> valList : vals) {
+			for (Float val : valList) {
+				if (val > max)
+					max = val;
+				if (val < min)
+					min = val;
+			}
 		}
 		
 		start = (int)(min-5);
@@ -54,9 +57,11 @@ public class Histogram {
 		histo = new double[(end-start)*binDivs];
 		calcWeights(smoothBins);
 		for(int i = 0; i < vals.size(); i++) {
-			int cb = (int)(binDivs*(vals.get(i) - start + 1.0 / binDivs));
-			for(int j = cb - smoothBins/2; j <= (cb + smoothBins/2); j++) {
-				histo[j] += intensities.get(i) * gweights[j - (cb - smoothBins/2)];
+			for (float val : vals.get(i)) {
+				int cb = (int) (binDivs * (val - start + 1.0 / binDivs));
+				for (int j = cb - smoothBins / 2; j <= (cb + smoothBins / 2); j++) {
+					histo[j] += intensities.get(i) * gweights[j - (cb - smoothBins / 2)];
+				}
 			}
 		}
 	}
@@ -106,15 +111,14 @@ public class Histogram {
 		int len = merged.get(keys[0]).length;
 		for(int i = 0; i < len; i++) {
 			out.printf("%.5f", start + i*(1.0/binDivs));
-			for(int j = 0; j < keys.length; j++)
-				out.printf("\t%.8f",merged.get(keys[j])[i]);
+            for (String key : keys) out.printf("\t%.8f", merged.get(key)[i]);
 			out.println();
 		}
 		out.close();
 	}
 	
 	public void writeHistogram(File f) throws Exception {
-		DataOutputStream dos = new DataOutputStream(new FileOutputStream(f));
+		DataOutputStream dos = new DataOutputStream(Files.newOutputStream(f.toPath()));
 		dos.writeInt(start); //tres
 		dos.writeInt(end); //quatro
 		dos.writeInt(binDivs);
@@ -125,7 +129,7 @@ public class Histogram {
 	
 	public static Histogram readHistogram(File f) throws Exception {
 		Histogram h = new Histogram();
-		DataInputStream dis = new DataInputStream(new FileInputStream(f));
+		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
 		h.start = dis.readInt();
 		h.end = dis.readInt();
 		h.binDivs = dis.readInt();
@@ -138,7 +142,7 @@ public class Histogram {
 	
 	public static Histogram readHistogramHeader(File f) throws Exception {
 		Histogram h = new Histogram();
-		DataInputStream dis = new DataInputStream(new FileInputStream(f));
+		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
 		h.start = dis.readInt();
 		h.end = dis.readInt();
 		h.binDivs = dis.readInt();

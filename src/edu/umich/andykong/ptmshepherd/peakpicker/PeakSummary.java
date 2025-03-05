@@ -19,6 +19,7 @@ package edu.umich.andykong.ptmshepherd.peakpicker;
 import java.io.*;
 import java.util.*;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -229,39 +230,36 @@ public class PeakSummary {
 		this.intensities.put(dsName, ints);
 	}
 	
-	public void appendPSMs(PSMFile pf) {
-		int seqcol = pf.getColumn("Peptide");
-		int intcol = pf.getColumn("Intensity");
-		int mdcol = pf.dMassCol;
-//		long stime = System.currentTimeMillis();
-		for(int i = 0; i < pf.data.size(); i++) {
-			String [] sp = pf.data.get(i).split("\t");
-			double md = Double.parseDouble(sp[mdcol]);
+	public void appendPSMs(PSMFile pf, boolean useAssignedMods) {
+		for(int i = 0; i < pf.psms.size(); i++) {
+			PSM psm = pf.psms.get(i);
+			double deltaMass = psm.getDMass();
+			appendPSMsHelper(pf, psm, deltaMass);
+			if (useAssignedMods) {
+				TreeMap<Integer, Float> mods = psm.getAssignedMods();
+				for (Map.Entry<Integer, Float> mod : mods.entrySet()) {
+					appendPSMsHelper(pf, psm, mod.getValue());
+				}
+			}
+		}
+	}
 
-//			for(int j = 0; j < features.size(); j++) {
-//				if(features.get(j).peakLower <= md && features.get(j).peakUpper >= md) {
-//					features.get(j).peps.add(sp[seqcol]);
-//					features.get(j).psms++;
-//					break;
-//				}
-//			}
-			if (topFeature != null) {
-				if (md >= topFeature.peakLower && md <= topFeature.peakUpper) {
-					topFeature.peps.add(sp[seqcol]);
-					topFeature.psms++;
-				} else {
-					PeakFeature fast = PeakFeature.getMatchedFeature(features, md);
-					if (fast != null) {
-						fast.peps.add(sp[seqcol]);
-						fast.psms++;
-						if (this.useIntensity == 1) {
-							fast.intensity += Double.parseDouble(sp[intcol]);
-						}
+	private void appendPSMsHelper(PSMFile pf, PSM psm, double modMass) {
+		if (topFeature != null) {
+			if (modMass >= topFeature.peakLower && modMass <= topFeature.peakUpper) {
+				topFeature.peps.add(psm.getPeptide());
+				topFeature.psms++;
+			} else {
+				PeakFeature fast = PeakFeature.getMatchedFeature(features, modMass);
+				if (fast != null) {
+					fast.peps.add(psm.getPeptide());
+					fast.psms++;
+					if (this.useIntensity == 1) {
+						fast.intensity += Double.parseDouble(psm.spLine.get(pf.intensityCol));
 					}
 				}
 			}
 		}
-//		System.out.println(pf + " " + (System.currentTimeMillis()-stime));
 	}
 
 }

@@ -1,5 +1,6 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
@@ -7,21 +8,15 @@ import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.utils.Peptide;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Array;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.executorService;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 import static edu.umich.andykong.ptmshepherd.utils.StringParsingUtils.subString;
 
 
@@ -94,16 +89,16 @@ public class IterativeLocalizer {
         this.zeroBin = this.locate.getIndex(0.0);
     }
 
-    public void localize() throws Exception {
+    public void localize(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
         // Step 1: use matched intensities of unmodified peptides to fit nonparametric distribution
-        fitMatchedIonDistribution();
+        fitMatchedIonDistribution(psmFiles);
         // Step 2: draw the rest of the fucking owl
-        calculateLocalizationProbabilities();
+        calculateLocalizationProbabilities(psmFiles);
         // Step 3: calculate FLRs
-        calculateFalseLocalizationRates();
+        calculateFalseLocalizationRates(psmFiles);
     }
 
-    private void fitMatchedIonDistribution() throws Exception {
+    private void fitMatchedIonDistribution(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
         System.out.println("\tFitting distribution to matched zero-bin fragments");
         // Set up distribution
         this.matchedIonDist = new MatchedIonDistribution(1.0f, this.poissonBinomialDistribution);
@@ -119,7 +114,7 @@ public class IterativeLocalizer {
             ArrayList<String[]> dsData = this.datasets.get(ds);
             // Loop through PSM files
             for (int i = 0; i < dsData.size(); i++) {
-                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                PSMFile psmf = psmFiles.get(ds).get(i);
                 HashMap<String, ArrayList<Integer>> runToLine = psmf.getRunMappings();
                 // Loop through runs
                 for (String cf : runToLine.keySet()) {
@@ -128,14 +123,14 @@ public class IterativeLocalizer {
                     mr.readFully();
                     // Get matched ion intensities for unmodified peptides
                     for (int j : runToLine.get(cf)) {
-                        PSMFile.PSM psm = psmf.getLine(j);
+                        PSM psm = psmf.getLine(j);
                         float dMass = psm.getDMass();
 
                         // Limit to unmodified peptides
                         if ((dMass <= zbL) || (dMass >= zbR))
                             continue;
                         String specName = psm.getSpec();
-                        String pep = psm.getPep();
+                        String pep = psm.getPeptide();
                         float[] mods = psm.getModsAsArray();
 
                         Spectrum spec = mr.getSpectrum(specName);
@@ -244,7 +239,7 @@ public class IterativeLocalizer {
         System.out.printf("\tDone fitting distribution to matched zero-bin fragments (%d ms processing)\n", t2-t1);
     }
 
-    private void calculateLocalizationProbabilities() throws Exception {
+    private void calculateLocalizationProbabilities(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
         System.out.println("\tCalculating PSM-level localization probabilities");
 
         // Set up bin-wise prior probability string to be updated every epoch
@@ -282,7 +277,7 @@ public class IterativeLocalizer {
                 // Loop through PSM files
                 for (int i = 0; i < dsData.size(); i++) {
                     String psmfStr = dsData.get(i)[0];
-                    PSMFile psmf = new PSMFile(psmfStr);
+                    PSMFile psmf = psmFiles.get(ds).get(i);
 
                     // Get run to line mappings, if first run calculate, else get preprocessed list to prevent extra parsing
                     HashMap<String, ArrayList<Integer>> runToLine;
@@ -322,9 +317,9 @@ public class IterativeLocalizer {
                                 }
                             }
 
-                            PSMFile.PSM psm = psmf.getLine(j);
+                            PSM psm = psmf.getLine(j);
                             float dMass = psm.getDMass();
-                            String pep = psm.getPep();
+                            String pep = psm.getPeptide();
                             String specName = psm.getSpec();
                             int cBin = this.locate.getIndex(dMass);
 
@@ -555,7 +550,7 @@ public class IterativeLocalizer {
      *
      * @return
      */
-    private void calculateFalseLocalizationRates() throws Exception { //TODO this needs to be modularized so it can be unit tested
+    private void calculateFalseLocalizationRates(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception { //TODO this needs to be modularized so it can be unit tested
         System.out.println("\tEstimating false localization rates");
 
         long t1 = System.currentTimeMillis();
@@ -605,7 +600,7 @@ public class IterativeLocalizer {
             for (int i = 0; i < dsData.size(); i++) {
 
                 // Get values we're working with on first pass
-                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                PSMFile psmf = psmFiles.get(ds).get(i);
                 ArrayList<String> specs = psmf.getColumnValues("Spectrum");
                 ArrayList<String> peps = psmf.getColumnValues("Peptide");
                 ArrayList<String> maxProbs = psmf.getColumnValues("PTM-Shepherd Best Localization");
@@ -819,7 +814,7 @@ public class IterativeLocalizer {
             for (int i = 0; i < dsData.size(); i++) {
 
                 // Get values to map to q-vals
-                PSMFile psmf = new PSMFile(new File(dsData.get(i)[0]));
+                PSMFile psmf = psmFiles.get(ds).get(i);
                 ArrayList<String> specNames = psmf.getColumnValues("Spectrum");
                 ArrayList<String> maxProbs = psmf.getColumnValues("PTM-Shepherd Best Localization");
                 //ArrayList<String> entropies = psmf.getColumnValues("delta_mass_entropy");
@@ -889,7 +884,7 @@ public class IterativeLocalizer {
      * P(Spec_i|Pep_{ij})                                       ->  Likelihood
      * Sum_{k=0}^{{L_i}+1} P(Pep_{ik})*P(Spec_i|Pep_{ik})       ->  Marginal probability
      *
-     * @param psm           PSMFile.PSM object containing PSM information //todo most of the other values don't need to be preparsed if this is passed
+     * @param psm           PSM object containing PSM information //todo most of the other values don't need to be preparsed if this is passed
      * @param spec          Spectrum class object containing pre-processed mass spectrum
      * @param pep           pep sequence
      * @param mods          array containing masses to be added on to pep sequence at mods[i] position
@@ -898,7 +893,7 @@ public class IterativeLocalizer {
      * @param allowedPoses  array of allowed positions based on peptide sequence localization restrictions TODO add mods
      * @return double[] of localization probabilities
      */
-    private double[] localizePsm (PSMFile.PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
+    private double[] localizePsm (PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
         double[] sitePriorProbs;
         double[] siteLikelihoods = new double[pep.length()];
         double marginalProb = 0.0;

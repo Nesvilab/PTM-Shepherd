@@ -16,11 +16,13 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import umich.ms.glyco.GlycanParser;
@@ -31,8 +33,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
-
 public class GlycoAnalysis {
     String dsName;
     File glycoFile;                     // .rawglyco file
@@ -41,7 +41,6 @@ public class GlycoAnalysis {
     int totalLines;
     float ppmTol;
     int condPeaks;
-    int specCol, pepCol, modpepCol, chargecol, deltaCol, rtCol, intCol, pmassCol, modCol;
     double condRatio;
     ArrayList<GlycanCandidate> glycanDatabase;
     double meanMassError;
@@ -87,24 +86,8 @@ public class GlycoAnalysis {
         //write header
         glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + "\tFragments:");
 
-        //get necessary col indices
-        specCol = pf.getColumn("Spectrum");
-        pepCol = pf.getColumn("Peptide");
-        modpepCol = pf.getColumn("Modified Peptide");
-        modCol = pf.getColumn("Assigned Modifications");
-        deltaCol = pf.dMassCol;
-        pmassCol = pf.getColumn("Calculated Peptide Mass");
-        rtCol = pf.getColumn("Retention");
-        intCol = pf.getColumn("Intensity");
-
         //map PSMs to file
-        for (int i = 0; i < pf.data.size(); i++) {
-            String[] sp = pf.data.get(i).split("\t");
-            String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-            if (!mappings.containsKey(bn))
-                mappings.put(bn, new ArrayList<>());
-            mappings.get(bn).add(i);
-        }
+        SiteLocalization.initSpectrumMappings(pf, mappings);
 
         /* Loop through spectral files -> indexed lines in PSM -> process each line */
         for (String cf : mappings.keySet()) { //for file in relevant spectral files
@@ -128,9 +111,9 @@ public class GlycoAnalysis {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<String> cBlock = new ArrayList<>();
+                ArrayList<PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
-                    cBlock.add(pf.data.get(clines.get(j)));
+                    cBlock.add(pf.psms.get(clines.get(j)));
                 futureList.add(executorService.submit(() -> processLinesBlock(cBlock, glycoOut)));
             }
             /* Wait for all processes to finish */
@@ -151,10 +134,10 @@ public class GlycoAnalysis {
         }
     }
 
-    public void processLinesBlock(ArrayList<String> cBlock, PrintWriter fragmentOutWriter) {
+    public void processLinesBlock(ArrayList<PSM> cBlock, PrintWriter fragmentOutWriter) {
         StringBuilder fragmentBlock = new StringBuilder();
-        for (String line : cBlock) {
-            GlycanAssignmentResult glycoResult = processLine(line);
+        for (PSM psm : cBlock) {
+            GlycanAssignmentResult glycoResult = processLine(psm);
             fragmentBlock.append(glycoResult.printGlycoFragmentInfo());
         }
         printLines(fragmentOutWriter, fragmentBlock.toString());
@@ -674,10 +657,7 @@ public class GlycoAnalysis {
         double minError = 10;
         double maxError = -10;
         for (Integer cline : clines) {//for relevant line in curr spec file
-            String line = psmFile.data.get(cline);
-            String[] sp = line.split("\\t");
-            float deltaMass = Float.parseFloat(sp[deltaCol]);
-//            float pepMass = Float.parseFloat(sp[pmassCol]);
+            float deltaMass = psmFile.psms.get(cline).getDMass();
 
             if (deltaMass > -1.5 && deltaMass < 3.5) {
                 int isotopeError = Math.round(deltaMass);
@@ -728,22 +708,17 @@ public class GlycoAnalysis {
 
     /**
      * Run glycan assignment for a single PSM line from the PSM table
-     * @param line String of a single PSM line
+     * @param psm String of a single PSM line
      * @return result container
      */
-    public GlycanAssignmentResult processLine(String line) {
+    public GlycanAssignmentResult processLine(PSM psm) {
         // get basic info
-        String[] sp = line.split("\\t");
-        String seq = sp[pepCol];
-        float dmass = Float.parseFloat(sp[deltaCol]);
-        float pepMass = Float.parseFloat(sp[pmassCol]);
-        String specName = sp[specCol];
-        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(seq, dmass, pepMass, sp[modCol], specName);
+        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.getPeptide(), psm.getDMass(), psm.getCalcPepmass(), psm.printAssignedMods(), psm.getSpec());
 
         // read spectrum and condition
-        Spectrum spec = mr.getSpectrum(reNormName(specName));
+        Spectrum spec = mr.getSpectrum(psm.getSpec());
         if (spec == null) {
-            this.lineWithoutSpectra.add(reNormName(specName));
+            this.lineWithoutSpectra.add(psm.getSpec());
             glycoResult.glycanAssignmentString = "ERROR";
             return glycoResult;
         }
@@ -778,7 +753,7 @@ public class GlycoAnalysis {
         // Determine possible glycan candidates from mass
         ArrayList<GlycanCandidate> searchCandidates = getMatchingGlycansByMass(glycoResult.pepMass, glycoResult.deltaMass, glycanDatabase, glycoParams.glycoIsotopes, glycoParams.glycoPPMtol);
         String output;
-        if (searchCandidates.size() > 0) {
+        if (!searchCandidates.isEmpty()) {
             // Search Y and oxonium ions in spectrum for each candidate
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
             for (GlycanCandidate candidate : searchCandidates) {
@@ -940,7 +915,7 @@ public class GlycoAnalysis {
         for (int isotope : glycoParams.glycoIsotopes) {
             int massBin = (int) Math.floor(deltaMass + isotope);
             HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
-            if (glycanCountMap.size() > 0) {
+            if (!glycanCountMap.isEmpty()) {
                 // count instances of glycan 1, glycan 2, and all glycans
                 glyc1Count = glyc1Count + glycanCountMap.getOrDefault(glycan1.toString(), 0);
                 for (int glycanCount : glycanCountMap.values()) {

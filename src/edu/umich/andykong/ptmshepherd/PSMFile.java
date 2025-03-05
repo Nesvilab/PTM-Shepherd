@@ -19,14 +19,10 @@ package edu.umich.andykong.ptmshepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import edu.umich.andykong.ptmshepherd.utils.StringParsingUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import umich.ms.glyco.Glycan;
-import umich.ms.glyco.GlycanResidue;
 import umich.ms.glyco.GlycanParser;
 
 import java.io.*;
@@ -34,207 +30,27 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.zip.CRC32;
 
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.concatIonTypes;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 public class PSMFile {
 
 	String [] headers;
-	public ArrayList<String> data;
 	public ArrayList<PSM> psms;
-	public ArrayList<String> mappedRuns;
-	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol, deltaMassCol, calcMZcol, peptideCalcMassCol, chargeCol;
-	public String prefType;
+	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol,
+			calcMZcol, peptideCalcMassCol, chargeCol, intensityCol, specCol, msfraggerLocalizationCol, positionScoresCol,
+			bestPositionsCol, ionsBestPosCol, scoreBestPositionCol, scoreAllUnshiftedCol, ionsAllUnshiftedCol,
+			eValCol, retentionCol, glycanCompCol, glycanScoreCol, glycanQvalCol;
 
-	private HashMap<String, Integer> scanToLine;
+	public int massdiffToVarmod;
+	private final HashMap<String, Integer> scanToLineMap;
 	public File fname;
-	boolean alreadyWarned;
+	public static final Pattern massPattern = Pattern.compile("\\(([-.\\d]+)\\)");
 
-	public PSMFile(String fn) throws Exception {
-		this(new File(fn));
-		alreadyWarned = false;
-	}
 
-	/**
-	 * PSM class to hold parsed line info.
-	 */
-	public class PSM {
-		private int lineNum; // 0 indexed starting from header, 1 indexed starting from data
-		private ArrayList<String> spLine;
-		private String spec;
-		private String fileName;
-		private int specNum;
-		private String pep;
-		private ArrayList<ImmutablePair<Integer, Float>> mods;
-		private float [] modArr;
-		private Float dMass;
 
-		PSM(int lineNum, String line) {
-			this.lineNum = lineNum;
-			this.spLine = new ArrayList<>(StringParsingUtils.splitStringByTab(
-					line.replace("\n","")));
-			this.fileName = null;
-			this.spec = null;
-			this.specNum = -1;
-			this.pep = null;
-			this.mods = null;
-			this.modArr = null;
-			this.dMass = null;
-		}
-
-		PSM(int lineNum) {
-			this.lineNum = lineNum;
-			this.spLine = null;
-			this.fileName = null;
-			this.spec = null;
-			this.specNum = -1;
-			this.pep = null;
-			this.mods = null;
-			this.modArr = null;
-			this.dMass = null;
-		}
-
-		private void calculateSpLine() {
-			this.spLine = new ArrayList<>(StringParsingUtils.splitStringByTab(
-					data.get(this.lineNum).replace("\n","")));
-		}
-
-		public void addValAtColumn(int colIdx, String val){
-			if (this.spLine == null)
-				this.calculateSpLine();
-			this.spLine.add(colIdx, val);
-		}
-
-		public void addValAtColumn(String colName, String val){
-			if (this.spLine == null)
-				this.calculateSpLine();
-			this.spLine.add(getColumn(colName), val);
-		}
-
-		public void replaceValAtColumn(int colIdx, String val){
-			if (this.spLine == null)
-				this.calculateSpLine();
-			this.spLine.set(colIdx, val);
-		}
-
-		public void replaceValAtColumn(String colName, String val){
-			if (this.spLine == null)
-				this.calculateSpLine();
-			this.spLine.set(getColumn(colName), val);
-		}
-
-		public String getSpec() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			if (this.spec == null)
-				this.spec = reNormName(spLine.get(getColumn("Spectrum")));
-			return this.spec;
-		}
-
-		public int getSpecNum() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			if (this.specNum == -1) {
-				if (this.spec == null) {
-					this.getSpec();
-				}
-				String[] spSpec = this.spec.split("\\.", -1);
-				this.specNum = Integer.parseInt(spSpec[spSpec.length-2]);
-			}
-			return this.specNum;
-		}
-
-		public String getFileName() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			if (this.fileName == null)
-				this.fileName = this.getSpec().substring(0, this.getSpec().indexOf("."));
-			return this.fileName;
-		}
-
-		public String getPep() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			if (this.pep == null)
-				this.pep = spLine.get(getColumn("Peptide"));
-			return this.pep;
-		}
-
-		public ArrayList<ImmutablePair<Integer,Float>> getMods() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			if (this.mods == null) {
-				this.mods = new ArrayList<>();
-				String strMods = spLine.get(getColumn("Assigned Modifications"));
-				if (!strMods.isEmpty()) {
-					String[] spMods = strMods.split(",", -1);
-					for (int i = 0; i < spMods.length; i++) {
-						int p = spMods[i].indexOf("(");
-						int q = spMods[i].indexOf(")");
-						String spos = spMods[i].substring(0, p).trim();
-						float mass = Float.parseFloat(spMods[i].substring(p + 1, q).trim());
-						int pos;
-						if (spos.equals("N-term"))
-							pos = 0;
-						else if (spos.equals("c"))
-							pos = this.getPep().length();
-						else
-							pos = Integer.parseInt(spos.substring(0, spos.length() - 1));
-						this.mods.add(new ImmutablePair<>(pos, mass));
-					}
-				}
-			}
-			return this.mods;
-		}
-
-		public float [] getModsAsArray() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			if (this.modArr == null) {
-				this.modArr = new float[this.getPep().length()];
-				Arrays.fill(this.modArr, 0.0f);
-				for (ImmutablePair<Integer, Float> mod : this.getMods()) {
-					if (mod.getLeft() == 0)
-						this.modArr[0] = mod.getRight();
-					else
-						this.modArr[mod.getLeft()-1] = mod.getRight();
-				}
-			}
-			return this.modArr;
-		}
-
-		public float getDMass() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			if (this.dMass == null)
-				this.dMass = Float.parseFloat(this.spLine.get(getColumn("Delta Mass")));
-			return this.dMass;
-		}
-
-		public String getColumnValue(String colName) {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			return this.spLine.get(getColumn(colName));
-		}
-
-		public ArrayList<String> getSpLine() {
-			if (this.spLine == null)
-				this.calculateSpLine();
-			return this.spLine;
-		}
-
-		public String toString() {
-			String newStr = String.join("\t", this.spLine);
-			return newStr;
-		}
-
-		public void updateLine() {
-			PSMFile.this.data.set(this.lineNum, this.toString());
-		}
-
-	}
 	public int getColumn(String head) {
 		for(int i = 0; i < headers.length; i++)
 			if(headers[i].equals(head))
@@ -242,9 +58,44 @@ public class PSMFile {
 		return -1;
 	}
 
+	private void initColumns() {
+		/* dynamically detect columns */
+		observedModCol = getColumn("Observed Modifications");
+		assignedModCol = getColumn("Assigned Modifications");
+		fraggerLocCol = getColumn("MSFragger Localization");
+		peptideCol = getColumn("Peptide");
+		modPeptideCol = getColumn("Modified Peptide");
+		chargeCol = getColumn("Charge");
+		peptideCalcMassCol = getColumn("Calculated Peptide Mass");
+		calcMZcol = getColumn("Calculated M/Z");
+		intensityCol = getColumn("Intensity");
+		specCol = getColumn("Spectrum");
+		retentionCol = getColumn("Retention");
+		eValCol = getColumn("Expectation");
+		msfraggerLocalizationCol = getColumn("MSFragger Localization");
+		positionScoresCol = getColumn("Position Scores");
+		bestPositionsCol = getColumn("Best Positions");
+		scoreBestPositionCol = getColumn("Score Best Position");
+		ionsBestPosCol = getColumn("Ions Best Position");
+		scoreAllUnshiftedCol = getColumn("Score All Unshifted");
+		ionsAllUnshiftedCol = getColumn("Ions All Unshifted");
+		glycanCompCol = getColumn("Total Glycan Composition");
+		glycanScoreCol = getColumn("Glycan Score");
+		glycanQvalCol = getColumn("Glycan q-value");
+		precursorCol = getPrecursorCol();
+
+		//find delta mass column for different philosopher versions
+		int col = getColumn("Delta Mass");
+		if (col == -1)
+			col = getColumn("Adjusted Delta Mass");
+		if (col == -1)
+			col = getColumn("Original Delta Mass");
+		dMassCol = col;
+	}
+
 	public static String [] splitName(String fn) {
 		String [] res = new String[2];
-		if(fn.indexOf(".") < 0) {
+		if(!fn.contains(".")) {
 			res[0] = fn;
 			res[1] = "";
 		} else {
@@ -278,7 +129,7 @@ public class PSMFile {
 		CRC32 crc = new CRC32();
 		byte [] buf = new byte[1024*1024];
 		int nread = 0;
-		DataInputStream dis = new DataInputStream(new FileInputStream(f));
+		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
 		while(dis.available() > 0) {
 			nread = dis.read(buf);
 			crc.update(buf,0,nread);
@@ -288,33 +139,19 @@ public class PSMFile {
 	}
 
 	/**
-	 * Returns a PSM based on the raw file line.
-	 * @param i file line, doesn't include header
-	 * @return PSM
-	 */
-	private PSM getRawLine(int i) {
-		PSM psm = new PSM(i);
-		return psm;
-	}
-
-	/**
 	 * Returns a PSM based on the file line
 	 * @param i file line, doesn't include headers
 	 * @return PSM
 	 */
 	public PSM getLine(int i) {
-		PSM psm = this.psms.get(i);
-		return psm;
+        return psms.get(i);
 	}
 
 	public HashSet<String> getRunNames() {
 		HashSet<String> res = new HashSet<>();
-		int col = getColumn("Spectrum");
-		for(int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			String d = sp[col];
-			res.add(d.substring(0, d.indexOf(".")));
-		}
+        for (PSM psm : psms) {
+			res.add(psm.getFileName());
+        }
 		return res;
 	}
 
@@ -325,8 +162,8 @@ public class PSMFile {
 	 */
 	public HashMap<String,ArrayList<Integer>> getRunMappings() {
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
-		for(int i = 0; i < this.psms.size(); i++) {
-			String fileName = this.psms.get(i).getFileName();
+		for(int i = 0; i < psms.size(); i++) {
+			String fileName = psms.get(i).getFileName();
 			if(!mappings.containsKey(fileName))
 				mappings.put(fileName, new ArrayList<>());
 			mappings.get(fileName).add(i);
@@ -336,17 +173,23 @@ public class PSMFile {
 	
 	public ArrayList<Float> getMassDiffs() {
 		ArrayList<Float> res = new ArrayList<>();
-		int col = getColumn("Delta Mass");
-		if (col == -1) {
-			col = getColumn("Adjusted Delta Mass");
-		}
-		if (col == -1) {
-			col = getColumn("Original Delta Mass");
-		}
-		this.dMassCol = col;
-		for(int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			res.add(Float.parseFloat(sp[col]));
+		for (PSM psm : psms) {
+            res.add(psm.getDMass());
+        }
+		return res;
+	}
+
+	public ArrayList<ArrayList<Float>> getMassDiffsWithVarmods(boolean useAssignedMods) {
+		ArrayList<ArrayList<Float>> res = new ArrayList<>();
+		for (PSM psm : psms) {
+			ArrayList<Float> psmMods = new ArrayList<>();
+			psmMods.add(psm.getDMass());
+			if (useAssignedMods) {
+				for (Map.Entry<Integer, Float> mod : psm.getAssignedMods().entrySet()) {
+					psmMods.add(mod.getValue());
+				}
+			}
+			res.add(psmMods);
 		}
 		return res;
 	}
@@ -361,28 +204,25 @@ public class PSMFile {
 		if (intCol == -1 || intPeaks == 0) {
 			if (intPeaks == 1)
 				System.out.printf("\tCould not identify 'Intensity' column in %s. Defaulting to spectral counts.", this.fname);
-			for (int i = 0; i < this.data.size(); i++) {
-				String[] sp = this.data.get(i).split("\t");
-				ints.add(1.0);
-			}
+			for (PSM psm : psms) {
+                ints.add(1.0);
+            }
 		}
 		/* if intensity column found, collect counts */
 		else {
 			double total = 0;
-			for (int i = 0; i < this.data.size(); i++) {
-				String[] sp = this.data.get(i).split("\t");
-				double cInt = Double.parseDouble(sp[intCol]);
-				ints.add(cInt);
-				total += cInt;
-			}
+			for (PSM psm : psms) {
+                double cInt = Double.parseDouble(psm.spLine.get(intCol));
+                ints.add(cInt);
+                total += cInt;
+            }
 			/* if column is invalid, redo calculation with spectral counts */
 			if (total < 1) {
 				ints = new ArrayList<>();
-				System.out.printf("\tEmpty 'Intensity' column in %s. Defaulting to spectral counts.", this.fname);
-				for (int i = 0; i < this.data.size(); i++) {
-					String[] sp = this.data.get(i).split("\t");
-					ints.add(1.0);
-				}
+				System.out.printf("\tEmpty 'Intensity' column in %s. Defaulting to spectral counts.", fname);
+				for (PSM psm : psms) {
+                    ints.add(1.0);
+                }
 			}
 		}
 
@@ -391,11 +231,9 @@ public class PSMFile {
 
 	public ArrayList<Float> getPrecursorMasses() {
 		ArrayList<Float> precs = new ArrayList<>();
-		int col = getPrecursorCol();
-		for (int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			precs.add(Float.parseFloat(sp[col]));
-		}
+		for (PSM psm : psms) {
+            precs.add(Float.parseFloat(psm.spLine.get(precursorCol)));
+        }
 		return precs;
 	}
 
@@ -425,15 +263,15 @@ public class PSMFile {
 		if(path.isDirectory()) {
 			File [] ls = path.listFiles();
 			// get mapping for each file
-			for(int i = 0; i < ls.length; i++) {
-				getMappings(ls[i],mappings, runNames);
-			}
+            for (File l : ls) {
+                getMappings(l, mappings, runNames);
+            }
 		} else { // see if valid file ext
 			String matchedKey = getMatchingExtension(path, priorities);
 			if (matchedKey != null) { // end of name exists in priorities map
 				String rawFileName = removeCalTag(path.getName());
 				// If raw file not part of this analysis, continue
-				if (!mappings.containsKey(rawFileName))
+				if (!runNames.contains(rawFileName))
 					return;
 				// New raw file info
 				int newRawFilePriority = priorities.get(matchedKey);
@@ -463,54 +301,30 @@ public class PSMFile {
 
 	public TreeMap<String, Integer> getMS2Counts() {
 		TreeMap<String, Integer> cnts = new TreeMap<>();
-		int col = getColumn("Spectrum");
-		for(int i = 0; i < data.size(); i++) {
-			String [] sp = data.get(i).split("\t");
-			String d = sp[col];
-			String crun = d.substring(0, d.indexOf("."));
-			if (!cnts.containsKey(crun))
-				cnts.put(crun, 0);
-			cnts.put(crun, cnts.get(crun) + 1);
-		}
+		for (PSM psm : psms) {
+            String crun = psm.getFileName();
+            if (!cnts.containsKey(crun))
+                cnts.put(crun, 0);
+            cnts.put(crun, cnts.get(crun) + 1);
+        }
 		return cnts;
 	}
 
 	/* Merges the rawglyco table onto the existing psm.tsv
-	*  Update: only writes some columns rather than full rawglyco table
-	*  numColsToUse gives the number of columns to take
 	*/
-	public void mergeGlycoTable(File glyf, int numColsToUse, GlycoParams glycoParams) throws Exception {
+	public void mergeGlycoTable(File glyf, GlycoParams glycoParams, int massdiffToVarmod) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
 		String tempFoutName = this.fname + ".glyco.tmp";
-		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 		String[] glyHeaders = in.readLine().split("\t");
 
 		/* Get glyco data */
 		HashMap<String, String[]> glyLines = new HashMap<>();
 		String cgline;
-		int gSpecCol = 0; //todo: should be dynamically calculated
 		while ((cgline = in.readLine()) != null) {
 			String[] sp = cgline.split("\t", -1);
-			glyLines.put(sp[gSpecCol], sp);
+			glyLines.put(sp[0], sp);	// spectrum -> full line of rawglyco table
 		}
 		in.close();
-
-		/* Find headers, dynamically detect columns */
-		observedModCol = getColumn("Observed Modifications");
-		assignedModCol = getColumn("Assigned Modifications");
-		fraggerLocCol = getColumn("MSFragger Localization");
-		peptideCol = getColumn("Peptide");
-		modPeptideCol = getColumn("Modified Peptide");
-		deltaMassCol = getColumn("Delta Mass");
-		chargeCol = getColumn("Charge");
-		peptideCalcMassCol = getColumn("Calculated Peptide Mass");
-		calcMZcol = getColumn("Calculated M/Z");
-		if (warnPSMcolNotFound(observedModCol, "Observed Modifications")) {
-			observedModCol = 27;		// default is 27
-		}
-		if (warnPSMcolNotFound(assignedModCol, "Assigned Modifications") || warnPSMcolNotFound(fraggerLocCol, "MSFragger Localization") || warnPSMcolNotFound(peptideCol, "Peptide") || warnPSMcolNotFound(modPeptideCol, "Modified Peptide") || warnPSMcolNotFound(deltaMassCol, "Delta Mass")) {
-			glycoParams.writeGlycansToAssignedMods = false;		// can't write to assigned mods without these columns, disable
-		}
 
 		// get rawglyco file headers
 		int mergeFromCol = -1;
@@ -525,38 +339,26 @@ public class PSMFile {
 		}
 		int bestTargetGlycanCol = mergeFromCol + 3;
 		int bestTargetScoreCol = bestTargetGlycanCol + 1;
-		int glycanScoreCol = mergeFromCol + 1;
-		int glycanQvalCol = mergeFromCol + 2;
+		int rawGlycoScoreCol = mergeFromCol + 1;
+		int rawGlycoQvalCol = mergeFromCol + 2;
 
-		ArrayList<String> newHeaders = new ArrayList<>(Arrays.asList(this.headers));
-		// add after observed mod column (observedModCol + 1)
 		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
-		if (!hasPreviousGlycoInfo) {
-			// do not add glyco headers if the PSM table already has them
-			newHeaders.addAll(observedModCol + 1, Arrays.asList(glyHeaders).subList(mergeFromCol, mergeFromCol + numColsToUse));
-			fraggerLocCol = fraggerLocCol + numColsToUse;
-		}
-		out.println(String.join("\t", newHeaders));
 
 		/* Match glycolines on PSM spectrum keys */
-		int pSpecCol = getColumn("Spectrum");
-		for (String cpline : this.data) {
-			ArrayList<String> newLine = new ArrayList<>(Arrays.asList(cpline.split("\t")));
-			String pSpec = newLine.get(pSpecCol);
-			if (!hasPreviousGlycoInfo) {
-				// add columns for glycan score and q-value before proceeding (for all lines, whether glycan-containing or not)
-				for (int i=0; i < numColsToUse; i++) {
-					newLine.add(observedModCol + 1 + i, "");
-				}
-			}
+		ArrayList<String> psmKeys = new ArrayList<>();
+		ArrayList<String> glycanComps = new ArrayList<>();
+		ArrayList<String> glycanScores = new ArrayList<>();
+		ArrayList<String> glycanQvals = new ArrayList<>();
+		for (PSM psm : psms) {
+			psmKeys.add(psm.getSpec());
 
 			// check if a glycan was found
-			if (glyLines.containsKey(pSpec)) {
-				ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(pSpec)));
-				if (glyLine.get(mergeFromCol).length() > 0) {
+			if (glyLines.containsKey(psm.getSpec())) {
+				ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(psm.getSpec())));
+				if (!glyLine.get(mergeFromCol).isEmpty()) {
 					String rawGlycan = glyLine.get(mergeFromCol);
 					String observedGlycan;
-					String glycanScore = glyLine.get(glycanScoreCol);
+					String glycanScore = glyLine.get(rawGlycoScoreCol);
 					if (rawGlycan.contains("Decoy")) {
 						if (!glycoParams.printGlycoDecoys) {
 							// report best target glycan instead of decoy (q-value will be reported as 1)
@@ -570,22 +372,43 @@ public class PSMFile {
 						observedGlycan = rawGlycan;
 					}
 
-					// add the final glycan info to the line
-					newLine.set(observedModCol + 1, observedGlycan);
-					newLine.set(observedModCol + 2, glycanScore);
-					newLine.set(observedModCol + 3, glyLine.get(glycanQvalCol));
-					int charge = Integer.parseInt(newLine.get(chargeCol));
+					// save glycan info directly or to the lists to add columns to the PSM table later
+					if (!hasPreviousGlycoInfo) {
+						glycanComps.add(observedGlycan);
+						glycanScores.add(glycanScore);
+						glycanQvals.add(glyLine.get(rawGlycoQvalCol));
+					} else {
+						psm.spLine.set(glycanCompCol, observedGlycan);
+						psm.spLine.set(glycanScoreCol, glycanScore);
+						psm.spLine.set(glycanQvalCol, glyLine.get(rawGlycoQvalCol));
+					}
+					// update assigned mods column
 					if (glycoParams.writeGlycansToAssignedMods) {
-						newLine = writeGlycanToAssignedMod(newLine, rawGlycan, charge, glycoParams);
+						writeGlycanToAssignedMod(psm, rawGlycan, glycoParams);
 					}
 				}
+			} else {
+				// no glycan found for this spectrum
+				if (!hasPreviousGlycoInfo) {
+					glycanComps.add("");
+					glycanScores.add("");
+					glycanQvals.add("");
+				} else {
+					psm.spLine.set(glycanCompCol, "");
+					psm.spLine.set(glycanScoreCol, "");
+					psm.spLine.set(glycanQvalCol, "");
+				}
 			}
-			out.println(String.join("\t", newLine));
 		}
-		out.close();
 
-		/* Move old file onto new file */
-		Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
+		if (!hasPreviousGlycoInfo) {
+			// add new glycan columns to the PSM table if not previously written
+			addColumn(observedModCol + 1, "Glycan q-value", psmKeys, glycanQvals);
+			addColumn(observedModCol + 1, "Glycan Score", psmKeys, glycanScores);
+			addColumn(observedModCol + 1, "Total Glycan Composition", psmKeys, glycanComps);
+		}
+
+		save(true);
 	}
 
 	/**
@@ -626,7 +449,7 @@ public class PSMFile {
 	 * Also writes to modified peptide and delta mass columns.
 	 * Handles cases where information was previously written to the PSM table by removing/replacing the previous ID if present
 	 */
-	public ArrayList<String> writeGlycanToAssignedMod(ArrayList<String> newLine, String rawGlycan, int charge, GlycoParams glycoParams) {
+	public void writeGlycanToAssignedMod(PSM psm, String rawGlycan, GlycoParams glycoParams) {
 		// parse glycan composition from recently edited observed mods col
 		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
 		boolean failOrDecoy = rawGlycan.contains("FailFDR") || rawGlycan.contains("Decoy");
@@ -643,7 +466,7 @@ public class PSMFile {
 		}
 
 		if (glycanOnly.contains("no target matches") || glycanOnly.contains("No Glycan Matched")) {
-			return newLine;		// skip, no target glycan info to propagate
+			return;		// skip, no target glycan info to propagate
 		}
 
 		/* Get glycan mass */
@@ -654,7 +477,7 @@ public class PSMFile {
 			glyc = GlycanParser.parseOldPTMSGlycanString(glycanOnly, glycoParams.glycanResiduesMap);
 			if (glyc == null) {
 				// Not a glycan (PTM-S may put other string formats here) - ignore and continue
-				return newLine;
+				return;
 			}
 		}
 		double glycanMass = glyc.mass;
@@ -665,144 +488,36 @@ public class PSMFile {
 		}
 
 		/* Get glycan location */
-		int glycanLocation = readMSFraggerGlycanLocation(newLine, fraggerLocCol, peptideCol, glycoParams.nGlycan, glycoParams.allowedLocalizationResidues);
-		String glycanAA;
-		// skip missing loc column for now (quant will fail, but not needed for basic ID)
-		try {
-			glycanAA = newLine.get(peptideCol).substring(glycanLocation, glycanLocation + 1).toUpperCase();
-		} catch (StringIndexOutOfBoundsException ex) {
-			if (!alreadyWarned) {
-				PTMShepherd.print(String.format("WARNING: invalid MSFragger localization reported for spectrum %s. Spectrum will NOT have glycan put to assigned mods. Please check the Allowed Residues parameter if not in N-glyco mode.", newLine.get(0)));
-				alreadyWarned = true;
-			}
-			return newLine;
-		}
+		int glycanLocation = readMSFraggerGlycanLocation(psm.spLine, glycoParams.nGlycan, glycoParams.allowedLocalizationResidues);
 
 		/* write mass and location to Assigned Mods */
-		String currentAssignedMods = newLine.get(assignedModCol);
-		String glycanMod = String.format("%d%s(%.4f)", glycanLocation + 1, glycanAA, glycanMass);	// site is 1-indexed in PSM table, not 0-indexed
-		String[] modSplits = currentAssignedMods.split(", ");
-		ArrayList<String> newModSplits = new ArrayList<>();
-
-		// check if glycanAssignedMod already present and avoid double adding if so (in case of re-runs on same file)
-		boolean prevGlycanWritten = false;
-		double previousGlycanMass = 0;
-		for (String mod: modSplits) {
-			if (mod.length() > 0) {
-				int modLocation = parseModLocation(mod);
-				if (modLocation == glycanLocation + 1) {
-					// a mod is already present at this site in the PSM table. Probably an existing glycan mod, but check the mass too to confirm
-					double existingModMass = parseModMass(mod);
-					if (glycanMass - 10 <= existingModMass && glycanMass + 10 >= existingModMass) {
-						// found existing glycan annotation - do not add it to the updated mod list
-						prevGlycanWritten = true;
-						previousGlycanMass = existingModMass;
-					} else {
-						newModSplits.add(mod);
-					}
-				} else {
-					// other mod
-					newModSplits.add(mod);
-				}
-			}
+		double prevGlycanMass = 0;
+		if (psm.getAssignedMods().containsKey(glycanLocation + 1)) {
+			prevGlycanMass = psm.getAssignedMods().get(glycanLocation + 1);
 		}
+
 		// add the assigned glycan to the updated mod list (from which we removed any old glycan mods) if not failed FDR or is decoy
 		if (editPSMGlycoEntry) {
-			newModSplits.add(glycanMod);
+			psm.getAssignedMods().put(glycanLocation + 1, (float) glycanMass);
 		}
-		String newAssignedMods = String.join(", ", newModSplits);
-		newLine.set(assignedModCol, newAssignedMods);
+		psm.spLine.set(assignedModCol, psm.printAssignedMods());
 
-		/* Write mass and location to Modified Pep */
-		String modifiedPep = newLine.get(modPeptideCol);
-		if (modifiedPep.length() == 0) {
-			// no previous mods here, copy from peptide
-			modifiedPep = newLine.get(peptideCol);
-		}
-		String newModPep = modifiedPep;
-		int residueIndex = -1;
-		for (int i=0; i < modifiedPep.length(); i++) {
-			if (modifiedPep.charAt(i) >= 'A' && modifiedPep.charAt(i) <= 'Z') {
-				// actual peptide residue, not modification info
-				residueIndex++;
-			}
-			if (residueIndex == glycanLocation) {
-				// found the glycan location. Check for existing glycan
-				int AAindex = modifiedPep.charAt(i) - 65;		// capital alphabet starts at 65
-				int roundedGlycanMass = (int) Math.round(glycanMass + AAMasses.monoisotopic_masses[AAindex]);
-				int secondSubstringStart = i + 1;
-				// Skip checking for modification if we've already reached the end of the modified peptide string
-				if (!(secondSubstringStart == modifiedPep.length())) {
-					if (modifiedPep.charAt(i + 1) > 'Z' || modifiedPep.charAt(i + 1) < 'A') {
-						// non-residue character is next, so a modification has previously been written here. Remove it and replace
-						int j = i + 1;
-						// find length of the modification at this site (could vary if glycan has mass < 1000 or not)
-						while (modifiedPep.charAt(j) > 'Z' || modifiedPep.charAt(j) < 'A') {
-							j++;
-							if (j == modifiedPep.length())
-								break;
-						}
-						secondSubstringStart = j;
-					}
-				}
-				if (editPSMGlycoEntry) {
-					newModPep = modifiedPep.substring(0, i + 1) + String.format("[%d]", roundedGlycanMass) + modifiedPep.substring(secondSubstringStart);
-				} else {
-					// if failed or decoy, write no modification at this position (but do remove previous glycan if one was present from an older analysis)
-					newModPep = modifiedPep.substring(0, i + 1) + modifiedPep.substring(secondSubstringStart);
-				}
-				break;
-			}
-		}
-		newLine.set(modPeptideCol, newModPep);
+		psm.editModifiedPeptide(glycanLocation + 1, glycanMass, massdiffToVarmod, modPeptideCol);
 
 		/* Update delta mass AND calc m/z columns */
 		if (glycoParams.removeGlycanDeltaMass) {
-			double prevDeltaMass = Double.parseDouble(newLine.get(deltaMassCol));
-			double prevCalcMZ = Double.parseDouble(newLine.get(calcMZcol));
-			double prevNeutralMass = Spectrum.mzToNeutralMass((float) prevCalcMZ, charge);
-			double prevCalcPeptideMass = Double.parseDouble(newLine.get(peptideCalcMassCol));
-			if (prevCalcPeptideMass - prevNeutralMass > 0.1 || prevCalcPeptideMass - prevNeutralMass < -0.1) {
-				PTMShepherd.print(String.format("Warning: corrupted PSM table, calc peptide neutral mass and m/z do not match! PSM: %s", newLine));
-			}
-
-			if (prevGlycanWritten) {
-				// A glycan was previously written to this line, and thus may have been subtracted from delta mass and added to peptide calc mass and MZ.
-				// If DeltaMass was removed, add it back before subtracting new glycan's mass
-				double correctedDelta, correctedMass;
-				if (prevDeltaMass - previousGlycanMass < 10 && prevDeltaMass - previousGlycanMass > -10) {
-					// a previous glycan was written, but the delta mass was NOT changed (i.e. full glycan mass still present in delta mass in psm table). No need to correct. +/- 10 to allow for isotope errors in delta mass
-					correctedDelta = prevDeltaMass;
-					correctedMass = prevCalcPeptideMass;
-				} else {
-					// delta mass WAS changed before. Add back previous glycan mass prior to subtracting the new glycan (in case the assigned glycan has changed)
-					correctedDelta = prevDeltaMass + previousGlycanMass;
-					correctedMass = prevCalcPeptideMass - previousGlycanMass;
-				}
-				newLine.set(deltaMassCol, String.format("%.4f", correctedDelta - glycanMass));
-				newLine.set(peptideCalcMassCol, String.format("%.4f", correctedMass + glycanMass));
-				newLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) (correctedMass + glycanMass), charge)));
-
-			} else {
-				// subtract glycan mass from delta mass, add to calc peptide mass and MZ
-				newLine.set(deltaMassCol, String.format("%.4f", prevDeltaMass - glycanMass));
-				newLine.set(peptideCalcMassCol, String.format("%.4f", prevCalcPeptideMass + glycanMass));
-				newLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) (prevCalcPeptideMass + glycanMass), charge)));
-			}
+			psm.updateDeltaMass((float) glycanMass, massdiffToVarmod, (float) prevGlycanMass, peptideCalcMassCol, calcMZcol, dMassCol, assignedModCol);
 		}
-		return newLine;
 	}
 
 	/**
 	 * Read MSFragger localization string for a glycan and return the location (0-indexed)
 	 * @param psmLineList ArrayList of splits from the line of the PSM table being read
-	 * @param fraggerLocCol index of MSFragger localization column
-	 * @param peptideCol index of the peptide column
 	 * @param nGlycan if using N-glycan mode
 	 * @param allowedResidues if not using N-glycan mode, the allowed residues (as a single string with no delimiters)
 	 * @return 0-indexed location of the glycan (or of first allowed site if not localized by MSFragger)
 	 */
-	public int readMSFraggerGlycanLocation(ArrayList<String> psmLineList, int fraggerLocCol, int peptideCol, boolean nGlycan, String allowedResidues) {
+	public int readMSFraggerGlycanLocation(ArrayList<String> psmLineList, boolean nGlycan, String allowedResidues) {
 		int glycanLocation = -1;
 		String fraggerPepLocStr = psmLineList.get(fraggerLocCol);
 		ArrayList<Integer> allowedPositions = new ArrayList<>();
@@ -811,7 +526,7 @@ public class PSMFile {
 				allowedPositions.add(i);
 			}
 		}
-		if (allowedPositions.size() >= 1) {
+		if (!allowedPositions.isEmpty()) {
 			// 1 or more positions - take first position if ambiguous
 			glycanLocation = allowedPositions.get(0);
 		} else {
@@ -842,63 +557,62 @@ public class PSMFile {
 		}
 
 		FastLocator locator = new FastLocator(peakBounds, precTol, precUnits);
-		String tempFoutName = this.fname + ".iq.tmp";
+		String tempFoutName = fname + ".iq.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 
 		/* Write the new header */
-		out.println(String.join("\t", this.headers) + "\tTheoretical Modification Mass");
+		out.println(String.join("\t", headers) + "\tTheoretical Modification Mass");
 
 		/* For each line in the file, find the peak apex from the delta mass*/
-		for (int i = 0; i < this.data.size(); i++) {
-			String[] sp = this.data.get(i).split("\t");
-			double dmass = Double.parseDouble(sp[this.dMassCol]);
-			double theoreticalDmass;
-			if (locator.getIndex(dmass) == -1)
-				theoreticalDmass = dmass;
-			else
-				theoreticalDmass = peakBounds[0][locator.getIndex(dmass)];
-			out.println(this.data.get(i) + "\t" + String.format("%.4f", theoreticalDmass));
-		}
+        for (PSM psm: psms) {
+            double dmass = psm.getDMass();
+            double theoreticalDmass;
+            if (locator.getIndex(dmass) == -1)
+                theoreticalDmass = dmass;
+            else
+                theoreticalDmass = peakBounds[0][locator.getIndex(dmass)];
+            out.println(String.join("\t", psm.spLine) + "\t" + String.format("%.4f", theoreticalDmass));
+        }
 
 		out.close();
 
-		this.fname.delete();
+		fname.delete();
 		File newFileName = new File(tempFoutName);
-		newFileName.renameTo(this.fname);
+		newFileName.renameTo(fname);
 	}
 
-	public PSMFile(File f) throws Exception {
+	/**
+	 * Reads all lines into PSMs in the psms array and stores the scan to line index mapping in scanToLineMap.
+	 */
+	public PSMFile(File f, int massdiffToVarmod) throws Exception {
 		BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
-		this.fname = f;
-		this.headers = in.readLine().split("\t");
-		//find delta mass column for different philosopher versions
-		int col = getColumn("Delta Mass");
-		if (col == -1)
-			col = getColumn("Adjusted Delta Mass");
-		if (col == -1)
-			col = getColumn("Original Delta Mass");
-		this.dMassCol = col;
-		this.data = new ArrayList<>();
-		this.psms = new ArrayList<>();
+		fname = f;
+		headers = in.readLine().split("\t");
+		initColumns();
+
+		if (massdiffToVarmod > 0 && msfraggerLocalizationCol == -1) {
+			PTMShepherd.print("Error: Delta masses were removed by MSFragger but localization was not performed. This mode is not supported. Please either enable localize_delta_mass or disable mass_diff_to_variable_mod in MSFragger and try again.");
+			PTMShepherd.die("Invalid MSFragger mass-diff-to-variable-mod configuration");
+		}
+		if (glycanScoreCol != -1) {
+			// handle previous glyco run removing mass diffs
+			massdiffToVarmod = 1;
+		}
+		this.massdiffToVarmod = massdiffToVarmod;
+
+		psms = new ArrayList<>();
+		scanToLineMap = new HashMap<>();
+		int i = 0;
 		String cline;
 		while((cline = in.readLine()) != null) {
-			//if(cline.trim().length() > 0)
-			if (cline.length() > 0)
-				this.data.add(cline);
+			if (!cline.isEmpty()) {
+				PSM thisPSM = new PSM(i, cline, this.massdiffToVarmod, specCol, peptideCol, modPeptideCol, chargeCol, peptideCalcMassCol, dMassCol, assignedModCol, msfraggerLocalizationCol);
+				psms.add(thisPSM);
+				scanToLineMap.put(thisPSM.getSpec(), i);
+				i++;
+			}
 		}
 		in.close();
-
-		// Prefill PSM array with dummy variables so they can be constructed upon being called
-		for (int i = 0; i < this.data.size(); i++) {
-			PSM tPSM = this.getRawLine(i);
-			psms.add(tPSM);
-		}
-	}
-
-	private void constructScanToLineMap() {
-		this.scanToLine = new HashMap<>();
-		for (int i = 0; i < this.psms.size(); i++)
-			this.scanToLine.put(this.psms.get(i).getSpec(), i);
 	}
 
     public void annotateMassDiffs(String [] annotations) throws IOException {
@@ -914,31 +628,30 @@ public class PSMFile {
 
 		/* write annotations to lines */
 		ArrayList<String> newLines = new ArrayList<>();
-		for (int i = 0; i < this.data.size(); i++) {
-			ArrayList<String> sp = new ArrayList<String>(Arrays.asList(this.data.get(i).split("\t")));
-			if (overwrite == true)
-				sp.set(annoCol, annotations[i]);
+		for (PSM psm: psms) {
+			if (overwrite)
+				psm.replaceValAtColumn(annoCol, annotations[psm.lineNum]);
 			else
-				sp.add(annoCol, annotations[i]);
-			newLines.add(String.join("\t", sp));
+				psm.addValAtColumn(annoCol, annotations[psm.lineNum]);
+			newLines.add(String.join("\t", psm.spLine));
 		}
 
 		/* fix up headers */
-		if (overwrite == false) {
+		if (!overwrite) {
 			ArrayList<String> heads = new ArrayList<>(Arrays.asList(this.headers));
 			heads.add(annoCol, "Observed Modifications");
 			heads.toArray(this.headers);
 		}
 
 		/* write output */
+		// todo: skip this and only write out at the end??
 		String tempFoutName = this.fname + ".anno.tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 
 		/* write the new header */
 		out.println(String.join("\t", this.headers));
 		/* write file lines */
-		for (int i = 0; i < newLines.size(); i ++)
-			out.println(newLines.get(i));
+        for (String newLine : newLines) out.println(newLine);
 
 		/* close and rename temp file */
 		out.close();
@@ -1002,9 +715,9 @@ public class PSMFile {
 
 		// If header doesn't already exist, edit headers
 		if (oldHeaderIndx == -1) {
-			ArrayList<String> newHeaders = new ArrayList<String>(Arrays.asList(this.headers));
+			ArrayList<String> newHeaders = new ArrayList<>(Arrays.asList(headers));
 			newHeaders.add(indx, newHead);
-			this.headers = newHeaders.toArray(new String[newHeaders.size()]);
+			headers = newHeaders.toArray(new String[newHeaders.size()]);
 		} else {
 			System.out.printf("\t%s found in headers, overwriting existing column%n", newHead);
 		}
@@ -1014,14 +727,10 @@ public class PSMFile {
 
 	public void addColumn(int colIndx, String newHead, ArrayList<String> keys, ArrayList<String> vals) {
 		// Check that PSM table editing will not fail
-		if (vals.size() != this.data.size() || keys.size() != data.size()) {
+		if (vals.size() != psms.size() || keys.size() != psms.size()) {
 			throw new ArrayIndexOutOfBoundsException("Input arrays and PSM table are not the same length, " +
 					"editing PSM table will fail\n");
 		}
-
-		// Check that the scan to line mapping has been constructed
-		if (this.scanToLine == null)
-			constructScanToLineMap();
 
 		//TODO if column not found and inserting to the right, it will insert at the beginning of the table
 		// This fixes it, but the error message should be different. Not sure how to check colIndx
@@ -1033,20 +742,19 @@ public class PSMFile {
 		if (existingHeaderIndx == -1) {
 			for (int i = 0; i < keys.size(); i++) {
 				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
-				int rowIndx = this.scanToLine.get(specKey);
-				PSM tPSM = this.getLine(rowIndx);
-				tPSM.addValAtColumn(newHead, vals.get(i));
-				tPSM.updateLine();
+				int rowIndx = scanToLineMap.get(specKey);
+				psms.get(rowIndx).addValAtColumn(colIndx, vals.get(i));
 			}
 		} else {
 			for (int i = 0; i < keys.size(); i++) {
 				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
-				int rowIndx = this.scanToLine.get(specKey);
-				PSM tPSM = this.getLine(rowIndx);
-				tPSM.replaceValAtColumn(newHead, vals.get(i));
-				tPSM.updateLine();
+				int rowIndx = scanToLineMap.get(specKey);
+				psms.get(rowIndx).replaceValAtColumn(colIndx, vals.get(i));
 			}
 		}
+
+		// re-initialize column indices in case any have changed
+		initColumns();
 	}
 
 	/**
@@ -1057,16 +765,15 @@ public class PSMFile {
 	public ArrayList<String> getColumnValues(String header) { //TODO I think you can make this a generic parser by making one param a callable of DataDtype
 		int colIndx = getColumn(header);
 
-		if (colIndx < 0 || colIndx >= (this.headers.length)) {
+		if (colIndx < 0 || colIndx >= (headers.length)) {
 			throw new ArrayIndexOutOfBoundsException(String.format("Cannot fetch %s column. Column index %d is out of bounds for a %d column" +
-					"wide table", header, colIndx, this.headers.length));
+					"wide table", header, colIndx, headers.length));
 		}
 
-		ArrayList<String> values = new ArrayList<>(this.data.size());
+		ArrayList<String> values = new ArrayList<>(psms.size());
 
-		for (int i = 0; i < data.size(); i++) {
-			PSM tPSM = this.getLine(i);
-			values.add(tPSM.getColumnValue(header));
+		for (PSM psm : psms) {
+			values.add(psm.getColumnValue(colIndx));
 		}
 
 		return values;
@@ -1080,91 +787,83 @@ public class PSMFile {
 	public HashMap<String,String> getColumnValuesAndSpecs(String header) {
 		int colIndx = getColumn(header);
 
-		if (colIndx < 0 || colIndx >= (this.headers.length)) {
+		if (colIndx < 0 || colIndx >= (headers.length)) {
 			throw new ArrayIndexOutOfBoundsException(String.format("Column index %d is out of bounds for a %d column" +
-					"wide table", colIndx, this.headers.length));
+					"wide table", colIndx, headers.length));
 		}
 
-		HashMap<String,String> values = new HashMap<>(this.data.size());
+		HashMap<String,String> values = new HashMap<>(psms.size());
 
-		for (int i = 0; i < data.size(); i++) {
-			PSM tPSM = this.getLine(i);
-			values.put(tPSM.getSpec(), tPSM.getColumnValue(header));
+		for (PSM psm : psms) {
+			values.put(psm.getSpec(), psm.getColumnValue(colIndx));
 		}
 
 		return values;
 	}
 
 	public void save(boolean overwrite) throws IOException {
-		String tempFoutName = this.fname + ".tmp";
+		String tempFoutName = fname + ".tmp";
 		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 
-		// Write lines to .tmp file file
-		out.println(headersToString());
-		for (int i = 0; i < this.data.size(); i++) {
-			out.println(this.getLine(i).toString());
+		// Write lines to .tmp file
+		out.println(String.join("\t", headers));
+		for (PSM psm : psms) {
+			out.println(psm.printLine());
 		}
 
 		out.close();
 
 		if (overwrite)
-			Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(this.fname)), StandardCopyOption.REPLACE_EXISTING);
+			Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(fname)), StandardCopyOption.REPLACE_EXISTING);
 	}
 
-	private String headersToString() {
-		String [] headers = Arrays.copyOf(this.headers, this.headers.length);
-		//TODO Check with Dan, make sure we can remove trailing newlines character in this.headers
-		headers[headers.length-1].replace("\n","");
-		return String.join("\t", headers);
-	}
-
-	public void writeToPsmCache(File cacheFname, ArrayList<Double> varModMasses) throws FileNotFoundException {
-		PrintWriter out = new PrintWriter(cacheFname);
-
-		/* Write the new header */
-		out.println(String.join("\t", this.headers));
-
-		/* For each line in the file, modify accordingly */
-		for (int i = 0; i < this.data.size(); i++) {
-			ArrayList<String> sp = new ArrayList<>(Arrays.asList(this.data.get(i).split("\t")));
-			//Shift variable mod info into delta mass
-			if (varModMasses.size() > 0) {
-				double oldDmass = Double.parseDouble(sp.get(this.dMassCol));
-				double newDmass = oldDmass;
-				double oldPepmass = Double.parseDouble(sp.get(getColumn("Calculated Peptide Mass")));
-				double newPepmass = oldPepmass;
-				String[] oldAssignedMods = sp.get(getColumn("Assigned Modifications")).split(",");
-				ArrayList<String> newAssignedMods = new ArrayList<>(Arrays.asList(oldAssignedMods));
-				ArrayList<Integer> dropMods = new ArrayList<>();
-				for (int j = 0; j < oldAssignedMods.length; j++) {
-					System.out.println(oldAssignedMods[j]);
-					String modStr = oldAssignedMods[j];
-					int p = modStr.indexOf("(");
-					int q = modStr.indexOf(")");
-					double modMass = Double.parseDouble(modStr.substring(p + 1, q).trim());
-					for (int k = 0; k < varModMasses.size(); k++) {
-						if (Math.abs(modMass - varModMasses.get(k)) < 0.001) {
-							dropMods.add(j);
-							newDmass += modMass;
-							newPepmass -= modMass;
-							break;
-						}
-					}
-				}
-				for (int k = dropMods.size() - 1; k > 0; k--)
-					newAssignedMods.remove(k);
-				// reassign adjusted values
-				sp.set(this.deltaMassCol, Double.toString(newDmass));
-				sp.set(getColumn("Calculated Peptide Mass"), Double.toString(newPepmass));
-				sp.set(getColumn("Assigned Modifications"), String.join(", ", newAssignedMods));
-				sp.add(Double.toString(oldDmass));
-				sp.add(Double.toString(oldPepmass));
-				sp.add(String.join(", ", newAssignedMods));
-			}
-			out.println(this.data.get(i));
-		}
-
-		out.close();
-	}
+//	public void writeToPsmCache(File cacheFname, ArrayList<Double> varModMasses) throws FileNotFoundException {
+//		PrintWriter out = new PrintWriter(cacheFname);
+//
+//		/* Write the new header */
+//		out.println(String.join("\t", this.headers));
+//
+//		/* For each line in the file, modify accordingly */
+//        for (String datum : this.data) {
+//            ArrayList<String> sp = new ArrayList<>(Arrays.asList(datum.split("\t")));
+//            //Shift variable mod info into delta mass
+//            if (!varModMasses.isEmpty()) {
+//                double oldDmass = Double.parseDouble(sp.get(this.dMassCol));
+//                double newDmass = oldDmass;
+//                double oldPepmass = Double.parseDouble(sp.get(getColumn("Calculated Peptide Mass")));
+//                double newPepmass = oldPepmass;
+//                String[] oldAssignedMods = sp.get(getColumn("Assigned Modifications")).split(",");
+//                ArrayList<String> newAssignedMods = new ArrayList<>(Arrays.asList(oldAssignedMods));
+//                ArrayList<Integer> dropMods = new ArrayList<>();
+//                for (int j = 0; j < oldAssignedMods.length; j++) {
+//                    System.out.println(oldAssignedMods[j]);
+//                    String modStr = oldAssignedMods[j];
+//                    int p = modStr.indexOf("(");
+//                    int q = modStr.indexOf(")");
+//                    double modMass = Double.parseDouble(modStr.substring(p + 1, q).trim());
+//                    for (Double varModMass : varModMasses) {
+//                        if (Math.abs(modMass - varModMass) < 0.001) {
+//                            dropMods.add(j);
+//                            newDmass += modMass;
+//                            newPepmass -= modMass;
+//                            break;
+//                        }
+//                    }
+//                }
+//                for (int k = dropMods.size() - 1; k > 0; k--)
+//                    newAssignedMods.remove(k);
+//                // reassign adjusted values
+//                sp.set(dMassCol, Double.toString(newDmass));
+//                sp.set(getColumn("Calculated Peptide Mass"), Double.toString(newPepmass));
+//                sp.set(getColumn("Assigned Modifications"), String.join(", ", newAssignedMods));
+//                sp.add(Double.toString(oldDmass));
+//                sp.add(Double.toString(oldPepmass));
+//                sp.add(String.join(", ", newAssignedMods));
+//            }
+//            out.println(datum);
+//        }
+//
+//		out.close();
+//	}
 }
 

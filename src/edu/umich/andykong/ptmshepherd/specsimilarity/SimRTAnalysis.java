@@ -21,12 +21,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
+import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import edu.umich.andykong.ptmshepherd.utils.Variance;
 
 import java.util.List;
@@ -39,7 +40,6 @@ public class SimRTAnalysis {
 	HashMap<String, MXMLReader> multiMr;
 	double ppmTol, condRatio, peakTol;
 	int condPeaks, precursorUnits;
-	int specCol, pepCol, modpepCol, chargeCol, deltaCol, rtCol, intCol;
 
 	boolean calcIntensity;
 	
@@ -77,17 +77,7 @@ public class SimRTAnalysis {
 		//assemble PSMs into per file groupings
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
 		PrintWriter out = new PrintWriter(new FileWriter(simRTFile,true));
-
-		specCol = pf.getColumn("Spectrum");
-		pepCol = pf.getColumn("Peptide");
-		modpepCol = pf.getColumn("Modified Peptide");
-		chargeCol = pf.getColumn("Charge");
-		deltaCol = pf.dMassCol;
-		rtCol = pf.getColumn("Retention");
-		intCol = pf.getColumn("Intensity");
-		calcIntensity = true;
-		if (intCol == -1)
-			calcIntensity = false;
+        calcIntensity = pf.intensityCol != -1;
 
 		//Write header
 		if (calcIntensity) {
@@ -106,21 +96,14 @@ public class SimRTAnalysis {
 		precursorUnits = Integer.parseInt(PTMShepherd.getParam("precursor_mass_units"));
 
 		if (!interRunComparisons) {
-			for (int i = 0; i < pf.data.size(); i++) {
-				String[] sp = pf.data.get(i).split("\t");
-				String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-				if (!mappings.containsKey(bn))
-					mappings.put(bn, new ArrayList<>());
-				mappings.get(bn).add(i);
-			}
+			SiteLocalization.initSpectrumMappings(pf, mappings);
 		} else {
-			for (int i = 0; i < pf.data.size(); i++) {
-				String[] sp = pf.data.get(i).split("\t");
-				String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
+			for (int i = 0; i < pf.psms.size(); i++) {
+				String bn = pf.psms.get(i).getFileName(); //fraction
 				if (!mappings.containsKey(bn))
 					mappings.put(bn, new ArrayList<>());
 			}
-			for (int i = 0; i < pf.data.size(); i++) {
+			for (int i = 0; i < pf.psms.size(); i++) {
 				for (String fraction : mappings.keySet())
 					mappings.get(fraction).add(i);
 			}
@@ -167,28 +150,26 @@ public class SimRTAnalysis {
 
 			//get zero bin data and calculate baselines
 			for(int i = 0; i < clines.size(); i++) {
-				String [] crow = pf.data.get(clines.get(i)).split("\t");
+				PSM psm = pf.psms.get(clines.get(i));
 				if(precursorUnits == 1)//ppm
 					cPeakTol = calculatePeakTol(1500, peakTol, 0.0);
-				boolean isZero = (Math.abs(Double.parseDouble(crow[deltaCol])) <= cPeakTol);
+				boolean isZero = (psm.getDMass() <= cPeakTol);
 				if(!isZero)
 					continue;
 				
-				String key = crow[pepCol].trim(); //using pep seq as key
-				if(crow[modpepCol].trim().length() != 0)
-					key = crow[modpepCol].trim();
-				
+				String key = generateKey(psm); //using pep seq as key
+
 				if(!zTolRT.containsKey(key)) //structure {modpep:<rt>}
 					zTolRT.put(key, new ArrayList<>());
-				zTolRT.get(key).add(Double.parseDouble(crow[rtCol]));
+				zTolRT.get(key).add(Double.parseDouble(psm.spLine.get(pf.retentionCol)));
 
 				if (calcIntensity) {
 					if (!zTolInt.containsKey(key)) //structure {modpep:<rt>}
 						zTolInt.put(key, new ArrayList<>());
-					zTolInt.get(key).add(Double.parseDouble(crow[intCol]));
+					zTolInt.get(key).add(Double.parseDouble(psm.spLine.get(pf.intensityCol)));
 				}
 				
-				key += "." + crow[chargeCol]; //structure {modpep.charge:<spec line>}
+				key += "." + psm.getCharge(); //structure {modpep.charge:<spec line>}
 				if(!zTolLines.containsKey(key))
 					zTolLines.put(key, new ArrayList<>());
 				zTolLines.get(key).add(clines.get(i));
@@ -203,18 +184,17 @@ public class SimRTAnalysis {
 				int nComp = Math.min(relLines.size(), MAX_ZERO_COMPARE);
 				zTolSpecs.put(pepZ, new ArrayList<>());
 				for(int i = 0; i < nComp; i++) {
-					String [] crow = pf.data.get(relLines.get(i)).split("\t");
-					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
-					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(reNormName(crow[specCol])));
+					PSM psm = pf.psms.get(relLines.get(i));
+					String targetFrac = psm.getFileName();
+					zTolSpecs.get(pepZ).add(multiMr.get(targetFrac).getSpectrum(psm.getSpec()));
 				}
 				
 				double zSimSum = 0;
 				totalLines += relLines.size();
 				for(int i = 0; i < relLines.size(); i++) {
-					String [] crow = pf.data.get(relLines.get(i)).split("\t");
-					String specNormName = reNormName(crow[specCol]);
-					//System.out.println(specNormName);
-					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
+					PSM psm = pf.psms.get(relLines.get(i));
+					String specNormName = psm.getSpec();
+					String targetFrac = psm.getFileName();
 					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(specNormName);
 					if (cspec == null) {
 						linesWithoutSpectra.add(specNormName);
@@ -225,15 +205,9 @@ public class SimRTAnalysis {
 				avgzSim.put(pepZ, zSimSum / relLines.size());
 			}
 
-			if (!linesWithoutSpectra.isEmpty()) {
-				System.out.printf("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), totalLines,
-						100.0*((double)linesWithoutSpectra.size()/totalLines));
-				int previewSize = Math.min(linesWithoutSpectra.size(), 5);
-				System.out.printf("\tShowing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
-						String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize)));
-			}
-			
-			//calculate zeroRT
+            SiteLocalization.warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
+
+            //calculate zeroRT
 			for(String pep : zTolRT.keySet()) {
 				ArrayList<Double> rts = zTolRT.get(pep);
 				double rtsum = 0;
@@ -254,14 +228,12 @@ public class SimRTAnalysis {
 			
 			//calculate metrics
 			for(int i = 0; i < clines.size(); i++) {
-				String [] crow = pf.data.get(clines.get(i)).split("\t");
+				PSM psm = pf.psms.get(clines.get(i));
 				if(precursorUnits == 1)//ppm
 					cPeakTol = calculatePeakTol(1500, peakTol, 0.0);
-				boolean isZero = (Math.abs(Double.parseDouble(crow[deltaCol])) <= cPeakTol);
-				
-				String key = crow[pepCol].trim();
-				if(crow[modpepCol].trim().length() != 0)
-					key = crow[modpepCol].trim();
+				boolean isZero = (psm.getDMass() <= cPeakTol);
+
+				String key = generateKey(psm); //using pep seq as key
 
 				int rtSize = 0, specSimSize = 0, intSize = 0;
 				double rtDelta = -1e20;
@@ -269,21 +241,21 @@ public class SimRTAnalysis {
 				double avgSim = -1e20, avgZeroSim = -1e20;
 				
 				if(zTolRT.containsKey(key)) { //calculated against average RT time
-					rtDelta = Double.parseDouble(crow[rtCol]) - avgzRT.get(key);
+					rtDelta = Double.parseDouble(psm.spLine.get(pf.retentionCol)) - avgzRT.get(key);
 					rtSize = zTolRT.get(key).size();
 				}
 
 				if (calcIntensity) {
 					if(zTolInt.containsKey(key)) { //calculated against average RT time
-						intDelta = (Double.parseDouble(crow[intCol])) / (avgzInt.get(key));
+						intDelta = (Double.parseDouble(psm.spLine.get(pf.intensityCol))) / (avgzInt.get(key));
 						intSize = zTolInt.get(key).size();
 					}
 				}
 				
-				key += "." + crow[chargeCol]; //based on charge state
+				key += "." + psm.getCharge(); //based on charge state
 				if(zTolSpecs.containsKey(key)) {
-					String targetFrac = crow[specCol].substring(0, crow[specCol].indexOf("."));
-					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(reNormName(crow[specCol]));
+					String targetFrac = psm.getFileName();
+					Spectrum cspec = multiMr.get(targetFrac).getSpectrum(psm.getSpec());
 					if(cspec != null) {
 						avgSim = cspec.averageSimilarity(zTolSpecs.get(key), ppmTol); //all v all comparison
 						avgZeroSim = avgzSim.get(key);
@@ -291,10 +263,10 @@ public class SimRTAnalysis {
 					}
 				}
 				if (calcIntensity) {
-					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\t%.5f\t%d\n", crow[specCol], crow[pepCol], crow[modpepCol], crow[deltaCol], isZero ? 1 : 0,
+					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\t%.5f\t%d\n", psm.getSpec(), psm.getPeptide(), psm.getModifiedPeptide(), psm.getDMass(), isZero ? 1 : 0,
 							rtDelta, rtSize, avgSim, avgZeroSim, specSimSize, intDelta, intSize);
 				} else {
-					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\n",crow[specCol],crow[pepCol],crow[modpepCol],crow[deltaCol],isZero?1:0,
+					out.printf("%s\t%s\t%s\t%s\t%d\t%.5f\t%d\t%.5f\t%.5f\t%d\n", psm.getSpec(), psm.getPeptide(), psm.getModifiedPeptide(), psm.getDMass(),isZero?1:0,
 							rtDelta, rtSize, avgSim, avgZeroSim, specSimSize);
 				}
 			}
@@ -339,5 +311,14 @@ public class SimRTAnalysis {
 
 	public boolean getCalcIntensity() {
 		return calcIntensity;
+	}
+
+	// key is peptide_assignedMods. Replaced modified peptide to support massdiff-to-varmod and reruns
+	private String generateKey(PSM psm) {
+		String key = psm.getPeptide(); //using pep seq as key
+		if(!psm.getAssignedMods().isEmpty()) {
+			key += "_" + psm.printAssignedMods();
+		}
+		return key;
 	}
 }

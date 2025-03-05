@@ -17,12 +17,12 @@
 package edu.umich.andykong.ptmshepherd.diagnosticanalysis;
 
 import edu.umich.andykong.ptmshepherd.PSMFile;
+import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -106,24 +106,9 @@ public class DiagnosticExtractor {
             }
         }
         diagnosticOut.println(diagnosticHeader);
-        //get necessary col indices
-        specCol = pf.getColumn("Spectrum");
-        pepCol = pf.getColumn("Peptide");
-        modpepCol = pf.getColumn("Modified Peptide");
-        modCol = pf.getColumn("Assigned Modifications");
-        deltaCol = pf.dMassCol;
-        pmassCol = pf.getColumn("Calculated Peptide Mass");
-        rtCol = pf.getColumn("Retention");
-        intCol = pf.getColumn("Intensity");
 
         //map PSMs to file
-        for (int i = 0; i < pf.data.size(); i++) {
-            String[] sp = pf.data.get(i).split("\t");
-            String bn = sp[specCol].substring(0, sp[specCol].indexOf(".")); //fraction
-            if (!mappings.containsKey(bn))
-                mappings.put(bn, new ArrayList<>());
-            mappings.get(bn).add(i);
-        }
+        SiteLocalization.initSpectrumMappings(pf, mappings);
 
         /* Loop through spectral files -> indexed lines in PSM -> process each line */
         for (String cf : mappings.keySet()) { //for file in relevant spectral files
@@ -145,9 +130,9 @@ public class DiagnosticExtractor {
             for (int i = 0; i < nBlocks; i++) {
                 int startInd = i * BLOCKSIZE;
                 int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<String> cBlock = new ArrayList<>();
+                ArrayList<PSM> cBlock = new ArrayList<>();
                 for (int j = startInd; j < endInd; j++)
-                    cBlock.add(pf.data.get(clines.get(j)));
+                    cBlock.add(pf.psms.get(clines.get(j)));
                 futureList.add(executorService.submit(() -> processLinesBlock(cBlock, diagnosticOut)));
             }
             /* Wait for all processes to finish */
@@ -168,10 +153,10 @@ public class DiagnosticExtractor {
         }
     }
 
-    public void processLinesBlock(ArrayList<String> cBlock, PrintWriter out) {
+    public void processLinesBlock(ArrayList<PSM> cBlock, PrintWriter out) {
         StringBuilder newBlock  = new StringBuilder();
-        for (String line : cBlock) {
-            newBlock.append(processLine(line)).append("\n");
+        for (PSM psm : cBlock) {
+            newBlock.append(processLine(psm)).append("\n");
         }
         printLines(out, newBlock.toString());
     }
@@ -180,20 +165,14 @@ public class DiagnosticExtractor {
         out.print(linesBlock);
     }
 
-    public String processLine(String line) {
+    public String processLine(PSM psm) {
         StringBuilder diagnosticResultString = new StringBuilder();
-        String[] sp = line.split("\\t");
-        String seq = sp[pepCol];
-        float dmass = Float.parseFloat(sp[deltaCol]);
-        float pepMass = Float.parseFloat(sp[pmassCol]);
-        String[] smods = sp[modCol].split(",");
-        String specName = sp[specCol];
 
-        diagnosticResultString.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, seq, sp[modCol], pepMass, dmass));
+        diagnosticResultString.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", psm.getSpec(), psm.getPeptide(), psm.printAssignedMods(), psm.getCalcPepmass(), psm.getDMass()));
 
-        Spectrum spec = mr.getSpectrum(reNormName(specName));
+        Spectrum spec = mr.getSpectrum(psm.getSpec());
         if (spec == null) {
-            this.lineWithoutSpectra.add(reNormName(specName));
+            this.lineWithoutSpectra.add(psm.getSpec());
             return "ERROR";
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
@@ -201,8 +180,8 @@ public class DiagnosticExtractor {
         //System.out.println("got spec");
         double[] capYIonIntensities;
         double[] oxoniumIonIntensities;
-        capYIonIntensities = findCapitalYIonMasses(spec, pepMass);
-        oxoniumIonIntensities = findOxoniumIonMasses(spec, pepMass);
+        capYIonIntensities = findCapitalYIonMasses(spec, psm.getCalcPepmass());
+        oxoniumIonIntensities = findOxoniumIonMasses(spec, psm.getCalcPepmass());
 
         for (double capYIonIntensity : capYIonIntensities)
             diagnosticResultString.append(String.format("\t%.2f", capYIonIntensity));
@@ -212,14 +191,14 @@ public class DiagnosticExtractor {
         String ionTypes = PTMShepherd.concatIonTypes();
         float[][] remainderIntensities = new float[remainderMasses.length][ionTypes.length()];
         int[][] remainderCounts = new int[remainderMasses.length][ionTypes.length()];
-        boolean[][] isMaxScores = localizeRemainderFragments(spec, sp[pepCol], smods, deltaScores, remainderIntensities, remainderCounts);
+        boolean[][] isMaxScores = localizeRemainderFragments(spec, psm.getPeptide(), psm.getAssignedMods(), deltaScores, remainderIntensities, remainderCounts);
 
         for (int i = 0; i < remainderMasses.length; i++) {
             diagnosticResultString.append(String.format("\t%.1f", deltaScores[i]));
             StringBuilder locSb = new StringBuilder("\t");
-            for (int j = 0; j < seq.length(); j++) {
+            for (int j = 0; j < psm.getPeptide().length(); j++) {
                 if (isMaxScores[i][j]) {
-                    locSb.append(String.format("%d%c", j + 1, seq.charAt(j))); //position (1 indexed), character
+                    locSb.append(String.format("%d%c", j + 1, psm.getPeptide().charAt(j))); //position (1 indexed), character
                 }
             }
             // add remainder intensities
@@ -287,7 +266,7 @@ public class DiagnosticExtractor {
         return oxoniumIonIntensities;
     }
 
-    public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, String[] smods, float[] deltaScores, float[][] remainderInts, int[][] remainderCounts) {
+    public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, TreeMap<Integer, Float> smods, float[] deltaScores, float[][] remainderInts, int[][] remainderCounts) {
         //initialize allowed positions
         boolean [] allowedPoses = SiteLocalization.parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
         //initialize remainder delta scores
@@ -295,25 +274,7 @@ public class DiagnosticExtractor {
         //add variable and fixed mods to frag masses for peptide
         float [] mods = new float[seq.length()];
         Arrays.fill(mods, 0f);
-        for(int i = 0; i < smods.length; i++) {
-            smods[i] = smods[i].trim();
-            if(smods[i].length() == 0)
-                continue;
-            int p = smods[i].indexOf("(");
-            int q = smods[i].indexOf(")");
-            String spos = smods[i].substring(0, p).trim();
-            double mass = Double.parseDouble(smods[i].substring(p+1, q).trim());
-            int pos = -1;
-            if(spos.equals("N-term")) {
-                pos = 0;
-            }
-            else if(spos.equals("c")) {
-                pos = mods.length - 1;
-            }
-            else
-                pos = Integer.parseInt(spos.substring(0,spos.length()-1)) - 1;
-            mods[pos] += mass;
-        }
+        SiteLocalization.localizeMods(smods, mods);
         //iterate through remainder masses
         //these 3 variables store values for each remainder mass
         float [] maxScores = new float[remainderMasses.length];
