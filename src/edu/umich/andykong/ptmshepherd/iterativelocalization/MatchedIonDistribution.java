@@ -1,5 +1,7 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -284,7 +286,7 @@ public class MatchedIonDistribution {
     }
 
 
-    public void calculateLdaWeights() throws Exception {
+    public void calculateLdaWeights() {
         this.ldaProcessor = new LDAProcessor(this.datapoints);
         this.ldaProcessor.solveLDA(executorService);
         this.datapoints.mergeProjectedData(ldaProcessor.projectedData);
@@ -496,12 +498,16 @@ public class MatchedIonDistribution {
         out.close();
     }
 
-    public void printQVals(String fname) throws IOException {
-        PrintWriter out = new PrintWriter(new FileWriter(fname));
-        out.println("lda_val\tq_val");
-        for (int i = 0; i < qVals.length; i++)
-            out.println((i / 100.0) + "\t" +  qVals[i]);
-        out.close();
+    public void printQVals(String fname) {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(fname));
+            out.println("lda_val\tq_val");
+            for (int i = 0; i < qVals.length; i++)
+                out.println((i / 100.0) + "\t" + qVals[i]);
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing iterative loc q-values to file: " + e.getMessage());
+        }
     }
 
     public void printFeatureTable(String fname) {

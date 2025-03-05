@@ -346,18 +346,22 @@ public class DiagnosticExtractor {
     }
 
 
-    public boolean isDiagnosticComplete() throws Exception {
-        if(rawDiagnosticFile.exists()) {
-            RandomAccessFile raf = new RandomAccessFile(rawDiagnosticFile, "r");
-            raf.seek(Math.max(0, rawDiagnosticFile.length() - 20));
-            String cline;
-            while((cline = raf.readLine())!=null)
-                if(cline.equals("COMPLETE")) {
-                    raf.close();
-                    return true;
-                }
-            raf.close();
-            rawDiagnosticFile.delete();
+    public boolean isDiagnosticComplete() {
+        try {
+            if(rawDiagnosticFile.exists()) {
+                RandomAccessFile raf = new RandomAccessFile(rawDiagnosticFile, "r");
+                raf.seek(Math.max(0, rawDiagnosticFile.length() - 20));
+                String cline;
+                while((cline = raf.readLine())!=null)
+                    if(cline.equals("COMPLETE")) {
+                        raf.close();
+                        return true;
+                    }
+                raf.close();
+                rawDiagnosticFile.delete();
+            }
+        } catch (IOException e) {
+            PTMShepherd.die("Error reading diagnostic file: " + rawDiagnosticFile.getAbsolutePath());
         }
         return false;
     }
@@ -380,31 +384,39 @@ public class DiagnosticExtractor {
         return ionCounts;
     }
 
-    public void completeDiagnostic() throws Exception {
-        PrintWriter out = new PrintWriter(new FileWriter(rawDiagnosticFile,true));
-        out.println("COMPLETE");
-        out.close();
+    public void completeDiagnostic() {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(rawDiagnosticFile,true));
+            out.println("COMPLETE");
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing to diagnostic file: " + rawDiagnosticFile.getAbsolutePath());
+        }
     }
-    public void updateGlycoProfiles(GlycoProfile[] profiles) throws Exception {
-        BufferedReader in = new BufferedReader(new FileReader(rawDiagnosticFile));
-        String cline;
-        in.readLine();
-        while ((cline = in.readLine()) != null) {
-            if (cline.equals("COMPLETE"))
-                break;
-            if (cline.startsWith("Spectrum"))
-                continue;
-            if (cline.startsWith("ERROR"))
-                continue;
-            String[] sp = cline.split("\\t");
-            double md = Double.parseDouble(sp[4]);
-            for (int i = 0; i < profiles.length; i++) {
-                int cind = profiles[i].locate.getIndex(md);
-                if (cind != -1) {
-                    profiles[i].records[cind].updateWithLine(sp);
+    public void updateGlycoProfiles(GlycoProfile[] profiles) {
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(rawDiagnosticFile));
+            String cline;
+            in.readLine();
+            while ((cline = in.readLine()) != null) {
+                if (cline.equals("COMPLETE"))
+                    break;
+                if (cline.startsWith("Spectrum"))
+                    continue;
+                if (cline.startsWith("ERROR"))
+                    continue;
+                String[] sp = cline.split("\\t");
+                double md = Double.parseDouble(sp[4]);
+                for (int i = 0; i < profiles.length; i++) {
+                    int cind = profiles[i].locate.getIndex(md);
+                    if (cind != -1) {
+                        profiles[i].records[cind].updateWithLine(sp);
+                    }
                 }
             }
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error updating glyco profiles: could not read diagnostic file " + rawDiagnosticFile.getAbsolutePath() + "\n" + e.getMessage());
         }
-        in.close();
     }
 }

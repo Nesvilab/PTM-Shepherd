@@ -33,7 +33,7 @@ import umich.ms.fileio.filetypes.thermo.ThermoRawFile;
 
 public class MS2Counts {
 
-	public static int countMS2Scans(File f, int threads) throws Exception {
+	public static int countMS2Scans(File f, int threads) {
 		int count = 0;
 		String ext = f.getName().substring(f.getName().lastIndexOf(".")+1).toLowerCase();
 		if(ext.length() == 0)

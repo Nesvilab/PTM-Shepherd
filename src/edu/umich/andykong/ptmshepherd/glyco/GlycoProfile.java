@@ -23,6 +23,7 @@ import edu.umich.andykong.ptmshepherd.specsimilarity.SimRTRecord;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -69,28 +70,32 @@ public class GlycoProfile {
             remFragStrs = new String[0];
     }
 
-    public void writeProfile(String path) throws Exception {
-        PrintWriter out = new PrintWriter(new FileWriter(path));
-        //format header
-        StringBuffer sb = new StringBuffer();
-        sb.append("Peak\tPSMs");
-        for (int i = 0; i < capYStrs.length; i++)
-            sb.append("\tY_" + capYStrs[i] + "_PSMs");
-        for (int i = 0; i < diagIonStrs.length; i++)
-            sb.append("\tox_" + diagIonStrs[i] + "_PSMs");
-        for (int i = 0; i < remFragStrs.length; i++)
-            sb.append("\tremainder_"+remFragStrs[i] + "_PSMs");
-        for (int i = 0; i < capYStrs.length; i++)
-            sb.append("\tY_" + capYStrs[i] + "_percent_of_PSMs");
-        for (int i = 0; i < diagIonStrs.length; i++)
-            sb.append("\tox_" + diagIonStrs[i] + "_percent_of_PSMs");
-        for (int i = 0; i < remFragStrs.length; i++)
-            sb.append("\tremainder_"+remFragStrs[i] + "_percent_of_PSMs");
-        out.println(sb.toString());
-        for(int i = 0; i < records.length; i++) {
-            out.println(records[i].toString());
+    public void writeProfile(String path) {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(path));
+            //format header
+            StringBuffer sb = new StringBuffer();
+            sb.append("Peak\tPSMs");
+            for (int i = 0; i < capYStrs.length; i++)
+                sb.append("\tY_" + capYStrs[i] + "_PSMs");
+            for (int i = 0; i < diagIonStrs.length; i++)
+                sb.append("\tox_" + diagIonStrs[i] + "_PSMs");
+            for (int i = 0; i < remFragStrs.length; i++)
+                sb.append("\tremainder_"+remFragStrs[i] + "_PSMs");
+            for (int i = 0; i < capYStrs.length; i++)
+                sb.append("\tY_" + capYStrs[i] + "_percent_of_PSMs");
+            for (int i = 0; i < diagIonStrs.length; i++)
+                sb.append("\tox_" + diagIonStrs[i] + "_percent_of_PSMs");
+            for (int i = 0; i < remFragStrs.length; i++)
+                sb.append("\tremainder_"+remFragStrs[i] + "_percent_of_PSMs");
+            out.println(sb.toString());
+            for(int i = 0; i < records.length; i++) {
+                out.println(records[i].toString());
+            }
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing glyco profile to file: " + path + "\n" + e.getMessage());
         }
-        out.close();
     }
 
 }

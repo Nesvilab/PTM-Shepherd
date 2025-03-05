@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.peakpicker;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.peakpicker.PeakAnnotator;
 
 import java.io.*;
@@ -29,16 +30,21 @@ public class ModSummary {
     Set<String> mods;
     LinkedHashMap<String, Double> modsMap;
 
-    public ModSummary(File inPeaks, Set<String> dsets) throws Exception{
+    public ModSummary(File inPeaks, Set<String> dsets) {
         datasets = dsets;
 
         ArrayList<String[]> inFile = new ArrayList<>();
         String cline;
-        BufferedReader in = new BufferedReader(new FileReader(inPeaks));
-        while((cline = in.readLine())!= null) {
-            inFile.add(cline.split("\t")); //TODO if you add the -1 tag to this you'll break the algo
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(inPeaks));
+            while ((cline = in.readLine()) != null) {
+                inFile.add(cline.split("\t")); //TODO if you add the -1 tag to this you'll break the algo
+            }
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.print(e.getMessage());
+            PTMShepherd.die("Error reading peak file for mod summary: " + inPeaks);
         }
-        in.close();
 
         // get headers
         String [] headers = inFile.get(0);
@@ -108,7 +114,7 @@ public class ModSummary {
         }
     }
 
-    public void toFile(File modOut) throws Exception{
+    public void toFile(File modOut) {
         //sort modifications by psm count for table
         LinkedHashMap<String, Integer> modsCount = new LinkedHashMap<>();
         //mods.add("None"); //allow mods to be searched for
@@ -131,24 +137,29 @@ public class ModSummary {
             sortedMap.put(entry.getKey(), entry.getValue()); //psms sorted by sum
         }
         // write to file
-        PrintWriter out = new PrintWriter(new FileWriter(modOut));
-        out.print("Modification\tMass Shift");
-        for(String ds : datasets)
-            out.printf("\t%s_PSMs", ds);
-        for (String ds : datasets)
-            out.printf("\t%s_percent_PSMs", ds);
-        out.println();
-        // output sorted by sum of spectral counts
-        for(String mod : sortedMap.keySet()){
-            out.printf("%s\t%s", mod, modsMap.get(mod));
-            for(String ds : datasets)
-                out.printf("\t%.00f", psmCounts.get(ds).get(mod));
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(modOut));
+            out.print("Modification\tMass Shift");
             for (String ds : datasets)
-                out.printf("\t%.04f",psmCountsNorm.get(ds).get(mod));
+                out.printf("\t%s_PSMs", ds);
+            for (String ds : datasets)
+                out.printf("\t%s_percent_PSMs", ds);
             out.println();
+            // output sorted by sum of spectral counts
+            for (String mod : sortedMap.keySet()) {
+                out.printf("%s\t%s", mod, modsMap.get(mod));
+                for (String ds : datasets)
+                    out.printf("\t%.00f", psmCounts.get(ds).get(mod));
+                for (String ds : datasets)
+                    out.printf("\t%.04f", psmCountsNorm.get(ds).get(mod));
+                out.println();
+            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.print(e.getMessage());
+            PTMShepherd.die("Error writing mod summary to file: " + modOut);
         }
-        out.flush();
-        out.close();
     }
 
 

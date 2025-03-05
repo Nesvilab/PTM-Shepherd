@@ -21,6 +21,7 @@ import java.nio.*;
 import java.nio.file.Files;
 import java.util.*;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import org.apache.commons.math3.distribution.NormalDistribution;
 
 public class Histogram {
@@ -98,60 +99,76 @@ public class Histogram {
 		return offsets;
 	}
 	
-	public void writeCombinedTSV(File f) throws Exception {
-		PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(f),1<<24));
-		out.print("BinCenter");
-		String [] keys = new String[merged.size()];
-		int cnt = 0;
-		for(String cds : merged.keySet()) {
-			keys[cnt++] = cds;
-			out.print("\t"+cds);
-		}
-		out.println();
-		int len = merged.get(keys[0]).length;
-		for(int i = 0; i < len; i++) {
-			out.printf("%.5f", start + i*(1.0/binDivs));
-            for (String key : keys) out.printf("\t%.8f", merged.get(key)[i]);
+	public void writeCombinedTSV(File f) {
+		try {
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(f), 1 << 24));
+			out.print("BinCenter");
+			String[] keys = new String[merged.size()];
+			int cnt = 0;
+			for (String cds : merged.keySet()) {
+				keys[cnt++] = cds;
+				out.print("\t" + cds);
+			}
 			out.println();
+			int len = merged.get(keys[0]).length;
+			for (int i = 0; i < len; i++) {
+				out.printf("%.5f", start + i * (1.0 / binDivs));
+				for (String key : keys) out.printf("\t%.8f", merged.get(key)[i]);
+				out.println();
+			}
+			out.close();
+		} catch (IOException e) {
+			PTMShepherd.die(String.format("Could not write combined TSV file %s due to error %s", f.getName(), e.getMessage()));
 		}
-		out.close();
 	}
 	
-	public void writeHistogram(File f) throws Exception {
-		DataOutputStream dos = new DataOutputStream(Files.newOutputStream(f.toPath()));
-		dos.writeInt(start); //tres
-		dos.writeInt(end); //quatro
-		dos.writeInt(binDivs);
-		dos.writeInt(expSize);
-		writeDouble(dos,histo);
-		dos.close();
+	public void writeHistogram(File f) {
+		try {
+			DataOutputStream dos = new DataOutputStream(Files.newOutputStream(f.toPath()));
+			dos.writeInt(start); //tres
+			dos.writeInt(end); //quatro
+			dos.writeInt(binDivs);
+			dos.writeInt(expSize);
+			writeDouble(dos, histo);
+			dos.close();
+		} catch (IOException e) {
+			PTMShepherd.die(String.format("Could not write histogram file %s due to error %s", f.getName(), e.getMessage()));
+		}
 	}
 	
-	public static Histogram readHistogram(File f) throws Exception {
+	public static Histogram readHistogram(File f) {
 		Histogram h = new Histogram();
-		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
-		h.start = dis.readInt();
-		h.end = dis.readInt();
-		h.binDivs = dis.readInt();
-		h.expSize = dis.readInt();
-		h.histo = new double[(h.end-h.start)*h.binDivs];
-		readDouble(dis, h.histo);		
-		dis.close();
+		try {
+			DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
+			h.start = dis.readInt();
+			h.end = dis.readInt();
+			h.binDivs = dis.readInt();
+			h.expSize = dis.readInt();
+			h.histo = new double[(h.end - h.start) * h.binDivs];
+			readDouble(dis, h.histo);
+			dis.close();
+		} catch (IOException e) {
+			PTMShepherd.die(String.format("Could not read histogram file %s due to error %s", f.getName(), e.getMessage()));
+		}
 		return h;
 	}
 	
-	public static Histogram readHistogramHeader(File f) throws Exception {
+	public static Histogram readHistogramHeader(File f) {
 		Histogram h = new Histogram();
-		DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
-		h.start = dis.readInt();
-		h.end = dis.readInt();
-		h.binDivs = dis.readInt();
-		h.expSize = dis.readInt();
-		dis.close();
+		try {
+			DataInputStream dis = new DataInputStream(Files.newInputStream(f.toPath()));
+			h.start = dis.readInt();
+			h.end = dis.readInt();
+			h.binDivs = dis.readInt();
+			h.expSize = dis.readInt();
+			dis.close();
+		} catch (IOException e) {
+			PTMShepherd.die(String.format("Could not read header in histogram file %s due to error %s", f.getName(), e.getMessage()));
+		}
 		return h;
 	}
 	
-    public static void readDouble(DataInputStream dis, double [] vals) throws Exception {
+    public static void readDouble(DataInputStream dis, double [] vals) throws IOException {
         byte [] cbuf = new byte[BUFSZ];
         int cpos = 0;
         while(cpos < vals.length) {
@@ -163,7 +180,7 @@ public class Histogram {
         }
     }
 	
-	public static void writeDouble(DataOutputStream dos, double [] vals) throws Exception {
+	public static void writeDouble(DataOutputStream dos, double [] vals) throws IOException {
         ByteBuffer cbuf = ByteBuffer.allocate(BUFSZ);
         int cpos = 0;
         while(cpos < vals.length) {

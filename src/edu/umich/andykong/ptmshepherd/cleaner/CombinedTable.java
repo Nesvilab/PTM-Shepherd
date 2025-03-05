@@ -42,88 +42,102 @@ public class CombinedTable {
         this.fname = PTMShepherd.normFName(dataset + ".profile.tsv");
     }
 
-    public void writeCombinedTable(int useIntensities, boolean calcIntensities) throws IOException {
+    public void writeCombinedTable(int useIntensities, boolean calcIntensities) {
         /* Process preaksummary.annotated.tsv file */
 
         /* Get headers that we're adding later */
-        BufferedReader in = new BufferedReader(new FileReader(new File(
-                PTMShepherd.normFName("peaksummary.annotated.tsv"))));
-        String[] curHeaders = in.readLine().split("\t", -1);
-        ArrayList<String> experiments = new ArrayList<>();
-        for (int i = 0; i < curHeaders.length; i++) {
-            if (curHeaders[i].endsWith("_percent_PSMs"))
-                experiments.add(curHeaders[i].substring(0, curHeaders[i].indexOf("_percent_PSMs")));
-        }
-
-        /* Get cols to add to beginning from peaksummary.annotated.tsv */
-        String[] colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "PSMs", "peak_signal",
-                    "percent_also_in_unmodified", "mapped_mass_1", "mapped_mass_2"};
-
-
-        ArrayList<String> colsToAddLater = new ArrayList<>();
-
-        /* Add headers */
-        for (String col : colsToAdd)
-            this.headers.add(col);
-
-        /* Assure proper order for elements */
-        for (String exp : experiments)
-            colsToAddLater.add(exp + "_PSMs");
-        for (String exp : experiments)
-            colsToAddLater.add(exp + "_percent_PSMs");
-        for (String exp : experiments)
-            colsToAddLater.add(exp + "_peptides");
-        for (String exp : experiments)
-            colsToAddLater.add(exp + "_percent_also_in_unmodified");
-        if (useIntensities == 1) {
-            for (String exp : experiments)
-                colsToAddLater.add(exp + "_intensity");
-        }
-
-        /* Read remaining lines and append to data */
+        BufferedReader in = null;
+        String[] curHeaders = null;
+        String[] colsToAdd = null;
+        ArrayList<String> colsToAddLater = null;
         String cline;
-        ArrayList<StringBuffer> linesToAddLater = new ArrayList<>();
-        while ((cline = in.readLine()) != null) {
-            String[] sp = cline.split("\t", -1);
-            StringBuffer sb = new StringBuffer();
-            StringBuffer sb2 = new StringBuffer();
-            for (String col : colsToAdd)
-                sb.append(sp[getColumn(col, curHeaders)] + "\t");
-            for (String col : colsToAddLater)
-                sb2.append(sp[getColumn(col, curHeaders)] + "\t");
-            this.data.add(sb);
-            linesToAddLater.add(sb2);
-        }
+        ArrayList<StringBuffer> linesToAddLater = null;
+        try {
+            in = new BufferedReader(new FileReader(new File(
+                    PTMShepherd.normFName("peaksummary.annotated.tsv"))));
+            curHeaders = in.readLine().split("\t", -1);
+            ArrayList<String> experiments = new ArrayList<>();
+            for (int i = 0; i < curHeaders.length; i++) {
+                if (curHeaders[i].endsWith("_percent_PSMs"))
+                    experiments.add(curHeaders[i].substring(0, curHeaders[i].indexOf("_percent_PSMs")));
+            }
 
-        in.close();
+            /* Get cols to add to beginning from peaksummary.annotated.tsv */
+            colsToAdd = new String[]{"peak_apex", "peak_lower", "peak_upper", "PSMs", "peak_signal",
+                        "percent_also_in_unmodified", "mapped_mass_1", "mapped_mass_2"};
+
+
+            colsToAddLater = new ArrayList<>();
+
+            /* Add headers */
+            for (String col : colsToAdd)
+                this.headers.add(col);
+
+            /* Assure proper order for elements */
+            for (String exp : experiments)
+                colsToAddLater.add(exp + "_PSMs");
+            for (String exp : experiments)
+                colsToAddLater.add(exp + "_percent_PSMs");
+            for (String exp : experiments)
+                colsToAddLater.add(exp + "_peptides");
+            for (String exp : experiments)
+                colsToAddLater.add(exp + "_percent_also_in_unmodified");
+            if (useIntensities == 1) {
+                for (String exp : experiments)
+                    colsToAddLater.add(exp + "_intensity");
+            }
+
+            /* Read remaining lines and append to data */
+            linesToAddLater = new ArrayList<>();
+            while ((cline = in.readLine()) != null) {
+                String[] sp = cline.split("\t", -1);
+                StringBuffer sb = new StringBuffer();
+                StringBuffer sb2 = new StringBuffer();
+                for (String col : colsToAdd)
+                    sb.append(sp[getColumn(col, curHeaders)] + "\t");
+                for (String col : colsToAddLater)
+                    sb2.append(sp[getColumn(col, curHeaders)] + "\t");
+                this.data.add(sb);
+                linesToAddLater.add(sb2);
+            }
+
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing combined table: could not read peaksummary.annotated.tsv file due to: " + e.getMessage());
+        }
 
         /* Process *.simrtprofile.txt */
 
-        if (calcIntensities) {
-            colsToAdd = new String[]{"similarity", "rt_shift", "int_log2fc"};
-        } else {
-            colsToAdd = new String[]{"similarity", "rt_shift"};
-        }
-
-        in = new BufferedReader(new FileReader(new File(
-                PTMShepherd.normFName(dataset + ".simrtprofile.txt"))));
-
-        /* Add headers */
-        for (String col : colsToAdd)
-            this.headers.add(col);
-        /* Read remaining lines and append to data */
-        curHeaders = in.readLine().split("\t", -1);
         int lineIndx = 0;
-        while ((cline = in.readLine()) != null) {
-            String[] sp = cline.split("\t", -1);
-            StringBuffer sb = new StringBuffer();
-            for (String col : colsToAdd)
-                sb.append(sp[getColumn(col, curHeaders)] + "\t");
-            this.data.get(lineIndx).append(sb);
-            lineIndx++;
-        }
+        try {
+            if (calcIntensities) {
+                colsToAdd = new String[]{"similarity", "rt_shift", "int_log2fc"};
+            } else {
+                colsToAdd = new String[]{"similarity", "rt_shift"};
+            }
 
-        in.close();
+            in = new BufferedReader(new FileReader(new File(
+                    PTMShepherd.normFName(dataset + ".simrtprofile.txt"))));
+
+            /* Add headers */
+            for (String col : colsToAdd)
+                this.headers.add(col);
+            /* Read remaining lines and append to data */
+            curHeaders = in.readLine().split("\t", -1);
+            lineIndx = 0;
+            while ((cline = in.readLine()) != null) {
+                String[] sp = cline.split("\t", -1);
+                StringBuffer sb = new StringBuffer();
+                for (String col : colsToAdd)
+                    sb.append(sp[getColumn(col, curHeaders)] + "\t");
+                this.data.get(lineIndx).append(sb);
+                lineIndx++;
+            }
+
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing combined table: could not read " + dataset + ".simrtprofile.txt file due to: " + e.getMessage());
+        }
 
         /* Process *.locprofile.txt */
 
@@ -133,26 +147,30 @@ public class CombinedTable {
                 "AA2", "AA2_enrichment_score", "AA2_psm_count",
                 "AA3", "AA3_enrichment_score", "AA3_psm_count"};
 
-        in = new BufferedReader(new FileReader(new File(
-                PTMShepherd.normFName(dataset + ".locprofile.txt"))));
+        try {
+            in = new BufferedReader(new FileReader(new File(
+                    PTMShepherd.normFName(dataset + ".locprofile.txt"))));
 
-        /* Add headers */
-        for (String col : colsToAdd)
-            this.headers.add(col);
-
-        /* Read remaining lines and append to data */
-        curHeaders = in.readLine().split("\t", -1);
-        lineIndx = 0;
-        while ((cline = in.readLine()) != null) {
-            String[] sp = cline.split("\t", -1);
-            StringBuffer sb = new StringBuffer();
+            /* Add headers */
             for (String col : colsToAdd)
-                sb.append(sp[getColumn(col, curHeaders)] + "\t");
-            this.data.get(lineIndx).append(sb);
-            lineIndx++;
-        }
+                this.headers.add(col);
 
-        in.close();
+            /* Read remaining lines and append to data */
+            curHeaders = in.readLine().split("\t", -1);
+            lineIndx = 0;
+            while ((cline = in.readLine()) != null) {
+                String[] sp = cline.split("\t", -1);
+                StringBuffer sb = new StringBuffer();
+                for (String col : colsToAdd)
+                    sb.append(sp[getColumn(col, curHeaders)] + "\t");
+                this.data.get(lineIndx).append(sb);
+                lineIndx++;
+            }
+
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing combined table: could not read " + dataset + ".locprofile.txt file due to: " + e.getMessage());
+        }
 
         /* Process remaining lines from peaksummary.annotated.tsv */
 
@@ -165,19 +183,23 @@ public class CombinedTable {
             this.data.get(i).append(linesToAddLater.get(i));
 
         /* Write output file */
-        PrintWriter out = new PrintWriter(new FileWriter(this.fname));
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(this.fname));
 
-        /* Print headers, remove trailing tab */
-        StringBuffer headBuff = new StringBuffer();
-        for (String head : this.headers)
-            headBuff.append(head + "\t");
-        out.println(headBuff.toString().substring(0, headBuff.length() - 1));
+            /* Print headers, remove trailing tab */
+            StringBuffer headBuff = new StringBuffer();
+            for (String head : this.headers)
+                headBuff.append(head + "\t");
+            out.println(headBuff.toString().substring(0, headBuff.length() - 1));
 
-        /* Print all new lines */
-        for (StringBuffer newLine : this.data)
-            out.println(newLine.toString());//.substring(0, newLine.length()-1));
+            /* Print all new lines */
+            for (StringBuffer newLine : this.data)
+                out.println(newLine.toString());//.substring(0, newLine.length()-1));
 
-        out.close();
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing combined table " + this.fname + "\n" + e.getMessage());
+        }
     }
 
     private static List<String> readLines(Path path) throws IOException {

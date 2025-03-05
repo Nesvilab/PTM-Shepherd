@@ -21,6 +21,7 @@ import edu.umich.andykong.ptmshepherd.core.Spectrum;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -66,7 +67,7 @@ public class BinDiagMetric {
     }
 
     /* Sends the peptides to the histogram */
-    public void processPeptideMap(ExecutorService executorService, int nThreads, double minSignal, int maxCharge) throws Exception {
+    public void processPeptideMap(ExecutorService executorService, int nThreads, double minSignal, int maxCharge) {
 
         /* Prepopulate histo min/max for each ion type */
         for (int i = 0; i < this.binMinMax.length; i++) {
@@ -152,8 +153,12 @@ public class BinDiagMetric {
         }
 
         /* Wait for histograms to be populated */
-        for (Future future : futureList)
-            future.get();
+        try {
+            for (Future future : futureList)
+                future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            PTMShepherd.die("Error in parallel processing peptide map histograms: " + e.getMessage());
+        }
 
         /* Free pepMap memory */
         this.peptideMap = null;

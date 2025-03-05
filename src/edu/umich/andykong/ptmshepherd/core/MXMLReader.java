@@ -79,24 +79,29 @@ public class MXMLReader {
 		this.threads = threads;
 	}
 	
-	public void readFully() throws Exception {
+	public void readFully() {
 		String fn = f.toPath().getFileName().toString().toLowerCase();
 		LCMSDataSource<?> source = null;
 		MZBINFile mzbinSource = null;
 		MSFMGFFile mgfSource = null;
 
-		if (fn.endsWith("_calibrated.mgf")) {
-			mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
-		}else if (fn.endsWith("_uncalibrated.mgf")) {
-			mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
-		} else if (fn.endsWith(".mzxml")) {
-			source = new MZXMLFile(f.getAbsolutePath());
-		} else if (fn.endsWith(".mzml")) {
-			source = new MZMLFile(f.getAbsolutePath());
-		} else if (fn.endsWith(".raw")) {
-			source = new ThermoRawFile(f.getAbsolutePath());
-		} else if (fn.endsWith(".mzbin") || fn.endsWith(".mzbin_cache")) {
-			mzbinSource = new MZBINFile(Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+		try {
+			if (fn.endsWith("_calibrated.mgf")) {
+				mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+			} else if (fn.endsWith("_uncalibrated.mgf")) {
+				mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+			} else if (fn.endsWith(".mzxml")) {
+				source = new MZXMLFile(f.getAbsolutePath());
+			} else if (fn.endsWith(".mzml")) {
+				source = new MZMLFile(f.getAbsolutePath());
+			} else if (fn.endsWith(".raw")) {
+				source = new ThermoRawFile(f.getAbsolutePath());
+			} else if (fn.endsWith(".mzbin") || fn.endsWith(".mzbin_cache")) {
+				mzbinSource = new MZBINFile(Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			PTMShepherd.die("Error reading MS data file: " + f.getAbsolutePath());
 		}
 		if ((mzbinSource == null) && (mgfSource == null) && (source == null)) {
 			System.out.println("Cannot read mzFile with unrecognized extension: " + f.getName());
@@ -106,7 +111,12 @@ public class MXMLReader {
 		specsByName = new HashMap<>();
 		specsByStrippedName = new HashMap<>();
 		if (mzbinSource == null && mgfSource == null) { //if filetype is not mzBin
-			readFully(source);
+			try {
+				readFully(source);
+			} catch (Exception e) {
+				e.printStackTrace();
+				PTMShepherd.die("Error reading MS data file: " + source.getName());
+			}
 			for(int i = 0; i < specs.length; i++) {
 				specsByName.put(removeCalTag(specs[i].scanName), specs[i]);
 				specsByStrippedName.put(removeCalTag(stripChargeState(specs[i].scanName)), specs[i]);

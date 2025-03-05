@@ -243,7 +243,7 @@ public class PeakCompareTester {
     }
 
 
-    public void performTests() throws IOException {
+    public void performTests() {
         collapseHashMaps();
         MannWhitneyUTest mwu = new MannWhitneyUTest();
 

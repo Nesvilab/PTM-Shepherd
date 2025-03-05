@@ -41,89 +41,102 @@ public class SiteLocalization {
 	}
 
 	
-	public boolean isComplete() throws Exception {
-		if(localizationFile.exists()) {
-			try (RandomAccessFile raf = new RandomAccessFile(localizationFile, "r")) {
-				raf.seek(Math.max(0, localizationFile.length() - 20));
-				String cline;
-				while ((cline = raf.readLine()) != null)
-					if (cline.equals("COMPLETE")) {
-						raf.close();
-						return true;
-					}
+	public boolean isComplete() {
+		try {
+			if (localizationFile.exists()) {
+				try (RandomAccessFile raf = new RandomAccessFile(localizationFile, "r")) {
+					raf.seek(Math.max(0, localizationFile.length() - 20));
+					String cline;
+					while ((cline = raf.readLine()) != null)
+						if (cline.equals("COMPLETE")) {
+							raf.close();
+							return true;
+						}
+				}
+				localizationFile.delete();
 			}
-			localizationFile.delete();
+		} catch (IOException e) {
+			PTMShepherd.die("Error writing localization file: " + localizationFile.getAbsolutePath() + "\n" + e.getMessage());
 		}
 		return false;
 	}
 	
-	public void complete() throws Exception {
-		PrintWriter out = new PrintWriter(new FileWriter(localizationFile,true));
-		out.println("COMPLETE");
-		out.close();
+	public void complete() {
+		try {
+			PrintWriter out = new PrintWriter(new FileWriter(localizationFile,true));
+			out.println("COMPLETE");
+			out.close();
+		} catch (IOException e) {
+			PTMShepherd.die("Error writing localization file: " + localizationFile.getAbsolutePath() + "\n" + e.getMessage());
+		}
 	}
 	
 	
-	public void localizePSMs(PSMFile pf, HashMap<String,File> mzMappings, boolean useMSFraggerLoc) throws Exception {
+	public void localizePSMs(PSMFile pf, HashMap<String,File> mzMappings, boolean useMSFraggerLoc) {
 		//assemble PSMs into per file groupings
 		HashMap<String,ArrayList<Integer>> mappings = new HashMap<>();
-		PrintWriter out = new PrintWriter(new FileWriter(localizationFile,true));
+		try {
+			PrintWriter out = new PrintWriter(new FileWriter(localizationFile, true));
 
-		//write headers
-		out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n","Spectrum","Peptide","Mods","Shift","Localized_Pep",
-				"MaxHyper_Unloc", "MaxHyper_Loc", "MaxPeaks_Unloc", "MaxPeaks_Loc");
+			//write headers
+			out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "Spectrum", "Peptide", "Mods", "Shift", "Localized_Pep",
+					"MaxHyper_Unloc", "MaxHyper_Loc", "MaxPeaks_Unloc", "MaxPeaks_Loc");
 
-		ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
-		condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
-		condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
-		linesWithoutSpectra = new ArrayList<>();
-		int totalLines;
+			ppmTol = Double.parseDouble(PTMShepherd.getParam("spectra_ppmtol"));
+			condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
+			condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
+			linesWithoutSpectra = new ArrayList<>();
+			int totalLines;
 
-		if (useMSFraggerLoc && pf.msfraggerLocalizationCol == -1) {
-			throw new Exception(String.format("MSFragger localization requested, but localization columns not found in PSM file %s.", pf.fname.toString()));
-		}
-
-		initSpectrumMappings(pf, mappings);
-
-		if (useMSFraggerLoc) {
-			for (String cf : mappings.keySet()) { //cf = fraction
-				long t1 = System.currentTimeMillis();
-				ArrayList<Integer> clines = mappings.get(cf);
-				totalLines = 0;
-				for (Integer cline : clines) {
-					out.println(annotateLineUsingMSFragger(pf, cline));
-					totalLines++;
-				}
-				totalLines--;
-				out.flush();
-
-				long t2 = System.currentTimeMillis();
-				warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
-				PTMShepherd.print(String.format("\t%s - %d lines (%d ms processing)", cf, clines.size(), t2 - t1));
+			if (useMSFraggerLoc && pf.msfraggerLocalizationCol == -1) {
+				PTMShepherd.print(String.format("Warning! MSFragger localization requested, but localization columns not found in PSM file %s. MSFragger localization will not be used", pf.fname.toString()));
+				useMSFraggerLoc = false;
 			}
-		} else {
-			//iterate and localize each file
-			for (String cf : mappings.keySet()) { //cf = fraction
-				long t1 = System.currentTimeMillis();
-				mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
-				mr.readFully();
-				long t2 = System.currentTimeMillis();
-				ArrayList<Integer> clines = mappings.get(cf);
-				totalLines = 0;
-				for (Integer cline : clines) {
-					out.println(annotateLine(pf, cline));
-					totalLines++;
+
+			initSpectrumMappings(pf, mappings);
+
+			if (useMSFraggerLoc) {
+				for (String cf : mappings.keySet()) { //cf = fraction
+					long t1 = System.currentTimeMillis();
+					ArrayList<Integer> clines = mappings.get(cf);
+					totalLines = 0;
+					for (Integer cline : clines) {
+						out.println(annotateLineUsingMSFragger(pf, cline));
+						totalLines++;
+					}
+					totalLines--;
+					out.flush();
+
+					long t2 = System.currentTimeMillis();
+					warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
+					PTMShepherd.print(String.format("\t%s - %d lines (%d ms processing)", cf, clines.size(), t2 - t1));
 				}
-				totalLines--;
-				out.flush();
-				long t3 = System.currentTimeMillis();
+			} else {
+				//iterate and localize each file
+				for (String cf : mappings.keySet()) { //cf = fraction
+					long t1 = System.currentTimeMillis();
+					mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+					mr.readFully();
+					long t2 = System.currentTimeMillis();
+					ArrayList<Integer> clines = mappings.get(cf);
+					totalLines = 0;
+					for (Integer cline : clines) {
+						out.println(annotateLine(pf, cline));
+						totalLines++;
+					}
+					totalLines--;
+					out.flush();
+					long t3 = System.currentTimeMillis();
 
-				warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
+					warnLinesWithoutSpectra(totalLines, linesWithoutSpectra);
 
-				PTMShepherd.print(String.format("\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2 - t1, t3 - t2));
+					PTMShepherd.print(String.format("\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2 - t1, t3 - t2));
+				}
 			}
+			out.close();
+		} catch (IOException e) {
+			PTMShepherd.die("IOError writing localized PSMs to localization file: " + localizationFile.getAbsolutePath() + "\n" + e.getMessage());
 		}
-		out.close();
 	}
 
 	public static void initSpectrumMappings(PSMFile pf, HashMap<String, ArrayList<Integer>> mappings) {
@@ -285,28 +298,32 @@ public class SiteLocalization {
 		}
 	}
 
-	public void updateLocalizationProfiles(LocalizationProfile [] profiles) throws Exception {
-		BufferedReader in = new BufferedReader(new FileReader(localizationFile));
-		String cline;
-		in.readLine();
-		while((cline = in.readLine())!= null) {
-			if(cline.equals("COMPLETE"))
-				break;
-			if(cline.endsWith("MISSINGSPECTRA"))
-				continue;
-			if(cline.startsWith("Spectrum"))
-				continue;
-			String [] sp = cline.split("\\t");
-			double md = Double.parseDouble(sp[3]);
-			for(int i = 0; i < profiles.length; i++) {
-				int cind = profiles[i].locate.getIndex(md);
-				if(cind != -1)
-					profiles[i].records[cind].updateWithLine(sp);
-				else /* ensure we count the specs that aren't matched to a bin for global calcs */
-					profiles[i].records[profiles[i].records.length - 1].updateWithLine(sp);
+	public void updateLocalizationProfiles(LocalizationProfile [] profiles) {
+		try {
+			BufferedReader in = new BufferedReader(new FileReader(localizationFile));
+			String cline;
+			in.readLine();
+			while ((cline = in.readLine()) != null) {
+				if (cline.equals("COMPLETE"))
+					break;
+				if (cline.endsWith("MISSINGSPECTRA"))
+					continue;
+				if (cline.startsWith("Spectrum"))
+					continue;
+				String[] sp = cline.split("\\t");
+				double md = Double.parseDouble(sp[3]);
+				for (int i = 0; i < profiles.length; i++) {
+					int cind = profiles[i].locate.getIndex(md);
+					if (cind != -1)
+						profiles[i].records[cind].updateWithLine(sp);
+					else /* ensure we count the specs that aren't matched to a bin for global calcs */
+						profiles[i].records[profiles[i].records.length - 1].updateWithLine(sp);
+				}
 			}
+			in.close();
+		} catch (IOException e) {
+			PTMShepherd.die("Error updating localization profile for localization file: " + localizationFile.getAbsolutePath() + "\n" + e.getMessage());
 		}
-		in.close();
 	}
 
 	public static boolean [] parseAllowedPositions(String seq, String allowedReses){

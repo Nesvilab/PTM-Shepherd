@@ -16,6 +16,8 @@
 
 package edu.umich.andykong.ptmshepherd.cleaner;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,18 +29,18 @@ public class CombinedExperimentsSummary {
     public File fname;
     public HashMap <String, ArrayList<String>> expToData;
 
-    public CombinedExperimentsSummary(String fn) throws Exception {
+    public CombinedExperimentsSummary(String fn) {
         this(new File(fn));
     }
 
-    public CombinedExperimentsSummary(File fn) throws Exception {
+    public CombinedExperimentsSummary(File fn) {
         this.fname = fn;
         this.headers = new ArrayList<>();
         this.data = new ArrayList<>();
     }
 
     /* Read global profile table to initialize data */
-    public void initializeExperimentSummary(String fn, int useIntensity) throws IOException {
+    public void initializeExperimentSummary(String fn, int useIntensity) {
         /* Universal columns to be added */
         ArrayList<String> colsToAdd = new ArrayList<>(Arrays.asList("peak_apex", "peak_lower", "peak_upper",
                 "PSMs", "percent_also_in_unmodified",
@@ -49,38 +51,42 @@ public class CombinedExperimentsSummary {
                 "AA3", "AA3_enrichment_score", "AA3_psm_count",
                 "peak_signal"));
 
-        BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
 
-        /* Add exp-level values to file file */
-        String[] curHeaders  = in.readLine().split("\t", -1);
-        for (int i = 0; i < curHeaders.length; i++) {
-            if ((curHeaders[i].contains("_PSMs") && !curHeaders[i].contains("_percent_PSMs"))||
-                    curHeaders[i].contains("_percent_PSMs") ||
-                    curHeaders[i].contains("_peptides") ||
-                    curHeaders[i].contains("_percent_also_in_unmodified") ||
-                    (curHeaders[i].contains("_intensity") && useIntensity == 1));
-                colsToAdd.add(curHeaders[i]);
-        }
+            /* Add exp-level values to file file */
+            String[] curHeaders  = in.readLine().split("\t", -1);
+            for (int i = 0; i < curHeaders.length; i++) {
+                if ((curHeaders[i].contains("_PSMs") && !curHeaders[i].contains("_percent_PSMs"))||
+                        curHeaders[i].contains("_percent_PSMs") ||
+                        curHeaders[i].contains("_peptides") ||
+                        curHeaders[i].contains("_percent_also_in_unmodified") ||
+                        (curHeaders[i].contains("_intensity") && useIntensity == 1));
+                    colsToAdd.add(curHeaders[i]);
+            }
 
-        /* Add all new headers to new file */
-        for (String col : colsToAdd)
-            this.headers.add(col);
-
-        /* Read remaining lines and add new lines to data */
-        String cline;
-        while((cline = in.readLine()) != null) {
-            String[] sp = cline.split("\t", -1);
-            StringBuffer sb = new StringBuffer();
+            /* Add all new headers to new file */
             for (String col : colsToAdd)
-                sb.append(sp[getColumn(col, curHeaders)] + "\t");
-            this.data.add(sb);
-        }
+                this.headers.add(col);
 
-        in.close();
+            /* Read remaining lines and add new lines to data */
+            String cline;
+            while((cline = in.readLine()) != null) {
+                String[] sp = cline.split("\t", -1);
+                StringBuffer sb = new StringBuffer();
+                for (String col : colsToAdd)
+                    sb.append(sp[getColumn(col, curHeaders)] + "\t");
+                this.data.add(sb);
+            }
+
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error reading global profile table: " + fn + "\nto make experiment summaries due to: " + e.getMessage());
+        }
     }
 
     /* Add single experiment summary to the combined file */
-    public void addExperimentSummary(String fn, String exp) throws IOException {
+    public void addExperimentSummary(String fn, String exp) {
         /* These are the columns that will be added */
         String[] colsToAdd = new String[]{"localized_PSMs", "n-term_localization_rate",
                 "AA1", "AA1_enrichment_score", "AA1_psm_count",
@@ -88,116 +94,132 @@ public class CombinedExperimentsSummary {
                 "AA3", "AA3_enrichment_score", "AA3_psm_count",
                 "peak_signal"};
 
-        BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
 
-        /* Add new headers to new file and tag them with experiment name */
-        for (String col : colsToAdd)
-            this.headers.add(exp + "_" + col);
-
-        /* Read remaining lines and append to data */
-        String[] curHeaders  = in.readLine().split("\t", -1);
-        String cline;
-        int lineIndx = 0;
-        while((cline = in.readLine()) != null) {
-            String[] sp = cline.split("\t", -1);
-            StringBuffer sb = new StringBuffer();
+            /* Add new headers to new file and tag them with experiment name */
             for (String col : colsToAdd)
-                sb.append(sp[getColumn(col, curHeaders)] + "\t");
-            this.data.get(lineIndx).append(sb);
-            lineIndx++;
-        }
+                this.headers.add(exp + "_" + col);
 
-        in.close();
+            /* Read remaining lines and append to data */
+            String[] curHeaders  = in.readLine().split("\t", -1);
+            String cline;
+            int lineIndx = 0;
+            while((cline = in.readLine()) != null) {
+                String[] sp = cline.split("\t", -1);
+                StringBuffer sb = new StringBuffer();
+                for (String col : colsToAdd)
+                    sb.append(sp[getColumn(col, curHeaders)] + "\t");
+                this.data.get(lineIndx).append(sb);
+                lineIndx++;
+            }
+
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error reading experiment profile table: " + fn + "\ndue to: " + e.getMessage());
+        }
     }
 
     /* Read localization profile table to initialize data */
-    public void addLocalizationSummary(String fn, String ds) throws IOException {
-        BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
+    public void addLocalizationSummary(String fn, String ds) {
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
 
-        /* Add exp-level values to file file */
-        ArrayList<String> colsToAdd = new ArrayList<>();
-        String[] curHeaders  = in.readLine().split("\t", -1);
-        for (int i = 0; i < curHeaders.length; i++) {
-            if (ds.equals("combined")) {
-                if (curHeaders[i].endsWith("_enrichment"))
-                    colsToAdd.add(curHeaders[i]);
-            } else {
-                if (curHeaders[i].contains("_enrichment"))
-                    colsToAdd.add(curHeaders[i]);
+            /* Add exp-level values to file file */
+            ArrayList<String> colsToAdd = new ArrayList<>();
+            String[] curHeaders  = in.readLine().split("\t", -1);
+            for (int i = 0; i < curHeaders.length; i++) {
+                if (ds.equals("combined")) {
+                    if (curHeaders[i].endsWith("_enrichment"))
+                        colsToAdd.add(curHeaders[i]);
+                } else {
+                    if (curHeaders[i].contains("_enrichment"))
+                        colsToAdd.add(curHeaders[i]);
+                }
             }
-        }
 
-        /* Add all new headers to new file */
-        for (String col : colsToAdd)
-            this.headers.add(ds+"_"+col);
-
-        /* Read remaining lines and add new lines to data */
-        String cline;
-        int lineIndx = 0;
-        while((cline = in.readLine()) != null) {
-            String[] sp = cline.split("\t", -1);
-            StringBuffer sb = new StringBuffer();
+            /* Add all new headers to new file */
             for (String col : colsToAdd)
-                sb.append(sp[getColumn(col, curHeaders)] + "\t");
-            this.data.get(lineIndx).append(sb);
-            lineIndx++;
-        }
+                this.headers.add(ds+"_"+col);
 
-        in.close();
+            /* Read remaining lines and add new lines to data */
+            String cline;
+            int lineIndx = 0;
+            while((cline = in.readLine()) != null) {
+                String[] sp = cline.split("\t", -1);
+                StringBuffer sb = new StringBuffer();
+                for (String col : colsToAdd)
+                    sb.append(sp[getColumn(col, curHeaders)] + "\t");
+                this.data.get(lineIndx).append(sb);
+                lineIndx++;
+            }
+
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error reading localization profile table: " + fn + "\nto make experiment summaries due to: " + e.getMessage());
+        }
     }
 
     /* Read simrt profile table to initialize data */
-    public void addSimilarityRTSummary(String fn, String ds, boolean calcIntensity) throws IOException {
-        BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
+    public void addSimilarityRTSummary(String fn, String ds, boolean calcIntensity) {
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(new File(fn)));
 
-        String[] colsToAdd;
-        if (calcIntensity) {
-            colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
-                    "rt_shift_(variance)", "int_log2fc", "int_log2fc_(variance)"};
-        } else {
-            colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
-                    "rt_shift_(variance)"};
+            String[] colsToAdd;
+            if (calcIntensity) {
+                colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
+                        "rt_shift_(variance)", "int_log2fc", "int_log2fc_(variance)"};
+            } else {
+                colsToAdd = new String[]{"similarity", "similarity_(variance)", "rt_shift",
+                        "rt_shift_(variance)"};
+            }
+
+            /* Add all new headers to new file */
+            String[] curHeaders  = in.readLine().split("\t", -1);
+            for (String col : colsToAdd) {
+                if (ds.equals("combined"))
+                    this.headers.add(col);
+                else
+                    this.headers.add(ds + "_" + col);
+            }
+
+            /* Read remaining lines and add new lines to data */
+            String cline;
+            int lineIndx = 0;
+            while((cline = in.readLine()) != null) {
+                String[] sp = cline.split("\t", -1);
+                StringBuffer sb = new StringBuffer();
+                for (String col : colsToAdd)
+                    sb.append(sp[getColumn(col, curHeaders)] + "\t");
+                this.data.get(lineIndx).append(sb);
+                lineIndx++;
+            }
+
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error reading similarity RT profile table: " + fn + "\nto make experiment summaries due to: " + e.getMessage());
         }
-
-        /* Add all new headers to new file */
-        String[] curHeaders  = in.readLine().split("\t", -1);
-        for (String col : colsToAdd) {
-            if (ds.equals("combined"))
-                this.headers.add(col);
-            else
-                this.headers.add(ds + "_" + col);
-        }
-
-        /* Read remaining lines and add new lines to data */
-        String cline;
-        int lineIndx = 0;
-        while((cline = in.readLine()) != null) {
-            String[] sp = cline.split("\t", -1);
-            StringBuffer sb = new StringBuffer();
-            for (String col : colsToAdd)
-                sb.append(sp[getColumn(col, curHeaders)] + "\t");
-            this.data.get(lineIndx).append(sb);
-            lineIndx++;
-        }
-
-        in.close();
     }
 
     /* Print the file */
-    public void printFile() throws IOException {
-        PrintWriter out = new PrintWriter(new FileWriter(this.fname));
+    public void printFile() {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(this.fname));
 
-        /* Print headers, remove trailing tab */
-        StringBuffer headBuff = new StringBuffer();
-        for (String head : this.headers)
-            headBuff.append(head + "\t");
-        out.println(headBuff.toString().substring(0, headBuff.length()-1));
+            /* Print headers, remove trailing tab */
+            StringBuffer headBuff = new StringBuffer();
+            for (String head : this.headers)
+                headBuff.append(head + "\t");
+            out.println(headBuff.toString().substring(0, headBuff.length()-1));
 
-        /* Print all new lines, remove trailing tab */
-        for (StringBuffer newLine : this.data)
-            out.println(newLine.toString().substring(0, newLine.length()-1));
+            /* Print all new lines, remove trailing tab */
+            for (StringBuffer newLine : this.data)
+                out.println(newLine.toString().substring(0, newLine.length()-1));
 
-        out.close();
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing combined experiment summary file: " + this.fname + "\ndue to: " + e.getMessage());
+        }
 
     }
 

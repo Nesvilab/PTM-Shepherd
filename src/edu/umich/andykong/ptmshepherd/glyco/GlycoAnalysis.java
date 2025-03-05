@@ -30,6 +30,7 @@ import umich.ms.glyco.GlycanResidue;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -72,58 +73,68 @@ public class GlycoAnalysis {
         this.glycanMassBinMap = new HashMap<>();
     }
 
-    public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) throws Exception {
+    public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) {
         //open up output file
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
-        PrintWriter glycoOut = new PrintWriter(new FileWriter(glycoFile));
-        ArrayList<String> linesWithoutSpectra = new ArrayList<>();
+        ArrayList<String> linesWithoutSpectra = null;
+        try {
+            PrintWriter glycoOut = new PrintWriter(new FileWriter(glycoFile));
+            linesWithoutSpectra = new ArrayList<>();
 
-        //get necessary params
-        ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
-        condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
-        condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
+            //get necessary params
+            ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
+            condPeaks = Integer.parseInt(PTMShepherd.getParam("spectra_condPeaks"));
+            condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
 
-        //write header
-        glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + "\tFragments:");
+            //write header
+            glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + "\tFragments:");
 
-        //map PSMs to file
-        SiteLocalization.initSpectrumMappings(pf, mappings);
+            //map PSMs to file
+            SiteLocalization.initSpectrumMappings(pf, mappings);
 
-        /* Loop through spectral files -> indexed lines in PSM -> process each line */
-        for (String cf : mappings.keySet()) { //for file in relevant spectral files
-            long t1 = System.currentTimeMillis();
-            //System.out.println(cf);
-            mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
-            mr.readFully();
-            long t2 = System.currentTimeMillis();
-            ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
+            /* Loop through spectral files -> indexed lines in PSM -> process each line */
+            for (String cf : mappings.keySet()) { //for file in relevant spectral files
+                long t1 = System.currentTimeMillis();
+                //System.out.println(cf);
+                mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+                mr.readFully();
+                long t2 = System.currentTimeMillis();
+                ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
 
-            getMassErrorWidth(pf, clines);
+                getMassErrorWidth(pf, clines);
 
-            /* set up parallelization blocks */
-            final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
-            int nBlocks = clines.size() / (BLOCKSIZE); //number of jobs submitted to queue
-            if (clines.size() % BLOCKSIZE != 0) //if there are missing scans, add one more block
-                nBlocks++;
+                /* set up parallelization blocks */
+                final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
+                int nBlocks = clines.size() / (BLOCKSIZE); //number of jobs submitted to queue
+                if (clines.size() % BLOCKSIZE != 0) //if there are missing scans, add one more block
+                    nBlocks++;
 
-            ArrayList<Future> futureList = new ArrayList<>(nBlocks);
-            /* Process PSM chunks */
-            for (int i = 0; i < nBlocks; i++) {
-                int startInd = i * BLOCKSIZE;
-                int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
-                ArrayList<PSM> cBlock = new ArrayList<>();
-                for (int j = startInd; j < endInd; j++)
-                    cBlock.add(pf.psms.get(clines.get(j)));
-                futureList.add(executorService.submit(() -> processLinesBlock(cBlock, glycoOut)));
+                ArrayList<Future> futureList = new ArrayList<>(nBlocks);
+                /* Process PSM chunks */
+                for (int i = 0; i < nBlocks; i++) {
+                    int startInd = i * BLOCKSIZE;
+                    int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
+                    ArrayList<PSM> cBlock = new ArrayList<>();
+                    for (int j = startInd; j < endInd; j++)
+                        cBlock.add(pf.psms.get(clines.get(j)));
+                    futureList.add(executorService.submit(() -> processLinesBlock(cBlock, glycoOut)));
+                }
+                /* Wait for all processes to finish */
+                try {
+                    for (Future future : futureList)
+                        future.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                    PTMShepherd.die("Error in parallel processing glyco PSMs");
+                }
+
+                long t3 = System.currentTimeMillis();
+                PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2 - t1, t3 - t2));
             }
-            /* Wait for all processes to finish */
-            for (Future future : futureList)
-                future.get();
-
-            long t3 = System.currentTimeMillis();
-            PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2 - t1, t3 - t2));
+            glycoOut.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing to glyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
-        glycoOut.close();
 
         if (!linesWithoutSpectra.isEmpty()) {
             PTMShepherd.print(String.format("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), this.totalLines,
@@ -152,55 +163,60 @@ public class GlycoAnalysis {
      * Option to save prevalence file for diagnostics/info to be added?
      * @return Map of glycan string : fragment propensities container
      */
-    public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs(GlycoParams glycoParams) throws IOException {
+    public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs(GlycoParams glycoParams) {
         HashMap<String, GlycanCandidateFragments> glycanCandidateFragmentsMap = new HashMap<>();
         HashMap<String, ArrayList<GlycanCandidate>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
 
         // read info from glycofrags file
-        BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
-        String[] headerSplits = in.readLine().split("\t");
-        int glycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-        int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
-        int deltaMassCol = GlycoParams.getHeaderColIndex(headerSplits, "Mass Shift");
-        int fragmentStartCol = GlycoParams.getHeaderColIndex(headerSplits, "Fragments:");
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
+            String[] headerSplits = in.readLine().split("\t");
+            int glycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
+            int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
+            int deltaMassCol = GlycoParams.getHeaderColIndex(headerSplits, "Mass Shift");
+            int fragmentStartCol = GlycoParams.getHeaderColIndex(headerSplits, "Fragments:");
 
-        // read all glycan info in
-        String currentLine;
-        while ((currentLine = in.readLine()) != null) {
-            String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
-            // only read lines with glycan info (after column 5, don't include lines with no glycan matched (entry in 5, but nothing after))
-            if (splits.length > 6) {
-                String glycanString = splits[glycanCol].replace("FailFDR_", "").replace("Decoy_", "");
-                boolean failedFDR = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
-                String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
-                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo, glycoParams);
-                String glycanHash = fragmentInfoContainer.toString();
-                // only include good targets in fragment info
-                if (!failedFDR) {
-                    if (glycanInputMap.containsKey(glycanHash)) {
-                        glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
+            // read all glycan info in
+            String currentLine;
+            while ((currentLine = in.readLine()) != null) {
+                String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
+                // only read lines with glycan info (after column 5, don't include lines with no glycan matched (entry in 5, but nothing after))
+                if (splits.length > 6) {
+                    String glycanString = splits[glycanCol].replace("FailFDR_", "").replace("Decoy_", "");
+                    boolean failedFDR = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
+                    String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
+                    GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycanString, fragmentInfo, glycoParams);
+                    String glycanHash = fragmentInfoContainer.toString();
+                    // only include good targets in fragment info
+                    if (!failedFDR) {
+                        if (glycanInputMap.containsKey(glycanHash)) {
+                            glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
+                        } else {
+                            ArrayList<GlycanCandidate> newList = new ArrayList<>();
+                            newList.add(fragmentInfoContainer);
+                            glycanInputMap.put(glycanHash, newList);
+                        }
+                    }
+                    // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
+                    double deltaMass = Double.parseDouble(splits[deltaMassCol]);
+                    int massBin = (int) Math.floor(deltaMass);
+                    if (glycanMassBinMap.containsKey(massBin)) {
+                        // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
+                        HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
+                        int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
+                        glycanCount++;
+                        massBinGlycanCounts.put(glycanHash, glycanCount);
                     } else {
-                        ArrayList<GlycanCandidate> newList = new ArrayList<>();
-                        newList.add(fragmentInfoContainer);
-                        glycanInputMap.put(glycanHash, newList);
+                        // New mass bin. Create a new count-by-glycan dict
+                        HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
+                        massBinGlycanCounts.put(glycanHash, 1);
+                        glycanMassBinMap.put(massBin, massBinGlycanCounts);
                     }
                 }
-                // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
-                double deltaMass = Double.parseDouble(splits[deltaMassCol]);
-                int massBin = (int) Math.floor(deltaMass);
-                if (glycanMassBinMap.containsKey(massBin)) {
-                    // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
-                    HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
-                    int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
-                    glycanCount++;
-                    massBinGlycanCounts.put(glycanHash, glycanCount);
-                } else {
-                    // New mass bin. Create a new count-by-glycan dict
-                    HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
-                    massBinGlycanCounts.put(glycanHash, 1);
-                    glycanMassBinMap.put(massBin, massBinGlycanCounts);
-                }
             }
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Could not read glyco fragments file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
 
         // summarize results for each glycan to get final fragment propensities
@@ -289,85 +305,100 @@ public class GlycoAnalysis {
      *
      * @param glycoFDR: desired FDR (typically 0.01 = 1%)
      */
-    public void computeGlycanFDR(double glycoFDR) throws IOException {
+    public void computeGlycanFDR(double glycoFDR) {
         finalGlycoFDR = glycoFDR;
-        BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
-
-        // read rawglyco file into map of spectrum index: full line (string)
-        LinkedHashMap<String, String[]> glyLines = new LinkedHashMap<>();   // linkedHashMap to preserve spectrum order
-        String cgline;
-
-        // detect headers
-        String[] headerSplits = in.readLine().split("\t");
-        int gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
-        int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
-        int bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-        int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
-        int bestNextScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Best Target Score");
-
-        if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
-            PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
-        }
-
-        // read file, accumulating scores
-        HashMap<String, Double> scoreMap = new HashMap<>();
-        ArrayList<GlycoScore> scoreDistribution = new ArrayList<>();
+        LinkedHashMap<String, String[]> glyLines = null;   // linkedHashMap to preserve spectrum order
+        String[] headerSplits = null;
+        int gSpecCol = 0;
+        int bestGlycanCol = 0;
+        int qValCol = 0;
+        HashMap<String, Double> scoreMap = null;
+        ArrayList<GlycoScore> scoreDistribution = null;
         int targets = 0;
         int decoys = 0;
         int scoreDistTargets = 0;
         int scoreDistDecoys = 0;
-        while ((cgline = in.readLine()) != null) {
-            if (cgline.equals("COMPLETE")) {
-                break;
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
+
+            // read rawglyco file into map of spectrum index: full line (string)
+            glyLines = new LinkedHashMap<>();
+            String cgline;
+
+            // detect headers
+            headerSplits = in.readLine().split("\t");
+            gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
+            int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
+            bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
+            qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
+            int bestNextScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Best Target Score");
+
+            if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
+                PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
             }
-            if (cgline.startsWith("ERROR"))
-                continue;
-            String[] splits = cgline.split("\t", -1);
-            // skip non-glyco columns
-            if (splits.length < bestGlycanCol + 1)
-                continue;
-            if (splits[bestGlycanCol].matches("ERROR"))
-                continue;
-            String spectrumID = splits[gSpecCol];
-            glyLines.put(spectrumID, splits);     // save full line for later editing/writing
-            // only consider columns with actual glycan info
-            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
-                if (!splits[qValCol].matches("")) {
-                    // glycan FDR already performed on this dataset - skip
-                    PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
-                    return;
+
+            // read file, accumulating scores
+            scoreMap = new HashMap<>();
+            scoreDistribution = new ArrayList<>();
+            targets = 0;
+            decoys = 0;
+            scoreDistTargets = 0;
+            scoreDistDecoys = 0;
+            while ((cgline = in.readLine()) != null) {
+                if (cgline.equals("COMPLETE")) {
+                    break;
                 }
-                // detect if target or decoy and save best candidate score. If no target/decoy was found, skip (empty score column)
-                boolean bestWasDecoy = splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy");
-                if (!splits[absScoreCol].matches("")) {
-                    double absScore = Double.parseDouble(splits[absScoreCol]);
-                    if (bestWasDecoy) {
-                        decoys++;
-                        scoreDistDecoys++;
-                        scoreDistribution.add(new GlycoScore (absScore, true, spectrumID, true));
-                    } else {
-                        targets++;
-                        scoreDistTargets++;
-                        scoreDistribution.add(new GlycoScore (absScore, false, spectrumID, true));
+                if (cgline.startsWith("ERROR"))
+                    continue;
+                String[] splits = cgline.split("\t", -1);
+                // skip non-glyco columns
+                if (splits.length < bestGlycanCol + 1)
+                    continue;
+                if (splits[bestGlycanCol].matches("ERROR"))
+                    continue;
+                String spectrumID = splits[gSpecCol];
+                glyLines.put(spectrumID, splits);     // save full line for later editing/writing
+                // only consider columns with actual glycan info
+                if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
+                    if (!splits[qValCol].matches("")) {
+                        // glycan FDR already performed on this dataset - skip
+                        PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
+                        return;
                     }
-                }
-                // parse next best score and save to target/decoy as appropriate
-                if (!splits[bestNextScoreCol].matches("")) {
-                    double nextScore = Double.parseDouble(splits[bestNextScoreCol]);
-                    if (bestWasDecoy) {
-                        // best candidate was a decoy, so next/opposite is target
-                        scoreDistTargets++;
-                        scoreDistribution.add(new GlycoScore(nextScore, false, spectrumID, false));
-                    } else {
-                        // best candidate was a target, so next/opposite is decoy
-                        scoreDistDecoys++;
-                        scoreDistribution.add(new GlycoScore(nextScore, true, spectrumID, false));
+                    // detect if target or decoy and save best candidate score. If no target/decoy was found, skip (empty score column)
+                    boolean bestWasDecoy = splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy");
+                    if (!splits[absScoreCol].matches("")) {
+                        double absScore = Double.parseDouble(splits[absScoreCol]);
+                        if (bestWasDecoy) {
+                            decoys++;
+                            scoreDistDecoys++;
+                            scoreDistribution.add(new GlycoScore (absScore, true, spectrumID, true));
+                        } else {
+                            targets++;
+                            scoreDistTargets++;
+                            scoreDistribution.add(new GlycoScore (absScore, false, spectrumID, true));
+                        }
                     }
+                    // parse next best score and save to target/decoy as appropriate
+                    if (!splits[bestNextScoreCol].matches("")) {
+                        double nextScore = Double.parseDouble(splits[bestNextScoreCol]);
+                        if (bestWasDecoy) {
+                            // best candidate was a decoy, so next/opposite is target
+                            scoreDistTargets++;
+                            scoreDistribution.add(new GlycoScore(nextScore, false, spectrumID, false));
+                        } else {
+                            // best candidate was a target, so next/opposite is decoy
+                            scoreDistDecoys++;
+                            scoreDistribution.add(new GlycoScore(nextScore, true, spectrumID, false));
+                        }
+                    }
+                    scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
                 }
-                scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
             }
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Could not calculate glycan FDR due to error reading rawglyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
-        in.close();
 
         PTMShepherd.print("Calculating Glycan FDR");
         // sort scoreMap in order of ascending score
@@ -471,13 +502,17 @@ public class GlycoAnalysis {
         }
 
         // write output back to rawglyco file
-        PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
-        out.println(String.join("\t", Arrays.asList(headerSplits)));
-        for (String[] glyLine : glyLines.values()) {
-            out.println(String.join("\t", Arrays.asList(glyLine)));
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
+            out.println(String.join("\t", Arrays.asList(headerSplits)));
+            for (String[] glyLine : glyLines.values()) {
+                out.println(String.join("\t", Arrays.asList(glyLine)));
+            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Could not update glyco file with glycan FDR " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
-        out.flush();
-        out.close();
     }
 
     /**
@@ -489,61 +524,72 @@ public class GlycoAnalysis {
      * @return true if successful, false if not enough decoys
      * @throws IOException
      */
-    public boolean computeGlycanFDROld(double glycoFDR, boolean changeFDR) throws IOException {
+    public boolean computeGlycanFDROld(double glycoFDR, boolean changeFDR) {
         finalGlycoFDR = glycoFDR;
-        BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
-
-        // read rawglyco file into map of spectrum index: full line (string)
-        LinkedHashMap<String, String[]> glyLines = new LinkedHashMap<>();   // linkedHashMap to preserve spectrum order
-        String cgline;
-
-        // detect headers
-        String[] headerSplits = in.readLine().split("\t");
-        int gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
-        int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
-        int bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-        int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
-
-        if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
-            PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
-        }
-
-        // read file, accumulating scores
-        HashMap<String, Double> scoreMap = new HashMap<>();
+        LinkedHashMap<String, String[]> glyLines = null;   // linkedHashMap to preserve spectrum order
+        String[] headerSplits = null;
+        int bestGlycanCol = 0;
+        int qValCol = 0;
+        HashMap<String, Double> scoreMap = null;
         int targets = 0;
         int decoys = 0;
-        while ((cgline = in.readLine()) != null) {
-            if (cgline.equals("COMPLETE")) {
-                break;
-            }
-            if (cgline.startsWith("ERROR"))
-                continue;
-            String[] splits = cgline.split("\t", -1);
-            // skip non-glyco columns
-            if (splits.length < bestGlycanCol + 1)
-                continue;
-            if (splits[bestGlycanCol].matches("ERROR"))
-                continue;
-            String spectrumID = splits[gSpecCol];
-            glyLines.put(spectrumID, splits);     // save full line for later editing/writing
-            // only consider columns with actual glycan info
-            if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
-                if (!splits[qValCol].matches("")) {
-                    // glycan FDR already performed on this dataset - skip
-                    PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
-                    return true;
-                }
+        try {
+            BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
 
-                // detect if target or decoy and save score
-                if (splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                    decoys++;
-                } else {
-                    targets++;
-                }
-                scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
+            // read rawglyco file into map of spectrum index: full line (string)
+            glyLines = new LinkedHashMap<>();
+            String cgline;
+
+            // detect headers
+            headerSplits = in.readLine().split("\t");
+            int gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
+            int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
+            bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
+            qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
+
+            if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
+                PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
             }
+
+            // read file, accumulating scores
+            scoreMap = new HashMap<>();
+            targets = 0;
+            decoys = 0;
+            while ((cgline = in.readLine()) != null) {
+                if (cgline.equals("COMPLETE")) {
+                    break;
+                }
+                if (cgline.startsWith("ERROR"))
+                    continue;
+                String[] splits = cgline.split("\t", -1);
+                // skip non-glyco columns
+                if (splits.length < bestGlycanCol + 1)
+                    continue;
+                if (splits[bestGlycanCol].matches("ERROR"))
+                    continue;
+                String spectrumID = splits[gSpecCol];
+                glyLines.put(spectrumID, splits);     // save full line for later editing/writing
+                // only consider columns with actual glycan info
+                if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
+                    if (!splits[qValCol].matches("")) {
+                        // glycan FDR already performed on this dataset - skip
+                        PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
+                        return true;
+                    }
+
+                    // detect if target or decoy and save score
+                    if (splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+                        decoys++;
+                    } else {
+                        targets++;
+                    }
+                    scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
+                }
+            }
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Could not calculate glycan FDR. Error reading rawglyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
-        in.close();
 
         PTMShepherd.print("Calculating Glycan FDR");
         // sort scoreMap in order of ascending score
@@ -619,13 +665,17 @@ public class GlycoAnalysis {
         }
 
         // write output back to rawglyco file
-        PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
-        out.println(String.join("\t", Arrays.asList(headerSplits)));
-        for (String[] glyLine : glyLines.values()) {
-            out.println(String.join("\t", Arrays.asList(glyLine)));
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
+            out.println(String.join("\t", Arrays.asList(headerSplits)));
+            for (String[] glyLine : glyLines.values()) {
+                out.println(String.join("\t", Arrays.asList(glyLine)));
+            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing to rawglyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
-        out.flush();
-        out.close();
         return true;
     }
 
@@ -1458,27 +1508,35 @@ public class GlycoAnalysis {
     }
 
 
-    public boolean isGlycoComplete() throws Exception {
-        if(glycoFile.exists()) {
-            RandomAccessFile raf = new RandomAccessFile(glycoFile, "r");
-            raf.seek(Math.max(0, glycoFile.length() - 20));
-            String cline;
-            while((cline = raf.readLine())!=null)
-                if(cline.equals("COMPLETE")) {
-                    raf.close();
-                    return true;
-                }
-            raf.close();
-            glycoFile.delete();
+    public boolean isGlycoComplete() {
+        try {
+            if(glycoFile.exists()) {
+                RandomAccessFile raf = new RandomAccessFile(glycoFile, "r");
+                raf.seek(Math.max(0, glycoFile.length() - 20));
+                String cline;
+                while((cline = raf.readLine())!=null)
+                    if(cline.equals("COMPLETE")) {
+                        raf.close();
+                        return true;
+                    }
+                raf.close();
+                glycoFile.delete();
+            }
+        } catch (IOException e) {
+            PTMShepherd.die("Error checking glyco file for completion: " + e.getMessage());
         }
         return false;
     }
 
 
-    public void completeGlyco() throws Exception {
-        PrintWriter out = new PrintWriter(new FileWriter(glycoFile,true));
-        out.println("COMPLETE");
-        out.close();
+    public void completeGlyco() {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(glycoFile,true));
+            out.println("COMPLETE");
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error completing glyco file: " + e.getMessage());
+        }
     }
 
 

@@ -17,6 +17,7 @@
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
 import com.google.common.util.concurrent.AtomicDoubleArray;
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import org.apache.commons.math3.distribution.NormalDistribution;
 
 import java.io.File;
@@ -147,15 +148,19 @@ public class DiagnosticHisto {
         return maxi;
     }
 
-    public void printHisto(String fname) throws IOException {
-        PrintWriter out = new PrintWriter(new FileWriter(new File(fname)));
-        out.printf("mass\theight\n");
-        StringBuffer sb = new StringBuffer();
-        for (int i = 0; i < this.filteredHistoPeaks.size(); i++) {
-            //System.out.printf("%.04f\t%.04f\n", binToMass(i), this.bins2.get(i));
-            out.printf("%.04f\t%.04f\n", this.filteredHistoPeaks.get(i).MZ, this.filteredHistoPeaks.get(i).Int);
+    public void printHisto(String fname) {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(new File(fname)));
+            out.printf("mass\theight\n");
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < this.filteredHistoPeaks.size(); i++) {
+                //System.out.printf("%.04f\t%.04f\n", binToMass(i), this.bins2.get(i));
+                out.printf("%.04f\t%.04f\n", this.filteredHistoPeaks.get(i).MZ, this.filteredHistoPeaks.get(i).Int);
+            }
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing histo file: " + fname + "\n" + e.getMessage());
         }
-        out.close();
     }
 
     public void smoothify() {

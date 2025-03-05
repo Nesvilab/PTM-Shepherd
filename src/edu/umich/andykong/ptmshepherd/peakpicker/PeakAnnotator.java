@@ -51,44 +51,41 @@ public class PeakAnnotator {
 	public String[][] modMappings;
 	public FastLocator fastLocator;
 	
-	public void annotateTSV(File inTSV, File outTSV, String mos, String isos, Double mod_tol) throws Exception {
-        //ArrayList<String> vModNames = new ArrayList<>();
-        //ArrayList<Double> vModMasses = new ArrayList<>();
-
-		//if(mods == null)
-		//	init(varMods);
-
-		//buildOffsetList(mos, isos);
-
+	public void annotateTSV(File inTSV, File outTSV, String mos, String isos, Double mod_tol) {
 		ArrayList<String> inFile = new ArrayList<>();
 		String cline;
-		BufferedReader in = new BufferedReader(new FileReader(inTSV));
-		while((cline = in.readLine())!= null) {
-			inFile.add(cline);
-		}
-		in.close();
-		double [] masses = new double[inFile.size()-1];
-		for(int i = 1; i < inFile.size(); i++) {
-			String [] sp = inFile.get(i).split("\t");
-			masses[i-1] = Double.parseDouble(sp[0]);
-		}
-		String [][] annotations = annotate(masses);
-		
-		PrintWriter out = new PrintWriter(new FileWriter(outTSV));
-		out.print(inFile.get(0));
-		for(int i = 1; i <= maxDepth; i++)
-			out.print("\tmapped_mass_"+i);
-		out.println();
-		for(int i = 0; i < masses.length; i++) {
-			out.print(inFile.get(i+1));
-			for(int j = 0; j < maxDepth; j++)
-				out.print("\t"+annotations[i][j]);
+		try {
+			BufferedReader in = new BufferedReader(new FileReader(inTSV));
+			while ((cline = in.readLine()) != null) {
+				inFile.add(cline);
+			}
+			in.close();
+			double[] masses = new double[inFile.size() - 1];
+			for (int i = 1; i < inFile.size(); i++) {
+				String[] sp = inFile.get(i).split("\t");
+				masses[i - 1] = Double.parseDouble(sp[0]);
+			}
+			String[][] annotations = annotate(masses);
+
+			PrintWriter out = new PrintWriter(new FileWriter(outTSV));
+			out.print(inFile.get(0));
+			for (int i = 1; i <= maxDepth; i++)
+				out.print("\tmapped_mass_" + i);
 			out.println();
+			for (int i = 0; i < masses.length; i++) {
+				out.print(inFile.get(i + 1));
+				for (int j = 0; j < maxDepth; j++)
+					out.print("\t" + annotations[i][j]);
+				out.println();
+			}
+			out.close();
+		} catch (IOException e) {
+			PTMShepherd.print(e.getMessage());
+			PTMShepherd.die("IO error annotating peak tsv: " + inTSV);
 		}
-		out.close();
 	}
 	
-	public String [][] annotate(double [] masses) throws Exception {
+	public String [][] annotate(double [] masses) {
 		String [][] res = new String[masses.length][maxDepth];
 		//init(userMods);
 		for(int i = 0; i < masses.length; i++) {
@@ -246,7 +243,7 @@ public class PeakAnnotator {
 		mod_diffs.add(v);
 	}
 	
-	public void init(String varMods, String modSourcePath) throws Exception {
+	public void init(String varMods, String modSourcePath) {
 		mods = new ArrayList<String>(); //all modification names
 		mod_diffs = new ArrayList<Double>(); //all modification mass shifts
 		allowed_list = new ArrayList<Integer>(); //mods that can be added at any given step
@@ -271,40 +268,44 @@ public class PeakAnnotator {
 			addMod(vModNames.get(i), vModMasses.get(i));
 		}
 
-		BufferedReader in;
-		if (modSourcePath.equals("") || modSourcePath.toLowerCase().trim().equals("unimod")) {
-			modSource = "unimod_20210623.txt";
-			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
-		} else if (modSourcePath.toLowerCase().trim().equals("common")) {
-			modSource = "common_mods_20200813.txt";
-			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
-		} else if (modSourcePath.toLowerCase().trim().equals("glyco")) {
-			modSource = "glyco_mods_20210127.txt";
-			in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
-		} else {
-			modSource = modSourcePath.trim();
-			in = new BufferedReader(new FileReader(modSource));
-		}
+		try {
+			BufferedReader in;
+			if (modSourcePath.equals("") || modSourcePath.toLowerCase().trim().equals("unimod")) {
+				modSource = "unimod_20210623.txt";
+				in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+			} else if (modSourcePath.toLowerCase().trim().equals("common")) {
+				modSource = "common_mods_20200813.txt";
+				in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+			} else if (modSourcePath.toLowerCase().trim().equals("glyco")) {
+				modSource = "glyco_mods_20210127.txt";
+				in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+			} else {
+				modSource = modSourcePath.trim();
+				in = new BufferedReader(new FileReader(modSource));
+			}
 
-		String cline;
-		//add isotopic peaks to modification list
-		addMod("Isotopic peak error", -1*C13delta);
-		addMod("First isotopic peak",C13delta);
-		addMod("Second isotopic peak",2*C13delta);
-		addMod("Third isotopic peak",3*C13delta);
-		//addMod("Oxidation or Hydroxylation",15.994915);
-		//make isotopic peaks statically accessible
-		//add user-defined mods to modification list
-        for (int i = 0; i < mods.size(); i++) {
-			allowed_list.add(i);
-		}
+			String cline;
+			//add isotopic peaks to modification list
+			addMod("Isotopic peak error", -1 * C13delta);
+			addMod("First isotopic peak", C13delta);
+			addMod("Second isotopic peak", 2 * C13delta);
+			addMod("Third isotopic peak", 3 * C13delta);
+			//addMod("Oxidation or Hydroxylation",15.994915);
+			//make isotopic peaks statically accessible
+			//add user-defined mods to modification list
+			for (int i = 0; i < mods.size(); i++) {
+				allowed_list.add(i);
+			}
 
-		while((cline = in.readLine())!= null) {
-			String [] sp = cline.split("\\t|%");
-			addMod(sp[0].trim(),Double.parseDouble(sp[1].trim()));
+			while ((cline = in.readLine()) != null) {
+				String[] sp = cline.split("\\t|%");
+				addMod(sp[0].trim(), Double.parseDouble(sp[1].trim()));
+			}
+			in.close();
+		} catch (IOException e) {
+			PTMShepherd.print(e.getMessage());
+			PTMShepherd.die("IO error initializing peak annotator: could not read mod source file: " + modSource);
 		}
-
-		in.close();
 
 		for(int i = 0; i < AAMasses.monoisotopic_masses.length; i++) {
 			if(AAMasses.monoisotopic_masses[i] > 0) {
@@ -314,31 +315,36 @@ public class PeakAnnotator {
 		}
 	}
 
-	public void loadAnnotatedFile(File fin, double precursorTol, int precursorUnits) throws IOException {
+	public void loadAnnotatedFile(File fin, double precursorTol, int precursorUnits) {
 		/* load annotated file */
-		BufferedReader in = new BufferedReader(new FileReader(fin));
-		this.headers = in.readLine().split("\t", -1);
-		ArrayList<String> inLines = new ArrayList<>();
-		String cline;
-		while((cline = in.readLine())!= null)
-			inLines.add(cline);
+		try {
+			BufferedReader in = new BufferedReader(new FileReader(fin));
+			this.headers = in.readLine().split("\t", -1);
+			ArrayList<String> inLines = new ArrayList<>();
+			String cline;
+			while ((cline = in.readLine()) != null)
+				inLines.add(cline);
 
-		/* populate class parameters */
-		this.peaks = new double[3][inLines.size()];
-		this.modMappings = new String[this.maxDepth][inLines.size()];
+			/* populate class parameters */
+			this.peaks = new double[3][inLines.size()];
+			this.modMappings = new String[this.maxDepth][inLines.size()];
 
-		for(int i = 0; i < inLines.size(); i++) {
-			String [] sp = inLines.get(i).split("\t", -1);
-			for (int j = 0; j < 3; j++)
-				this.peaks[j][i] = Double.parseDouble(sp[j]);
-			for (int j = 0; j < this.maxDepth; j++)
-				this.modMappings[j][i] = sp[getColumn("mapped_mass_" + (j+1))];
+			for (int i = 0; i < inLines.size(); i++) {
+				String[] sp = inLines.get(i).split("\t", -1);
+				for (int j = 0; j < 3; j++)
+					this.peaks[j][i] = Double.parseDouble(sp[j]);
+				for (int j = 0; j < this.maxDepth; j++)
+					this.modMappings[j][i] = sp[getColumn("mapped_mass_" + (j + 1))];
+			}
+
+			/* set up indexer for fast access */
+			this.fastLocator = new FastLocator(this.peaks, precursorTol, precursorUnits);
+
+			in.close();
+		} catch (IOException e) {
+			PTMShepherd.print(e.getMessage());
+			PTMShepherd.die("IO error loading annotated file: " + fin);
 		}
-
-		/* set up indexer for fast access */
-		this.fastLocator = new FastLocator(this.peaks, precursorTol, precursorUnits);
-
-		in.close();
 	}
 
 	private int getColumn (String head) {

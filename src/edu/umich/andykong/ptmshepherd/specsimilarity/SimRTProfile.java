@@ -17,9 +17,11 @@
 package edu.umich.andykong.ptmshepherd.specsimilarity;
 
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.localization.LocalizationRecord;
 
@@ -50,19 +52,23 @@ public class SimRTProfile {
 			records[i] = new SimRTRecord(masses[i], i, calcIntensity);
 	}
 	
-	public void writeProfile(String path) throws Exception {
-		PrintWriter out = new PrintWriter(new FileWriter(path));
-		if (calcIntensity) {
-			out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-					"peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)", "int_log2fc", "int_log2fc_(variance)");
-		} else {
-			out.printf("%s\t%s\t%s\t%s\t%s\t%s\n",
-					"peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)");
-		}
-		for(int i = 0; i < records.length; i++) {
-			out.println(records[i].toString());
-		}
-		out.close();
-	}
+	public void writeProfile(String path) {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(path));
+            if (calcIntensity) {
+                out.printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+                        "peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)", "int_log2fc", "int_log2fc_(variance)");
+            } else {
+                out.printf("%s\t%s\t%s\t%s\t%s\t%s\n",
+                        "peak", "PSMs", "similarity", "similarity_(variance)", "rt_shift", "rt_shift_(variance)");
+            }
+            for(int i = 0; i < records.length; i++) {
+                out.println(records[i].toString());
+            }
+            out.close();
+        } catch (IOException e) {
+			PTMShepherd.die("Error writing simRT profile file: " + path + "\n" + e.getMessage());
+        }
+    }
 
 }

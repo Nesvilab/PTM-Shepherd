@@ -1,5 +1,6 @@
 package edu.umich.andykong.ptmshepherd.iterativelocalization;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import org.apache.commons.math3.linear.*;
 
 import java.util.ArrayList;
@@ -25,12 +26,17 @@ public class LDAProcessor {
         this.data = data;
     }
 
-    public void solveLDA(ExecutorService executorService) throws Exception {
+    public void solveLDA(ExecutorService executorService) {
         this.meanVectors = computeMeanVectors();
-        RealMatrix sW = computeWithinClassScatterMatrix(executorService);
-        RealMatrix sB = computeBetweenClassScatterMatrix(executorService);
-        List<RealVector> eigenVectors = solveEigenProblem(sW, sB, 1);
-        this.projectedData = projectTrainData(eigenVectors);
+        try {
+            RealMatrix sW = computeWithinClassScatterMatrix(executorService);
+            RealMatrix sB = computeBetweenClassScatterMatrix(executorService);
+            List<RealVector> eigenVectors = solveEigenProblem(sW, sB, 1);
+            this.projectedData = projectTrainData(eigenVectors);
+        } catch (ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+            PTMShepherd.die("Error computing scatter matrices for iterative localization LDA.");
+        }
     }
 
 
@@ -122,7 +128,7 @@ public class LDAProcessor {
     }
 
 
-    private RealMatrix computeBetweenClassScatterMatrix(ExecutorService executorService) throws Exception {
+    private RealMatrix computeBetweenClassScatterMatrix(ExecutorService executorService) throws InterruptedException, ExecutionException {
         // Step 1: Compute the overall mean of all samples
         RealVector overallMean = computeOverallMean();
 

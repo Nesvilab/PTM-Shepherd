@@ -34,7 +34,7 @@ public class PeakPicker {
 		return (a/b);
 	}
 	
-	public void writeTSV(File f) throws Exception {
+	public void writeTSV(File f) throws IOException {
 		try (PrintWriter out = new PrintWriter(new FileWriter(f))) {
 			for (double[] peak : peaks) {
 				for (int j = 0; j < 4; j++) {
@@ -53,7 +53,7 @@ public class PeakPicker {
 	}
 
 	//inputs: bin divisions, bin weights, input prominence ratio, peakwidth, peakbackground, number of top peaks to report
-	public void pickPeaks(double [] offsets, double [] sum, double promRatio, double peakBackground, int nBins, String massOffsets, String isotopes, int peakUnits, double pw, int precursorUnits, double pt) throws Exception {
+	public void pickPeaks(double [] offsets, double [] sum, double promRatio, double peakBackground, int nBins, String massOffsets, String isotopes, int peakUnits, double pw, int precursorUnits, double pt) {
 		double pepmass = 1500.0;
 		double precursorTol = pt;
 		double peakWidth = pw;

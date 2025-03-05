@@ -28,6 +28,7 @@ import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -172,7 +173,7 @@ public class DiagnosticPeakPicker {
     }
 
     /* Send ions to BinDiagnosticMetric containers */
-    public void process(ExecutorService executorService, int nThreads) throws Exception {
+    public void process(ExecutorService executorService, int nThreads) {
         PTMShepherd.print("\t\tBuilding feature histograms");
         /* Finds the peaks for each BinDiagnosticMetric container */
         for (Integer peakIndx : this.peakToFileToScan.keySet()) {
@@ -411,39 +412,43 @@ public class DiagnosticPeakPicker {
         return filteredPeakToFileToScan;
     }
 
-    public void print(String fout) throws IOException {
+    public void print(String fout) {
         boolean debug = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printDebugFile"));
         boolean printAucTemp = Boolean.parseBoolean(PTMShepherd.getParam("diagmine_printAuc"));
         int printAuc = printAucTemp ? 1 : 0; //This is a bad way to do this, need to merge bool and int .toString() funcs
-        if (debug) {
-            PrintWriter out = new PrintWriter(new FileWriter(fout + "_debug", false));
+        try {
+            if (debug) {
+                PrintWriter out = new PrintWriter(new FileWriter(fout + "_debug", false));
 
-            out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
-            for (int i = 0; i < this.binDiagMetrics.length; i++) {
-                out.print(this.binDiagMetrics[i].toString(true));
+                out.print("peak_apex\tion_type\tdiagnostic_mass\tadjusted_mass\te_value\tauc\tprop_mod_spectra\tprop_unmod_spectra\tmod_spectra_int\tunmod_spectra_int\tn_control\tn_test\n");
+                for (int i = 0; i < this.binDiagMetrics.length; i++) {
+                    out.print(this.binDiagMetrics[i].toString(true));
+                }
+
+                out.close();
             }
-
-            out.close();
+            PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
+            if (printAuc == 1)
+                out2.print("peak_apex\tmod_annotation\tion_type\t" +
+                        "mass\t" + "delta_mod_mass\t" +
+                        "remainder_propensity\t" +
+                        "percent_mod\tpercent_unmod\t" +
+                        "avg_charge\t" +
+                        "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\tauc\n");
+            else
+                out2.print("peak_apex\tmod_annotation\tion_type\t" +
+                        "mass\t" + "delta_mod_mass\t" +
+                        "remainder_propensity\t" +
+                        "percent_mod\tpercent_unmod\t" +
+                        "avg_charge\t" +
+                        "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\n");
+            for (int i = 0; i < this.binDiagMetrics.length; i++) {
+                out2.print(this.binDiagMetrics[i].toString(printAuc));
+            }
+            out2.close();
+        } catch (IOException e) {
+            PTMShepherd.die("IO Error writing diagnostic peak picking results to " + fout + "\n" + e.getMessage());
         }
-        PrintWriter out2 = new PrintWriter(new FileWriter(fout, false));
-        if (printAuc == 1)
-            out2.print("peak_apex\tmod_annotation\tion_type\t" +
-                    "mass\t" + "delta_mod_mass\t" +
-                    "remainder_propensity\t" +
-                    "percent_mod\tpercent_unmod\t" +
-                    "avg_charge\t" +
-                    "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\tauc\n");
-        else
-            out2.print("peak_apex\tmod_annotation\tion_type\t" +
-                    "mass\t" + "delta_mod_mass\t" +
-                    "remainder_propensity\t" +
-                    "percent_mod\tpercent_unmod\t" +
-                    "avg_charge\t" +
-                    "avg_intensity_mod\tavg_intensity_unmod\tintensity_fold_change\n");
-        for (int i = 0; i < this.binDiagMetrics.length; i++) {
-            out2.print(this.binDiagMetrics[i].toString(printAuc));
-        }
-        out2.close();
     }
 
     /* Initialize diagnostic profile */
@@ -453,7 +458,7 @@ public class DiagnosticPeakPicker {
     }
 
     /* This function goes back into the scans to get PSM-level info on diagnostic ion propensity */
-    public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService) throws Exception {
+    public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService) {
         /* Map PSM lines to each fraction */
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
         SiteLocalization.initSpectrumMappings(pf, mappings);
@@ -484,8 +489,13 @@ public class DiagnosticPeakPicker {
             }
 
             /* Wait for all processes to finish */
-            for (Future future : futureList)
-                future.get();
+            try {
+                for (Future future : futureList)
+                    future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                PTMShepherd.die("Error parallel processing diagnostic peak picking: " + e.getMessage());
+            }
 
             long t3 = System.currentTimeMillis();
             PTMShepherd.print(String.format("\t\t%s - %d lines (%d ms reading, %d ms processing)", cf, clines.size(), t2-t1,t3-t2));

@@ -49,7 +49,7 @@ public class DiagnosticAnalysis {
     double [][] peaks; //[3][n] apex, left, right
     BinDiagMetric [] binDiagMetrics;
 
-    public DiagnosticAnalysis(String ds) throws Exception {
+    public DiagnosticAnalysis(String ds) {
         this.dsName = ds;
         //get necessary params
         this.precursorTol = Float.parseFloat(PTMShepherd.getParam("precursor_tol"));
@@ -62,12 +62,12 @@ public class DiagnosticAnalysis {
 
     }
 
-    public void initializeBinBoundaries(double [][] peakApexBounds) throws Exception {
+    public void initializeBinBoundaries(double [][] peakApexBounds) {
         this.peaks = peakApexBounds;
     }
 
     /* This function adds a PSM list file to this DiagnosticAnalysis */
-    public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int nThread) throws Exception {
+    public void diagIonsPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int nThread) {
         /* Map PSM lines to each fraction */
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
         SiteLocalization.initSpectrumMappings(pf, mappings);
@@ -106,8 +106,14 @@ public class DiagnosticAnalysis {
             }
 
             /* Wait for all processes to finish */
-            for (Future future : futureList)
-                future.get();
+            try {
+                for (Future future : futureList) {
+                    future.get();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                PTMShepherd.die("Error in parallel processing of diagnostic ions");
+            }
 
             /* Write results to DiagBINFile */
             DiagBINFile diagBinFile = new DiagBINFile(this.diagnosticRecords, PTMShepherd.normFName(cf+".diagBIN"), this.ionTypes);

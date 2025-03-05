@@ -89,7 +89,7 @@ public class IterativeLocalizer {
         this.zeroBin = this.locate.getIndex(0.0);
     }
 
-    public void localize(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
+    public void localize(HashMap<String, ArrayList<PSMFile>> psmFiles) {
         // Step 1: use matched intensities of unmodified peptides to fit nonparametric distribution
         fitMatchedIonDistribution(psmFiles);
         // Step 2: draw the rest of the fucking owl
@@ -98,7 +98,7 @@ public class IterativeLocalizer {
         calculateFalseLocalizationRates(psmFiles);
     }
 
-    private void fitMatchedIonDistribution(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
+    private void fitMatchedIonDistribution(HashMap<String, ArrayList<PSMFile>> psmFiles) {
         System.out.println("\tFitting distribution to matched zero-bin fragments");
         // Set up distribution
         this.matchedIonDist = new MatchedIonDistribution(1.0f, this.poissonBinomialDistribution);
@@ -239,7 +239,7 @@ public class IterativeLocalizer {
         System.out.printf("\tDone fitting distribution to matched zero-bin fragments (%d ms processing)\n", t2-t1);
     }
 
-    private void calculateLocalizationProbabilities(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception {
+    private void calculateLocalizationProbabilities(HashMap<String, ArrayList<PSMFile>> psmFiles) {
         System.out.println("\tCalculating PSM-level localization probabilities");
 
         // Set up bin-wise prior probability string to be updated every epoch
@@ -550,7 +550,7 @@ public class IterativeLocalizer {
      *
      * @return
      */
-    private void calculateFalseLocalizationRates(HashMap<String, ArrayList<PSMFile>> psmFiles) throws Exception { //TODO this needs to be modularized so it can be unit tested
+    private void calculateFalseLocalizationRates(HashMap<String, ArrayList<PSMFile>> psmFiles) { //TODO this needs to be modularized so it can be unit tested
         System.out.println("\tEstimating false localization rates");
 
         long t1 = System.currentTimeMillis();
@@ -1483,12 +1483,12 @@ public class IterativeLocalizer {
             return (double) x / (double) y;
     }
 
-    private void writePriorProbabilitiesOutput(String fname, String content) throws IOException {
+    private void writePriorProbabilitiesOutput(String fname, String content) {
         try {
             PrintWriter out = new PrintWriter(new FileWriter(PTMShepherd.normFName(fname)));
             out.write(content);
             out.close();
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
         }

@@ -21,6 +21,7 @@ import java.util.*;
 
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +37,7 @@ public class PeakSummary {
 	int useIntensity;
 
 	
-	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets, int psmFilter, int useIntensity) throws Exception {
-		BufferedReader in = new BufferedReader(new FileReader(peakTSV));
+	public PeakSummary(File peakTSV, int precursorUnits, double pt, String massOffsets, int psmFilter, int useIntensity) {
 		features = new ArrayList<>();
 		counts = new TreeMap<>();
 		this.intensities = new TreeMap<>();
@@ -47,13 +47,19 @@ public class PeakSummary {
 		this.minPsms = psmFilter;
 		this.useIntensity = useIntensity;
 
-		String cline;
-		int cnt = 0;
-		while((cline = in.readLine())!= null) {
-			String [] sp = cline.split("\t");
-			features.add(new PeakFeature(Double.parseDouble(sp[0]), Double.parseDouble(sp[3]), cnt++));
+		try {
+			BufferedReader in = new BufferedReader(new FileReader(peakTSV));
+			String cline;
+			int cnt = 0;
+			while ((cline = in.readLine()) != null) {
+				String[] sp = cline.split("\t");
+				features.add(new PeakFeature(Double.parseDouble(sp[0]), Double.parseDouble(sp[3]), cnt++));
+			}
+			in.close();
+		} catch (IOException e) {
+			PTMShepherd.print(e.getMessage());
+			PTMShepherd.die("Error writing peak summary file: " + peakTSV.getAbsolutePath());
 		}
-		in.close();
 
 		if (!features.isEmpty()) {
 			topFeature = features.get(0);
@@ -115,17 +121,22 @@ public class PeakSummary {
 		return res;
 	}
 
-	public static double [][] readPeakBounds(File f) throws Exception {
-		BufferedReader in = new BufferedReader(new FileReader(f));
-		String cline;
+	public static double [][] readPeakBounds(File f) {
 		ArrayList<String[]> vals = new ArrayList<>();
-		//Skip header line
-		in.readLine();
-		while((cline = in.readLine())!= null) {
-			String [] sp = cline.split("\t");
-			vals.add(new String[]{sp[0], sp[1], sp[2]});
+		try {
+			BufferedReader in = new BufferedReader(new FileReader(f));
+			String cline;
+			//Skip header line
+			in.readLine();
+			while ((cline = in.readLine()) != null) {
+				String[] sp = cline.split("\t");
+				vals.add(new String[]{sp[0], sp[1], sp[2]});
+			}
+			in.close();
+		} catch (IOException e) {
+			PTMShepherd.print(e.getMessage());
+			PTMShepherd.die("Error reading peak bounds file: " + f.getAbsolutePath());
 		}
-		in.close();
 
 		double [][] res = new double[3][vals.size()];
 		for(int i = 0; i < 3; i++) {
@@ -136,7 +147,7 @@ public class PeakSummary {
 		return res;
 	}
 
-	public void writeTSVSummary(File f) throws Exception {
+	public void writeTSVSummary(File f) throws IOException {
 		int nInsuffPeaks = 0;
 
 		String [] exps = new String[counts.size()];

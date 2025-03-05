@@ -16,6 +16,8 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -50,11 +52,11 @@ public class DiagBINFile {
         readDiagBin(executorService, nThread, loadScans);
     }
 
-    public DiagBINFile(ArrayList<DiagnosticRecord> diagnosticRecords, String filePath, String ionTypes) throws Exception {
+    public DiagBINFile(ArrayList<DiagnosticRecord> diagnosticRecords, String filePath, String ionTypes) {
         this(diagnosticRecords, new File(filePath), ionTypes);
     }
 
-    public DiagBINFile(ArrayList<DiagnosticRecord> diagnosticRecords, File f, String ionTypes) throws Exception {
+    public DiagBINFile(ArrayList<DiagnosticRecord> diagnosticRecords, File f, String ionTypes) {
         this.f = f;
         this.runName = getBasename(f.getName());
         this.ionTypes = new ArrayList<>();
@@ -67,7 +69,7 @@ public class DiagBINFile {
         Collections.sort(this.ionTypes);
     }
 
-    public void writeDiagBinFile() throws Exception {
+    public void writeDiagBinFile() {
         /*
          * Binary values are stored in network order (default for Java)
          * All values are signed
@@ -129,91 +131,95 @@ public class DiagBINFile {
         }
 
         /* Write DiagBIN header and index*/
-        DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(f), 1 << 24));
-        CRC32 crc = new CRC32();
-        dos.write(diagBinHead);
-        crc.update(diagBinHead);
-        dos.write(this.diagBinIndex);
-        crc.update(this.diagBinIndex);
+        try {
+            DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(f), 1 << 24));
+            CRC32 crc = new CRC32();
+            dos.write(diagBinHead);
+            crc.update(diagBinHead);
+            dos.write(this.diagBinIndex);
+            crc.update(this.diagBinIndex);
 
-        /* Write diagnosticRecords information */
-        for (DiagnosticRecord dr : this.spectra) {
-            int length = calculateDiagnosticRecordLength(dr);
-            byte[] cdata = new byte[length];
-            int cpos = 0; // 32 bit / 4 byte base
+            /* Write diagnosticRecords information */
+            for (DiagnosticRecord dr : this.spectra) {
+                int length = calculateDiagnosticRecordLength(dr);
+                byte[] cdata = new byte[length];
+                int cpos = 0; // 32 bit / 4 byte base
 
-            /* Write pep seq info */
-            ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.pepSeq.length());
-            cpos++;
-            for (int i = 0; i < dr.pepSeq.length(); i++)
-                ByteBuffer.wrap(cdata).asCharBuffer().put(cpos * 2 + i, dr.pepSeq.charAt(i));
-
-            if (dr.pepSeq.length() % 2 != 0)
-                cpos += (int) (dr.pepSeq.length() / 2) + 1;
-            else
-                cpos += dr.pepSeq.length() / 2;
-
-            /* Write charge info */
-            ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.charge);
-            cpos++;
-
-            /* Write modification info */
-            ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.modifications.size());
-            cpos++;
-            for (Integer pos : dr.modifications.keySet()) {
-                ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, pos);
+                /* Write pep seq info */
+                ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.pepSeq.length());
                 cpos++;
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos, dr.modifications.get(pos));
+                for (int i = 0; i < dr.pepSeq.length(); i++)
+                    ByteBuffer.wrap(cdata).asCharBuffer().put(cpos * 2 + i, dr.pepSeq.charAt(i));
+
+                if (dr.pepSeq.length() % 2 != 0)
+                    cpos += (int) (dr.pepSeq.length() / 2) + 1;
+                else
+                    cpos += dr.pepSeq.length() / 2;
+
+                /* Write charge info */
+                ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.charge);
                 cpos++;
-            }
 
-            /* Write immonium peaks */
-            ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.immoniumPeaks.length);
-            cpos++;
-            for (int i = 0; i < dr.immoniumPeaks.length; i++) {
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.immoniumPeaks[i][0]);
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.immoniumPeaks[i][1]);
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.immoniumPeaks[i][2]);
-            }
-            cpos += 3 * dr.immoniumPeaks.length;
-
-            /* Write capY peaks */
-            ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.capYPeaks.length);
-            cpos++;
-            for (int i = 0; i < dr.capYPeaks.length; i++) {
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.capYPeaks[i][0]);
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.capYPeaks[i][1]);
-                ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.capYPeaks[i][2]);
-            }
-            cpos += 3 * dr.capYPeaks.length;
-
-            /* Write squiggle peaks */
-            for (Character it : this.ionTypes) {
-                ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.squigglePeaks.get(it).length);
+                /* Write modification info */
+                ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.modifications.size());
                 cpos++;
-                for (int i = 0; i < dr.squigglePeaks.get(it).length; i++) {
-                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.squigglePeaks.get(it)[i][0]);
-                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.squigglePeaks.get(it)[i][1]);
-                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.squigglePeaks.get(it)[i][2]);
+                for (Integer pos : dr.modifications.keySet()) {
+                    ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, pos);
+                    cpos++;
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos, dr.modifications.get(pos));
+                    cpos++;
                 }
-                cpos += 3 * dr.squigglePeaks.get(it).length;
+
+                /* Write immonium peaks */
+                ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.immoniumPeaks.length);
+                cpos++;
+                for (int i = 0; i < dr.immoniumPeaks.length; i++) {
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.immoniumPeaks[i][0]);
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.immoniumPeaks[i][1]);
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.immoniumPeaks[i][2]);
+                }
+                cpos += 3 * dr.immoniumPeaks.length;
+
+                /* Write capY peaks */
+                ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.capYPeaks.length);
+                cpos++;
+                for (int i = 0; i < dr.capYPeaks.length; i++) {
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.capYPeaks[i][0]);
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.capYPeaks[i][1]);
+                    ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.capYPeaks[i][2]);
+                }
+                cpos += 3 * dr.capYPeaks.length;
+
+                /* Write squiggle peaks */
+                for (Character it : this.ionTypes) {
+                    ByteBuffer.wrap(cdata).asIntBuffer().put(cpos, dr.squigglePeaks.get(it).length);
+                    cpos++;
+                    for (int i = 0; i < dr.squigglePeaks.get(it).length; i++) {
+                        ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3, dr.squigglePeaks.get(it)[i][0]);
+                        ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 1, dr.squigglePeaks.get(it)[i][1]);
+                        ByteBuffer.wrap(cdata).asFloatBuffer().put(cpos + i * 3 + 2, dr.squigglePeaks.get(it)[i][2]);
+                    }
+                    cpos += 3 * dr.squigglePeaks.get(it).length;
+                }
+                /* Write spec to file */
+                dos.write(cdata);
+                crc.update(cdata);
             }
-            /* Write spec to file */
-            dos.write(cdata);
-            crc.update(cdata);
+
+            /* The DiagBIN footer is composed of 12 bytes.  The first 8 bytes is a long value containing the CRC32
+             * hash of all data in the DiagBIN file up to this point.  The last 4 bytes in a DiagBIN file is the byte
+             * string 'NBGD', indicating the end of a DiagBin file. //todo
+             */
+
+            byte[] MZBINTail = new byte[12];
+            ByteBuffer.wrap(MZBINTail).asLongBuffer().put(0, crc.getValue());
+            ByteBuffer.wrap(MZBINTail).asIntBuffer().put(2, 1312966468);
+            dos.write(MZBINTail);
+
+            dos.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing DiagBIN file: " + e.getMessage());
         }
-
-        /* The DiagBIN footer is composed of 12 bytes.  The first 8 bytes is a long value containing the CRC32
-         * hash of all data in the DiagBIN file up to this point.  The last 4 bytes in a DiagBIN file is the byte
-         * string 'NBGD', indicating the end of a DiagBin file. //todo
-         */
-
-        byte[] MZBINTail = new byte[12];
-        ByteBuffer.wrap(MZBINTail).asLongBuffer().put(0, crc.getValue());
-        ByteBuffer.wrap(MZBINTail).asIntBuffer().put(2, 1312966468);
-        dos.write(MZBINTail);
-
-        dos.close();
     }
 
     public void readDiagBin(ExecutorService executorService, int nThread, boolean loadScans) throws Exception {

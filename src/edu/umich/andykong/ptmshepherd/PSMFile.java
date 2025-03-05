@@ -312,21 +312,27 @@ public class PSMFile {
 
 	/* Merges the rawglyco table onto the existing psm.tsv
 	*/
-	public void mergeGlycoTable(File glyf, GlycoParams glycoParams, int massdiffToVarmod) throws Exception {
-		BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
+	public void mergeGlycoTable(File glyf, GlycoParams glycoParams, int massdiffToVarmod) {
 		String tempFoutName = this.fname + ".glyco.tmp";
-		String[] glyHeaders = in.readLine().split("\t");
+        String[] glyHeaders = null;
+        HashMap<String, String[]> glyLines = null;
+        try {
+			BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
+			glyHeaders = in.readLine().split("\t");
 
-		/* Get glyco data */
-		HashMap<String, String[]> glyLines = new HashMap<>();
-		String cgline;
-		while ((cgline = in.readLine()) != null) {
-			String[] sp = cgline.split("\t", -1);
-			glyLines.put(sp[0], sp);	// spectrum -> full line of rawglyco table
-		}
-		in.close();
+            /* Get glyco data */
+            glyLines = new HashMap<>();
+            String cgline;
+            while ((cgline = in.readLine()) != null) {
+                String[] sp = cgline.split("\t", -1);
+                glyLines.put(sp[0], sp);	// spectrum -> full line of rawglyco table
+            }
+            in.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Could not update PSM table with glycans: Error reading glyco file: " + glyf.getAbsolutePath() + "\n" + e.getMessage());
+        }
 
-		// get rawglyco file headers
+        // get rawglyco file headers
 		int mergeFromCol = -1;
 		for (int i=0; i < glyHeaders.length; i++) {
 			if (glyHeaders[i].matches(GlycoAnalysis.GLYCAN_COMP_COL_NAME)) {
@@ -532,7 +538,7 @@ public class PSMFile {
 	}
 
 	/* Add new column to PSM table in place to make it IonQuant compatible */
-	public void preparePsmTableForIonQuant(double[][] peakBounds, int precUnits, double precTol) throws Exception {
+	public void preparePsmTableForIonQuant(double[][] peakBounds, int precUnits, double precTol) {
 		/* Check to make sure IonQuant column doesnt already exist */
 		if (!(getColumn("Theoretical Modification Mass") == -1)) { /* Already exists */
 			System.out.printf("\tPSM table at %s already IonQuant compatible\n",this.fname);
@@ -541,25 +547,29 @@ public class PSMFile {
 
 		FastLocator locator = new FastLocator(peakBounds, precTol, precUnits);
 		String tempFoutName = fname + ".iq.tmp";
-		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 
-		/* Write the new header */
-		out.println(String.join("\t", headers) + "\tTheoretical Modification Mass");
+            /* Write the new header */
+            out.println(String.join("\t", headers) + "\tTheoretical Modification Mass");
 
-		/* For each line in the file, find the peak apex from the delta mass*/
-        for (PSM psm: psms) {
-            double dmass = psm.getDMass();
-            double theoreticalDmass;
-            if (locator.getIndex(dmass) == -1)
-                theoreticalDmass = dmass;
-            else
-                theoreticalDmass = peakBounds[0][locator.getIndex(dmass)];
-            out.println(String.join("\t", psm.spLine) + "\t" + String.format("%.4f", theoreticalDmass));
+            /* For each line in the file, find the peak apex from the delta mass*/
+            for (PSM psm: psms) {
+                double dmass = psm.getDMass();
+                double theoreticalDmass;
+                if (locator.getIndex(dmass) == -1)
+                    theoreticalDmass = dmass;
+                else
+                    theoreticalDmass = peakBounds[0][locator.getIndex(dmass)];
+                out.println(String.join("\t", psm.spLine) + "\t" + String.format("%.4f", theoreticalDmass));
+            }
+
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("error writing IonQuant compatible PSM file: " + fname + "\n" + e.getMessage());
         }
 
-		out.close();
-
-		fname.delete();
+        fname.delete();
 		File newFileName = new File(tempFoutName);
 		newFileName.renameTo(fname);
 	}
@@ -567,38 +577,43 @@ public class PSMFile {
 	/**
 	 * Reads all lines into PSMs in the psms array and stores the scan to line index mapping in scanToLineMap.
 	 */
-	public PSMFile(File f, int massdiffToVarmod) throws Exception {
-		BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
-		fname = f;
-		headers = in.readLine().split("\t");
-		initColumns();
-
-		if (massdiffToVarmod > 0 && msfraggerLocalizationCol == -1) {
-			PTMShepherd.print("Error: Delta masses were removed by MSFragger but localization was not performed. This mode is not supported. Please either enable localize_delta_mass or disable mass_diff_to_variable_mod in MSFragger and try again.");
-			PTMShepherd.die("Invalid MSFragger mass-diff-to-variable-mod configuration");
-		}
-		if (glycanScoreCol != -1) {
-			// handle previous glyco run removing mass diffs
-			massdiffToVarmod = 1;
-		}
-		this.massdiffToVarmod = massdiffToVarmod;
-
+	public PSMFile(File f, int massdiffToVarmod) {
 		psms = new ArrayList<>();
 		scanToLineMap = new HashMap<>();
-		int i = 0;
-		String cline;
-		while((cline = in.readLine()) != null) {
-			if (!cline.isEmpty()) {
-				PSM thisPSM = new PSM(i, cline, this.massdiffToVarmod, specCol, peptideCol, modPeptideCol, chargeCol, peptideCalcMassCol, dMassCol, assignedModCol, msfraggerLocalizationCol);
-				psms.add(thisPSM);
-				scanToLineMap.put(thisPSM.getSpec(), i);
-				i++;
+
+		try {
+			BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
+			fname = f;
+			headers = in.readLine().split("\t");
+			initColumns();
+
+			if (massdiffToVarmod > 0 && msfraggerLocalizationCol == -1) {
+				PTMShepherd.print("Error: Delta masses were removed by MSFragger but localization was not performed. This mode is not supported. Please either enable localize_delta_mass or disable mass_diff_to_variable_mod in MSFragger and try again.");
+				PTMShepherd.die("Invalid MSFragger mass-diff-to-variable-mod configuration");
 			}
+			if (glycanScoreCol != -1) {
+				// handle previous glyco run removing mass diffs
+				massdiffToVarmod = 1;
+			}
+			this.massdiffToVarmod = massdiffToVarmod;
+
+			int i = 0;
+			String cline;
+			while ((cline = in.readLine()) != null) {
+				if (!cline.isEmpty()) {
+					PSM thisPSM = new PSM(i, cline, this.massdiffToVarmod, specCol, peptideCol, modPeptideCol, chargeCol, peptideCalcMassCol, dMassCol, assignedModCol, msfraggerLocalizationCol);
+					psms.add(thisPSM);
+					scanToLineMap.put(thisPSM.getSpec(), i);
+					i++;
+				}
+			}
+			in.close();
+		} catch (IOException e) {
+			PTMShepherd.die("error reading PSM file: " + f.getName() + "\n" + e.getMessage());
 		}
-		in.close();
 	}
 
-    public void annotateMassDiffs(String [] annotations) throws IOException {
+    public void annotateMassDiffs(String [] annotations) {
 		/* find column to modify, overwrite Observed Modifications col if exists */
 		int annoCol = getColumn("Observed Modifications");
 		boolean overwrite = true;
@@ -629,15 +644,19 @@ public class PSMFile {
 		/* write output */
 		// todo: skip this and only write out at the end??
 		String tempFoutName = this.fname + ".anno.tmp";
-		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+		try {
+			PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 
-		/* write the new header */
-		out.println(String.join("\t", this.headers));
-		/* write file lines */
-        for (String newLine : newLines) out.println(newLine);
+			/* write the new header */
+			out.println(String.join("\t", this.headers));
+			/* write file lines */
+			for (String newLine : newLines) out.println(newLine);
 
-		/* close and rename temp file */
-		out.close();
+			/* close and rename temp file */
+			out.close();
+		} catch (IOException e) {
+			PTMShepherd.die("error writing annotated mass diffs file: " + this.fname + "\n" + e.getMessage());
+		}
 		this.fname.delete();
 		File newFileName = new File(tempFoutName);
 		newFileName.renameTo(this.fname);
@@ -740,20 +759,25 @@ public class PSMFile {
 		return values;
 	}
 
-	public void save(boolean overwrite) throws IOException {
+	public void save(boolean overwrite) {
 		String tempFoutName = fname + ".tmp";
-		PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
+		try {
+			PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));
 
-		// Write lines to .tmp file
-		out.println(String.join("\t", headers));
-		for (PSM psm : psms) {
-			out.println(psm.printLine());
+			// Write lines to .tmp file
+			out.println(String.join("\t", headers));
+			for (PSM psm : psms) {
+				out.println(psm.printLine());
+			}
+			out.close();
+
+			if (overwrite) {
+				Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(fname)), StandardCopyOption.REPLACE_EXISTING);
+			}
+
+		} catch (IOException e) {
+			PTMShepherd.die("error writing PSM file: " + fname + "\n" + e.getMessage());
 		}
-
-		out.close();
-
-		if (overwrite)
-			Files.move(Paths.get(tempFoutName), Paths.get(String.valueOf(fname)), StandardCopyOption.REPLACE_EXISTING);
 	}
 
 //	public void writeToPsmCache(File cacheFname, ArrayList<Double> varModMasses) throws FileNotFoundException {

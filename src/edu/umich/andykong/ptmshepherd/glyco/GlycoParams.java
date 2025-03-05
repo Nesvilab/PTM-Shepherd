@@ -111,21 +111,25 @@ public class GlycoParams {
      * @param glycanDB list of glycan candidates (whole glycan database)
      * @param outputPath where to save the file
      */
-    public static void writeGlycanMassList(ArrayList<GlycanCandidate> glycanDB, String outputPath) throws IOException {
-        PrintWriter out = new PrintWriter(new FileWriter(outputPath));
-        HashSet<Integer> writtenMasses = new HashSet<>();
-        for (GlycanCandidate candidate : glycanDB) {
-            if (candidate.isDecoy) {
-                continue;       // do not write decoy masses to list - only target masses are reported in PSM table, even if decoy is assigned
+    public static void writeGlycanMassList(ArrayList<GlycanCandidate> glycanDB, String outputPath) {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(outputPath));
+            HashSet<Integer> writtenMasses = new HashSet<>();
+            for (GlycanCandidate candidate : glycanDB) {
+                if (candidate.isDecoy) {
+                    continue;       // do not write decoy masses to list - only target masses are reported in PSM table, even if decoy is assigned
+                }
+                int roundedMass = (int) Math.round(candidate.monoisotopicMass * 100);
+                if (!writtenMasses.contains(roundedMass)) {
+                    out.write(String.format("%.4f\n",candidate.monoisotopicMass));
+                    writtenMasses.add(roundedMass);
+                }
             }
-            int roundedMass = (int) Math.round(candidate.monoisotopicMass * 100);
-            if (!writtenMasses.contains(roundedMass)) {
-                out.write(String.format("%.4f\n",candidate.monoisotopicMass));
-                writtenMasses.add(roundedMass);
-            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Could not write glycan mass list to file " + outputPath + "\ndue to error: " + e.getMessage());
         }
-        out.flush();
-        out.close();
     }
 
     /**
