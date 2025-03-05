@@ -1164,13 +1164,6 @@ public class PTMShepherd {
 		return sb.toString();
 	}
 
-	public static String reNormNameWithCharge(String s) {
-		String[] sp = s.split("\\.");
-		int sn = Integer.parseInt(sp[1]);
-		//with charge state
-		return String.format("%s.%d.%d.%s",sp[0],sn,sn,sp[3]);
-	}
-
 	public static String concatIonTypes() {
 		StringBuilder sb = new StringBuilder();
 		if (params.get("iontype_a").equals("1"))

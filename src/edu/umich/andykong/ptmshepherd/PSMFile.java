@@ -426,23 +426,6 @@ public class PSMFile {
 	}
 
 	/**
-	 * Helper method for warning that given column in the PSM table was not found. If column is < 0, assumes the
-	 * column was not found in the PSM table
-	 * @param column index of the column in the PSM table
-	 * @param columnName name of this column
-	 * @return true if column NOT found (index < 0), false if found
-	 */
-	public boolean warnPSMcolNotFound(int column, String columnName) {
-		if (column == -1) {
-			// did not find correct column! Use default and warn user
-			PTMShepherd.print(String.format("Warning: Could not find %s column in PSM table, PSM table editing may fail", columnName));
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	/**
 	 * Converts glycan ID to mass and position for Assigned Mods (may change to string for quant later). Uses
 	 * MSFragger localization string from Philosopher (4.0.0+) if that contains localization info OR places
 	 * glycan on the first allowed position if localization is ambiguous.
@@ -659,50 +642,6 @@ public class PSMFile {
 		File newFileName = new File(tempFoutName);
 		newFileName.renameTo(this.fname);
     }
-
-	/**
-	 * Parse the location index from an Assigned Modification in the PSM table. If location is C-term,
-	 * return -1 and if location is N-term, return -2
-	 * @param mod string to parse
-	 * @return mod location
-	 */
-    public static int parseModLocation(String mod) {
-		// get all chars of the mod location and parse it
-		String trimmedMod = mod.trim();
-		int stopChar = 0;
-		for (int i=0; i < trimmedMod.length(); i++) {
-			if (!Character.isDigit(trimmedMod.charAt(i))) {
-				// stop here
-				stopChar = i;
-				break;
-			}
-		}
-
-		if (stopChar == 0) {
-			// special case: N-term or C-term mod
-			if (trimmedMod.startsWith("N-term")) {
-				return -2;
-			} else if (trimmedMod.startsWith("C-term")) {
-				return -1;
-			} else {
-				PTMShepherd.print(String.format("Warning: invalid Assigned Modification format for mod %s. Not removing existing glycans", mod));
-				return -3;
-			}
-		} else {
-			return Integer.parseInt(trimmedMod.substring(0, stopChar));
-		}
-	}
-
-	/**
-	 * Parse the mass of an assigned modification in the PSM table from between the parentheses [e.g., 4N(1000.0000)]
-	 * @param mod string to parse
-	 * @return mod mass
-	 */
-	public static double parseModMass(String mod) {
-    	String[] splits = mod.split("\\(");
-    	String[] massSplits = splits[1].split("\\)");
-    	return Double.parseDouble(massSplits[0]);
-	}
 
 	/**
 	 * @param indx		insertion index
