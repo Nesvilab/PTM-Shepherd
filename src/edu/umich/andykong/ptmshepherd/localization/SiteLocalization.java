@@ -292,7 +292,8 @@ public class SiteLocalization {
 
 	public static void localizeMods(TreeMap<Integer, Float> assignedMods, float[] mods) {
 		for (Map.Entry<Integer, Float> mod : assignedMods.entrySet()) {
-			int pos = mod.getKey();
+			// Mods are 1-indexed in PSMs, except for N-term mods which are placed at 0. Leave at 0 if N-term mod, otherwise, convert to 0-indexed
+			int pos = mod.getKey() == 0 ? 0 : mod.getKey() - 1;
 			float mass = mod.getValue();
 			mods[pos] += mass;
 		}
