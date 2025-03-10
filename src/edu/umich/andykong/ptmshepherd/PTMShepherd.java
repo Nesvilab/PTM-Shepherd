@@ -322,6 +322,12 @@ public class PTMShepherd {
 	}
 
 	public static void main(String [] args) {
+		// allow program to terminate even when the ExecutorServices are not shutdown
+		Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+			e.printStackTrace();
+			die("Uncaught exception: " + e.getMessage());
+		});
+
 		Locale.setDefault(new Locale("en","US"));
 		out.println();
 		out.printf("%s version %s\n",name,version);
