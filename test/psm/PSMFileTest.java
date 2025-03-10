@@ -13,12 +13,7 @@ public class PSMFileTest {
     @Test
     public void parsePSMFileTest() {
         File testFile = new File("test-resources/test_psms.tsv");
-        PSMFile psmFile = null;
-        try {
-            psmFile = new PSMFile(testFile, 0);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        PSMFile psmFile = new PSMFile(testFile, 0);
 
         // are headers found?
         assert psmFile.specCol != -1;
@@ -40,14 +35,8 @@ public class PSMFileTest {
     @Test
     public void parsePSMFileRemoveDeltaTest() {
         File testFile = new File("test-resources/test_psms_remove-delta.tsv");
-        PSMFile psmFile = null;
-        try {
-            psmFile = new PSMFile(testFile, 1);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        PSMFile psmFile = new PSMFile(testFile, 1);
 
-        assert psmFile != null;
         PSM psm1 = psmFile.psms.get(0);
         assert psm1.getScanNum() == 382;
         assert psm1.getDMass() + -0.0045 < tol;
@@ -64,14 +53,8 @@ public class PSMFileTest {
     @Test
     public void parsePSMFileKeepDeltaTest() {
         File testFile = new File("test-resources/test_psms_keep-delta.tsv");
-        PSMFile psmFile = null;
-        try {
-            psmFile = new PSMFile(testFile, 2);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        PSMFile psmFile = new PSMFile(testFile, 2);
 
-        assert psmFile != null;
         PSM psm1 = psmFile.psms.get(0);
         assert psm1.getScanNum() == 382;
         assert psm1.getDMass() + -0.0045 < tol;
@@ -86,7 +69,7 @@ public class PSMFileTest {
     }
 
     @Test
-    public void updateDeltaMassTest() throws Exception {
+    public void updateDeltaMassTest() {
         File testFile = new File("test-resources/test_psms.tsv");
         PSMFile psmFile = new PSMFile(testFile, 0);
 
@@ -106,7 +89,8 @@ public class PSMFileTest {
     }
 
     @Test
-    public void editModifiedPeptideTest0() throws Exception {
+    // test editing modified peptide for mass-diff-to-varmod = 0
+    public void editModifiedPeptideTest0() {
         File testFile = new File("test-resources/test_psms.tsv");
         PSMFile psmFile = new PSMFile(testFile, 0);
 
@@ -126,12 +110,43 @@ public class PSMFileTest {
 
         // test re-run of the same file with a new mod
         psm.editModifiedPeptide(3, 2000, 1, psmFile.modPeptideCol);
-        assert psm.getModifiedPeptide().equals("NFN[2115]DSSTK");
-        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2115]DSSTK");
+        assert psm.getModifiedPeptide().equals("NFN[2114]DSSTK");
+        assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2114]DSSTK");
+
+        // test another PSM with a different mod location and subsequent AA
+        PSM psm2 = psmFile.psms.get(4);
+        assert psm2.getOriginalModifiedPeptide().equals("SNATKPQCPK");
+        assert psm2.getModifiedPeptide().equals("SNATKPQCPK");
+
+        psm2.editModifiedPeptide(2, 1864.6342, 0, psmFile.modPeptideCol);
+        assert psm2.getModifiedPeptide().equals("SN[1979]ATKPQCPK");
+        assert psm2.spLine.get(psmFile.modPeptideCol).equals("SN[1979]ATKPQCPK");
+
+        // test editing a PSM with a glycan modification at the end of the peptide
+        PSM psm3 = psmFile.psms.get(7);
+        assert psm3.getOriginalModifiedPeptide().equals("KETLHKQYHLVKSHTN");
+        assert psm3.getModifiedPeptide().equals("KETLHKQYHLVKSHTN");
+        assert psm3.spLine.get(psmFile.modPeptideCol).isEmpty();
+
+        psm3.editModifiedPeptide(16, 203.0794, 0, psmFile.modPeptideCol);
+        assert psm3.getModifiedPeptide().equals("KETLHKQYHLVKSHTN[317]");
+        assert psm3.spLine.get(psmFile.modPeptideCol).equals("KETLHKQYHLVKSHTN[317]");
+
+        // test adding a glycan to a PSM with a variable modification
+        PSM psm4 = psmFile.psms.get(8);
+        assert psm4.getOriginalModifiedPeptide().equals("HKDDCERM[147]NITVKN");
+        assert psm4.getModifiedPeptide().equals("HKDDCERM[147]NITVKN");
+        assert psm4.spLine.get(psmFile.modPeptideCol).equals("HKDDCERM[147]NITVKN");
+
+        psm4.editModifiedPeptide(9, 1038.3751, 0, psmFile.modPeptideCol);
+        assert psm4.getModifiedPeptide().equals("HKDDCERM[147]N[1152]ITVKN");
+        assert psm4.getOriginalModifiedPeptide().equals("HKDDCERM[147]NITVKN");
+        assert psm4.spLine.get(psmFile.modPeptideCol).equals("HKDDCERM[147]N[1152]ITVKN");
     }
 
     @Test
-    public void editModifiedPeptideTest1() throws Exception {
+    // test editing modified peptide for mass-diff-to-varmod = 1
+    public void editModifiedPeptideTest1() {
         File testFile = new File("test-resources/test_psms_remove-delta.tsv");
         PSMFile psmFile = new PSMFile(testFile, 1);
 
@@ -146,7 +161,8 @@ public class PSMFileTest {
     }
 
     @Test
-    public void editModifiedPeptideTest2() throws Exception {
+    // test editing modified peptide for mass-diff-to-varmod = 2
+    public void editModifiedPeptideTest2() {
         File testFile = new File("test-resources/test_psms_keep-delta.tsv");
         PSMFile psmFile = new PSMFile(testFile, 2);
 
