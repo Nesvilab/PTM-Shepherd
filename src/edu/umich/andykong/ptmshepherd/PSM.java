@@ -272,7 +272,7 @@ public class PSM {
     public void editModifiedPeptide(int modLocation, double modMass, int massdiffToVarmod, int modPeptideCol) {
         if (massdiffToVarmod != 0) {
             int adjustedModIndex = getModPepIndex(modifiedPeptide, modLocation);
-            if (modifiedPeptide.charAt(adjustedModIndex) == '[') {
+            if (modifiedPeptide.charAt(adjustedModIndex + 1) == '[') {
                 // previous mod present: remove it
                 modifiedPeptide = removeModFromModifiedPeptide(modifiedPeptide, modLocation);
             }
@@ -285,8 +285,8 @@ public class PSM {
     public static String addModToModifiedPeptide(String previousModPep, int modLocation, double modMass) {
         int residueIndex = getModPepIndex(previousModPep, modLocation);
         int AAindex = previousModPep.charAt(residueIndex) - 65;		// capital alphabet starts at 65
-        int truncatedModMass = (int) (modMass + AAMasses.monoisotopic_masses[AAindex]);     // truncate to match existing pepxml format
-        return previousModPep.substring(0, residueIndex) + String.format("[%d]", truncatedModMass) + previousModPep.substring(residueIndex);
+        int roundedModMass = (int) Math.round(modMass + AAMasses.monoisotopic_masses[AAindex]);     // round to match existing pepxml format
+        return previousModPep.substring(0, residueIndex + 1) + String.format("[%d]", roundedModMass) + previousModPep.substring(residueIndex + 1);
     }
 
     // delete a modification from a modified peptide string
@@ -302,11 +302,11 @@ public class PSM {
 
     }
 
-    // get the correct index in a modified peptide String for the mod location (including other mods, if present)
+    // get the 0-indexed site in a modified peptide String for the mod location (including other mods, if present)
     private static int getModPepIndex(String previousModPep, int modLocation) {
         int residueIndex = -1;
         int letterCount = 0;
-        for (int i = 0; i < previousModPep.length(); i++) {
+        for (int i = 0; i <= previousModPep.length(); i++) {
             if (letterCount == modLocation) {
                 residueIndex = i;
                 break;
@@ -315,7 +315,7 @@ public class PSM {
                 letterCount++;
             }
         }
-        return residueIndex;
+        return residueIndex - 1;
     }
 
     public String toString() {
