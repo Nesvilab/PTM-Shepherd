@@ -311,7 +311,7 @@ public class PSM {
                 residueIndex = i;
                 break;
             }
-            if (Character.isLetter(previousModPep.charAt(i))) {
+            if (Character.isUpperCase(previousModPep.charAt(i))) {
                 letterCount++;
             }
         }
