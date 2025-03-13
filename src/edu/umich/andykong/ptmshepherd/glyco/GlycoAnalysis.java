@@ -191,7 +191,7 @@ public class GlycoAnalysis {
                     TreeMap<String, GlycanFragment> Yfragments = new TreeMap<>();
                     TreeMap<String, GlycanFragment> oxoniumFragments = new TreeMap<>();
                     parseCandidateFragments(fragmentInfo, Yfragments, oxoniumFragments, glycoParams.glycanResiduesMap);
-                    GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, false, glycoParams.glycanResiduesMap, Yfragments, oxoniumFragments);
+                    GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, Yfragments, oxoniumFragments);
 
                     String glycanHash = fragmentInfoContainer.toString();
                     // only include good targets in fragment info

@@ -32,7 +32,6 @@ public class GlycanCandidate extends Glycan {
     boolean isDecoy;
     public TreeMap<String, GlycanFragment> Yfragments;
     public TreeMap<String, GlycanFragment> oxoniumFragments;
-    public boolean hasFragmentProps;    // if this candidate has fragment propensity info or default values
     public String name;
 
     /**
@@ -41,7 +40,6 @@ public class GlycanCandidate extends Glycan {
     public GlycanCandidate(Map<GlycanResidue, Integer> glycanComposition,
                            double decoyMassShift,
                            boolean isDecoy,
-                           boolean hasFragmentProps,
                            HashMap<String, GlycanResidue> glycanResiduesMap,
                            TreeMap<String, GlycanFragment> Yfragments,
                            TreeMap<String, GlycanFragment> oxoniumFragments) {
@@ -59,7 +57,6 @@ public class GlycanCandidate extends Glycan {
         this.isDecoy = isDecoy;
         this.Yfragments = Yfragments;
         this.oxoniumFragments = oxoniumFragments;
-        this.hasFragmentProps = hasFragmentProps;
         name = this.toString();
     }
 
@@ -72,7 +69,7 @@ public class GlycanCandidate extends Glycan {
         TreeMap<String, GlycanFragment> Yfragments = initializeYFragments(inputGlycanComp, isDecoy, glycanResiduesMap, nGlycan, randomGenerator);
         TreeMap<String, GlycanFragment> oxoniumFragments = initializeOxoniumFragments(inputGlycanComp, isDecoy, glycoOxoniumDatabase);
 
-        return new GlycanCandidate(inputGlycanComp, decoyMassShift, isDecoy, false, glycanResiduesMap, Yfragments, oxoniumFragments);
+        return new GlycanCandidate(inputGlycanComp, decoyMassShift, isDecoy, glycanResiduesMap, Yfragments, oxoniumFragments);
     }
 
     /**
@@ -87,7 +84,7 @@ public class GlycanCandidate extends Glycan {
         TreeMap<String, GlycanFragment> Yfragments = initializeYFragmentsFromProps(oldCandidate.Yfragments, fragmentInfo);
         TreeMap<String, GlycanFragment> oxoniumFragments = initializeOxoniumFragmentsFromProps(oldCandidate.oxoniumFragments, fragmentInfo);
 
-        return new GlycanCandidate(oldCandidate.glycanComposition, oldCandidate.decoyMassShift, oldCandidate.isDecoy, true, glycanResiduesMap, Yfragments, oxoniumFragments);
+        return new GlycanCandidate(oldCandidate.glycanComposition, oldCandidate.decoyMassShift, oldCandidate.isDecoy, glycanResiduesMap, Yfragments, oxoniumFragments);
 
     }
 
@@ -106,14 +103,14 @@ public class GlycanCandidate extends Glycan {
         for (Map.Entry<String, GlycanFragment> entry : otherCandidate.oxoniumFragments.entrySet()) {
             oxoniumFragments.put(entry.getKey(), GlycanFragment.copyFragment(entry.getValue()));
         }
-        return new GlycanCandidate(otherCandidate.glycanComposition, otherCandidate.decoyMassShift, otherCandidate.isDecoy, otherCandidate.hasFragmentProps, glycanResiduesMap, Yfragments, oxoniumFragments);
+        return new GlycanCandidate(otherCandidate.glycanComposition, otherCandidate.decoyMassShift, otherCandidate.isDecoy, glycanResiduesMap, Yfragments, oxoniumFragments);
     }
 
     /**
      * Empty candidate
      */
     public static GlycanCandidate emptyCandidate() {
-        return new GlycanCandidate(new TreeMap<>(), 0,false, false, new HashMap<>(), new TreeMap<>(), new TreeMap<>());
+        return new GlycanCandidate(new TreeMap<>(), 0,false, new HashMap<>(), new TreeMap<>(), new TreeMap<>());
     }
 
     /**
