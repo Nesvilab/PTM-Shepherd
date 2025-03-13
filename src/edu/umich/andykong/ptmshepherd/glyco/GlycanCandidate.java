@@ -267,6 +267,12 @@ public class GlycanCandidate extends Glycan {
      * @return string
      */
     public String toString() {
-        return GlycanFragment.toGlycanString(glycanComposition, mass, isDecoy);
+        return toCandidateString(glycanComposition, mass, isDecoy);
+    }
+
+    // Format: (Decoy_)<GlycanComposition> % <Mass>
+    public static String toCandidateString(Map<GlycanResidue, Integer> composition, double mass, boolean isDecoy) {
+        String decoy = isDecoy ? "Decoy_" : "";
+        return String.format("%s%s %% %.4f", decoy, Glycan.toGlycanString(composition), mass);
     }
 }

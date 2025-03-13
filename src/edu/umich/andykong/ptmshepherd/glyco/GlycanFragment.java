@@ -20,7 +20,6 @@ import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanParser;
 import umich.ms.glyco.GlycanResidue;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -51,7 +50,7 @@ public class GlycanFragment {
         this.neutralMass = neutralMass;
         this.propensity = propensity;
         this.compositionComment = compositionComment;
-        this.hash = toFragmentHash();
+        this.hash = toFragmentHash(requiredComposition, isDecoy, compositionComment);
         this.fragType = fragType;
     }
 
@@ -216,27 +215,19 @@ public class GlycanFragment {
      * Output format for printing to .rawglyco file
      */
     public String toString() {
-        return String.format("%s~%.4f", toGlycanString(requiredComposition, neutralMass, isDecoy), foundIntensity);
-    }
-
-    /**
-     * Composition-only identifier method, to allow decoys with same comp but different masses to be matched (e.g.,
-     * neutral loss oxonium ions)
-     * @return string of composition + decoy
-     */
-    public String toFragmentHash() {
-        return toGlycanCompString(requiredComposition, isDecoy, compositionComment);
+        return toFragmentIntensityString(requiredComposition, neutralMass, isDecoy, compositionComment, foundIntensity);
     }
 
     /**
      * Hash string is dependent on comp and comments only, not mass. NOTE: should be checked for duplicates in
      * the case of neutral losses (e.g. oxonium ions)
+     * format: (Decoy_)<Composition><Comment>
      * @param glycanComposition composition
      * @param isDecoy decoy status
      * @param comment optional string to append to distinguish between same composition but different fragment (e.g. NLs)
      * @return string
      */
-    public static String toGlycanCompString(Map<GlycanResidue, Integer> glycanComposition, boolean isDecoy, String comment) {
+    public static String toFragmentHash(Map<GlycanResidue, Integer> glycanComposition, boolean isDecoy, String comment) {
         StringBuilder stringBuilder = new StringBuilder();
         if (isDecoy) {
             stringBuilder.append("Decoy_");
@@ -247,12 +238,19 @@ public class GlycanFragment {
     }
 
     /**
-     * Generate a string suitable for detecting duplicate fragments (same required composition and decoy status).
-     * Basically same as toString, but without intensity.
-     * @return string of composition + decoy + mass
+     * Fragment hash with mass. Same as GlycanCandidate string but with (optional) composition comment
+     * Format: (Decoy_)<Composition><Comment> % <Mass>
      */
-    public static String toGlycanString(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy) {
-        return GlycanFragment.toGlycanCompString(glycanComposition, isDecoy, "") + String.format(" %% %.4f", mass);
+    public static String toFragmentMassString(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy, String comment) {
+        return GlycanFragment.toFragmentHash(glycanComposition, isDecoy, comment) + String.format(" %% %.4f", mass);
+    }
+
+    /**
+     * Fragment hash with mass and intensity.
+     * Format: (Decoy_)<Composition><Comment> % <Mass>~<Intensity>
+     */
+    public static String toFragmentIntensityString(Map<GlycanResidue, Integer> glycanComposition, double mass, boolean isDecoy, String comment, double foundIntensity) {
+        return String.format("%s~%.4f", GlycanFragment.toFragmentMassString(glycanComposition, mass, isDecoy, comment), foundIntensity);
     }
 
     /**
