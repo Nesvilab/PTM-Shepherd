@@ -48,9 +48,9 @@ public class GlycanAssignmentResult {
 
         // initialize placeholder values
         this.bestTargetScore = Double.NaN;
-        this.bestTarget = new GlycanCandidate();
-        this.bestCandidate = new GlycanCandidate();
-        this.bestDecoy = new GlycanCandidate();
+        this.bestTarget = GlycanCandidate.emptyCandidate();
+        this.bestCandidate = GlycanCandidate.emptyCandidate();
+        this.bestDecoy = GlycanCandidate.emptyCandidate();
     }
 
     /**

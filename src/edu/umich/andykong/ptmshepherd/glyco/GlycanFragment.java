@@ -42,70 +42,68 @@ public class GlycanFragment {
     String compositionComment;      // needed for cases with duplicate compositions (like oxonium ions with non-standard masses from fragmentation)
     FragType fragType;
 
-    /**
-     * Fragment info constructor for fragments from the glycofrags file
-     * @param glycanStr string to parse for composition
-     * @param expectedIntensity observed relative intensity todo: might be able to remove this if not using later
-     */
-    public GlycanFragment(String glycanStr, double expectedIntensity, FragType fragType, GlycoParams glycoParams) {
-        this.requiredComposition = GlycanParser.parseGlycanString(glycanStr, glycoParams.glycanResiduesMap).composition;
+    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, FragType fragType, double[] ruleProbabilities, boolean isDecoy, double neutralMass, double expectedIntensity, double foundIntensity, double propensity, String compositionComment) {
+        this.requiredComposition = requiredComposition;
+        this.ruleProbabilities = ruleProbabilities;
+        this.foundIntensity = foundIntensity;
         this.expectedIntensity = expectedIntensity;
-        this.isDecoy = false;
-        this.foundIntensity = 0;
-        this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
-        this.compositionComment = "";
+        this.isDecoy = isDecoy;
+        this.neutralMass = neutralMass;
+        this.propensity = propensity;
+        this.compositionComment = compositionComment;
         this.hash = toFragmentHash();
         this.fragType = fragType;
     }
 
     /**
-     * Constructor Y ions (neutral mass is the mass of requiredComposition exactly)
+     * Initialize a new Fragment from a glycan string, type, and expected intensity.
+     * @param glycanStr string to parse for composition
+     * @param expectedIntensity observed relative intensity
+     */
+    public static GlycanFragment parseGlycanFragment(String glycanStr, double expectedIntensity, FragType fragType, HashMap<String, GlycanResidue> glycanResiduesMap) {
+        Glycan glycan = GlycanParser.parseGlycanString(glycanStr, glycanResiduesMap);
+        double neutralMass = Glycan.computeCompositionMass(glycan.composition);
+        return new GlycanFragment(glycan.composition, fragType, new double[]{}, false, neutralMass, expectedIntensity, 0, 0, "");
+    }
+
+    /**
+     * Initialize Y ion (neutral mass is the mass of requiredComposition exactly)
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, boolean isDecoy, Random randomGenerator, FragType fragType) {
-        this.requiredComposition = requiredComposition;
-        this.ruleProbabilities = computeYRuleProbs();
-        this.propensity = 0;
-        this.expectedIntensity = 0;
-        this.foundIntensity = 0;
-        this.isDecoy = isDecoy;
+    public static GlycanFragment initializeYFragment(Map<GlycanResidue, Integer> requiredComposition, boolean isDecoy, Random randomGenerator) {
+        double[] ruleProbs = computeYRuleProbs(requiredComposition);
+        double neutralMass;
         if (isDecoy) {
-            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
+            neutralMass = Glycan.computeCompositionMass(requiredComposition) + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         } else {
-            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition);
+            neutralMass = Glycan.computeCompositionMass(requiredComposition);
         }
-        this.compositionComment = "";
-        this.hash = toFragmentHash();
-        this.fragType = fragType;
+        return new GlycanFragment(requiredComposition, FragType.Y, ruleProbs, isDecoy, neutralMass, 0, 0, 0, "");
     }
 
     /**
-     * Constructor for cases where neutral mass needs to be supplied (e.g. some oxonium ions)
+     * Initialize oxonium ion. In some cases, neutral mass needs to be adjusted by the provided mass shift and composition
+     * comment (e.g., H2O loss).
      * @param requiredComposition map of residues and counts required to be in the candidate to match this fragment
      * @param ruleProbabilities probabilities to use
      * @param neutralMassShift neutral mass shift of the fragment relative to its composition (e.g., for H2O losses from oxonium ions)
      * @param randomGenerator the single random number generator instance
      */
-    public GlycanFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator, String compComment, FragType fragType) {
-        this.requiredComposition = requiredComposition;
-        this.ruleProbabilities = ruleProbabilities;
-        this.propensity = 0;
-        this.foundIntensity = 0;
+    public static GlycanFragment initializeOxoniumFragment(Map<GlycanResidue, Integer> requiredComposition, double[] ruleProbabilities, double neutralMassShift, boolean isDecoy, Random randomGenerator, String compComment) {
+        double expectedIntensity;
         if (ruleProbabilities.length == 2) {
-            this.expectedIntensity = 0;    // not provided, set to negative value to ignore
+            expectedIntensity = 0;    // not provided, set to negative value to ignore
         } else {
-            this.expectedIntensity = ruleProbabilities[2];   // 3rd value is expected intensity
+            expectedIntensity = ruleProbabilities[2];   // 3rd value is expected intensity
         }
-        this.isDecoy = isDecoy;
+        double neutralMass;
         if (isDecoy) {
-            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
+            neutralMass = Glycan.computeCompositionMass(requiredComposition) + neutralMassShift + randomMassShift(MAX_DECOY_FRAGMENT_SHIFT_DA, randomGenerator);
         } else {
-            this.neutralMass = GlycanCandidate.computeMonoisotopicMass(requiredComposition) + neutralMassShift;
+            neutralMass = Glycan.computeCompositionMass(requiredComposition) + neutralMassShift;
         }
-        this.compositionComment = compComment;
-        this.hash = toFragmentHash();
-        this.fragType = fragType;
+        return new GlycanFragment(requiredComposition, FragType.Ox, ruleProbabilities, isDecoy, neutralMass, expectedIntensity, 0, 0, compComment);
     }
 
     /**
@@ -114,33 +112,31 @@ public class GlycanFragment {
      * fragment and sets found intensity to 0.
      * @param baseFragment Fragment to copy from
      */
-    public GlycanFragment(GlycanFragment baseFragment) {
-        this.requiredComposition = baseFragment.requiredComposition;
-        this.ruleProbabilities = baseFragment.ruleProbabilities;
-        this.isDecoy = baseFragment.isDecoy;
-        this.neutralMass = baseFragment.neutralMass;
-        this.foundIntensity = 0;
-        this.expectedIntensity = baseFragment.expectedIntensity;
-        this.propensity = baseFragment.propensity;
-        this.compositionComment = baseFragment.compositionComment;
-        this.hash = baseFragment.hash;
-        this.fragType = baseFragment.fragType;
+    public static GlycanFragment copyFragment(GlycanFragment baseFragment) {
+        return new GlycanFragment(baseFragment.requiredComposition,
+                baseFragment.fragType,
+                baseFragment.ruleProbabilities,
+                baseFragment.isDecoy,
+                baseFragment.neutralMass,
+                baseFragment.expectedIntensity,
+                0,
+                baseFragment.propensity,
+                baseFragment.compositionComment);
     }
     /**
      * Constructor for 2nd pass search for new Fragment with provided intensity and propensity
      * @param baseFragment Fragment to copy from
      */
-    public GlycanFragment(GlycanFragment baseFragment, double expectedIntensity, double propensity) {
-        this.requiredComposition = baseFragment.requiredComposition;
-        this.ruleProbabilities = baseFragment.ruleProbabilities;
-        this.isDecoy = baseFragment.isDecoy;
-        this.neutralMass = baseFragment.neutralMass;
-        this.foundIntensity = 0;
-        this.expectedIntensity = expectedIntensity;
-        this.propensity = propensity;
-        this.compositionComment = baseFragment.compositionComment;
-        this.hash = baseFragment.hash;
-        this.fragType = baseFragment.fragType;
+    public static GlycanFragment copyFragmentWithPropensity(GlycanFragment baseFragment, double expectedIntensity, double propensity) {
+        return new GlycanFragment(baseFragment.requiredComposition,
+                baseFragment.fragType,
+                baseFragment.ruleProbabilities,
+                baseFragment.isDecoy,
+                baseFragment.neutralMass,
+                expectedIntensity,
+                0,
+                propensity,
+                baseFragment.compositionComment);
     }
 
     /**
@@ -162,7 +158,7 @@ public class GlycanFragment {
      * @param candidate glycan candidate to consider
      * @return true if allowed/expected for this candidate, false if not
      */
-    public boolean isAllowedFragment(GlycanCandidate candidate, GlycoParams glycoParams){
+    public boolean isAllowedFragment(GlycanCandidate candidate, HashMap<String, GlycanResidue> glycanResiduesMap){
         // target fragments can only match target candidates and decoy fragments can only match decoy candidates
         if (this.isDecoy) {
             if (!candidate.isDecoy) {
@@ -183,8 +179,8 @@ public class GlycanFragment {
         }
 
         // special cases todo: fix/generalize
-        GlycanResidue hexNAc = GlycanParser.findResidueName("HexNAc", glycoParams.glycanResiduesMap);
-        GlycanResidue hexRes = GlycanParser.findResidueName("Hex", glycoParams.glycanResiduesMap);
+        GlycanResidue hexNAc = GlycanParser.findResidueName("HexNAc", glycanResiduesMap);
+        GlycanResidue hexRes = GlycanParser.findResidueName("Hex", glycanResiduesMap);
         if (this.requiredComposition.containsKey(hexRes) && this.requiredComposition.containsKey(hexNAc)) {
             if (this.requiredComposition.get(hexRes) > 0 && !(this.requiredComposition.get(hexNAc) > 0)) {
                 // Hex required but NOT HexNAc. Return false if candidate contains HexNAc
@@ -202,7 +198,7 @@ public class GlycanFragment {
      * in the least change is taken if there are disagreements between residue scores.
      * @return
      */
-    private double[] computeYRuleProbs() {
+    private static double[] computeYRuleProbs(Map<GlycanResidue, Integer> requiredComposition) {
         double minProbPlus = 100000;
         double maxProbMinus = -1;
         for (GlycanResidue residue: requiredComposition.keySet()) {

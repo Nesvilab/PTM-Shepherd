@@ -17,6 +17,7 @@
 package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
+import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanMod;
 import umich.ms.glyco.GlycanParser;
@@ -51,13 +52,16 @@ public class GlycoParams {
     public boolean useNonCompFDR ;
     public double defaultProp;
     public String allowedLocalizationResidues;
-    public HashMap<GlycanResidue, ArrayList<GlycanFragmentDescriptor>> glycoOxoniumDatabase;
+    public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
     public HashMap<Integer, Double> isotopeProbTable;
     public double massProbScaling;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
     public static final String defaultOxoPath = "oxonium_ion_list.txt";
+
+    public static final double MAX_CANDIDATE_DECOY_SHIFT_DA = 3;
+    public static final double DEFAULT_PEPTIDE_MASS = 1500;
 
     public GlycoParams(String glycanResiduesPath, String glycanModsPath, String oxoniumListPath) {
         // parse the glycan residues and mods tables, using internal defaults if no paths provided from FragPipe or user
@@ -79,32 +83,6 @@ public class GlycoParams {
         glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, this);
     }
 
-//    private ArrayList<GlycanResidue> parseGlycoResiduesDB(String glycanResiduesPath, String defaultDefinitionsPath) {
-//        ArrayList<GlycanResidue> residues = new ArrayList<>();
-//        BufferedReader in;
-//        try {
-//            // no glycan database provided - fall back to default glycan list in PeakAnnotator
-//            if (glycanResiduesPath.matches("")) {
-//                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(defaultDefinitionsPath)));
-//            } else {
-//                in = new BufferedReader(new FileReader(glycanResiduesPath));
-//            }
-//            String line;
-//            while ((line = in.readLine()) != null) {
-//                if (line.startsWith("#")) {
-//                    continue;
-//                }
-//                GlycanResidue residue = new GlycanResidue(line, glycanResidueCounter);
-//                glycanResidueCounter++;
-//                residues.add(residue);
-//            }
-//        } catch (IOException ex) {
-//            ex.printStackTrace();
-//            PTMShepherd.die(String.format("Error parsing input monosaccharide table %s", glycanResiduesPath));
-//        }
-//        return residues;
-//    }
-
 
     /**
      * Write a list of masses for all glycan candidates to pass to IonQuant. Format is one mass per line.
@@ -119,9 +97,9 @@ public class GlycoParams {
                 if (candidate.isDecoy) {
                     continue;       // do not write decoy masses to list - only target masses are reported in PSM table, even if decoy is assigned
                 }
-                int roundedMass = (int) Math.round(candidate.monoisotopicMass * 100);
+                int roundedMass = (int) Math.round(candidate.mass * 100);
                 if (!writtenMasses.contains(roundedMass)) {
-                    out.write(String.format("%.4f\n",candidate.monoisotopicMass));
+                    out.write(String.format("%.4f\n",candidate.mass));
                     writtenMasses.add(roundedMass);
                 }
             }
@@ -139,7 +117,7 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseString(String glycanDBString) {
         ArrayList<Glycan> glycans = GlycanParser.parseGlycanDatabaseString(glycanDBString, glycanResiduesMap);
-        return convertGlycansToCandidates(glycans);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
     }
 
     /**
@@ -150,15 +128,22 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseFile(String inputPath) {
         ArrayList<Glycan> glycans = GlycanParser.loadGlycansFromText(inputPath, GlycanParser.detectDBtype(inputPath), glycanResiduesMap);
-        return convertGlycansToCandidates(glycans);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
     }
 
     /**
-     * Generate PTM-S GlycanCandidates from Glycans, preventing duplicates and adding decoy Candidates.
+     * Generate GlycanCandidates for composition assignment from Glycans, preventing duplicates and adding decoy Candidates.
      * @param glycans
      * @return
      */
-    private ArrayList<GlycanCandidate> convertGlycansToCandidates(ArrayList<Glycan> glycans) {
+    public static ArrayList<GlycanCandidate> convertGlycansToCandidates(ArrayList<Glycan> glycans,
+                                                                        HashMap<String, GlycanResidue> glycanResiduesMap,
+                                                                        boolean nGlycan,
+                                                                        HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase,
+                                                                        int decoyType,
+                                                                        double glycoPPMtol,
+                                                                        Integer[] glycoIsotopes,
+                                                                        Random randomGenerator) {
         HashMap<String, Boolean> glycansInDB = new HashMap<>();
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
         for (Glycan glycan: glycans) {
@@ -166,18 +151,67 @@ public class GlycoParams {
                 continue;
             }
             // generate a new candidate from this composition and add to DB
-            GlycanCandidate candidate = new GlycanCandidate(glycan.composition, false, this);
+            GlycanCandidate candidate = GlycanCandidate.initGlycanCandidate(glycan.composition, 0,false, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
             String compositionHash = candidate.toString();
             // prevent addition of duplicates if user has them in database
             if (!glycansInDB.containsKey(compositionHash)) {
                 glycanDB.add(candidate);
                 glycansInDB.put(compositionHash, Boolean.TRUE);
                 // also add a decoy for this composition
-                GlycanCandidate decoy = new GlycanCandidate(glycan.composition, true, this);
+                double decoyMassShift = setDecoyShift(candidate.mass, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+                GlycanCandidate decoy = GlycanCandidate.initGlycanCandidate(glycan.composition, decoyMassShift, true, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
                 glycanDB.add(decoy);
             }
         }
         return glycanDB;
+    }
+
+    // Helper method for determining decoy masses for various decoy mass generation settings
+    private static double setDecoyShift(double baseMass, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator) {
+        double shiftMass;
+        double randomShift = 0;
+        switch (decoyType) {
+            case 0:
+                // simple mass window
+                randomShift = GlycanFragment.randomMassShift(MAX_CANDIDATE_DECOY_SHIFT_DA, randomGenerator);
+                break;
+            case 1:
+                // random isotope and mass error
+                randomShift = getRandomShiftIsotopes(baseMass, glycoIsotopes, glycoPPMtol, randomGenerator);
+                break;
+            case 2:
+                // random mass error, no isotope error
+                Integer[] noIsotopes = {0};
+                randomShift = getRandomShiftIsotopes(baseMass, noIsotopes, glycoPPMtol, randomGenerator);
+            case 3:
+                // exact target mass - random shift left at 0
+                break;
+        }
+        shiftMass = baseMass + randomShift;
+        return shiftMass;
+    }
+
+    /**
+     * Generate a random mass shift within tolerancePPM about a randomly selected isotope peak in the
+     * provided isotopes list.
+     * @param isotopes list of isotopes
+     * @param tolerancePPM Match tolerance (ppm) for glycan matching (from input parameter)
+     * @param randomGenerator single random generator instance for whole glycan analysis
+     * @return random mass shift within specified ranges
+     */
+    public static double getRandomShiftIsotopes(double glycanMass, Integer[] isotopes, double tolerancePPM, Random randomGenerator) {
+        // randomly select isotope (must be sorted in ascending order)
+        int minIso = isotopes[0];
+        int maxIso = isotopes[isotopes.length - 1];
+        // randomInt(0, max - min) + min yields correct range of min : max (including if min < 0)
+        int isotope = randomGenerator.nextInt(maxIso + 1 - minIso) + minIso;  // upper bound is not inclusive, need to add 1 to get to max isotope
+
+        // randomly generate mass shift within tolerance and add to chosen isotope
+        double random = randomGenerator.nextDouble();       // between 0 and 1
+        double baseMassEstimate = glycanMass + DEFAULT_PEPTIDE_MASS + isotope;
+        double toleranceDa = baseMassEstimate * 1e-6 * tolerancePPM;
+        double randomShift = -toleranceDa + random * (2 * toleranceDa);     // shift to range (min - random * (max - min)), where min = -toleranceDa and max = +toleranceDa
+        return isotope * AAMasses.averagineIsotopeMass + randomShift;
     }
 
     /**
@@ -199,7 +233,7 @@ public class GlycoParams {
 
             // Get fragment info if present and initialize new candidate based on the old and fragment info (if present)
             GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
-            newCandidate = new GlycanCandidate(oldCandidate, fragmtInfo, this);
+            newCandidate = GlycanCandidate.initCandidateFromProps(oldCandidate, fragmtInfo, this.glycanResiduesMap);
             newGlycoDB.add(newCandidate);
         }
         return newGlycoDB;
