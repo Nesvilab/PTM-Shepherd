@@ -77,12 +77,16 @@ public class GlycanCandidate extends Glycan {
      * candidate from the first search. Making a new container and fragments to avoid threading issues, but passing
      * original probabilities where propensities not found.
      * @param oldCandidate original search candidate to use as model
-     * @param fragmentInfo input propensities and intensities for fragment ions
      */
-    public static GlycanCandidate initCandidateFromProps(GlycanCandidate oldCandidate, GlycanCandidateFragments fragmentInfo, HashMap<String, GlycanResidue> glycanResiduesMap) {
+    public static GlycanCandidate initCandidateFromProps(GlycanCandidate oldCandidate,
+                                                         HashMap<String, GlycanResidue> glycanResiduesMap,
+                                                         HashMap<String, Double> yFragmentPropensities,
+                                                         HashMap<String, Double> yFragmentIntensities,
+                                                         HashMap<String, Double> oxFragmentPropensities,
+                                                         HashMap<String, Double> oxFragmentIntensities) {
         // initialize fragments for this candidate
-        TreeMap<String, GlycanFragment> Yfragments = initializeYFragmentsFromProps(oldCandidate.Yfragments, fragmentInfo);
-        TreeMap<String, GlycanFragment> oxoniumFragments = initializeOxoniumFragmentsFromProps(oldCandidate.oxoniumFragments, fragmentInfo);
+        TreeMap<String, GlycanFragment> Yfragments = initializeYFragmentsFromProps(oldCandidate.Yfragments, yFragmentPropensities, yFragmentIntensities);
+        TreeMap<String, GlycanFragment> oxoniumFragments = initializeOxoniumFragmentsFromProps(oldCandidate.oxoniumFragments, oxFragmentPropensities, oxFragmentIntensities);
 
         return new GlycanCandidate(oldCandidate.glycanComposition, oldCandidate.decoyMassShift, oldCandidate.isDecoy, glycanResiduesMap, Yfragments, oxoniumFragments);
 
@@ -119,17 +123,17 @@ public class GlycanCandidate extends Glycan {
      * Fragment propensities are used for all fragments found in the bootstrap/input data (specified in the input map)
      * and fragments lacking any input are assumed to have 0 input propensity.
      */
-    public static TreeMap<String, GlycanFragment> initializeYFragmentsFromProps(TreeMap<String, GlycanFragment> originalYs, GlycanCandidateFragments fragmentInfo) {
+    public static TreeMap<String, GlycanFragment> initializeYFragmentsFromProps(TreeMap<String, GlycanFragment> originalYs, HashMap<String, Double> fragmentPropensities, HashMap<String, Double> fragmentIntensities) {
         // Initialize a new Y fragment for each in the input map, adding propensity/intensity from the fragmentInfo container
         TreeMap<String, GlycanFragment> Yfragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> originalFragEntry : originalYs.entrySet()) {
             double expectedIntensity;
             double propensity;
             GlycanFragment origFrag = originalFragEntry.getValue();
-            if (fragmentInfo.yFragmentProps.containsKey(originalFragEntry.getKey())) {
+            if (fragmentPropensities.containsKey(originalFragEntry.getKey())) {
                 // have propensity/intensity info for this fragment - read from input fragmentInfo
-                expectedIntensity = fragmentInfo.yFragmentIntensities.get(origFrag.hash);
-                propensity = fragmentInfo.yFragmentProps.get(origFrag.hash);
+                expectedIntensity = fragmentIntensities.get(origFrag.hash);
+                propensity = fragmentPropensities.get(origFrag.hash);
             } else {
                 // no added info - copy the original
                 expectedIntensity = origFrag.expectedIntensity;
@@ -145,19 +149,18 @@ public class GlycanCandidate extends Glycan {
      * Init new oxonium ions based on the original candidate's ions, updating expected intensity/propensity if found
      * in the provided fragmentInfo container. Same logic as for Y ions
      * @param originalOxos original candidate's oxonium fragment map
-     * @param fragmentInfo fragmt info container
      */
-    public static TreeMap<String, GlycanFragment> initializeOxoniumFragmentsFromProps(TreeMap<String, GlycanFragment> originalOxos, GlycanCandidateFragments fragmentInfo) {
+    public static TreeMap<String, GlycanFragment> initializeOxoniumFragmentsFromProps(TreeMap<String, GlycanFragment> originalOxos, HashMap<String, Double> fragmentPropensities, HashMap<String, Double> fragmentIntensities) {
         // Initialize a new oxonium fragment for each in the input map, adding propensity/intensity from the fragmentInfo container
         TreeMap<String, GlycanFragment> oxoniumFragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> originalFragEntry : originalOxos.entrySet()) {
             double expectedIntensity;
             double propensity;
             GlycanFragment origFrag = originalFragEntry.getValue();
-            if (fragmentInfo.OxFragmentProps.containsKey(originalFragEntry.getKey())) {
+            if (fragmentPropensities.containsKey(originalFragEntry.getKey())) {
                 // have propensity/intensity info for this fragment - read from input fragmentInfo
-                expectedIntensity = fragmentInfo.OxFragmentIntensities.get(origFrag.hash);
-                propensity = fragmentInfo.OxFragmentProps.get(origFrag.hash);
+                expectedIntensity = fragmentIntensities.get(origFrag.hash);
+                propensity = fragmentPropensities.get(origFrag.hash);
             } else {
                 // no added info - copy the original
                 expectedIntensity = origFrag.expectedIntensity;

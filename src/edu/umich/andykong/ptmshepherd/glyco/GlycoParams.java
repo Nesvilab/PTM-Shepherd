@@ -233,7 +233,7 @@ public class GlycoParams {
 
             // Get fragment info if present and initialize new candidate based on the old and fragment info (if present)
             GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
-            newCandidate = GlycanCandidate.initCandidateFromProps(oldCandidate, fragmtInfo, this.glycanResiduesMap);
+            newCandidate = GlycanCandidate.initCandidateFromProps(oldCandidate, this.glycanResiduesMap, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
             newGlycoDB.add(newCandidate);
         }
         return newGlycoDB;
