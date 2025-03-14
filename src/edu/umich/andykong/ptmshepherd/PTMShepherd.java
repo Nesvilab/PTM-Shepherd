@@ -25,7 +25,7 @@ import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.diagnosticanalysis.DiagnosticExtractor;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
-import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidate;
+import umich.ms.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidateFragments;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;

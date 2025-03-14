@@ -16,6 +16,8 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import umich.ms.glyco.GlycanCandidate;
+import umich.ms.glyco.GlycanFragment;
 
 public class GlycanAssignmentResult {
     // Glycan Assignment results

@@ -18,10 +18,7 @@ package edu.umich.andykong.ptmshepherd.glyco;
 
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
-import umich.ms.glyco.Glycan;
-import umich.ms.glyco.GlycanMod;
-import umich.ms.glyco.GlycanParser;
-import umich.ms.glyco.GlycanResidue;
+import umich.ms.glyco.*;
 
 import java.io.*;
 import java.util.*;

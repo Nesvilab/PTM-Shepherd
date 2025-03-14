@@ -28,6 +28,8 @@ import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanParser;
 import umich.ms.glyco.GlycanResidue;
+import umich.ms.glyco.GlycanCandidate;
+import umich.ms.glyco.GlycanFragment;
 
 import java.io.*;
 import java.util.*;
