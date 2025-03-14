@@ -77,7 +77,11 @@ public class GlycoParams {
         glycanResidues = new ArrayList<>(glycanResiduesMap.values());
         glycanResidues.sort(GlycanResidue::compareTo);
 
-        glycoOxoniumDatabase = GlycoAnalysis.parseOxoniumDatabase(oxoniumListPath, this);
+        if (oxoniumListPath.isEmpty()) {
+            glycoOxoniumDatabase = GlycanParser.parseOxoDBStream(GlycoParams.class.getResourceAsStream(defaultOxoPath), glycanResiduesMap, randomGenerator);
+        } else {
+            glycoOxoniumDatabase = GlycanParser.parseOxoDB(oxoniumListPath, glycanResiduesMap, randomGenerator);
+        }
     }
 
 

@@ -141,7 +141,7 @@ public class GlycoAnalysis {
 
         if (!linesWithoutSpectra.isEmpty()) {
             PTMShepherd.print(String.format("\tCould not find %d/%d (%.1f%%) spectra.\n", linesWithoutSpectra.size(), this.totalLines,
-                    100.0*((double)linesWithoutSpectra.size()/this.totalLines)));
+                    100.0 * ((double) linesWithoutSpectra.size() / this.totalLines)));
             int previewSize = Math.min(linesWithoutSpectra.size(), 5);
             PTMShepherd.print(String.format("\tShowing first %d of %d spectra IDs that could not be found: \n\t%s\n", previewSize, linesWithoutSpectra.size(),
                     String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize))));
@@ -164,6 +164,7 @@ public class GlycoAnalysis {
     /**
      * Read the generated glycofrags file to determine glycan fragment probabilities for each glycan in the database.
      * Option to save prevalence file for diagnostics/info to be added?
+     *
      * @return Map of glycan string : fragment propensities container
      */
     public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs(GlycoParams glycoParams) {
@@ -286,7 +287,7 @@ public class GlycoAnalysis {
             HashMap<String, Double> yFragmentIntensities = new HashMap<>();
             for (Map.Entry<String, ArrayList<Double>> fragmentEntry : YInts.entrySet()) {
                 double[] intensities = new double[fragmentEntry.getValue().size()];
-                for (int i=0; i < fragmentEntry.getValue().size(); i++) {
+                for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
                     intensities[i] = fragmentEntry.getValue().get(i);
                 }
                 yFragmentIntensities.put(fragmentEntry.getKey(), Arrays.stream(intensities).average().orElse(0));
@@ -294,7 +295,7 @@ public class GlycoAnalysis {
             HashMap<String, Double> OxFragmentIntensities = new HashMap<>();
             for (Map.Entry<String, ArrayList<Double>> fragmentEntry : OxInts.entrySet()) {
                 double[] intensities = new double[fragmentEntry.getValue().size()];
-                for (int i=0; i < fragmentEntry.getValue().size(); i++) {
+                for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
                     intensities[i] = fragmentEntry.getValue().get(i);
                 }
                 OxFragmentIntensities.put(fragmentEntry.getKey(), Arrays.stream(intensities).average().orElse(0));
@@ -401,11 +402,11 @@ public class GlycoAnalysis {
                         if (bestWasDecoy) {
                             decoys++;
                             scoreDistDecoys++;
-                            scoreDistribution.add(new GlycoScore (absScore, true, spectrumID, true));
+                            scoreDistribution.add(new GlycoScore(absScore, true, spectrumID, true));
                         } else {
                             targets++;
                             scoreDistTargets++;
-                            scoreDistribution.add(new GlycoScore (absScore, false, spectrumID, true));
+                            scoreDistribution.add(new GlycoScore(absScore, false, spectrumID, true));
                         }
                     }
                     // parse next best score and save to target/decoy as appropriate
@@ -454,7 +455,7 @@ public class GlycoAnalysis {
 
             // compute q-value and save for later
             double qval = Math.min(targetDecoyRatio, currentMinQ);
-            if (qval < currentMinQ){
+            if (qval < currentMinQ) {
                 currentMinQ = qval;
             }
             if (scoreObj.isFromTopCandidate) {
@@ -548,7 +549,8 @@ public class GlycoAnalysis {
      * Basic competitive FDR calculation (original method). Each spectrum is either a target or decoy, sort scores
      * in ascending order and find score threshold for provided FDR. Returns True if FDR calc completed or False
      * if there were not enough decoys to reach the given FDR threshold.
-     * @param glycoFDR desired FDR ratio
+     *
+     * @param glycoFDR  desired FDR ratio
      * @param changeFDR if true, override FDR if not enough decoys found instead of returning (restore original v1 behavior)
      * @return true if successful, false if not enough decoys
      * @throws IOException
@@ -666,7 +668,7 @@ public class GlycoAnalysis {
                 targetDecoyRatio = 0.0;     // min FDR = 0. Using else-if with the above block so that if decoys are nonzero with 0 targets, FDR = 1
             }
             double qval = Math.min(targetDecoyRatio, currentMinQ);
-            if (qval < currentMinQ){
+            if (qval < currentMinQ) {
                 currentMinQ = qval;
             }
             // Write q-value to output, and write q=1 for decoys
@@ -710,11 +712,12 @@ public class GlycoAnalysis {
 
     /**
      * Calculate FDR from target and decoy counts
+     *
      * @param targets target count
-     * @param decoys decoy count
+     * @param decoys  decoy count
      * @return FDR
      */
-    private static double calculateFDR(int targets, int decoys, boolean useNonCompFDR){
+    private static double calculateFDR(int targets, int decoys, boolean useNonCompFDR) {
         if (useNonCompFDR) {
             return (2 * decoys) / (double) (decoys + targets);
         } else {
@@ -726,8 +729,9 @@ public class GlycoAnalysis {
      * Determine the width of mass errors in PSMs without delta mass to use for mass error probability
      * estimation. Returns the sigma of a Gaussian distribution fit to the mass errors of all PSMs without
      * delta masses (isotope corrected)
+     *
      * @param psmFile PSM file to analyze
-     * @param clines line numbers in the PSM file?
+     * @param clines  line numbers in the PSM file?
      */
     public void getMassErrorWidth(PSMFile psmFile, ArrayList<Integer> clines) {
         ArrayList<Double> massErrors = new ArrayList<>();
@@ -787,6 +791,7 @@ public class GlycoAnalysis {
 
     /**
      * Run glycan assignment for a single PSM line from the PSM table
+     *
      * @param psm String of a single PSM line
      * @return result container
      */
@@ -822,7 +827,7 @@ public class GlycoAnalysis {
         // skip non-delta mass PSMs - leave added columns empty
         if (glycoResult.deltaMass < 3.5 && glycoResult.deltaMass > -1.5) {
             StringBuilder sb = new StringBuilder();
-            for (int i=0; i < NUM_ADDED_RAWGLYCO_COLUMNS; i++){
+            for (int i = 0; i < NUM_ADDED_RAWGLYCO_COLUMNS; i++) {
                 sb.append("\t");
             }
             glycoResult.glycanAssignmentString = sb.toString();
@@ -921,6 +926,7 @@ public class GlycoAnalysis {
     /**
      * Helper method to get output for next best glycan (i.e., best decoy if the top hit is a target and vice versa).
      * Returns formatted output string handling various cases
+     *
      * @param glycoResult
      * @param massErrorWidth
      * @param meanMassError
@@ -980,7 +986,8 @@ public class GlycoAnalysis {
     /**
      * Updated propensity score calculator. Intended use: sumLogRatio * this score gives final score.
      * Uses min propensity param to adjust for min propensity
-     * @param glycan1 glycan candidate
+     *
+     * @param glycan1   glycan candidate
      * @param deltaMass delta mass bin in question
      * @return double between min glycan propensity and 1
      */
@@ -1067,6 +1074,7 @@ public class GlycoAnalysis {
         double testOld = sumLogRatio + unique1score - unique2score;
         return sumLogRatio;
     }
+
     /**
      * Compute sum log probability ratios for the compared glycans for a particular fragment type.
      *
@@ -1101,10 +1109,11 @@ public class GlycoAnalysis {
     /**
      * Compute the "absolute" score of this glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
-     * @param bestGlycan glycan candidate to calculate score for
-     * @param deltaMass spectrum delta mass
+     *
+     * @param bestGlycan     glycan candidate to calculate score for
+     * @param deltaMass      spectrum delta mass
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
-     * @param meanMassError mean mass error of non-delta mass peptides
+     * @param meanMassError  mean mass error of non-delta mass peptides
      * @return absolute score
      */
     public double computeAbsoluteScoreDynamic(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
@@ -1134,6 +1143,7 @@ public class GlycoAnalysis {
      * Compute propensity-specific score for fragment ion that is NOT unique (i.e., shared between two candidates).
      * Score is the ratio of the propensities for the two candidates, positive towards candidate 1 if found in the
      * spectrum or towards candidate 2 if not.
+     *
      * @param fragment1 fragment from glycan 1
      * @param fragment2 fragment from glycan 2
      * @return ratio of fragment probs
@@ -1158,6 +1168,7 @@ public class GlycoAnalysis {
     /**
      * Helper for computing absolute score of Y or oxonium fragments. Uses empirical probability for this fragment
      * type and weights it by intensity vs expected
+     *
      * @param fragment fragment to consider
      * @return sum log ratio of fragment probs
      */
@@ -1188,9 +1199,9 @@ public class GlycoAnalysis {
      * each category (mass/iso error and fragment ion) being considered. Returns a single score of combined
      * probability of first glycan candidate over second.
      *
-     * @param glycan1        candidate 1
-     * @param glycan2        candidate 2
-     * @param deltaMass      observed delta mass
+     * @param glycan1   candidate 1
+     * @param glycan2   candidate 2
+     * @param deltaMass observed delta mass
      * @return output probability score (sum of log ratios)
      */
     public double pairwiseCompareStatic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
@@ -1212,8 +1223,8 @@ public class GlycoAnalysis {
      * of misses.
      * NOTE: does NOT allow fragment specific probabilities (for missed ions)
      *
-     * @param glycan1       candidate 1
-     * @param glycan2       candidate 2
+     * @param glycan1 candidate 1
+     * @param glycan2 candidate 2
      * @return sum log probability with normalization included
      */
     public double pairwiseCompareYstatic(GlycanCandidate glycan1, GlycanCandidate glycan2, boolean normYions) {
@@ -1275,8 +1286,8 @@ public class GlycoAnalysis {
      * Compute sum log probability ratios for the compared glycans for a particular fragment type. Does NOT
      * normalize fragment miss rate. Allows fragment specific probabilities.
      *
-     * @param glycan1       candidate 1
-     * @param glycan2       candidate 2
+     * @param glycan1 candidate 1
+     * @param glycan2 candidate 2
      * @return sum log probability with normalization included
      */
     public double pairwiseCompareOxoStatic(GlycanCandidate glycan1, GlycanCandidate glycan2) {
@@ -1312,10 +1323,10 @@ public class GlycoAnalysis {
      * Determine the probability ratio for this pairwise comparison based on isotope error. Currently
      * uses hard-coded isotope probabilities, but could be updated to get rate from dataset
      *
-     * @param glycan1        glycan 1
-     * @param glycan2        glycan 2
-     * @param deltaMass      observed delta mass
-     * @param meanMassError  mean mass error of non-delta mass peptides
+     * @param glycan1       glycan 1
+     * @param glycan2       glycan 2
+     * @param deltaMass     observed delta mass
+     * @param meanMassError mean mass error of non-delta mass peptides
      * @return probability ratio (glycan 1 over 2)
      */
     public double computeMassIsoScorePairwise(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
@@ -1379,10 +1390,11 @@ public class GlycoAnalysis {
     /**
      * Compute the "absolute" score of the Y ions of the provided glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
+     *
      * @param bestGlycan glycan candidate to calculate score for
      * @return absolute score
      */
-    public double computeYAbsoluteScore(GlycanCandidate bestGlycan){
+    public double computeYAbsoluteScore(GlycanCandidate bestGlycan) {
         double sumLogRatio = 0;
         for (GlycanFragment yFragment : bestGlycan.Yfragments.values()) {
             if (yFragment.foundIntensity > 0) {
@@ -1394,13 +1406,15 @@ public class GlycoAnalysis {
 
         return sumLogRatio;
     }
+
     /**
      * Compute the "absolute" score of the Y ions of the provided glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
+     *
      * @param bestGlycan glycan candidate to calculate score for
      * @return absolute score
      */
-    public double computeOxoAbsoluteScore(GlycanCandidate bestGlycan){
+    public double computeOxoAbsoluteScore(GlycanCandidate bestGlycan) {
         double sumLogRatio = 0;
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
             if (fragment.foundIntensity > 0) {
@@ -1416,10 +1430,11 @@ public class GlycoAnalysis {
     /**
      * Compute the "absolute" score of this glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
-     * @param bestGlycan glycan candidate to calculate score for
-     * @param deltaMass spectrum delta mass
+     *
+     * @param bestGlycan     glycan candidate to calculate score for
+     * @param deltaMass      spectrum delta mass
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
-     * @param meanMassError mean mass error of non-delta mass peptides
+     * @param meanMassError  mean mass error of non-delta mass peptides
      * @return absolute score
      */
     public double computeAbsoluteScore(GlycanCandidate bestGlycan, double deltaMass, double massErrorWidth, double meanMassError) {
@@ -1441,7 +1456,7 @@ public class GlycoAnalysis {
         int roundedIso1 = Math.round(iso1);
         double isotopeProbRatio = glycoParams.isotopeProbTable.get(roundedIso1) / glycoParams.isotopeProbTable.get(0);
         double sumLogRatio = Math.log(isotopeProbRatio);
-        if (! (glycoParams.massProbScaling == 0)) {
+        if (!(glycoParams.massProbScaling == 0)) {
             // mass error is computed in the absolute sense - the number of std devs from mean is used instead of the ratio of two such numbers
             double massError1 = deltaMass - bestGlycan.mass - (roundedIso1 * AAMasses.averagineIsotopeMass);
             double massStDevs1 = (massError1 - meanMassError) / massErrorWidth;
@@ -1454,6 +1469,7 @@ public class GlycoAnalysis {
     /**
      * Compute propensity adjustment for fragments in common between candidates. Caps it so that low-propensity fragments being found
      * can't reduce the score (same as is done for intensity ratio). Assumes both propensities are non-zero!
+     *
      * @param fragment1
      * @param fragment2
      * @return
@@ -1464,7 +1480,7 @@ public class GlycoAnalysis {
             if (fragment2.propensity > 0) {
                 propensityRatio = fragment1.propensity / fragment2.propensity;
                 propensityRatio = Math.sqrt(propensityRatio);   // todo: param, test
-            }  else {
+            } else {
                 // only propensity for fragment 1 - score against default min prop (if prop > min prop)
                 propensityRatio = fragment1.propensity > defaultPropensity ? fragment1.propensity / defaultPropensity : 1;
             }
@@ -1487,6 +1503,7 @@ public class GlycoAnalysis {
      * of hit probability * intensity ratio < 1), the intensity ratio is set to the critical point value.
      * This makes it so that finding a low-intensity peak will have no effect on score rather than causing a
      * reduction in score.
+     *
      * @param fragment fragment of interest with intensity information already stored
      * @return intensity ratio
      */
@@ -1509,11 +1526,12 @@ public class GlycoAnalysis {
     /**
      * Get glycan candidates to consider for a given delta mass and isotope errors/mass tolerance.
      * Might optimize for speed at some point by indexing glycan database by mass (if needed)
-     * @param pepMass peptide mass - needed for correct PPM error calculation
-     * @param deltaMass delta mass being searched
-     * @param glycanDatabase list of glycan candidates
+     *
+     * @param pepMass          peptide mass - needed for correct PPM error calculation
+     * @param deltaMass        delta mass being searched
+     * @param glycanDatabase   list of glycan candidates
      * @param isotopesToSearch list of isotope errors to consider
-     * @param ms1TolerancePPM MS1 tolerance to consider around delta mass and isotope errors
+     * @param ms1TolerancePPM  MS1 tolerance to consider around delta mass and isotope errors
      * @return list of glycan candidates with masses within the delta mass + iso errors and tolerance
      */
     public ArrayList<GlycanCandidate> getMatchingGlycansByMass(double pepMass, double deltaMass, ArrayList<GlycanCandidate> glycanDatabase, Integer[] isotopesToSearch, double ms1TolerancePPM) {
@@ -1539,12 +1557,12 @@ public class GlycoAnalysis {
 
     public boolean isGlycoComplete() {
         try {
-            if(glycoFile.exists()) {
+            if (glycoFile.exists()) {
                 RandomAccessFile raf = new RandomAccessFile(glycoFile, "r");
                 raf.seek(Math.max(0, glycoFile.length() - 20));
                 String cline;
-                while((cline = raf.readLine())!=null)
-                    if(cline.equals("COMPLETE")) {
+                while ((cline = raf.readLine()) != null)
+                    if (cline.equals("COMPLETE")) {
                         raf.close();
                         return true;
                     }
@@ -1560,7 +1578,7 @@ public class GlycoAnalysis {
 
     public void completeGlyco() {
         try {
-            PrintWriter out = new PrintWriter(new FileWriter(glycoFile,true));
+            PrintWriter out = new PrintWriter(new FileWriter(glycoFile, true));
             out.println("COMPLETE");
             out.close();
         } catch (IOException e) {
@@ -1571,6 +1589,7 @@ public class GlycoAnalysis {
 
     /**
      * Find the first location of N-glycan sequon (N-X-S/T, X is not P) in the provided peptide sequence.
+     *
      * @param pepSeq peptide sequence string to search
      * @return index of N in the sequon. Position is 0-indexed
      */
@@ -1603,51 +1622,6 @@ public class GlycoAnalysis {
             return -1;
         }
     }
-
-    /**
-     * Parse the internal list of oxonium ion descriptions to generate the internal database of fragment info
-     * by residue type
-     * @return map of residue type : list of fragment descriptors parsed from the table
-     */
-    public static HashMap<GlycanResidue, ArrayList<GlycanFragment>> parseOxoniumDatabase(String oxoDBPath, GlycoParams glycoParams) {
-        HashMap<GlycanResidue, ArrayList<GlycanFragment>> oxoniumDB = new HashMap<>();
-        BufferedReader in;
-        try {
-            if (oxoDBPath.matches("")) {
-                in = new BufferedReader(new InputStreamReader(GlycoParams.class.getResourceAsStream(GlycoParams.defaultOxoPath)));
-            } else {
-                in = new BufferedReader(new FileReader(oxoDBPath));
-            }
-            String line;
-            while ((line = in.readLine()) != null) {
-                if (line.startsWith("#"))
-                    continue;
-                String[] splits = line.split("\t");
-                GlycanResidue residue = GlycanParser.findResidueName(splits[0].trim().toLowerCase(Locale.ROOT), glycoParams.glycanResiduesMap);
-                Map<GlycanResidue, Integer> ionComposition = GlycanParser.parseGlycanString(splits[1], glycoParams.glycanResiduesMap).composition;
-                double massShift = Double.parseDouble(splits[2]);
-                String comment = splits.length > 3 ? splits[3] : "";
-                double hitProb = GlycanResidue.getOrDefault(splits[4]);
-                double missProb = GlycanResidue.getOrDefault(splits[5]);
-                double expectedInt = GlycanResidue.getOrDefault(splits[6]);
-                double[] probRatios = new double[]{hitProb, missProb, expectedInt};
-
-                // Add to existing list if present or create new list if residue type not seen yet
-                if (oxoniumDB.containsKey(residue)) {
-                    oxoniumDB.get(residue).add(GlycanFragment.initializeOxoniumFragment(ionComposition, probRatios, massShift, false, glycoParams.randomGenerator, comment));
-                } else {
-                    ArrayList<GlycanFragment> residueList = new ArrayList<>();
-                    residueList.add(GlycanFragment.initializeOxoniumFragment(ionComposition, probRatios, massShift, false, glycoParams.randomGenerator, comment));
-                    oxoniumDB.put(residue, residueList);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            PTMShepherd.die("IO Exception while reading oxonium database file");
-        }
-        return oxoniumDB;
-    }
-
 }
 
 // Container for holding results for FDR score threshold calculation, compares on score
