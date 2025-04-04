@@ -1099,7 +1099,7 @@ public class PTMShepherd {
 			long t2 = System.currentTimeMillis();
 			ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
 			for (int i = 0; i < clines.size(); i++) {//for relevant line in curr spec file
-				String specName = pf.psms.get(i).getSpec();
+				String specName = pf.psms.get(clines.get(i)).getSpec();
 				Spectrum spec =  mr.getSpectrum(reNormName(specName));
 				if (spec == null)
 					linesWithoutSpectra.put(i, pf.psms.get(i).printLine());
