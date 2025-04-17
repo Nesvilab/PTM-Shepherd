@@ -1094,6 +1094,7 @@ public class PTMShepherd {
 			}
 			long t1 = System.currentTimeMillis();
 			MXMLReader mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+			HashSet<String> spectrumIDs = new HashSet<>();
 			ArrayList<MZBINSpectrum> specs = new ArrayList<>(); // Holds parsed spectra
 			mr.readFully();
 			long t2 = System.currentTimeMillis();
@@ -1104,8 +1105,12 @@ public class PTMShepherd {
 				if (spec == null)
 					linesWithoutSpectra.put(i, pf.psms.get(i).printLine());
 				else {
-					spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
-					specs.add(spec.toMZBINSpectrum());
+					// prevent duplicate spectra being added (e.g., from DDA+ or DIA data with >1 PSM per spectrum)
+					if (!spectrumIDs.contains(specName)) {
+						spec.condition(topNPeaks, minPeakRatio); // TODO Why aren't these being saved as conditioned spectra?
+						specs.add(spec.toMZBINSpectrum());
+						spectrumIDs.add(specName);
+					}
 				}
 			}
 			long t3 = System.currentTimeMillis();
