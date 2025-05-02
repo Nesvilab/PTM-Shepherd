@@ -284,7 +284,11 @@ public class SiteLocalization {
 
 		int i = 0;
 		while (matcher.find()) {
-			scores[i] = Float.parseFloat(matcher.group(1));
+			try {
+				scores[i] = Float.parseFloat(matcher.group(1));
+			} catch (ArrayIndexOutOfBoundsException ex) {
+				PTMShepherd.die("It appears that Crystal-C was run and using MSFragger localization in PTM-Shepherd was requested. This is not currently supported due to an issue with Crystal-C. Please disable the Use MSFragger Localization option (or re-run without Crystal-C) and try again.");
+			}
 			i++;
 		}
 		return scores;
