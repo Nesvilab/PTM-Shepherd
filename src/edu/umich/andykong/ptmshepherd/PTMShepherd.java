@@ -1005,10 +1005,23 @@ public class PTMShepherd {
 	private static void deleteFile(Path p, boolean printOnDeletion) {
 		try {
 			if (Files.deleteIfExists(p) && printOnDeletion) {
-				print("Deleted file: " + p.toAbsolutePath().normalize().toString());
+				print("Deleted file: " + p.toAbsolutePath().normalize());
 			}
 		} catch (IOException e) {
-			die("Could not delete file: " + p.toAbsolutePath().normalize().toString());
+			deleteFileRetry(p, printOnDeletion);
+        }
+	}
+
+	private static void deleteFileRetry(Path p, boolean printOnDeletion) {
+		try {
+			Thread.sleep(100); 	// wait briefly before retrying
+			if (Files.deleteIfExists(p) && printOnDeletion) {
+				print("Deleted file: " + p.toAbsolutePath().normalize());
+			}
+		} catch (IOException e) {
+			print("Warning: Could not delete file: " + p.toAbsolutePath().normalize() + " due to " + e.getMessage());
+		} catch (InterruptedException ex) {
+			die("Thread interrupted while waiting to retry file deletion: " + p.toAbsolutePath().normalize());
 		}
 	}
 
