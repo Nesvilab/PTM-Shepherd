@@ -262,6 +262,9 @@ public class PSMFile {
 		// Recursively search all directories
 		if(path.isDirectory()) {
 			File [] ls = path.listFiles();
+			if (ls == null) {
+				return;		// empty directory or IO error. Ignore directory
+			}
 			// get mapping for each file
             for (File l : ls) {
                 getMappings(l, mappings, runNames);
