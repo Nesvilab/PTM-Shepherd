@@ -19,6 +19,7 @@ package edu.umich.andykong.ptmshepherd;
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanAssignmentResult;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
@@ -393,9 +394,76 @@ public class PSMFile {
 					}
 					// update assigned mods column
 					if (glycoParams.writeGlycansToAssignedMods) {
-						writeGlycanToAssignedMod(psm, rawGlycan, glycoParams);
+						boolean failOrDecoy = rawGlycan.contains("Decoy") || rawGlycan.contains("FailFDR");
+						writeGlycanToAssignedMod(psm, rawGlycan, failOrDecoy, glycoParams);
 					}
 				}
+			} else {
+				// no glycan found for this spectrum
+				if (!hasPreviousGlycoInfo) {
+					glycanComps.add("");
+					glycanScores.add("");
+					glycanQvals.add("");
+				} else {
+					psm.spLine.set(glycanCompCol, "");
+					psm.spLine.set(glycanScoreCol, "");
+					psm.spLine.set(glycanQvalCol, "");
+				}
+			}
+		}
+
+		if (!hasPreviousGlycoInfo) {
+			// add new glycan columns to the PSM table if not previously written
+			addColumn(observedModCol + 1, "Glycan q-value", psmKeys, glycanQvals);
+			addColumn(observedModCol + 1, "Glycan Score", psmKeys, glycanScores);
+			addColumn(observedModCol + 1, "Total Glycan Composition", psmKeys, glycanComps);
+		}
+
+		save(true);
+	}
+
+	/* Merges the rawglyco table onto the existing psm.tsv
+	 */
+	public void mergeGlycoTableLDA(GlycoParams glycoParams) {
+		String tempFoutName = this.fname + ".glyco.tmp";
+		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
+
+		/* Match glycolines on PSM spectrum keys */
+		ArrayList<String> psmKeys = new ArrayList<>();
+		ArrayList<String> glycanComps = new ArrayList<>();
+		ArrayList<String> glycanScores = new ArrayList<>();
+		ArrayList<String> glycanQvals = new ArrayList<>();
+		for (PSM psm : psms) {
+			psmKeys.add(psm.getSpec());
+
+			// check if a glycan was found
+			if (psm.glycanAssignmentResult != null && psm.glycanAssignmentResult.foundGlycan) {
+				GlycanAssignmentResult result = psm.glycanAssignmentResult;
+				String assignedGlycan = result.bestCandidate.toPSMString();
+				String glycanScore = String.format("%.4f", result.glycanScore);
+				String glycanQval = String.format("%.6f", result.glycanQval);
+				if (result.isDecoyGlycan && !glycoParams.printGlycoDecoys) {
+					// report best target glycan instead of decoy (q-value will be reported as 1)
+					assignedGlycan = result.bestTarget.toPSMString();
+					glycanScore = String.format("%.4f", result.bestTargetScore);
+					glycanQval = "1";
+				}
+				// save glycan info directly or to the lists to add columns to the PSM table later
+				if (!hasPreviousGlycoInfo) {
+					glycanComps.add(assignedGlycan);
+					glycanScores.add(glycanScore);
+					glycanQvals.add(glycanQval);
+				} else {
+					psm.spLine.set(glycanCompCol, assignedGlycan);
+					psm.spLine.set(glycanScoreCol, glycanScore);
+					psm.spLine.set(glycanQvalCol, glycanQval);
+				}
+				// update assigned mods column
+				if (glycoParams.writeGlycansToAssignedMods) {
+					boolean failOrDecoy = result.isDecoyGlycan || result.glycanQval >= glycoParams.glycoFDR;
+					writeGlycanToAssignedMod(psm, assignedGlycan, failOrDecoy, glycoParams);
+				}
+
 			} else {
 				// no glycan found for this spectrum
 				if (!hasPreviousGlycoInfo) {
@@ -441,11 +509,7 @@ public class PSMFile {
 	 * Also writes to modified peptide and delta mass columns.
 	 * Handles cases where information was previously written to the PSM table by removing/replacing the previous ID if present
 	 */
-	public void writeGlycanToAssignedMod(PSM psm, String rawGlycan, GlycoParams glycoParams) {
-		// parse glycan composition from recently edited observed mods col
-		String glycanOnly = rawGlycan.replace("FailFDR_", "").replace("Decoy_", "");
-		boolean failOrDecoy = rawGlycan.contains("FailFDR") || rawGlycan.contains("Decoy");
-
+	public void writeGlycanToAssignedMod(PSM psm, String glycanStr, boolean failOrDecoy, GlycoParams glycoParams) {
 		// Default is to always write glycan mass to assigned mod, unless option to only write glycans passing FDR is specified
 		boolean editPSMGlycoEntry = true;
 		if (!glycoParams.writeGlycansToAssignedMods) {
@@ -457,16 +521,16 @@ public class PSMFile {
 			}
 		}
 
-		if (glycanOnly.contains("no target matches") || glycanOnly.contains("No Glycan Matched")) {
+		if (glycanStr.contains("no target matches") || glycanStr.contains("No Glycan Matched")) {
 			return;		// skip, no target glycan info to propagate
 		}
 
 		/* Get glycan mass */
 		Glycan glyc;
-		glyc = GlycanParser.parseGlycanString(glycanOnly, glycoParams.glycanResiduesMap);
+		glyc = GlycanParser.parseGlycanString(glycanStr, glycoParams.glycanResiduesMap);
 		if (glyc == null) {
 			// try old format in case of old PSM file
-			glyc = GlycanParser.parseOldPTMSGlycanString(glycanOnly, glycoParams.glycanResiduesMap);
+			glyc = GlycanParser.parseOldPTMSGlycanString(glycanStr, glycoParams.glycanResiduesMap);
 			if (glyc == null) {
 				// Not a glycan (PTM-S may put other string formats here) - ignore and continue
 				return;

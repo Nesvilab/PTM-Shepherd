@@ -52,6 +52,7 @@ public class GlycoParams {
     public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
     public HashMap<Integer, Double> isotopeProbTable;
     public double massProbScaling;
+    public boolean glycoLDA;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

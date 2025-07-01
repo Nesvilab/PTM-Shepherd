@@ -2,6 +2,7 @@ package edu.umich.andykong.ptmshepherd;
 
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanAssignmentResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,6 +31,7 @@ public class PSM {
     private TreeMap<Integer, Float> assignedMods;		// position -> mass
     private String modifiedPeptide;
     private String originalModifiedPeptide;
+    public GlycanAssignmentResult glycanAssignmentResult = null; // result of glycan assignment, if any
 
     PSM(int lineNum, String line, int massdiffToVarmod, int specCol, int pepCol, int modPepCol, int chargeCol, int calcMassCol, int dMassCol, int assignedModCol, int msfraggerLocalizationCol) {
         this.lineNum = lineNum;

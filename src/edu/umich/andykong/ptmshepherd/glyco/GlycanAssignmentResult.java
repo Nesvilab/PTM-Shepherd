@@ -21,16 +21,17 @@ import umich.ms.glyco.GlycanFragment;
 
 public class GlycanAssignmentResult {
     // Glycan Assignment results
-    GlycanCandidate bestCandidate;
-    GlycanCandidate bestTarget;
-    GlycanCandidate bestDecoy;
-    double bestDecoyScore;
-    boolean isDecoyGlycan;
-    double glycanScore;
-    double bestTargetScore;
-    double glycanQval;
+    public GlycanCandidate bestCandidate;
+    public GlycanCandidate bestTarget;
+    public GlycanCandidate bestDecoy;
+    public double bestDecoyScore;
+    public boolean isDecoyGlycan;
+    public double glycanScore;
+    public double bestTargetScore;
+    public double glycanQval;
 
     // Basic PSM info (prior to PTM-S)
+    public int psmLineIndex; // index of the PSM line in the input file
     String peptide;
     float deltaMass;
     float pepMass;
@@ -40,8 +41,17 @@ public class GlycanAssignmentResult {
     // old-style results strings for printing diagnostic, glycan outputs
     String glycanAssignmentString;
     public static final String NO_GLYCAN_RESULT_STR = "No Glycan Matched";
+    public boolean foundGlycan = false;     // true if glycan assignment was successful
 
-    public GlycanAssignmentResult(String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {
+    // LDA features
+    double YFragmentScore;
+    double OxFragmentScore;
+    double massErrorScore;
+    double isotopeScore;
+    public double[] featureVec;
+
+    public GlycanAssignmentResult(int psmLineIndex, String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {
+        this.psmLineIndex = psmLineIndex;
         this.peptide = peptide;
         this.deltaMass = deltaMass;
         this.pepMass = pepMass;

@@ -573,59 +573,65 @@ public class PTMShepherd {
 			ga.completeGlyco();
 		}
 
-		// second pass: calculate glycan FDR and update results
-		for (String ds : datasets.keySet()) {
-			GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams);
-			if (!glycoParams.useNewFDR) {
-				ga.computeGlycanFDROld(glycoParams.glycoFDR,true);
-			} else {
-				if (glycoParams.useNonCompFDR) {
-					ga.useNonCompFDR = true;
-					ga.computeGlycanFDR(glycoParams.glycoFDR);
-				} else {
-					boolean firstFDRsuccess = ga.computeGlycanFDROld(glycoParams.glycoFDR, false);
-					if (!firstFDRsuccess) {
-						ga.useNonCompFDR = true;
-						ga.computeGlycanFDR(glycoParams.glycoFDR);
-					}
-				}
-			}
-
-			if (glycoParams.useGlycanFragmentProbs) {
-				// second pass - calculate fragment propensities, regenerate database, and re-run
-				HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
-				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
-
-				// run glyco PSM-level analysis with the new database
-				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams);
-				ga2.glycanMassBinMap = ga.glycanMassBinMap;
-				ga2.useFragmentSpecificProbs = true;
-				ga2.defaultPropensity = glycoParams.defaultProp;
-				for (PSMFile pf: psmFiles.get(ds)) {
-					ga2.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
-				}
+		if (!glycoParams.glycoLDA) {
+			// second pass: calculate glycan FDR and update results
+			for (String ds : datasets.keySet()) {
+				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams);
 				if (!glycoParams.useNewFDR) {
-					ga2.computeGlycanFDROld(glycoParams.glycoFDR, true);
+					ga.computeGlycanFDROld(glycoParams.glycoFDR, true);
 				} else {
 					if (glycoParams.useNonCompFDR) {
-						ga2.useNonCompFDR = true;
-						ga2.computeGlycanFDR(glycoParams.glycoFDR);
+						ga.useNonCompFDR = true;
+						ga.computeGlycanFDR(glycoParams.glycoFDR);
 					} else {
-						boolean firstFDRsuccess2 = ga2.computeGlycanFDROld(glycoParams.glycoFDR, false);
-						if (!firstFDRsuccess2) {
-							ga2.useNonCompFDR = true;
-							ga2.computeGlycanFDR(glycoParams.glycoFDR);
+						boolean firstFDRsuccess = ga.computeGlycanFDROld(glycoParams.glycoFDR, false);
+						if (!firstFDRsuccess) {
+							ga.useNonCompFDR = true;
+							ga.computeGlycanFDR(glycoParams.glycoFDR);
 						}
 					}
 				}
-				ga2.completeGlyco();
+
+				if (glycoParams.useGlycanFragmentProbs) {
+					// second pass - calculate fragment propensities, regenerate database, and re-run
+					HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
+					ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
+
+					// run glyco PSM-level analysis with the new database
+					GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams);
+					ga2.glycanMassBinMap = ga.glycanMassBinMap;
+					ga2.useFragmentSpecificProbs = true;
+					ga2.defaultPropensity = glycoParams.defaultProp;
+					for (PSMFile pf : psmFiles.get(ds)) {
+						ga2.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
+					}
+					if (!glycoParams.useNewFDR) {
+						ga2.computeGlycanFDROld(glycoParams.glycoFDR, true);
+					} else {
+						if (glycoParams.useNonCompFDR) {
+							ga2.useNonCompFDR = true;
+							ga2.computeGlycanFDR(glycoParams.glycoFDR);
+						} else {
+							boolean firstFDRsuccess2 = ga2.computeGlycanFDROld(glycoParams.glycoFDR, false);
+							if (!firstFDRsuccess2) {
+								ga2.useNonCompFDR = true;
+								ga2.computeGlycanFDR(glycoParams.glycoFDR);
+							}
+						}
+					}
+					ga2.completeGlyco();
+				}
 			}
 		}
 
 		/* Save best glycan information from glyco report to psm tables */
 		for (String ds : datasets.keySet()) {
 			for (PSMFile pf: psmFiles.get(ds)) {
-				pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), glycoParams, Integer.parseInt(params.get("msfragger_massdiff_to_varmod")));
+				if (glycoParams.glycoLDA) {
+					pf.mergeGlycoTableLDA(glycoParams);
+				} else {
+					pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), glycoParams, Integer.parseInt(params.get("msfragger_massdiff_to_varmod")));
+				}
 			}
 		}
 
@@ -1271,6 +1277,7 @@ public class PTMShepherd {
 		String glycanModDB = getParam("glyco_mod_list");
 		String glycoOxoDB = getParam("glyco_oxonium_list");
 		GlycoParams glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
+		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.initIsotopeProbs(getParam("prob_isotope"));
