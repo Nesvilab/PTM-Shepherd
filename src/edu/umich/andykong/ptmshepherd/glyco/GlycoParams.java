@@ -169,7 +169,6 @@ public class GlycoParams {
 
     // Helper method for determining decoy masses for various decoy mass generation settings
     private static double setDecoyShift(double baseMass, int decoyType, double glycoPPMtol, Integer[] glycoIsotopes, Random randomGenerator) {
-        double shiftMass;
         double randomShift = 0;
         switch (decoyType) {
             case 0:
@@ -188,8 +187,7 @@ public class GlycoParams {
                 // exact target mass - random shift left at 0
                 break;
         }
-        shiftMass = baseMass + randomShift;
-        return shiftMass;
+        return randomShift;
     }
 
     /**
