@@ -443,10 +443,16 @@ public class PSMFile {
 				String glycanScore = String.format("%.4f", result.glycanScore);
 				String glycanQval = String.format("%.6f", result.glycanQval);
 				if (result.isDecoyGlycan && !glycoParams.printGlycoDecoys) {
-					// report best target glycan instead of decoy (q-value will be reported as 1)
-					assignedGlycan = result.bestTarget.toPSMString();
-					glycanScore = String.format("%.4f", result.bestTargetScore);
-					glycanQval = "1";
+					if (Double.isNaN(result.bestTargetScore)) {
+						assignedGlycan = "No target matches";
+						glycanScore = "";
+						glycanQval = "";
+					} else {
+						// report best target glycan instead of decoy (q-value will be reported as 1)
+						assignedGlycan = result.bestTarget.toPSMString();
+						glycanScore = String.format("%.4f", result.bestTargetScore);
+						glycanQval = "1";
+					}
 				}
 				// save glycan info directly or to the lists to add columns to the PSM table later
 				if (!hasPreviousGlycoInfo) {
