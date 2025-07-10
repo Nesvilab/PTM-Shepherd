@@ -104,6 +104,12 @@ public class GlycanAssignmentResult {
                 }
             }
 
+            if (featureVec != null) {
+                for (double feature : featureVec) {
+                    sb.append(String.format("\t%.4f", feature)); // append each feature value
+                }
+            }
+
             // glycan fragment info for target glycans
             if (!isDecoyGlycan) {
                 // Y ions
