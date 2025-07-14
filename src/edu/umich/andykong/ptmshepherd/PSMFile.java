@@ -395,7 +395,7 @@ public class PSMFile {
 					// update assigned mods column
 					if (glycoParams.writeGlycansToAssignedMods) {
 						boolean failOrDecoy = rawGlycan.contains("Decoy") || rawGlycan.contains("FailFDR");
-						writeGlycanToAssignedMod(psm, rawGlycan, failOrDecoy, glycoParams);
+						writeGlycanToAssignedMod(psm, observedGlycan, failOrDecoy, glycoParams);
 					}
 				}
 			} else {
