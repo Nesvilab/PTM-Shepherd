@@ -602,11 +602,7 @@ public class PTMShepherd {
 		/* Save best glycan information from glyco report to psm tables */
 		for (String ds : datasets.keySet()) {
 			for (PSMFile pf: psmFiles.get(ds)) {
-				if (glycoParams.glycoLDA) {
-					pf.mergeGlycoTableLDA(glycoParams);
-				} else {
-					pf.mergeGlycoTable(new File(normFName(ds + rawGlycoName)), glycoParams, Integer.parseInt(params.get("msfragger_massdiff_to_varmod")));
-				}
+				pf.mergeGlycoTable(glycoParams);
 			}
 		}
 

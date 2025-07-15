@@ -16,9 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd;
 
-import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.FastLocator;
-import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanAssignmentResult;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
@@ -315,116 +313,8 @@ public class PSMFile {
 	}
 
 	/* Merges the rawglyco table onto the existing psm.tsv
-	*/
-	public void mergeGlycoTable(File glyf, GlycoParams glycoParams, int massdiffToVarmod) {
-		String tempFoutName = this.fname + ".glyco.tmp";
-        String[] glyHeaders = null;
-        HashMap<String, String[]> glyLines = null;
-        try {
-			BufferedReader in = new BufferedReader(new FileReader(glyf), 1 << 22);
-			glyHeaders = in.readLine().split("\t");
-
-            /* Get glyco data */
-            glyLines = new HashMap<>();
-            String cgline;
-            while ((cgline = in.readLine()) != null) {
-                String[] sp = cgline.split("\t", -1);
-                glyLines.put(sp[0], sp);	// spectrum -> full line of rawglyco table
-            }
-            in.close();
-        } catch (IOException e) {
-            PTMShepherd.die("Could not update PSM table with glycans: Error reading glyco file: " + glyf.getAbsolutePath() + "\n" + e.getMessage());
-        }
-
-        // get rawglyco file headers
-		int mergeFromCol = -1;
-		for (int i=0; i < glyHeaders.length; i++) {
-			if (glyHeaders[i].matches(GlycoAnalysis.GLYCAN_COMP_COL_NAME)) {
-				mergeFromCol = i;
-			}
-		}
-		if (mergeFromCol == -1) {
-			System.out.println("Warning: Could not find Mass Shift column in rawglyco table, using default insert point");
-			mergeFromCol = 5;
-		}
-		int bestTargetGlycanCol = mergeFromCol + 3;
-		int bestTargetScoreCol = bestTargetGlycanCol + 1;
-		int rawGlycoScoreCol = mergeFromCol + 1;
-		int rawGlycoQvalCol = mergeFromCol + 2;
-
-		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
-
-		/* Match glycolines on PSM spectrum keys */
-		ArrayList<String> psmKeys = new ArrayList<>();
-		ArrayList<String> glycanComps = new ArrayList<>();
-		ArrayList<String> glycanScores = new ArrayList<>();
-		ArrayList<String> glycanQvals = new ArrayList<>();
-		for (PSM psm : psms) {
-			psmKeys.add(psm.getSpec());
-
-			// check if a glycan was found
-			if (glyLines.containsKey(psm.getSpec())) {
-				ArrayList<String> glyLine = new ArrayList<>(Arrays.asList(glyLines.get(psm.getSpec())));
-				if (!glyLine.get(mergeFromCol).isEmpty()) {
-					String rawGlycan = glyLine.get(mergeFromCol);
-					String observedGlycan;
-					String glycanScore = glyLine.get(rawGlycoScoreCol);
-					if (rawGlycan.contains("Decoy")) {
-						if (!glycoParams.printGlycoDecoys) {
-							// report best target glycan instead of decoy (q-value will be reported as 1)
-							rawGlycan = glyLine.get(bestTargetGlycanCol);
-							glycanScore = glyLine.get(bestTargetScoreCol);
-						}
-					} 
-					if (rawGlycan.contains("FailFDR")) {
-						observedGlycan = rawGlycan.replace("FailFDR_", "");
-					} else {
-						observedGlycan = rawGlycan;
-					}
-
-					// save glycan info directly or to the lists to add columns to the PSM table later
-					if (!hasPreviousGlycoInfo) {
-						glycanComps.add(observedGlycan);
-						glycanScores.add(glycanScore);
-						glycanQvals.add(glyLine.get(rawGlycoQvalCol));
-					} else {
-						psm.spLine.set(glycanCompCol, observedGlycan);
-						psm.spLine.set(glycanScoreCol, glycanScore);
-						psm.spLine.set(glycanQvalCol, glyLine.get(rawGlycoQvalCol));
-					}
-					// update assigned mods column
-					if (glycoParams.writeGlycansToAssignedMods) {
-						boolean failOrDecoy = rawGlycan.contains("Decoy") || rawGlycan.contains("FailFDR");
-						writeGlycanToAssignedMod(psm, observedGlycan, failOrDecoy, glycoParams);
-					}
-				}
-			} else {
-				// no glycan found for this spectrum
-				if (!hasPreviousGlycoInfo) {
-					glycanComps.add("");
-					glycanScores.add("");
-					glycanQvals.add("");
-				} else {
-					psm.spLine.set(glycanCompCol, "");
-					psm.spLine.set(glycanScoreCol, "");
-					psm.spLine.set(glycanQvalCol, "");
-				}
-			}
-		}
-
-		if (!hasPreviousGlycoInfo) {
-			// add new glycan columns to the PSM table if not previously written
-			addColumn(observedModCol + 1, "Glycan q-value", psmKeys, glycanQvals);
-			addColumn(observedModCol + 1, "Glycan Score", psmKeys, glycanScores);
-			addColumn(observedModCol + 1, "Total Glycan Composition", psmKeys, glycanComps);
-		}
-
-		save(true);
-	}
-
-	/* Merges the rawglyco table onto the existing psm.tsv
 	 */
-	public void mergeGlycoTableLDA(GlycoParams glycoParams) {
+	public void mergeGlycoTable(GlycoParams glycoParams) {
 		String tempFoutName = this.fname + ".glyco.tmp";
 		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
 
