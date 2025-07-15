@@ -76,9 +76,10 @@ public class ScoreLDA {
 
         // Calculate scores and determine threshold
         for (GlycanAssignmentResult result: results) {
-            result.glycanScore = calculateScore(result.featureVec);
+            if (result.foundGlycan) {
+                result.glycanScore = calculateScore(result.featureVec);
+            }
         }
-        thresholdScore = getCutOff(results, fdrCutoff);
     }
 
 
@@ -96,65 +97,10 @@ public class ScoreLDA {
         return dotProduct(dataPoint, coefficients) + intercept;
     }
 
-    /**
-     * Determines the score threshold based on the specified FDR.
-     *
-     * @param fdrCutOff Maximum acceptable FDR
-     * @param results List of GlycanAssignmentResults containing target and decoy scores
-     * @return The score threshold
-     */
-    public static double getCutOff(List<GlycanAssignmentResult> results, double fdrCutOff) {
-        // Sort target scores in descending order
-        results.sort(Comparator.comparingDouble((GlycanAssignmentResult result) -> result.glycanScore).reversed());
-
-        // Get decoy indices in the combined sorted list
-        List<Integer> decoyIndexes = getDecoyIndexes(results);
-
-        // Calculate FDR at each point
-        int decoyCount = decoyIndexes.size();
-        int targetCount = results.size() - decoyCount;
-        double currentMinQ = Double.MAX_VALUE;
-        double scoreThreshold = Double.NaN;
-        boolean foundThreshold = false;
-        for (int i = results.size() - 1; i >= 0; i--) {
-            if (results.get(i).isDecoyGlycan) {
-                decoyCount--;
-            } else {
-                targetCount--;
-            }
-            double fdr = Math.min((double) (decoyCount + 1) / targetCount, currentMinQ);        // q = (d+1)/t recommended per 10.1021/acs.jproteome.6b00144
-            if (fdr < currentMinQ) {
-                currentMinQ = fdr;
-            }
-            if (!foundThreshold) {
-                if (fdr < fdrCutOff) {
-                    scoreThreshold = results.get(i).glycanScore;
-                    PTMShepherd.print(String.format("Found LDA score threshold: %.2f with %d decoys, %d targets for %.4f estimated FDR (%d total inputs)",
-                            results.get(i).glycanScore, decoyCount, targetCount, fdr, results.size()));
-                    foundThreshold = true;
-                }
-            }
-            results.get(i).glycanQval = fdr;
-        }
-        return scoreThreshold;
-    }
-
     //--------------------------------
     // HELPER METHODS
     //--------------------------------
 
-    /**
-     * Gets the indices of decoy scores in the combined sorted score list.
-     */
-    private static List<Integer> getDecoyIndexes(List<GlycanAssignmentResult> results) {
-        List<Integer> decoyIndexes = new ArrayList<>();
-        for (int i = 0; i < results.size(); i++) {
-            if (results.get(i).isDecoyGlycan) {
-                decoyIndexes.add(i);
-            }
-        }
-        return decoyIndexes;
-    }
 
     /**
      * Finds the index of the last value in a list that is below a threshold.

@@ -555,6 +555,7 @@ public class PTMShepherd {
 		GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
 
 		// Glyco: first pass
+		TreeMap<String, GlycoAnalysis> glycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams);
 			if (ga.isGlycoComplete()) {
@@ -570,59 +571,33 @@ public class PTMShepherd {
 			for (PSMFile pf : psmFiles.get(ds)) {
 				ga.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
 			}
+			ga.runScoresAndFDR();
 			ga.completeGlyco();
+			glycoAnalysisMap.put(ds, ga);
 		}
 
-		if (!glycoParams.glycoLDA) {
-			// second pass: calculate glycan FDR and update results
-			for (String ds : datasets.keySet()) {
-				GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams);
-				if (!glycoParams.useNewFDR) {
-					ga.computeGlycanFDROld(glycoParams.glycoFDR, true);
-				} else {
-					if (glycoParams.useNonCompFDR) {
-						ga.useNonCompFDR = true;
-						ga.computeGlycanFDR(glycoParams.glycoFDR);
-					} else {
-						boolean firstFDRsuccess = ga.computeGlycanFDROld(glycoParams.glycoFDR, false);
-						if (!firstFDRsuccess) {
-							ga.useNonCompFDR = true;
-							ga.computeGlycanFDR(glycoParams.glycoFDR);
-						}
-					}
-				}
+		// second pass: calculate fragment propensity-based glycan assignment and update results
+		for (String ds : datasets.keySet()) {
+			GlycoAnalysis ga = glycoAnalysisMap.get(ds);
 
-				if (glycoParams.useGlycanFragmentProbs) {
-					// second pass - calculate fragment propensities, regenerate database, and re-run
-					HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
-					ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
+			if (glycoParams.useGlycanFragmentProbs) {
+				// second pass - calculate fragment propensities, regenerate database, and re-run
+				HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
+				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
 
-					// run glyco PSM-level analysis with the new database
-					GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams);
-					ga2.glycanMassBinMap = ga.glycanMassBinMap;
-					ga2.useFragmentSpecificProbs = true;
-					ga2.defaultPropensity = glycoParams.defaultProp;
-					for (PSMFile pf : psmFiles.get(ds)) {
-						ga2.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
-					}
-					if (!glycoParams.useNewFDR) {
-						ga2.computeGlycanFDROld(glycoParams.glycoFDR, true);
-					} else {
-						if (glycoParams.useNonCompFDR) {
-							ga2.useNonCompFDR = true;
-							ga2.computeGlycanFDR(glycoParams.glycoFDR);
-						} else {
-							boolean firstFDRsuccess2 = ga2.computeGlycanFDROld(glycoParams.glycoFDR, false);
-							if (!firstFDRsuccess2) {
-								ga2.useNonCompFDR = true;
-								ga2.computeGlycanFDR(glycoParams.glycoFDR);
-							}
-						}
-					}
-					ga2.completeGlyco();
+				// run glyco PSM-level analysis with the new database
+				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams);
+				ga2.glycanMassBinMap = ga.glycanMassBinMap;
+				ga2.useFragmentSpecificProbs = true;
+				ga2.defaultPropensity = glycoParams.defaultProp;
+				for (PSMFile pf : psmFiles.get(ds)) {
+					ga2.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
 				}
+				ga2.runScoresAndFDR();
+				ga2.completeGlyco();
 			}
 		}
+
 
 		/* Save best glycan information from glyco report to psm tables */
 		for (String ds : datasets.keySet()) {
@@ -1324,7 +1299,6 @@ public class PTMShepherd {
 		glycoParams.allowedLocalizationResidues = getParam("localization_allowed_res");
 		glycoParams.numThreads = Integer.parseInt(params.get("threads"));
 		glycoParams.useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").isEmpty() && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
-		glycoParams.useNewFDR = getParam("use_new_glycan_fdr").isEmpty() || Boolean.parseBoolean(getParam("use_new_glycan_fdr"));	// default true
 		glycoParams.useNonCompFDR = !getParam("use_noncomp_glycan_fdr").isEmpty() && Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default false
 		glycoParams.defaultProp = getParam("glyco_default_propensity").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
 

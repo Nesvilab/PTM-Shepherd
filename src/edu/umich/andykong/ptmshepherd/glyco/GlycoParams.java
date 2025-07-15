@@ -45,7 +45,6 @@ public class GlycoParams {
     public boolean printGlycoDecoys;
     public int numThreads;
     public boolean useGlycanFragmentProbs;
-    public boolean useNewFDR;
     public boolean useNonCompFDR ;
     public double defaultProp;
     public String allowedLocalizationResidues;

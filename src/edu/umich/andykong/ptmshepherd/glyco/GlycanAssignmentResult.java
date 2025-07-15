@@ -91,16 +91,16 @@ public class GlycanAssignmentResult {
             if (!isDecoyGlycan) {
                 // for target glycans, append best decoy as well
                 if (bestDecoy != null && !Double.isNaN(bestDecoyScore)) {
-                    sb.append(String.format("\t%s\t%.2f\t\t%s\t%.2f", bestCandidate, glycanScore, bestDecoy, bestDecoyScore));
+                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval,bestDecoy, bestDecoyScore));
                 } else {
-                    sb.append(String.format("\t%s\t%.2f\t\t%s\t", bestCandidate, glycanScore, "no decoy matches"));
+                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no decoy matches"));
                 }
             } else {
                 // for decoy glycans, append best target as well
                 if (bestTarget != null && !Double.isNaN(bestTargetScore)) {
-                    sb.append(String.format("\t%s\t%.2f\t\t%s\t%.2f", bestCandidate, glycanScore, bestTarget, bestTargetScore));
+                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval, bestTarget, bestTargetScore));
                 } else {
-                    sb.append(String.format("\t%s\t%.2f\t\t%s\t", bestCandidate, glycanScore, "no target matches"));
+                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no target matches"));
                 }
             }
 

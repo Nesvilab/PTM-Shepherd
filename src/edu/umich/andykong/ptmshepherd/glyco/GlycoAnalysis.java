@@ -25,9 +25,6 @@ import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
-import umich.ms.glyco.Glycan;
-import umich.ms.glyco.GlycanParser;
-import umich.ms.glyco.GlycanResidue;
 import umich.ms.glyco.GlycanCandidate;
 import umich.ms.glyco.GlycanFragment;
 
@@ -36,6 +33,7 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 public class GlycoAnalysis {
     String dsName;
@@ -63,8 +61,9 @@ public class GlycoAnalysis {
     public double finalGlycoFDR;
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
-    public boolean useNonCompFDR;
     private final GlycoParams glycoParams;
+    private ArrayList<GlycanAssignmentResult> allResults;   // all results from glycoPSMs, used for LDA
+    private String ldaHeader;
 
     // Default constructor
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams) {
@@ -74,6 +73,8 @@ public class GlycoAnalysis {
         this.glycoParams = glycoParams;
         this.useFragmentSpecificProbs = false;
         this.glycanMassBinMap = new HashMap<>();
+        this.allResults = new ArrayList<>();
+        ldaHeader = glycoParams.glycoLDA ? "\tY prop\tLDA Y\tLDA Oxo\tLDA iso\tLDA mass" : "";
     }
 
     public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) {
@@ -90,7 +91,6 @@ public class GlycoAnalysis {
             condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
 
             //write header
-            String ldaHeader = glycoParams.glycoLDA ? "\tLDA Y\tLDA Oxo\tLDA iso\tLDA mass" : "";
             glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
 
             //map PSMs to file
@@ -148,23 +148,12 @@ public class GlycoAnalysis {
         }
 
         if (glycoParams.glycoLDA) {
-            // LDA on PSMs
-            ScoreLDA lda = new ScoreLDA();
-            // add PSM results to LDA
-            ArrayList<GlycanAssignmentResult> allResults = new ArrayList<>();
             for (PSM psm : pf.psms) {
                 if (psm.glycanAssignmentResult != null && psm.glycanAssignmentResult.foundGlycan) {
                     GlycanAssignmentResult result = psm.glycanAssignmentResult;
                     allResults.add(result);
-                    if (result.isDecoyGlycan) {
-                        lda.decoyData.add(result.featureVec);
-                    } else {
-                        lda.targetData.add(result.featureVec);
-                    }
                 }
             }
-            // run LDA
-            lda.runLDA(allResults, glycoParams.glycoFDR);
         }
     }
 
@@ -177,12 +166,12 @@ public class GlycoAnalysis {
         printLines(fragmentOutWriter, fragmentBlock.toString());
     }
 
-    private synchronized void printLines(PrintWriter out, String linesBlock) {
+    private static synchronized void printLines(PrintWriter out, String linesBlock) {
         out.print(linesBlock);
     }
 
     /**
-     * Read the generated glycofrags file to determine glycan fragment probabilities for each glycan in the database.
+     * Read the PSM level glycan assignment results to determine glycan fragment probabilities for each glycan in the database.
      * Option to save prevalence file for diagnostics/info to be added?
      *
      * @return Map of glycan string : fragment propensities container
@@ -191,63 +180,41 @@ public class GlycoAnalysis {
         HashMap<String, GlycanCandidateFragments> glycanCandidateFragmentsMap = new HashMap<>();
         HashMap<String, ArrayList<GlycanCandidate>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
 
-        // read info from glycofrags file
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
-            String[] headerSplits = in.readLine().split("\t");
-            int glycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-            int qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
-            int deltaMassCol = GlycoParams.getHeaderColIndex(headerSplits, "Mass Shift");
-            int fragmentStartCol = GlycoParams.getHeaderColIndex(headerSplits, "Fragments:");
+        // read all glycan info in
+        for (GlycanAssignmentResult result : allResults) {
+            if (result.foundGlycan) {
+                GlycanCandidate glycan = result.bestCandidate;
+                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, glycan.Yfragments, glycan.oxoniumFragments);
 
-            // read all glycan info in
-            String currentLine;
-            while ((currentLine = in.readLine()) != null) {
-                String[] splits = currentLine.split("\t", 0);       // limit 0 to discard extra empty cells if present
-                // only read lines with glycan info (after column 5, don't include lines with no glycan matched (entry in 5, but nothing after))
-                if (splits.length > 6) {
-                    String glycanString = splits[glycanCol].replace("FailFDR_", "").replace("Decoy_", "");
-                    boolean failedFDR = Double.parseDouble(splits[qValCol]) > finalGlycoFDR;
-                    // parse the info to generate a GlycanCandidate
-                    String[] fragmentInfo = splits.length >= fragmentStartCol ? Arrays.copyOfRange(splits, fragmentStartCol, splits.length) : new String[]{};
-                    Glycan glycan = GlycanParser.parseGlycanString(glycanString, glycoParams.glycanResiduesMap);
-                    TreeMap<String, GlycanFragment> Yfragments = new TreeMap<>();
-                    TreeMap<String, GlycanFragment> oxoniumFragments = new TreeMap<>();
-                    parseCandidateFragments(fragmentInfo, Yfragments, oxoniumFragments, glycoParams.glycanResiduesMap);
-                    GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, Yfragments, oxoniumFragments);
-
-                    String glycanHash = fragmentInfoContainer.toString();
-                    // only include good targets in fragment info
-                    if (!failedFDR) {
-                        if (glycanInputMap.containsKey(glycanHash)) {
-                            glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
-                        } else {
-                            ArrayList<GlycanCandidate> newList = new ArrayList<>();
-                            newList.add(fragmentInfoContainer);
-                            glycanInputMap.put(glycanHash, newList);
-                        }
-                    }
-                    // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
-                    double deltaMass = Double.parseDouble(splits[deltaMassCol]);
-                    int massBin = (int) Math.floor(deltaMass);
-                    if (glycanMassBinMap.containsKey(massBin)) {
-                        // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
-                        HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
-                        int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
-                        glycanCount++;
-                        massBinGlycanCounts.put(glycanHash, glycanCount);
+                String glycanHash = fragmentInfoContainer.toString();
+                // only include good targets in fragment info
+                if (result.glycanQval < glycoParams.glycoFDR) {
+                    if (glycanInputMap.containsKey(glycanHash)) {
+                        glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
                     } else {
-                        // New mass bin. Create a new count-by-glycan dict
-                        HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
-                        massBinGlycanCounts.put(glycanHash, 1);
-                        glycanMassBinMap.put(massBin, massBinGlycanCounts);
+                        ArrayList<GlycanCandidate> newList = new ArrayList<>();
+                        newList.add(fragmentInfoContainer);
+                        glycanInputMap.put(glycanHash, newList);
                     }
                 }
+                // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
+                double deltaMass = result.deltaMass;
+                int massBin = (int) Math.floor(deltaMass);
+                if (glycanMassBinMap.containsKey(massBin)) {
+                    // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
+                    HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
+                    int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
+                    glycanCount++;
+                    massBinGlycanCounts.put(glycanHash, glycanCount);
+                } else {
+                    // New mass bin. Create a new count-by-glycan dict
+                    HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
+                    massBinGlycanCounts.put(glycanHash, 1);
+                    glycanMassBinMap.put(massBin, massBinGlycanCounts);
+                }
             }
-            in.close();
-        } catch (IOException e) {
-            PTMShepherd.die("Could not read glyco fragments file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
+
 
         // summarize results for each glycan to get final fragment propensities
         for (Map.Entry<String, ArrayList<GlycanCandidate>> glycanEntry : glycanInputMap.entrySet()) {
@@ -328,126 +295,138 @@ public class GlycoAnalysis {
         return glycanCandidateFragmentsMap;
     }
 
-    private static void parseCandidateFragments(String[] fragmentInfo,
-                                                TreeMap<String, GlycanFragment> Yfragments,
-                                                TreeMap<String, GlycanFragment> oxoniumFragments,
-                                                HashMap<String, GlycanResidue> glycanResiduesMap) {
-        for (String fragment : fragmentInfo) {
-            String[] typeSplits = fragment.split("~");
-            // string format is [type]~[composition]~[intensity]
-            if (typeSplits[0].matches("Y")) {
-                // Y ion
-                GlycanFragment newFragment = GlycanFragment.parseGlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]), GlycanFragment.FragType.Y, glycanResiduesMap);
-                Yfragments.put(newFragment.hash, newFragment);
-            } else if (typeSplits[0].matches("Ox")) {
-                GlycanFragment newFragment = GlycanFragment.parseGlycanFragment(typeSplits[1], Double.parseDouble(typeSplits[2]), GlycanFragment.FragType.Ox, glycanResiduesMap);
-                oxoniumFragments.put(newFragment.hash, newFragment);
-            } else {
-                // invalid
+    /**
+     * Glycan FDR wrapper/main method. Called after the glycan assignment is done on PSMs to compute glycan FDR.
+     * Handles various old and new methods and LDA.
+     */
+    public void runScoresAndFDR() {
+        // LDA method
+        if (glycoParams.glycoLDA) {
+            ScoreLDA lda = new ScoreLDA();
+            // add PSM results to LDA
+            for (GlycanAssignmentResult result: allResults) {
+                if (result.foundGlycan) {
+                    if (result.isDecoyGlycan) {
+                        lda.decoyData.add(result.featureVec);
+                    } else {
+                        lda.targetData.add(result.featureVec);
+                    }
+                }
             }
+            lda.runLDA(allResults, glycoParams.glycoFDR);
+        }
+
+        // Compute FDR
+        if (glycoParams.useNonCompFDR) {
+            computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
+        } else {
+            boolean firstFDRsuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR);
+            if (!firstFDRsuccess) {
+                computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
+            }
+        }
+
+        try {
+            PrintWriter glycoOut = new PrintWriter(new FileWriter(glycoFile));
+            glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
+
+            printLines(glycoOut, allResults.stream()
+                    .map(GlycanAssignmentResult::printGlycoFragmentInfo)
+                    .collect(Collectors.joining("")));
+            glycoOut.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing to glyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
     }
 
     /**
-     * Read rawglyco file during 2nd pass to compute FDR across whole dataset and write updated
-     * information back to rawglyco file. Requires that first pass has already been done and
-     * Glycans assigned to PSMs.
+     * Determines the score threshold based on the specified FDR.
      *
-     * @param glycoFDR: desired FDR (typically 0.01 = 1%)
+     * @param fdrCutOff Maximum acceptable FDR
+     * @param results List of GlycanAssignmentResults containing target and decoy scores
+     * @return The score threshold
      */
-    public void computeGlycanFDR(double glycoFDR) {
+    public static boolean computeFDRcompetitive(List<GlycanAssignmentResult> results, double fdrCutOff) {
+        // Sort target scores in descending order
+        results.sort(Comparator.comparingDouble((GlycanAssignmentResult result) -> result.glycanScore).reversed());
+
+        // Get decoy indices in the combined sorted list
+        List<Integer> decoyIndexes = getDecoyIndexes(results);
+
+        int decoyCount = decoyIndexes.size();
+        int targetCount = results.size() - decoyCount;
+        // check if enough decoys were found (i.e., initial q-val is above the desired threshold)
+        double initialFDR = calculateFDR(targetCount, decoyCount, false);
+        if (initialFDR < fdrCutOff) {
+            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%% with basic method, started at %.2f%%", fdrCutOff * 100, initialFDR * 100));
+            return false;
+        }
+
+        double currentMinQ = Double.MAX_VALUE;
+//        double scoreThreshold = Double.NaN;
+        boolean foundThreshold = false;
+        // Calculate FDR at each point
+        for (int i = results.size() - 1; i >= 0; i--) {
+            if (results.get(i).isDecoyGlycan) {
+                decoyCount--;
+            } else {
+                targetCount--;
+            }
+            double fdr = Math.min(calculateFDR(targetCount, decoyCount, false), currentMinQ);        // q = (d+1)/t recommended per 10.1021/acs.jproteome.6b00144
+            if (fdr < currentMinQ) {
+                currentMinQ = fdr;
+            }
+            if (!foundThreshold) {
+                if (fdr < fdrCutOff) {
+//                    scoreThreshold = results.get(i).glycanScore;
+                    PTMShepherd.print(String.format("Found glycan score threshold: %.2f with %d decoys, %d targets for %.2f%% estimated FDR (%d total inputs)",
+                            results.get(i).glycanScore, decoyCount, targetCount, fdr * 100, results.size()));
+                    foundThreshold = true;
+                }
+            }
+            results.get(i).glycanQval = results.get(i).isDecoyGlycan ? 1.0 : fdr;
+        }
+        return true;
+    }
+
+    /**
+     * Determines the score threshold based on the specified FDR using the top target AND top decoy for each PSM.
+     *
+     * @param glycoFDR Maximum acceptable FDR
+     * @param results List of GlycanAssignmentResults containing target and decoy scores
+     */
+    public void computeFDRNonCompetitive(List<GlycanAssignmentResult> results, double glycoFDR) {
         finalGlycoFDR = glycoFDR;
-        LinkedHashMap<String, String[]> glyLines = null;   // linkedHashMap to preserve spectrum order
-        String[] headerSplits = null;
-        int gSpecCol = 0;
-        int bestGlycanCol = 0;
-        int qValCol = 0;
-        HashMap<String, Double> scoreMap = null;
-        ArrayList<GlycoScore> scoreDistribution = null;
-        int targets = 0;
-        int decoys = 0;
+        HashMap<String, GlycanAssignmentResult> resultMap = new HashMap<>();
+
+        HashMap<String, Double> scoreMap = new HashMap<>();
+        ArrayList<GlycoScore> scoreDistribution = new ArrayList<>();
+        int targets = 0;    // from top candidate
+        int decoys = 0;     // from top candidate
         int scoreDistTargets = 0;
         int scoreDistDecoys = 0;
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
+        for (GlycanAssignmentResult result: results) {
+            resultMap.put(result.specName, result);
 
-            // read rawglyco file into map of spectrum index: full line (string)
-            glyLines = new LinkedHashMap<>();
-            String cgline;
-
-            // detect headers
-            headerSplits = in.readLine().split("\t");
-            gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
-            int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
-            bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-            qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
-            int bestNextScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Best Target Score");
-
-            if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
-                PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
-            }
-
-            // read file, accumulating scores
-            scoreMap = new HashMap<>();
-            scoreDistribution = new ArrayList<>();
-            targets = 0;
-            decoys = 0;
-            scoreDistTargets = 0;
-            scoreDistDecoys = 0;
-            while ((cgline = in.readLine()) != null) {
-                if (cgline.equals("COMPLETE")) {
-                    break;
+            if (result.foundGlycan) {
+                scoreDistTargets++;
+                scoreDistDecoys++;
+                // record top target and top decoy score
+                if (result.isDecoyGlycan) {
+                    decoys++;
+                    scoreDistribution.add(new GlycoScore(result.glycanScore, true, result.specName, true));
+                    if (!Double.isNaN(result.bestTargetScore)) {
+                        scoreDistribution.add(new GlycoScore(result.bestTargetScore, false, result.specName, false));
+                    }
+                } else {
+                    targets++;
+                    scoreDistribution.add(new GlycoScore(result.glycanScore, false, result.specName, true));
+                    if (!Double.isNaN(result.bestDecoyScore)) {
+                        scoreDistribution.add(new GlycoScore(result.bestDecoyScore, true, result.specName, false));
+                    }
                 }
-                if (cgline.startsWith("ERROR"))
-                    continue;
-                String[] splits = cgline.split("\t", -1);
-                // skip non-glyco columns
-                if (splits.length < bestGlycanCol + 1)
-                    continue;
-                if (splits[bestGlycanCol].matches("ERROR"))
-                    continue;
-                String spectrumID = splits[gSpecCol];
-                glyLines.put(spectrumID, splits);     // save full line for later editing/writing
-                // only consider columns with actual glycan info
-                if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
-                    if (!splits[qValCol].matches("")) {
-                        // glycan FDR already performed on this dataset - skip
-                        PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
-                        return;
-                    }
-                    // detect if target or decoy and save best candidate score. If no target/decoy was found, skip (empty score column)
-                    boolean bestWasDecoy = splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy");
-                    if (!splits[absScoreCol].matches("")) {
-                        double absScore = Double.parseDouble(splits[absScoreCol]);
-                        if (bestWasDecoy) {
-                            decoys++;
-                            scoreDistDecoys++;
-                            scoreDistribution.add(new GlycoScore(absScore, true, spectrumID, true));
-                        } else {
-                            targets++;
-                            scoreDistTargets++;
-                            scoreDistribution.add(new GlycoScore(absScore, false, spectrumID, true));
-                        }
-                    }
-                    // parse next best score and save to target/decoy as appropriate
-                    if (!splits[bestNextScoreCol].matches("")) {
-                        double nextScore = Double.parseDouble(splits[bestNextScoreCol]);
-                        if (bestWasDecoy) {
-                            // best candidate was a decoy, so next/opposite is target
-                            scoreDistTargets++;
-                            scoreDistribution.add(new GlycoScore(nextScore, false, spectrumID, false));
-                        } else {
-                            // best candidate was a target, so next/opposite is decoy
-                            scoreDistDecoys++;
-                            scoreDistribution.add(new GlycoScore(nextScore, true, spectrumID, false));
-                        }
-                    }
-                    scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
-                }
+                scoreMap.put(result.specName, result.glycanScore);
             }
-            in.close();
-        } catch (IOException e) {
-            PTMShepherd.die("Could not calculate glycan FDR due to error reading rawglyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
 
         PTMShepherd.print("Calculating Glycan FDR");
@@ -466,7 +445,7 @@ public class GlycoAnalysis {
                 scoreDistDecoys--;
             }
             // compute TD ratio
-            targetDecoyRatio = calculateFDR(scoreDistTargets, scoreDistDecoys, useNonCompFDR);
+            targetDecoyRatio = calculateFDR(scoreDistTargets, scoreDistDecoys, true);
             if (scoreDistDecoys > scoreDistTargets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (scoreDistTargets == 0) {
@@ -511,16 +490,16 @@ public class GlycoAnalysis {
          */
         boolean foundThreshold = false;
         for (Map.Entry<String, Double> scoreEntry : sortedScoreMap.entrySet()) {
-            String[] rawGlycoLine = glyLines.get(scoreEntry.getKey());
+            GlycanAssignmentResult result = resultMap.get(scoreEntry.getKey());
 
             // update counts
-            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
+            if (result.isDecoyGlycan) {
                 decoys--;
             } else {
                 targets--;
             }
             // compute TD ratio and q-val
-            targetDecoyRatio = calculateFDR(targets, decoys, useNonCompFDR);
+            targetDecoyRatio = calculateFDR(targets, decoys, true);
             if (decoys > targets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (targets == 0) {
@@ -528,206 +507,32 @@ public class GlycoAnalysis {
             }
 
             // Write q-value to output, and write q=1 for decoys
-            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                rawGlycoLine[qValCol] = "1";
-            } else {
-                rawGlycoLine[qValCol] = String.format("%s", qValMap.get(rawGlycoLine[gSpecCol]));
-            }
+            result.glycanQval = result.isDecoyGlycan ? 1.0 : Math.min(targetDecoyRatio, currentMinQ);
+//                rawGlycoLine[qValCol] = String.format("%s", qValMap.get(rawGlycoLine[gSpecCol]));
+
             if (!foundThreshold) {
                 // still below the threshold: continue checking decoys/targets and appending 'failfdr'
                 if (scoreEntry.getValue() >= scoreThreshold) {
                     // stop here, found cutoff
                     foundThreshold = true;
                     double compFDR = calculateFDR(targets, decoys, false);
-                    PTMShepherd.print(String.format("\tUsed score threshold to obtain %.1f%% competitive FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
-                }
-                if (!rawGlycoLine[bestGlycanCol].contains("FailFDR")) {
-                    // only add failFDR annotation once (prevents multiple writes on re-analyses)
-                    rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
+                    PTMShepherd.print(String.format("\tUsed score threshold to obtain %.1f%% competitive FDR with %d targets and %d decoys (%d total inputs)", compFDR * 100, targets, decoys, sortedScoreMap.size()));
                 }
             }
-
-            // update the output text with the new info
-            glyLines.put(scoreEntry.getKey(), rawGlycoLine);
-        }
-
-        // write output back to rawglyco file
-        try {
-            PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
-            out.println(String.join("\t", Arrays.asList(headerSplits)));
-            for (String[] glyLine : glyLines.values()) {
-                out.println(String.join("\t", Arrays.asList(glyLine)));
-            }
-            out.flush();
-            out.close();
-        } catch (IOException e) {
-            PTMShepherd.die("Could not update glyco file with glycan FDR " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
     }
 
     /**
-     * Basic competitive FDR calculation (original method). Each spectrum is either a target or decoy, sort scores
-     * in ascending order and find score threshold for provided FDR. Returns True if FDR calc completed or False
-     * if there were not enough decoys to reach the given FDR threshold.
-     *
-     * @param glycoFDR  desired FDR ratio
-     * @param changeFDR if true, override FDR if not enough decoys found instead of returning (restore original v1 behavior)
-     * @return true if successful, false if not enough decoys
-     * @throws IOException
+     * Gets the indices of decoy scores in the combined sorted score list.
      */
-    public boolean computeGlycanFDROld(double glycoFDR, boolean changeFDR) {
-        finalGlycoFDR = glycoFDR;
-        LinkedHashMap<String, String[]> glyLines = null;   // linkedHashMap to preserve spectrum order
-        String[] headerSplits = null;
-        int bestGlycanCol = 0;
-        int qValCol = 0;
-        HashMap<String, Double> scoreMap = null;
-        int targets = 0;
-        int decoys = 0;
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(glycoFile), 1 << 22);
-
-            // read rawglyco file into map of spectrum index: full line (string)
-            glyLines = new LinkedHashMap<>();
-            String cgline;
-
-            // detect headers
-            headerSplits = in.readLine().split("\t");
-            int gSpecCol = GlycoParams.getHeaderColIndex(headerSplits, "Spectrum");
-            int absScoreCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan Score");
-            bestGlycanCol = GlycoParams.getHeaderColIndex(headerSplits, GLYCAN_COMP_COL_NAME);
-            qValCol = GlycoParams.getHeaderColIndex(headerSplits, "Glycan q-value");
-
-            if (absScoreCol <= 0 || bestGlycanCol <= 0 || qValCol <= 0) {
-                PTMShepherd.print(String.format("Warning: rawglyco file headers not found! FDR calculation may fail for file %s\n", glycoFile));
-            }
-
-            // read file, accumulating scores
-            scoreMap = new HashMap<>();
-            targets = 0;
-            decoys = 0;
-            while ((cgline = in.readLine()) != null) {
-                if (cgline.equals("COMPLETE")) {
-                    break;
-                }
-                if (cgline.startsWith("ERROR"))
-                    continue;
-                String[] splits = cgline.split("\t", -1);
-                // skip non-glyco columns
-                if (splits.length < bestGlycanCol + 1)
-                    continue;
-                if (splits[bestGlycanCol].matches("ERROR"))
-                    continue;
-                String spectrumID = splits[gSpecCol];
-                glyLines.put(spectrumID, splits);     // save full line for later editing/writing
-                // only consider columns with actual glycan info
-                if (!splits[bestGlycanCol].matches("") && !splits[bestGlycanCol].contains(GlycanAssignmentResult.NO_GLYCAN_RESULT_STR)) {
-                    if (!splits[qValCol].matches("")) {
-                        // glycan FDR already performed on this dataset - skip
-                        PTMShepherd.print("\tGlycan FDR calculation already performed, skipping");
-                        return true;
-                    }
-
-                    // detect if target or decoy and save score
-                    if (splits[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                        decoys++;
-                    } else {
-                        targets++;
-                    }
-                    scoreMap.put(spectrumID, Double.parseDouble(splits[absScoreCol]));
-                }
-            }
-            in.close();
-        } catch (IOException e) {
-            PTMShepherd.die("Could not calculate glycan FDR. Error reading rawglyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
-        }
-
-        PTMShepherd.print("Calculating Glycan FDR");
-        // sort scoreMap in order of ascending score
-        List<Map.Entry<String, Double>> entries = new ArrayList<>(scoreMap.entrySet());
-        entries.sort(Map.Entry.comparingByValue());
-        Map<String, Double> sortedScoreMap = new LinkedHashMap<>();
-        for (Map.Entry<String, Double> entry : entries) {
-            sortedScoreMap.put(entry.getKey(), entry.getValue());
-        }
-        double targetDecoyRatio = calculateFDR(targets, decoys, useNonCompFDR);
-        if (targetDecoyRatio < finalGlycoFDR) {
-            // not enough decoys to compute FDR - already above desired ratio. Do not update table
-            PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%% with basic method, started at %.2f%%", finalGlycoFDR * 100, targetDecoyRatio * 100));
-            if (!changeFDR) {
-                return false;
-            } else {
-                // only missed by a little, try reducing desired FDR to accomodate
-                finalGlycoFDR = targetDecoyRatio - (targetDecoyRatio * 0.1);
-                PTMShepherd.print(String.format("\tFDR reduced to %.2f pct due to limited decoys", finalGlycoFDR * 100));
+    private static List<Integer> getDecoyIndexes(List<GlycanAssignmentResult> results) {
+        List<Integer> decoyIndexes = new ArrayList<>();
+        for (int i = 0; i < results.size(); i++) {
+            if (results.get(i).isDecoyGlycan) {
+                decoyIndexes.add(i);
             }
         }
-
-        /*
-            Find threshold at which target/decoy ratio hits desired value and update rawglyco lines
-            NOTE: calculation is FDR <= desired ratio, so target/decoy counts updated AFTER the current PSM. This means the last
-            decoy passes FDR, and the last target has the correct FDR instead of 0/0
-            NOTE2: q-value is set to min(current FDR, FDR of all PSMs with lower score) to make it a step down rather than sawtooth shape
-         */
-        boolean foundThreshold = false;
-        double currentMinQ = 1;
-        for (Map.Entry<String, Double> scoreEntry : sortedScoreMap.entrySet()) {
-            String[] rawGlycoLine = glyLines.get(scoreEntry.getKey());
-
-            // update counts
-            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                decoys--;
-            } else {
-                targets--;
-            }
-            // compute TD ratio and q-val
-            targetDecoyRatio = calculateFDR(targets, decoys, useNonCompFDR);
-            if (decoys > targets) {
-                targetDecoyRatio = 1.0;     // cap FDR at 1
-            } else if (targets == 0) {
-                targetDecoyRatio = 0.0;     // min FDR = 0. Using else-if with the above block so that if decoys are nonzero with 0 targets, FDR = 1
-            }
-            double qval = Math.min(targetDecoyRatio, currentMinQ);
-            if (qval < currentMinQ) {
-                currentMinQ = qval;
-            }
-            // Write q-value to output, and write q=1 for decoys
-            if (rawGlycoLine[bestGlycanCol].toLowerCase(Locale.ROOT).contains("decoy")) {
-                rawGlycoLine[qValCol] = "1";
-            } else {
-                rawGlycoLine[qValCol] = String.format("%s", qval);
-            }
-
-            if (!foundThreshold) {
-                // still below the threshold: continue checking decoys/targets and appending 'failfdr'
-                if (targetDecoyRatio <= finalGlycoFDR) {
-                    // stop here, found cutoff
-                    foundThreshold = true;
-                    PTMShepherd.print(String.format("\tConverged to %.1f%% FDR with %d targets and %d decoys (%d total inputs)", targetDecoyRatio * 100, targets, decoys, sortedScoreMap.size()));
-                }
-                if (!rawGlycoLine[bestGlycanCol].contains("FailFDR")) {
-                    // only add failFDR annotation once (prevents multiple writes on re-analyses)
-                    rawGlycoLine[bestGlycanCol] = "FailFDR_" + rawGlycoLine[bestGlycanCol];
-                }
-            }
-
-            // update the output text with the new info
-            glyLines.put(scoreEntry.getKey(), rawGlycoLine);
-        }
-
-        // write output back to rawglyco file
-        try {
-            PrintWriter out = new PrintWriter(new FileWriter(glycoFile));
-            out.println(String.join("\t", Arrays.asList(headerSplits)));
-            for (String[] glyLine : glyLines.values()) {
-                out.println(String.join("\t", Arrays.asList(glyLine)));
-            }
-            out.flush();
-            out.close();
-        } catch (IOException e) {
-            PTMShepherd.die("Error writing to rawglyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
-        }
-        return true;
+        return decoyIndexes;
     }
 
     /**
@@ -741,7 +546,7 @@ public class GlycoAnalysis {
         if (useNonCompFDR) {
             return (2 * decoys) / (double) (decoys + targets);
         } else {
-            return decoys / (double) targets;
+            return (decoys + 1) / (double) targets;
         }
     }
 
@@ -825,6 +630,7 @@ public class GlycoAnalysis {
             this.lineWithoutSpectra.add(psm.getSpec());
             glycoResult.glycanAssignmentString = "ERROR";
             psm.glycanAssignmentResult = glycoResult;
+            allResults.add(glycoResult);
             return;
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
@@ -832,6 +638,7 @@ public class GlycoAnalysis {
         // do glycan assignment
         glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
         psm.glycanAssignmentResult = glycoResult;
+        allResults.add(glycoResult);
     }
 
     /**
@@ -922,7 +729,7 @@ public class GlycoAnalysis {
             // compute absolute score for best glycan
             double absoluteScore;
             if (useFragmentSpecificProbs) {
-                absoluteScore = computeAbsoluteScoreDynamic(searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
+                absoluteScore = computeAbsoluteScoreDynamic(searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError, true);
             } else {
                 absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError, true);
             }
@@ -966,7 +773,7 @@ public class GlycoAnalysis {
                 // add the next hit's information
                 double bestNextScore;
                 if (useFragmentSpecificProbs) {
-                    bestNextScore = computeAbsoluteScoreDynamic(nextCandidate, glycoResult, massErrorWidth, meanMassError);
+                    bestNextScore = computeAbsoluteScoreDynamic(nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
                 } else {
                     bestNextScore = computeAbsoluteScore(nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
                 }
@@ -1137,7 +944,7 @@ public class GlycoAnalysis {
      * @param meanMassError  mean mass error of non-delta mass peptides
      * @return absolute score
      */
-    public double computeAbsoluteScoreDynamic(GlycanCandidate bestGlycan, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
+    public double computeAbsoluteScoreDynamic(GlycanCandidate bestGlycan, GlycanAssignmentResult result, double massErrorWidth, double meanMassError, boolean updateFeatureVec) {
         double sumLogRatio = 0;
 
         // Y ions
@@ -1148,12 +955,15 @@ public class GlycoAnalysis {
         if (glycoParams.glycoYnorm) {
             sumLogRatio = sumLogRatio / Math.sqrt(bestGlycan.Yfragments.size());
         }
+        double Yscore = sumLogRatio;  // save Y score for feature vector
 
         // oxonium ions
+        double oxoScore = 0;
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
             double probRatio = computeFragmentAbsoluteScore(fragment);
-            sumLogRatio += Math.log(probRatio);
+            oxoScore += Math.log(probRatio);
         }
+        sumLogRatio += oxoScore;
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
         double isoScore = computeIsoScoreAbs(bestGlycan, result, massErrorWidth, meanMassError);
@@ -1162,6 +972,13 @@ public class GlycoAnalysis {
         double massScore = computeMassScoreAbs(bestGlycan, result, massErrorWidth, meanMassError);
         sumLogRatio += massScore;
 
+        if (updateFeatureVec) {
+            result.YFragmentScore = Yscore;
+            result.OxFragmentScore = oxoScore;
+            result.isotopeScore = isoScore;
+            result.massErrorScore = massScore;
+            result.featureVec = new double[] {result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
+        }
         return sumLogRatio;
     }
 
