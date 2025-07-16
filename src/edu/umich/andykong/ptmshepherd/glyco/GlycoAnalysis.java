@@ -826,21 +826,30 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Y ions
-        if (glycoParams.glycoYnorm) {
-            sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
-        } else {
-            sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore) ||
+                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ycount) ||
+                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yhyper))
+        {
+            if (glycoParams.glycoYnorm) {
+                sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+            } else {
+                sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+            }
         }
 
         // oxonium ions
-        sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxo)) {
+            sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
+        }
 
         // mass and isotope error
         sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
 
-        double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
-        double ms1score2 = calculateMS1score(glycan1, spec, pepMass);
-        sumLogRatio += (ms1score1 - ms1score2);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
+            double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
+            double ms1score2 = calculateMS1score(glycan1, spec, pepMass);
+            sumLogRatio += (ms1score1 - ms1score2);
+        }
 
         return sumLogRatio;
     }
@@ -1036,17 +1045,25 @@ public class GlycoAnalysis {
     public double pairwiseCompareStatic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError, double pepMass, Spectrum spec) {
         double sumLogRatio = 0;
         // Y ions
-        sumLogRatio += pairwiseCompareYstatic(glycan1, glycan2, glycoParams.glycoYnorm);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore) ||
+                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ycount) ||
+                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yhyper)) {
+            sumLogRatio += pairwiseCompareYstatic(glycan1, glycan2, glycoParams.glycoYnorm);
+        }
 
         // oxonium ions
-        sumLogRatio += pairwiseCompareOxoStatic(glycan1, glycan2);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxo)) {
+            sumLogRatio += pairwiseCompareOxoStatic(glycan1, glycan2);
+        }
 
         // isotope and mass errors
         sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
 
-        double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
-        double ms1score2 = calculateMS1score(glycan2, spec, pepMass);
-        sumLogRatio += (ms1score1 - ms1score2);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
+            double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
+            double ms1score2 = calculateMS1score(glycan2, spec, pepMass);
+            sumLogRatio += (ms1score1 - ms1score2);
+        }
 
         return sumLogRatio;
     }
@@ -1169,14 +1186,16 @@ public class GlycoAnalysis {
         float iso2 = (float) (deltaMass - glycan2.mass);
         int roundedIso2 = Math.round(iso2);
 
-        double isotopeProbRatio = glycoParams.isotopeProbTable.get(roundedIso1) / glycoParams.isotopeProbTable.get(roundedIso2);
+        double isotopeProbRatio;
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso)) {
+            isotopeProbRatio = glycoParams.isotopeProbTable.get(roundedIso1) / glycoParams.isotopeProbTable.get(roundedIso2);
+        } else {
+            isotopeProbRatio = 1;
+        }
 
         // mass error calc
-        double massProbRatio;
-        if (glycoParams.massProbScaling == 0) {
-            // enable skipping mass error calc for testing
-            massProbRatio = 1.0;
-        } else {
+        double massProbRatio = 1.0;
+        if (glycoParams.massProbScaling != 0) {
             double minMassError = deltaMass * (glycoParams.glycoPPMtol * 0.01) * 1e-6;  // min mass error is ppmTol / 100
             double massError1 = deltaMass - glycan1.mass - (roundedIso1 * AAMasses.averagineIsotopeMass);
             double massStDevs1 = massError1 - meanMassError;
@@ -1186,7 +1205,9 @@ public class GlycoAnalysis {
             double massStDevs2 = massError2 - meanMassError;
             if (Math.abs(massStDevs2) < minMassError)
                 massStDevs2 = minMassError;
-            massProbRatio = Math.abs(massStDevs2 / massStDevs1);     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
+            if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
+                massProbRatio = Math.abs(massStDevs2 / massStDevs1);     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
+            }
         }
         return Math.log(isotopeProbRatio) + Math.log(massProbRatio) * glycoParams.massProbScaling;
     }
