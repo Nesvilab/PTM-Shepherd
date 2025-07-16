@@ -22,6 +22,7 @@ import umich.ms.glyco.*;
 
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Organization - putting a bunch of glyco-specific utilities here rather than cluttering the main PTM-S.java
@@ -58,6 +59,7 @@ public class GlycoParams {
     public int minIsotopesIonQuant = 2;
     public int minScansIonQuant = 1;
     public boolean isIMdata = false;
+    public ArrayList<LDAFeature> ldaFeaturesToUse;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -88,6 +90,7 @@ public class GlycoParams {
         } else {
             glycoOxoniumDatabase = GlycanParser.parseOxoDB(oxoniumListPath, glycanResiduesMap, randomGenerator);
         }
+        ldaFeaturesToUse = new ArrayList<>();
     }
 
 
@@ -410,5 +413,35 @@ public class GlycoParams {
                 PTMShepherd.print("\tRemoving glycan delta mass from PSM table");
             }
         }
+    }
+
+    public static ArrayList<LDAFeature> parseLDAfeatures(String featuresStr) {
+        ArrayList<LDAFeature> features = new ArrayList<>();
+        if (featuresStr.isEmpty()) {
+            // use all features if not specified
+            return Arrays.stream(LDAFeature.values())
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
+        String[] featureSplits = featuresStr.split("[,\\s;/]+");
+        for (String str : featureSplits) {
+            try {
+                LDAFeature f = LDAFeature.valueOf(str.trim());
+                features.add(f);
+            } catch (IllegalArgumentException e) {
+                PTMShepherd.print("Invalid LDA feature: " + str + ", skipping.");
+            }
+        }
+        return features;
+    }
+
+    public enum LDAFeature {
+        kl,
+        yprop,
+        yscore,
+        oxo,
+        mass,
+        iso,
+        ycount,
+        yhyper
     }
 }

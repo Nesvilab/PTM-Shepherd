@@ -64,6 +64,7 @@ import java.util.StringTokenizer;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
 import umich.ms.fileio.filetypes.mzbin.MZBINFile;
@@ -1308,7 +1309,7 @@ public class PTMShepherd {
 		glycoParams.useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").isEmpty() && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
 		glycoParams.useNonCompFDR = !getParam("use_noncomp_glycan_fdr").isEmpty() && Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default false
 		glycoParams.defaultProp = getParam("glyco_default_propensity").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
-
+		glycoParams.ldaFeaturesToUse = GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
 
 		return glycoParams;
 	}

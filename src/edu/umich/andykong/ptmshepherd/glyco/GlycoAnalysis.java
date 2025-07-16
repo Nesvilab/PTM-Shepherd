@@ -37,6 +37,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static edu.umich.andykong.ptmshepherd.core.Spectrum.fact;
+
 public class GlycoAnalysis {
     String dsName;
     File glycoFile;                     // .rawglyco file
@@ -960,8 +962,8 @@ public class GlycoAnalysis {
             result.massErrorScore = massScore;
             result.YproportionScore = bestGlycan.foundYproportion;
             result.KLscore = ms1score;
-            result.featureVec = new double[] {result.KLscore, result.YproportionScore, result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
             computeYcountAndHyper(result, bestGlycan);
+            result.featureVec = generateFeatureVector(result);
         }
         return sumLogRatio;
     }
@@ -1296,8 +1298,8 @@ public class GlycoAnalysis {
             result.massErrorScore = massScore;
             result.YproportionScore = bestGlycan.foundYproportion;
             result.KLscore = ms1score;
-            result.featureVec = new double[] {result.KLscore, result.YproportionScore, result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
             computeYcountAndHyper(result, bestGlycan);
+            result.featureVec = generateFeatureVector(result);
         }
         return sumLogRatio;
     }
@@ -1451,6 +1453,40 @@ public class GlycoAnalysis {
             score += (float) Math.log(yIntensity);
         result.yHyper = score;
     }
+
+    private double[] generateFeatureVector(GlycanAssignmentResult result) {
+        ArrayList<Double> features = new ArrayList<>();
+        for (GlycoParams.LDAFeature feature : glycoParams.ldaFeaturesToUse) {
+            switch (feature) {
+                case kl: // KL score
+                    features.add(result.KLscore);
+                    break;
+                case yprop: // Y proportion score
+                    features.add(result.YproportionScore);
+                    break;
+                case yscore: // Y fragment score
+                    features.add(result.YFragmentScore);
+                    break;
+                case oxo: // Oxonium ion score
+                    features.add(result.OxFragmentScore);
+                    break;
+                case mass: // Mass error score
+                    features.add(result.massErrorScore);
+                    break;
+                case iso: // Isotope score
+                    features.add(result.isotopeScore);
+                    break;
+                case ycount: // Y count
+                    features.add((double) result.yCount);
+                    break;
+                case yhyper: // Y hyperscore
+                    features.add((double) result.yHyper);
+                    break;
+            }
+        }
+        return features.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+
 
     public boolean isGlycoComplete() {
         try {
