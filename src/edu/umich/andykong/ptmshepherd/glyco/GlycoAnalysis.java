@@ -156,6 +156,10 @@ public class GlycoAnalysis {
                     String.join("\n\t\t", linesWithoutSpectra.subList(0, previewSize))));
         }
 
+        // save results
+        for (PSM psm: psmFile.psms) {
+            allResults.add(psm.glycanAssignmentResult);
+        }
     }
 
     /**
@@ -599,7 +603,6 @@ public class GlycoAnalysis {
             this.lineWithoutSpectra.add(psm.getSpec());
             glycoResult.glycanAssignmentString = "ERROR";
             psm.glycanAssignmentResult = glycoResult;
-            allResults.add(glycoResult);
             return;
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
@@ -607,7 +610,6 @@ public class GlycoAnalysis {
         // do glycan assignment
         glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
         psm.glycanAssignmentResult = glycoResult;
-        allResults.add(glycoResult);
     }
 
     /**
