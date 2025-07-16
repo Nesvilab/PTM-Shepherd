@@ -410,6 +410,5 @@ public class GlycoParams {
                 PTMShepherd.print("\tRemoving glycan delta mass from PSM table");
             }
         }
-        PTMShepherd.print("Assigning glycans:");
     }
 }

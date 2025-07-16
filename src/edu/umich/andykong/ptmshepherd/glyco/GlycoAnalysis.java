@@ -60,7 +60,6 @@ public class GlycoAnalysis {
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;      // todo: param
-    public double finalGlycoFDR;
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
     private final GlycoParams glycoParams;
@@ -424,16 +423,17 @@ public class GlycoAnalysis {
      * @param results List of GlycanAssignmentResults containing target and decoy scores
      */
     public void computeFDRNonCompetitive(List<GlycanAssignmentResult> results, double glycoFDR) {
-        finalGlycoFDR = glycoFDR;
         HashMap<String, GlycanAssignmentResult> resultMap = new HashMap<>();
 
         ArrayList<GlycoScore> scoreDistribution = new ArrayList<>();
         int targets = 0;
         int decoys = 0;
+        int totalGlycoResults = 0;
         for (GlycanAssignmentResult result: results) {
             resultMap.put(result.specName, result);
 
             if (result.foundGlycan) {
+                totalGlycoResults++;
                 // record top target and top decoy score
                 if (result.isDecoyGlycan) {
                     decoys++;
@@ -485,10 +485,10 @@ public class GlycoAnalysis {
 
             // check for the score threshold that gives the requested FDR
             if (!foundScoreThresh) {
-                if (targetDecoyRatio <= finalGlycoFDR) {
+                if (targetDecoyRatio <= glycoFDR) {
                     // stop here, found cutoff
                     scoreThreshold = scoreObj.score;
-                    PTMShepherd.print(String.format("\tFound score threshold of %.2f for %.1f%% FDR with %d targets and %d decoys from non-competitive method", scoreThreshold, targetDecoyRatio * 100, targets, decoys));
+                    PTMShepherd.print(String.format("\tFound score threshold of %.2f for %.1f%% FDR with %d targets and %d decoys from non-competitive method (%d total inputs)", scoreThreshold, targetDecoyRatio * 100, targets, decoys, totalGlycoResults));
                     foundScoreThresh = true;
                 }
             }

@@ -570,6 +570,7 @@ public class PTMShepherd {
 				glycoParams.printGlycoParams();
 				alreadyPrintedParams = true;
 			}
+			PTMShepherd.print("Assigning glycans: first pass");
 			for (PSMFile pf : psmFiles.get(ds)) {
 				ga.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
 			}
@@ -584,6 +585,7 @@ public class PTMShepherd {
 
 			if (glycoParams.useGlycanFragmentProbs) {
 				// second pass - calculate fragment propensities, regenerate database, and re-run
+				PTMShepherd.print("Assigning glycans: second pass");
 				HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
 				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
 

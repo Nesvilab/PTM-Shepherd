@@ -72,7 +72,7 @@ public class ScoreLDA {
         intercept = calculateIntercept(targetMean, decoyMean, coefficients);
 
         // Output model coefficients
-        PTMShepherd.print("Coefficients: " + java.util.Arrays.toString(coefficients));
+        PTMShepherd.print("\tLDA coefficients: " + java.util.Arrays.toString(coefficients));
 
         // Calculate scores and determine threshold
         for (GlycanAssignmentResult result: results) {
