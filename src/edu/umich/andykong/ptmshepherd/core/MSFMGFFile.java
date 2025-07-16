@@ -282,6 +282,7 @@ public class MSFMGFFile {
         for(int i = 0; i < peakmz.size(); i++)
             peakintArr[i] = peakint.get(i);
 
-        return new Spectrum(scanName, scanNum, charge, msLevel, precursorMZ, retTime, peakmzArr, peakintArr);
+        // NOTE: IM, CV not implemented for MGF file parsing
+        return new Spectrum(scanName, scanNum, charge, msLevel, precursorMZ, retTime, peakmzArr, peakintArr, -1, 0);
     }
 }

@@ -48,6 +48,8 @@ public class GlycanAssignmentResult {
     double OxFragmentScore;
     double massErrorScore;
     double isotopeScore;
+    double YproportionScore;
+    double KLscore;
     public double[] featureVec;
 
     public GlycanAssignmentResult(int psmLineIndex, String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {

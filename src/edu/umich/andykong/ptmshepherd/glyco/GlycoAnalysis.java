@@ -23,6 +23,8 @@ import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
+import ionquant.api.Entry;
+import ionquant.api.IonQuantAPI;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import umich.ms.glyco.GlycanCandidate;
@@ -64,6 +66,7 @@ public class GlycoAnalysis {
     private final GlycoParams glycoParams;
     private ArrayList<GlycanAssignmentResult> allResults;   // all results from glycoPSMs, used for LDA
     private String ldaHeader;
+    private static IonQuantAPI api;
 
     // Default constructor
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams) {
@@ -74,10 +77,14 @@ public class GlycoAnalysis {
         this.useFragmentSpecificProbs = false;
         this.glycanMassBinMap = new HashMap<>();
         this.allResults = new ArrayList<>();
-        ldaHeader = glycoParams.glycoLDA ? "\tY prop\tLDA Y\tLDA Oxo\tLDA iso\tLDA mass" : "";
+        ldaHeader = glycoParams.glycoLDA ? "\tKL score\tY prop\tLDA Y\tLDA Oxo\tLDA iso\tLDA mass" : "";
     }
 
-    public void glycoPSMs(PSMFile pf, HashMap<String, File> mzMappings, ExecutorService executorService, int numThreads) {
+    public void glycoPSMs(PSMFile psmFile,
+                          HashMap<String, File> mzMappings,
+                          HashMap<String, File> originalMzMappings,
+                          ExecutorService executorService) {
+
         //open up output file
         HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
         ArrayList<String> linesWithoutSpectra = null;
@@ -94,18 +101,20 @@ public class GlycoAnalysis {
             glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
 
             //map PSMs to file
-            SiteLocalization.initSpectrumMappings(pf, mappings);
+            SiteLocalization.initSpectrumMappings(psmFile, mappings);
 
             /* Loop through spectral files -> indexed lines in PSM -> process each line */
-            for (String cf : mappings.keySet()) { //for file in relevant spectral files
+            for (String mzFileName : mappings.keySet()) { //for file in relevant spectral files
                 long t1 = System.currentTimeMillis();
                 //System.out.println(cf);
-                mr = new MXMLReader(mzMappings.get(cf), Integer.parseInt(PTMShepherd.getParam("threads")));
+                mr = new MXMLReader(mzMappings.get(mzFileName), glycoParams.numThreads);
                 mr.readFully();
-                long t2 = System.currentTimeMillis();
-                ArrayList<Integer> clines = mappings.get(cf); //lines corr to curr spec file
+                api = indexBuilder(String.valueOf(originalMzMappings.get(mzFileName)), glycoParams);    // IonQuant API init for KL scoring
 
-                getMassErrorWidth(pf, clines);
+                long t2 = System.currentTimeMillis();
+                ArrayList<Integer> clines = mappings.get(mzFileName); //lines corr to curr spec file
+
+                getMassErrorWidth(psmFile, clines);
 
                 /* set up parallelization blocks */
                 final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
@@ -120,7 +129,7 @@ public class GlycoAnalysis {
                     int endInd = Math.min((i + 1) * BLOCKSIZE, clines.size());
                     ArrayList<PSM> cBlock = new ArrayList<>();
                     for (int j = startInd; j < endInd; j++)
-                        cBlock.add(pf.psms.get(clines.get(j)));
+                        cBlock.add(psmFile.psms.get(clines.get(j)));
                     futureList.add(executorService.submit(() -> processLinesBlock(cBlock, glycoOut)));
                 }
                 /* Wait for all processes to finish */
@@ -133,7 +142,7 @@ public class GlycoAnalysis {
                 }
 
                 long t3 = System.currentTimeMillis();
-                PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", cf, clines.size(), t2 - t1, t3 - t2));
+                PTMShepherd.print(String.format("\t%s - %d (%d ms, %d ms)", mzFileName, clines.size(), t2 - t1, t3 - t2));
             }
             glycoOut.close();
         } catch (IOException e) {
@@ -148,13 +157,35 @@ public class GlycoAnalysis {
         }
 
         if (glycoParams.glycoLDA) {
-            for (PSM psm : pf.psms) {
+            for (PSM psm : psmFile.psms) {
                 if (psm.glycanAssignmentResult != null && psm.glycanAssignmentResult.foundGlycan) {
                     GlycanAssignmentResult result = psm.glycanAssignmentResult;
                     allResults.add(result);
                 }
             }
         }
+    }
+
+    /**
+     * Initializes IonQuant and builds the feature index for a mass spectrometry file.
+     *
+     * @param filePath Path to the MS data file
+     * @param params Parameters controlling the feature detection
+     */
+    public static IonQuantAPI indexBuilder(String filePath, GlycoParams params) {
+        PTMShepherd.print("\tBuilding IonQuant index for " + filePath);
+        api = new IonQuantAPI(
+                filePath,
+                params.numThreads,
+                (float) params.glycoPPMtol,
+                params.rtTol,
+                params.imTol,
+                params.minIsotopesIonQuant,
+                params.minScansIonQuant,
+                !params.isIMdata
+        );
+        api.buildIndex();
+        return api;
     }
 
     public void processLinesBlock(ArrayList<PSM> cBlock, PrintWriter fragmentOutWriter) {
@@ -184,7 +215,7 @@ public class GlycoAnalysis {
         for (GlycanAssignmentResult result : allResults) {
             if (result.foundGlycan) {
                 GlycanCandidate glycan = result.bestCandidate;
-                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, glycan.Yfragments, glycan.oxoniumFragments);
+                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, glycan.Yfragments, glycan.oxoniumFragments, 0, 0);
 
                 String glycanHash = fragmentInfoContainer.toString();
                 // only include good targets in fragment info
@@ -668,14 +699,18 @@ public class GlycoAnalysis {
         if (!searchCandidates.isEmpty()) {
             // Search Y and oxonium ions in spectrum for each candidate
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
+            double spectrumYIntensity = spec.getYintensity(glycoResult.pepMass);
             for (GlycanCandidate candidate : searchCandidates) {
+                double foundYIntensity = 0;
                 for (GlycanFragment yFragment : candidate.Yfragments.values()) {
                     yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + glycoResult.pepMass, ppmTol, Integer.parseInt(PTMShepherd.getParam("spectra_maxPrecursorCharge"))) / spec.basePeakInt;  // sum of charge state intensities if >1 found
+                    foundYIntensity += yFragment.foundIntensity;
                 }
                 for (GlycanFragment oxoniumFragment : candidate.oxoniumFragments.values()) {
                     // save oxonium ion intensity relative to base peak
                     oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
+                candidate.foundYproportion = spectrumYIntensity == 0 ? 0 : foundYIntensity / spectrumYIntensity;    // proportion of possible Y ions in the spectrum matched to the candidate
             }
 
             // score candidates and save results
@@ -729,9 +764,9 @@ public class GlycoAnalysis {
             // compute absolute score for best glycan
             double absoluteScore;
             if (useFragmentSpecificProbs) {
-                absoluteScore = computeAbsoluteScoreDynamic(searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError, true);
+                absoluteScore = computeAbsoluteScoreDynamic(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError, true);
             } else {
-                absoluteScore = computeAbsoluteScore(searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError, true);
+                absoluteScore = computeAbsoluteScore(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError, true);
             }
             glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
             glycoResult.glycanScore = absoluteScore;
@@ -744,7 +779,7 @@ public class GlycoAnalysis {
             // if top glycan is a decoy, also write best target and best target score to subsequent columns
             boolean bestWasTarget = !searchCandidates.get(bestCandidateIndex).isDecoy;
             glycoResult.isDecoyGlycan = !bestWasTarget;
-            output = getNextGlycanScore(bestWasTarget, glycoResult, massErrorWidth, meanMassError, searchCandidates, output, sortedIndicesOfBestScores);
+            output = getNextGlycanScore(spec, bestWasTarget, glycoResult, massErrorWidth, meanMassError, searchCandidates, output, sortedIndicesOfBestScores);
         } else {
             output = String.format("\t%s\t\t\t\t", GlycanAssignmentResult.NO_GLYCAN_RESULT_STR);
         }
@@ -764,7 +799,7 @@ public class GlycoAnalysis {
      * @param sortedIndicesOfBestScores
      * @return
      */
-    private String getNextGlycanScore(boolean bestWasTarget, GlycanAssignmentResult glycoResult, double massErrorWidth, double meanMassError, ArrayList<GlycanCandidate> searchCandidates, String output, int[] sortedIndicesOfBestScores) {
+    private String getNextGlycanScore(Spectrum spec, boolean bestWasTarget, GlycanAssignmentResult glycoResult, double massErrorWidth, double meanMassError, ArrayList<GlycanCandidate> searchCandidates, String output, int[] sortedIndicesOfBestScores) {
         boolean foundNext = false;
         for (int bestIndex : sortedIndicesOfBestScores) {
             GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
@@ -773,9 +808,9 @@ public class GlycoAnalysis {
                 // add the next hit's information
                 double bestNextScore;
                 if (useFragmentSpecificProbs) {
-                    bestNextScore = computeAbsoluteScoreDynamic(nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
+                    bestNextScore = computeAbsoluteScoreDynamic(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
                 } else {
-                    bestNextScore = computeAbsoluteScore(nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
+                    bestNextScore = computeAbsoluteScore(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
                 }
                 output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestNextScore);
                 foundNext = true;
@@ -944,7 +979,7 @@ public class GlycoAnalysis {
      * @param meanMassError  mean mass error of non-delta mass peptides
      * @return absolute score
      */
-    public double computeAbsoluteScoreDynamic(GlycanCandidate bestGlycan, GlycanAssignmentResult result, double massErrorWidth, double meanMassError, boolean updateFeatureVec) {
+    public double computeAbsoluteScoreDynamic(Spectrum spec, GlycanCandidate bestGlycan, GlycanAssignmentResult result, double massErrorWidth, double meanMassError, boolean updateFeatureVec) {
         double sumLogRatio = 0;
 
         // Y ions
@@ -972,12 +1007,16 @@ public class GlycoAnalysis {
         double massScore = computeMassScoreAbs(bestGlycan, result, massErrorWidth, meanMassError);
         sumLogRatio += massScore;
 
+        double ms1score = calculateMS1score(bestGlycan, spec, result.pepMass);
+
         if (updateFeatureVec) {
             result.YFragmentScore = Yscore;
             result.OxFragmentScore = oxoScore;
             result.isotopeScore = isoScore;
             result.massErrorScore = massScore;
-            result.featureVec = new double[] {result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
+            result.YproportionScore = bestGlycan.foundYproportion;
+            result.KLscore = ms1score;
+            result.featureVec = new double[] {result.KLscore, result.YproportionScore, result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
         }
         return sumLogRatio;
     }
@@ -1280,7 +1319,7 @@ public class GlycoAnalysis {
      * @param meanMassError  mean mass error of non-delta mass peptides
      * @return absolute score
      */
-    public double computeAbsoluteScore(GlycanCandidate bestGlycan, GlycanAssignmentResult result, double massErrorWidth, double meanMassError, boolean updateFeatureVec) {
+    public double computeAbsoluteScore(Spectrum spec, GlycanCandidate bestGlycan, GlycanAssignmentResult result, double massErrorWidth, double meanMassError, boolean updateFeatureVec) {
         double sumLogRatio, Yscore;
         if (glycoParams.glycoYnorm) {
             Yscore = computeYAbsoluteScoreNormed(bestGlycan);
@@ -1299,12 +1338,16 @@ public class GlycoAnalysis {
         double massScore = computeMassScoreAbs(bestGlycan, result, massErrorWidth, meanMassError);
         sumLogRatio += massScore;
 
+        double ms1score = calculateMS1score(bestGlycan, spec, result.pepMass);
+
         if (updateFeatureVec) {
             result.YFragmentScore = Yscore;
             result.OxFragmentScore = oxoScore;
             result.isotopeScore = isoScore;
             result.massErrorScore = massScore;
-            result.featureVec = new double[] {result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
+            result.YproportionScore = bestGlycan.foundYproportion;
+            result.KLscore = ms1score;
+            result.featureVec = new double[] {result.KLscore, result.YproportionScore, result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
         }
         return sumLogRatio;
     }
@@ -1417,6 +1460,29 @@ public class GlycoAnalysis {
             }
         }
         return matchingGlycans;
+    }
+
+    /**
+     * Calculate KL divergence score for MS1 spectrum match to glycan candidate using the IonQuant API.
+     *
+     * KL divergence near 0 is a good match, so taking the log of the 1/absolute value gives a positive score
+     * that increases with better matches.
+     * @param candidate glycan candidate to score
+     * @param spec spectrum
+     * @return score
+     */
+    private double calculateMS1score(GlycanCandidate candidate, Spectrum spec, double pepmass) {
+        double candidateMass = candidate.mass + pepmass;    // pep mass + glycan mass
+        double mz = Spectrum.calcMZ(candidateMass, spec.charge);
+        Entry quantifiedEntry = api.quantXIC123((float) mz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
+
+        double score;
+        if (quantifiedEntry == null) {
+            score = 0;      // no peak found at this m/z
+        } else {
+            score = Math.log(1.0 / Math.abs(quantifiedEntry.kl));
+        }
+        return score;
     }
 
 

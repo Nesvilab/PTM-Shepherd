@@ -78,6 +78,7 @@ public class PTMShepherd {
 	static TreeMap<String,ArrayList<String []>> datasets;
 	static HashMap<String, ArrayList<PSMFile>> psmFiles;
 	static HashMap<String,HashMap<String,File>> mzMap;
+	static HashMap<String, HashMap<String, File>> originalMzMap;
 	static HashMap<String,Integer> datasetMS2;
 	static ArrayList<String> cacheFiles;
 	private static String outputPath;
@@ -184,6 +185,7 @@ public class PTMShepherd {
 		params = new HashMap<>();
 		datasets = new TreeMap<>();
 		mzMap = new HashMap<>();
+		originalMzMap = new HashMap<>();
 		datasetMS2 = new HashMap<>();
 
 		//default values
@@ -569,7 +571,7 @@ public class PTMShepherd {
 				alreadyPrintedParams = true;
 			}
 			for (PSMFile pf : psmFiles.get(ds)) {
-				ga.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
+				ga.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
 			}
 			ga.runScoresAndFDR();
 			ga.completeGlyco();
@@ -591,7 +593,7 @@ public class PTMShepherd {
 				ga2.useFragmentSpecificProbs = true;
 				ga2.defaultPropensity = glycoParams.defaultProp;
 				for (PSMFile pf : psmFiles.get(ds)) {
-					ga2.glycoPSMs(pf, mzMap.get(ds), executorService, glycoParams.numThreads);
+					ga2.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
 				}
 				ga2.runScoresAndFDR();
 				ga2.completeGlyco();
@@ -1009,6 +1011,7 @@ public class PTMShepherd {
 		for(String ds : datasets.keySet()) {
 			ArrayList<String []> dsData = datasets.get(ds);
 			mzMap.put(ds, new HashMap<>());
+			originalMzMap.put(ds, new HashMap<>());
 			for (int i = 0; i < dsData.size(); i++) {
 				File tpf = new File(dsData.get(i)[0]);
 				HashSet<String> fNames;
@@ -1041,12 +1044,18 @@ public class PTMShepherd {
 				}
 				PTMShepherd.print("\tIndexing data from " + ds);
 				PSMFile pf = psmFiles.get(ds).get(i);
-				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), pf.getRunNames());
+				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), originalMzMap.get(ds), pf.getRunNames());
 			}
 			// Assure that mzData was found
 			for(String crun : mzMap.get(ds).keySet()) {
 				if(mzMap.get(ds).get(crun) == null) {
 					die("In dataset \""+ds+"\" could not find mzData for run " +  crun);
+				}
+			}
+			// Assure that mzData was found
+			for(String crun : originalMzMap.get(ds).keySet()) {
+				if(originalMzMap.get(ds).get(crun) == null) {
+					die("In dataset \""+ds+"\" could not find original mzData for run " +  crun);
 				}
 			}
 		}

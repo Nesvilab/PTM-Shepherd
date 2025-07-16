@@ -243,7 +243,7 @@ public class PSMFile {
 		return col;
 	}
 
-	public static void getMappings(File path, HashMap<String,File> mappings, HashSet<String> runNames) {
+	public static void getMappings(File path, HashMap<String,File> mappings, HashMap<String,File> originalMappings, HashSet<String> runNames) {
 		// File priority list, this will return the first one matched so insertion order must be consistent
 		LinkedHashMap<String, Integer> priorities = new LinkedHashMap<>();
 		priorities.put(".mzBIN_cache", 20);
@@ -257,6 +257,13 @@ public class PSMFile {
 		priorities.put(".mgf", 4);
 		priorities.put(".raw", 1);
 		priorities.put("None", 0);
+		LinkedHashMap<String, Integer> originalPriorities = new LinkedHashMap<>();		// same as priorities but without mzBIN_cache
+		for (String key : priorities.keySet()) {
+			if (key.equals(".mzBIN_cache")) {
+				continue;
+			}
+			originalPriorities.put(key, priorities.get(key));
+		}
 
 		// Recursively search all directories
 		if(path.isDirectory()) {
@@ -266,26 +273,31 @@ public class PSMFile {
 			}
 			// get mapping for each file
             for (File l : ls) {
-                getMappings(l, mappings, runNames);
+                getMappings(l, mappings, originalMappings, runNames);
             }
 		} else { // see if valid file ext
-			String matchedKey = getMatchingExtension(path, priorities);
-			if (matchedKey != null) { // end of name exists in priorities map
-				String rawFileName = removeCalTag(path.getName());
-				// If raw file not part of this analysis, continue
-				if (!runNames.contains(rawFileName))
-					return;
-				// New raw file info
-				int newRawFilePriority = priorities.get(matchedKey);
-				// Existing raw file info
-				File previousRawFile = mappings.getOrDefault(rawFileName, null);
-				if (previousRawFile == null) // no file mapped yet
+			tryMapFile(path, mappings, runNames, priorities);
+			tryMapFile(path, originalMappings, runNames, originalPriorities);
+		}
+	}
+
+	private static void tryMapFile(File path, HashMap<String, File> mappings, HashSet<String> runNames, LinkedHashMap<String, Integer> priorities) {
+		String matchedKey = getMatchingExtension(path, priorities);
+		if (matchedKey != null) { // end of name exists in priorities map
+			String rawFileName = removeCalTag(path.getName());
+			// If raw file not part of this analysis, continue
+			if (!runNames.contains(rawFileName))
+				return;
+			// New raw file info
+			int newRawFilePriority = priorities.get(matchedKey);
+			// Existing raw file info
+			File previousRawFile = mappings.getOrDefault(rawFileName, null);
+			if (previousRawFile == null) // no file mapped yet
+				mappings.put(rawFileName, path);
+			else { // Compare and replace if appropriate
+				int previousRawFilePriority = priorities.get(getMatchingExtension(previousRawFile, priorities));
+				if (newRawFilePriority > previousRawFilePriority) {
 					mappings.put(rawFileName, path);
-				else { // Compare and replace if appropriate
-					int previousRawFilePriority = priorities.get(getMatchingExtension(previousRawFile, priorities));
-					if (newRawFilePriority > previousRawFilePriority) {
-						mappings.put(rawFileName, path);
-					}
 				}
 			}
 		}

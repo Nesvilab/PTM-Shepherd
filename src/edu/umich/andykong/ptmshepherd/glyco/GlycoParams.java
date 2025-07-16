@@ -52,6 +52,12 @@ public class GlycoParams {
     public HashMap<Integer, Double> isotopeProbTable;
     public double massProbScaling;
     public boolean glycoLDA;
+    // IonQuant MS1 params
+    public float rtTol = 0.4f;
+    public float imTol = 0.05f;
+    public int minIsotopesIonQuant = 2;
+    public int minScansIonQuant = 1;
+    public boolean isIMdata = false;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

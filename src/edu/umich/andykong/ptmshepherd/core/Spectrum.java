@@ -31,7 +31,8 @@ public class Spectrum implements Comparable<Spectrum> {
 
 	public int scanNum;
 	public int charge;
-	public double precursorMass, rt;
+	public double precursorMass, rt, im;
+	public int cv;
 	double monoMass, targetMass;
 	public float [] peakMZ;
 	public float [] peakInt;
@@ -59,7 +60,9 @@ public class Spectrum implements Comparable<Spectrum> {
 	}
 
 	//this constructor parses MZBin files and MGF files
-	public Spectrum(String scanname, int scannum, int z, int mslevel, double precursormass, double rettime, float[] peakmz, float[] peakint) {
+	public Spectrum(String scanname, int scannum, int z, int mslevel, double precursormass, double rettime,
+					float[] peakmz, float[] peakint,
+					double im, int cv) {
 		scanName = stripChargeState(scanname);
 		scanNum = scannum;
 		charge = z;
@@ -70,6 +73,8 @@ public class Spectrum implements Comparable<Spectrum> {
 		msLevel = mslevel;
 		norm = -1;
 		basePeakInt = findBasePeakInt();
+		this.im = im;
+		this.cv = cv;
 	}
 
 	public Spectrum(MZBINFile.MZBINSpectrum s, String runName) {
@@ -85,10 +90,12 @@ public class Spectrum implements Comparable<Spectrum> {
 		peakInt = s.peakInt;
 		basePeakInt = findBasePeakInt();
 		norm = -1;
+		im = s.precursorIM;
+		cv = (int) s.compensationVoltage;
 	}
 
 	public MZBINFile.MZBINSpectrum toMZBINSpectrum() {
-		return new MZBINFile.MZBINSpectrum(scanNum, scanName, peakMZ.length, (float) rt, (float) precursorMass, msLevel, charge, 0, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, precursorMass, 0, 0, Doubles.toArray(Floats.asList(peakMZ)), peakInt);
+		return new MZBINFile.MZBINSpectrum(scanNum, scanName, peakMZ.length, (float) rt, (float) precursorMass, msLevel, charge, 0, 0, 0, 0, 0, "", 0, 0, 0, 0, cv, precursorMass, 0, (float) im, Doubles.toArray(Floats.asList(peakMZ)), peakInt);
 	}
 
 	public String toString() {
@@ -607,7 +614,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		double ionIntensity = 0;
 		int charge = this.charge == 0 ? maxCharge : Math.min(this.charge, maxCharge);	// use max charge if charge was not read from spectrum file
 		for (int z = 1; z <= charge; z++) {
-			double ion = (neutralIonMass + (1.00727 * (double) z)) / (double) z;
+			double ion = calcMZ(neutralIonMass, z);
 			double ppmRange = ppmTol * (1.0 / 1000000) * ion;
 			double max = ion + ppmRange;
 			for (int i = 0; i < peakMZ.length; i++) {
@@ -620,6 +627,13 @@ public class Spectrum implements Comparable<Spectrum> {
 		return ionIntensity;
 	}
 
+	/**
+	 * mass to m/z ([M+H]+)
+	 */
+	public static double calcMZ(double neutralMass, int charge) {
+		return (neutralMass + (protMass * (double) charge)) / (double) charge;
+	}
+
 	public double findBasePeakInt() {
 		double bpInt = 0;
         for (float v : peakInt) {
@@ -627,6 +641,35 @@ public class Spectrum implements Comparable<Spectrum> {
                 bpInt = v;
         }
 		return bpInt;
+	}
+
+	/**
+	 * Return an array of all Y ions in spectrum. Assumes all peaks with mass > peptide mass are Y ions.
+	 * @param pepmass neutral mass of peptide
+	 * @return list of Peaks
+	 */
+	public ArrayList<Peak> getYpeaks(double pepmass) {
+		ArrayList<Peak> yPeaks = new ArrayList<>();
+		for (int i = 0; i < peakMZ.length; i++) {
+			if (peakMZ[i] > pepmass) {
+				yPeaks.add(new Peak(peakMZ[i], peakInt[i]));
+			}
+		}
+		return yPeaks;
+	}
+	/**
+	 * Get total Y ion intensity in spectrum. Assumes all peaks with mass > peptide mass are Y ions.
+	 * @param pepmass neutral mass of peptide
+	 * @return summed intensity
+	 */
+	public double getYintensity(double pepmass) {
+		double intensity = 0;
+		for (int i = 0; i < peakMZ.length; i++) {
+			if (peakMZ[i] > pepmass) {
+				intensity += peakInt[i];
+			}
+		}
+		return intensity;
 	}
 
 	/**

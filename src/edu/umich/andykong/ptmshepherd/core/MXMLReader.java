@@ -47,6 +47,7 @@ public class MXMLReader {
 	public Spectrum [] specs;
 	HashMap<String,Spectrum> specsByName;
 	HashMap<String,Spectrum> specsByStrippedName;
+	public boolean isCalibratedFile;
 
 	public Spectrum getSpectrum(String specName) {
 		return specsByStrippedName.get(specName);
@@ -77,6 +78,7 @@ public class MXMLReader {
 	public MXMLReader(File f, int threads) {
 		this.f = f;
 		this.threads = threads;
+		isCalibratedFile = false;
 	}
 	
 	public void readFully() {
@@ -86,8 +88,12 @@ public class MXMLReader {
 		MSFMGFFile mgfSource = null;
 
 		try {
-			if (fn.endsWith("_calibrated.mgf")) {
+			if (fn.endsWith("_calibrated.mzml")) {
+				source = new MZMLFile(f.getAbsolutePath());
+				isCalibratedFile = true;
+			} else if (fn.endsWith("_calibrated.mgf")) {
 				mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
+				isCalibratedFile = true;
 			} else if (fn.endsWith("_uncalibrated.mgf")) {
 				mgfSource = new MSFMGFFile(PTMShepherd.executorService, Integer.parseInt(PTMShepherd.getParam("threads")), f, true);
 			} else if (fn.endsWith(".mzxml")) {
@@ -177,6 +183,16 @@ public class MXMLReader {
 				ns.precursorMass = scan.getPrecursor().getMzTarget();
 			} else {
 				throw new IllegalStateException("No precursor mz information found");
+			}
+			if (scan.getIm() == null) {
+				ns.im = -1;
+			} else {
+				ns.im = scan.getIm().floatValue();
+			}
+			if (scan.getCompensationVoltages() == null || scan.getCompensationVoltages().isEmpty()) {
+				ns.cv = 0;
+			} else {
+				ns.cv = (int) Math.round(scan.getCompensationVoltages().get(0));
 			}
 			if (scan.getPrecursor().getMzTargetMono() != null)
 				ns.monoMass = scan.getPrecursor().getMzTargetMono();
