@@ -961,6 +961,7 @@ public class GlycoAnalysis {
             result.YproportionScore = bestGlycan.foundYproportion;
             result.KLscore = ms1score;
             result.featureVec = new double[] {result.KLscore, result.YproportionScore, result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
+            computeYcountAndHyper(result, bestGlycan);
         }
         return sumLogRatio;
     }
@@ -1296,6 +1297,7 @@ public class GlycoAnalysis {
             result.YproportionScore = bestGlycan.foundYproportion;
             result.KLscore = ms1score;
             result.featureVec = new double[] {result.KLscore, result.YproportionScore, result.YFragmentScore, result.OxFragmentScore, result.isotopeScore, result.massErrorScore};
+            computeYcountAndHyper(result, bestGlycan);
         }
         return sumLogRatio;
     }
@@ -1433,6 +1435,22 @@ public class GlycoAnalysis {
         return score;
     }
 
+    private void computeYcountAndHyper(GlycanAssignmentResult result, GlycanCandidate bestGlycan) {
+        // compute Y count and hyper score
+        int yCount = 0;
+        double yIntensity = 0;
+        for (GlycanFragment fragment : bestGlycan.Yfragments.values()) {
+            if (fragment.foundIntensity > 0) {
+                yCount++;
+                yIntensity += fragment.foundIntensity;
+            }
+        }
+        result.yCount = yCount;
+        float score = fact[yCount];
+        if(yIntensity > 1)
+            score += (float) Math.log(yIntensity);
+        result.yHyper = score;
+    }
 
     public boolean isGlycoComplete() {
         try {

@@ -43,7 +43,7 @@ public class Spectrum implements Comparable<Spectrum> {
 	public double averageIonMass;
 	public double basePeakInt;
 	
-	static final float [] fact;
+	public static final float [] fact;
 	static {
 		fact = new float[128];
 		fact[0] = 0;
