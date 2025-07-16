@@ -662,9 +662,9 @@ public class GlycoAnalysis {
                 }
                 double comparisonScore;
                 if (useFragmentSpecificProbs) {
-                    comparisonScore = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
+                    comparisonScore = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, glycoResult.pepMass, spec);
                 } else {
-                    comparisonScore = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                    comparisonScore = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError, glycoResult.pepMass, spec);
                 }
 
                 if (comparisonScore < 0) {
@@ -679,9 +679,9 @@ public class GlycoAnalysis {
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i < bestCandidateIndex; i++) {
                 if (useFragmentSpecificProbs) {
-                    scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass);
+                    scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, glycoResult.pepMass, spec);
                 } else {
-                    scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError);
+                    scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError, glycoResult.pepMass, spec);
                 }
             }
 
@@ -819,7 +819,7 @@ public class GlycoAnalysis {
         return propScore;
     }
 
-    public double pairwiseCompareDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass) {
+    public double pairwiseCompareDynamic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double pepMass, Spectrum spec) {
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
 
@@ -835,6 +835,10 @@ public class GlycoAnalysis {
 
         // mass and isotope error
         sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
+
+        double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
+        double ms1score2 = calculateMS1score(glycan1, spec, pepMass);
+        sumLogRatio += (ms1score1 - ms1score2);
 
         return sumLogRatio;
     }
@@ -1026,7 +1030,7 @@ public class GlycoAnalysis {
      * @param deltaMass observed delta mass
      * @return output probability score (sum of log ratios)
      */
-    public double pairwiseCompareStatic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
+    public double pairwiseCompareStatic(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError, double pepMass, Spectrum spec) {
         double sumLogRatio = 0;
         // Y ions
         sumLogRatio += pairwiseCompareYstatic(glycan1, glycan2, glycoParams.glycoYnorm);
@@ -1036,6 +1040,10 @@ public class GlycoAnalysis {
 
         // isotope and mass errors
         sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
+
+        double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
+        double ms1score2 = calculateMS1score(glycan2, spec, pepMass);
+        sumLogRatio += (ms1score1 - ms1score2);
 
         return sumLogRatio;
     }
