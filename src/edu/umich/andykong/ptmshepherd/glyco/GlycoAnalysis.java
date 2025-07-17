@@ -165,24 +165,29 @@ public class GlycoAnalysis {
 
     /**
      * Initializes IonQuant and builds the feature index for a mass spectrometry file.
+     * Only needed if using KL scoring.
      *
      * @param filePath Path to the MS data file
      * @param params Parameters controlling the feature detection
      */
     public static IonQuantAPI indexBuilder(String filePath, GlycoParams params) {
-        PTMShepherd.print("\tBuilding IonQuant index for " + filePath);
-        api = new IonQuantAPI(
-                filePath,
-                params.numThreads,
-                (float) params.glycoPPMtol,
-                params.rtTol,
-                params.imTol,
-                params.minIsotopesIonQuant,
-                params.minScansIonQuant,
-                !params.isIMdata
-        );
-        api.buildIndex();
-        return api;
+        if (params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
+            PTMShepherd.print("\tBuilding IonQuant index for " + filePath);
+            api = new IonQuantAPI(
+                    filePath,
+                    params.numThreads,
+                    (float) params.glycoPPMtol,
+                    params.rtTol,
+                    params.imTol,
+                    params.minIsotopesIonQuant,
+                    params.minScansIonQuant,
+                    !params.isIMdata
+            );
+            api.buildIndex();
+            return api;
+        } else {
+            return null;
+        }
     }
 
     public void processLinesBlock(ArrayList<PSM> cBlock, PrintWriter fragmentOutWriter) {
@@ -968,7 +973,10 @@ public class GlycoAnalysis {
         double massScore = computeMassScoreAbs(bestGlycan, result, massErrorWidth, meanMassError);
         sumLogRatio += massScore;
 
-        double ms1score = calculateMS1score(bestGlycan, spec, result.pepMass);
+        double ms1score = Double.NaN;
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
+            ms1score = calculateMS1score(bestGlycan, spec, result.pepMass);
+        }
 
         if (updateFeatureVec) {
             result.YFragmentScore = Yscore;
@@ -1316,7 +1324,10 @@ public class GlycoAnalysis {
         double massScore = computeMassScoreAbs(bestGlycan, result, massErrorWidth, meanMassError);
         sumLogRatio += massScore;
 
-        double ms1score = calculateMS1score(bestGlycan, spec, result.pepMass);
+        double ms1score = Double.NaN;
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
+            ms1score = calculateMS1score(bestGlycan, spec, result.pepMass);
+        }
 
         if (updateFeatureVec) {
             result.YFragmentScore = Yscore;
