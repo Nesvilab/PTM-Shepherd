@@ -341,7 +341,7 @@ public class PSMFile {
 			// check if a glycan was found
 			if (psm.glycanAssignmentResult != null && psm.glycanAssignmentResult.foundGlycan) {
 				GlycanAssignmentResult result = psm.glycanAssignmentResult;
-				String assignedGlycan = result.bestCandidate.toPSMString();
+				String assignedGlycan;
 				String glycanScore = String.format("%.4f", result.glycanScore);
 				String glycanQval = String.format("%.6f", result.glycanQval);
 				if (result.isDecoyGlycan && !glycoParams.printGlycoDecoys) {
@@ -355,6 +355,8 @@ public class PSMFile {
 						glycanScore = String.format("%.4f", result.bestTargetScore);
 						glycanQval = "1";
 					}
+				} else {
+					assignedGlycan = result.bestCandidate.toPSMString();
 				}
 				// save glycan info directly or to the lists to add columns to the PSM table later
 				if (!hasPreviousGlycoInfo) {
@@ -429,7 +431,7 @@ public class PSMFile {
 			}
 		}
 
-		if (glycanStr.contains("no target matches") || glycanStr.contains("No Glycan Matched")) {
+		if (glycanStr.equalsIgnoreCase("no target matches") || glycanStr.equalsIgnoreCase("No Glycan Matched")) {
 			return;		// skip, no target glycan info to propagate
 		}
 
