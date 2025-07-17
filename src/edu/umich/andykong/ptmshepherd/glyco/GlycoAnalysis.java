@@ -378,12 +378,13 @@ public class GlycoAnalysis {
     public static boolean computeFDRcompetitive(List<GlycanAssignmentResult> results, double fdrCutOff) {
         // Sort target scores in descending order
         results.sort(Comparator.comparingDouble((GlycanAssignmentResult result) -> result.glycanScore).reversed());
+        long glycoResultCount = results.stream().filter(r -> r.foundGlycan).count();
 
         // Get decoy indices in the combined sorted list
         List<Integer> decoyIndexes = getDecoyIndexes(results);
 
         int decoyCount = decoyIndexes.size();
-        int targetCount = results.size() - decoyCount;
+        int targetCount = (int) glycoResultCount - decoyCount;
         // check if enough decoys were found (i.e., initial q-val is above the desired threshold)
         double initialFDR = calculateFDR(targetCount, decoyCount, false);
         if (initialFDR < fdrCutOff) {
@@ -396,7 +397,12 @@ public class GlycoAnalysis {
         boolean foundThreshold = false;
         // Calculate FDR at each point
         for (int i = results.size() - 1; i >= 0; i--) {
-            if (results.get(i).isDecoyGlycan) {
+            GlycanAssignmentResult result = results.get(i);
+            if (!result.foundGlycan) {
+                continue; // skip PSMs without glycan assignments
+            }
+
+            if (result.isDecoyGlycan) {
                 decoyCount--;
             } else {
                 targetCount--;
@@ -409,11 +415,11 @@ public class GlycoAnalysis {
                 if (fdr < fdrCutOff) {
 //                    scoreThreshold = results.get(i).glycanScore;
                     PTMShepherd.print(String.format("Found glycan score threshold: %.2f with %d decoys, %d targets for %.2f%% estimated FDR (%d total inputs)",
-                            results.get(i).glycanScore, decoyCount, targetCount, fdr * 100, results.size()));
+                            result.glycanScore, decoyCount, targetCount, fdr * 100, glycoResultCount));
                     foundThreshold = true;
                 }
             }
-            results.get(i).glycanQval = results.get(i).isDecoyGlycan ? 1.0 : fdr;
+            result.glycanQval = result.isDecoyGlycan ? 1.0 : fdr;
         }
         return true;
     }
