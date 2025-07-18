@@ -364,10 +364,18 @@ public class GlycoAnalysis {
             PrintWriter glycoOut = new PrintWriter(new FileWriter(glycoFile));
             glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
 
-            printLines(glycoOut, allResults.stream()
+            printLines(glycoOut, allResults.stream().sorted(Comparator.comparingInt(result -> result.psmLineIndex))
                     .map(GlycanAssignmentResult::printGlycoFragmentInfo)
                     .collect(Collectors.joining("")));
             glycoOut.close();
+
+            // for debugging
+            PrintWriter glycoOut2 = new PrintWriter(new FileWriter(glycoFile + "2"));
+            glycoOut2.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
+            printLines(glycoOut2, allResults.stream().sorted(Comparator.comparingInt(result -> result.psmLineIndex))
+                    .map(GlycanAssignmentResult::printAllCandidates)
+                    .collect(Collectors.joining("")));
+            glycoOut2.close();
         } catch (IOException e) {
             PTMShepherd.die("Error writing to glyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
@@ -756,31 +764,35 @@ public class GlycoAnalysis {
         boolean foundNext = false;
         for (int bestIndex : sortedIndicesOfBestScores) {
             GlycanCandidate nextCandidate = searchCandidates.get(bestIndex);
+            glycoResult.allCandidates.add(nextCandidate);
+            double bestNextScore;
+            if (useFragmentSpecificProbs) {
+                bestNextScore = computeAbsoluteScoreDynamic(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
+            } else {
+                bestNextScore = computeAbsoluteScore(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
+            }
+            glycoResult.allScores.add(bestNextScore);
+
             // if Best hit was target, look for Next to be decoy and vice versa
-            if (nextCandidate.isDecoy == bestWasTarget) {
-                // add the next hit's information
-                double bestNextScore;
-                if (useFragmentSpecificProbs) {
-                    bestNextScore = computeAbsoluteScoreDynamic(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
-                } else {
-                    bestNextScore = computeAbsoluteScore(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError, false);
+            if (!foundNext) {
+                if (nextCandidate.isDecoy == bestWasTarget) {
+                    // add the next hit's information
+                    output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestNextScore);
+                    foundNext = true;
+                    if (bestWasTarget) {
+                        // save best to target, next to decoy
+                        glycoResult.bestDecoy = nextCandidate;
+                        glycoResult.bestDecoyScore = bestNextScore;
+                        glycoResult.bestTarget = glycoResult.bestCandidate;
+                        glycoResult.bestTargetScore = glycoResult.glycanScore;
+                    } else {
+                        // save best to decoy, next to target
+                        glycoResult.bestTarget = nextCandidate;
+                        glycoResult.bestTargetScore = bestNextScore;
+                        glycoResult.bestDecoy = glycoResult.bestCandidate;
+                        glycoResult.bestDecoyScore = glycoResult.glycanScore;
+                    }
                 }
-                output = String.format("%s\t%s\t%.4f", output, nextCandidate.toString(), bestNextScore);
-                foundNext = true;
-                if (bestWasTarget) {
-                    // save best to target, next to decoy
-                    glycoResult.bestDecoy = nextCandidate;
-                    glycoResult.bestDecoyScore = bestNextScore;
-                    glycoResult.bestTarget = glycoResult.bestCandidate;
-                    glycoResult.bestTargetScore = glycoResult.glycanScore;
-                } else {
-                    // save best to decoy, next to target
-                    glycoResult.bestTarget = nextCandidate;
-                    glycoResult.bestTargetScore = bestNextScore;
-                    glycoResult.bestDecoy = glycoResult.bestCandidate;
-                    glycoResult.bestDecoyScore = glycoResult.glycanScore;
-                }
-                break;
             }
         }
         if (!foundNext) {

@@ -19,6 +19,8 @@ package edu.umich.andykong.ptmshepherd.glyco;
 import umich.ms.glyco.GlycanCandidate;
 import umich.ms.glyco.GlycanFragment;
 
+import java.util.ArrayList;
+
 public class GlycanAssignmentResult {
     // Glycan Assignment results
     public GlycanCandidate bestCandidate;
@@ -29,6 +31,9 @@ public class GlycanAssignmentResult {
     public double glycanScore;
     public double bestTargetScore;
     public double glycanQval;
+
+    public ArrayList<GlycanCandidate> allCandidates = new ArrayList<>(); // all glycan candidates for this PSM
+    public ArrayList<Double> allScores = new ArrayList<>(); // all glycan candidates for this PSM
 
     // Basic PSM info (prior to PTM-S)
     public int psmLineIndex; // index of the PSM line in the input file
@@ -67,6 +72,7 @@ public class GlycanAssignmentResult {
         this.bestTarget = GlycanCandidate.emptyCandidate();
         this.bestCandidate = GlycanCandidate.emptyCandidate();
         this.bestDecoy = GlycanCandidate.emptyCandidate();
+        allCandidates = new ArrayList<>();
     }
 
     /**
@@ -91,46 +97,98 @@ public class GlycanAssignmentResult {
         }
 
         if (deltaMass > 3.5 || deltaMass < -1.5) {
-            // main glycan results
-            if (!isDecoyGlycan) {
-                // for target glycans, append best decoy as well
-                if (bestDecoy != null && !Double.isNaN(bestDecoyScore)) {
-                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval,bestDecoy, bestDecoyScore));
-                } else {
-                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no decoy matches"));
-                }
+            printBestGlycan(sb);
+        }
+        sb.append("\n");
+        return sb.toString();
+    }
+
+    private void printBestGlycan(StringBuilder sb) {
+        if (!isDecoyGlycan) {
+            // for target glycans, append best decoy as well
+            if (bestDecoy != null && !Double.isNaN(bestDecoyScore)) {
+                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval,bestDecoy, bestDecoyScore));
             } else {
-                // for decoy glycans, append best target as well
-                if (bestTarget != null && !Double.isNaN(bestTargetScore)) {
-                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval, bestTarget, bestTargetScore));
-                } else {
-                    sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no target matches"));
+                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no decoy matches"));
+            }
+        } else {
+            // for decoy glycans, append best target as well
+            if (bestTarget != null && !Double.isNaN(bestTargetScore)) {
+                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval, bestTarget, bestTargetScore));
+            } else {
+                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no target matches"));
+            }
+        }
+
+        if (featureVec != null) {
+            for (double feature : featureVec) {
+                sb.append(String.format("\t%.4f", feature)); // append each feature value
+            }
+        }
+
+        // glycan fragment info for target glycans
+        if (!isDecoyGlycan) {
+            // Y ions
+            for (GlycanFragment ion : bestCandidate.Yfragments.values()) {
+                if (ion.foundIntensity > 0) {
+                    sb.append(String.format("\tY~%s", ion));      // format is [ion type] [ion comp] [found intensity]
                 }
             }
-
-            if (featureVec != null) {
-                for (double feature : featureVec) {
-                    sb.append(String.format("\t%.4f", feature)); // append each feature value
-                }
-            }
-
-            // glycan fragment info for target glycans
-            if (!isDecoyGlycan) {
-                // Y ions
-                for (GlycanFragment ion : bestCandidate.Yfragments.values()) {
-                    if (ion.foundIntensity > 0) {
-                        sb.append(String.format("\tY~%s", ion));      // format is [ion type] [ion comp] [found intensity]
-                    }
-                }
-                // oxonium ions
-                for (GlycanFragment ion : bestCandidate.oxoniumFragments.values()) {
-                    if (ion.foundIntensity > 0) {
-                        sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
-                    }
+            // oxonium ions
+            for (GlycanFragment ion : bestCandidate.oxoniumFragments.values()) {
+                if (ion.foundIntensity > 0) {
+                    sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
                 }
             }
         }
-        sb.append("\n");
+    }
+
+    /**
+     * Print all candidates for this PSM (intended for debugging)
+     */
+    public String printAllCandidates() {
+        StringBuilder sb = new StringBuilder();
+        // initial spectrum data
+        sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, peptide, assignedMods, pepMass, deltaMass));
+        if (glycanAssignmentString.matches("ERROR")) {
+            // spectrum not found - print ERROR
+            sb.append("\tERROR\n");
+            return sb.toString();
+        }
+        if (glycanAssignmentString.contains(NO_GLYCAN_RESULT_STR)) {
+            // no matching glycans found - leave result empty
+            sb.append(glycanAssignmentString);
+            sb.append("\n");
+            return sb.toString();
+        }
+
+        if (foundGlycan) {
+            printBestGlycan(sb);
+            sb.append("\n");
+            for (int i = 1; i < allCandidates.size(); i++) {
+                sb.append("\t\t\t\t");
+                sb.append(String.format("\t%s\t%.2f", allCandidates.get(i), allScores.get(i)));
+
+                // glycan fragment info for target glycans
+                if (!isDecoyGlycan) {
+                    // Y ions
+                    for (GlycanFragment ion : allCandidates.get(i).Yfragments.values()) {
+                        if (ion.foundIntensity > 0) {
+                            sb.append(String.format("\tY~%s", ion));      // format is [ion type] [ion comp] [found intensity]
+                        }
+                    }
+                    // oxonium ions
+                    for (GlycanFragment ion : allCandidates.get(i).oxoniumFragments.values()) {
+                        if (ion.foundIntensity > 0) {
+                            sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
+                        }
+                    }
+                }
+                sb.append("\n");
+            }
+        } else {
+            sb.append("\n");
+        }
         return sb.toString();
     }
 
