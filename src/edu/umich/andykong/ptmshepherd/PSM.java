@@ -176,8 +176,8 @@ public class PSM {
                 int pos;
                 if (spos.equals("N-term"))
                     pos = 0;
-                else if (spos.equals("c"))
-                    pos = this.getPeptide().length();
+                else if (spos.equals("C-term"))
+                    pos = this.getPeptide().length() + 1;   // record C-term as last residue + 1
                 else
                     pos = Integer.parseInt(spos.substring(0, spos.length() - 1));
                 mods.put(pos, mass);
@@ -193,6 +193,8 @@ public class PSM {
             for (Map.Entry<Integer, Float> mod : assignedMods.entrySet()) {
                 if (mod.getKey() == 0)
                     modArr[0] = mod.getValue();
+                else if (mod.getKey() == getPeptide().length() + 1)
+                    modArr[modArr.length - 1] = mod.getValue(); // C-term is last residue + 1, so last index
                 else
                     modArr[mod.getKey()-1] = mod.getValue();
             }
@@ -219,7 +221,7 @@ public class PSM {
             StringBuilder sb = new StringBuilder();
             if (mod.getKey() == 0) {
                 sb.append("N-term");
-            } else if (mod.getKey() == getPeptide().length()) {
+            } else if (mod.getKey() == getPeptide().length() + 1) {
                 sb.append("C-term");
             } else {
                 sb.append(mod.getKey()).append(getPeptide().charAt(mod.getKey()-1));
