@@ -78,7 +78,7 @@ public class GlycoAnalysis {
         this.useFragmentSpecificProbs = false;
         this.glycanMassBinMap = new HashMap<>();
         this.allResults = new ArrayList<>();
-        ldaHeader = glycoParams.glycoLDA ? "\tKL score\tY prop\tLDA Y\tLDA Oxo\tLDA iso\tLDA mass" : "";
+        ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "";
     }
 
     public void glycoPSMs(PSMFile psmFile,
@@ -731,6 +731,7 @@ public class GlycoAnalysis {
             }
             glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
             glycoResult.glycanScore = absoluteScore;
+            glycoResult.summedScore = absoluteScore;
             glycoResult.foundGlycan = true;
 
             // output - best glycan, scores, etc back to PSM table

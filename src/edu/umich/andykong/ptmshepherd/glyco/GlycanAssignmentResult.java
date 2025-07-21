@@ -29,6 +29,7 @@ public class GlycanAssignmentResult {
     public double bestDecoyScore;
     public boolean isDecoyGlycan;
     public double glycanScore;
+    public double summedScore;      // for comparing to LDA score (debugging)
     public double bestTargetScore;
     public double glycanQval;
 
@@ -121,6 +122,7 @@ public class GlycanAssignmentResult {
         }
 
         if (featureVec != null) {
+            sb.append(String.format("\t%.4f", summedScore));
             for (double feature : featureVec) {
                 sb.append(String.format("\t%.4f", feature)); // append each feature value
             }

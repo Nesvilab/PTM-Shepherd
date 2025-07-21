@@ -415,6 +415,15 @@ public class GlycoParams {
         }
     }
 
+    public String generateLDAheader() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("\tSummed Score\t");
+        for (LDAFeature feature : ldaFeaturesToUse) {
+            sb.append(feature.name()).append("\t");
+        }
+        return sb.toString();
+    }
+
     public static ArrayList<LDAFeature> parseLDAfeatures(String featuresStr) {
         ArrayList<LDAFeature> features = new ArrayList<>();
         if (featuresStr.isEmpty()) {
