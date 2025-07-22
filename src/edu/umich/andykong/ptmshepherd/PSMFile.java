@@ -345,14 +345,14 @@ public class PSMFile {
 				String glycanScore = String.format("%.4f", result.glycanScore);
 				String glycanQval = String.format("%.6f", result.glycanQval);
 				if (result.isDecoyGlycan && !glycoParams.printGlycoDecoys) {
-					if (Double.isNaN(result.bestTargetScore)) {
+					if (Double.isNaN(result.bestTarget.glycanScore)) {
 						assignedGlycan = "No target matches";
 						glycanScore = "";
 						glycanQval = "";
 					} else {
 						// report best target glycan instead of decoy (q-value will be reported as 1)
 						assignedGlycan = result.bestTarget.toPSMString();
-						glycanScore = String.format("%.4f", result.bestTargetScore);
+						glycanScore = String.format("%.4f", result.bestTarget.glycanScore);
 						glycanQval = "1";
 					}
 				} else {

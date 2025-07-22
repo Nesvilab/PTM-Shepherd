@@ -23,18 +23,16 @@ import java.util.ArrayList;
 
 public class GlycanAssignmentResult {
     // Glycan Assignment results
-    public GlycanCandidate bestCandidate;
-    public GlycanCandidate bestTarget;
-    public GlycanCandidate bestDecoy;
-    public double bestDecoyScore;
+    public GlycanCandidateResult bestCandidate;
+    public GlycanCandidateResult bestTarget;
+    public GlycanCandidateResult bestDecoy;
     public boolean isDecoyGlycan;
     public double glycanScore;
     public double summedScore;      // for comparing to LDA score (debugging)
-    public double bestTargetScore;
     public double glycanQval;
 
-    public ArrayList<GlycanCandidate> allCandidates = new ArrayList<>(); // all glycan candidates for this PSM
-    public ArrayList<Double> allScores = new ArrayList<>(); // all glycan candidates for this PSM
+    public ArrayList<GlycanCandidateResult> allCandidates = new ArrayList<>(); // all glycan candidates for this PSM
+    public boolean foundGlycan = false;
 
     // Basic PSM info (prior to PTM-S)
     public int psmLineIndex; // index of the PSM line in the input file
@@ -44,21 +42,7 @@ public class GlycanAssignmentResult {
     String assignedMods;
     String specName;
 
-    // old-style results strings for printing diagnostic, glycan outputs
-    String glycanAssignmentString;
-    public static final String NO_GLYCAN_RESULT_STR = "No Glycan Matched";
-    public boolean foundGlycan = false;     // true if glycan assignment was successful
 
-    // LDA features
-    double YFragmentScore;
-    double OxFragmentScore;
-    double massErrorScore;
-    double isotopeScore;
-    double YproportionScore;
-    double KLscore;
-    int yCount;
-    float yHyper;
-    public double[] featureVec;
 
     public GlycanAssignmentResult(int psmLineIndex, String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {
         this.psmLineIndex = psmLineIndex;
@@ -68,11 +52,9 @@ public class GlycanAssignmentResult {
         this.assignedMods = assignedMods;
         this.specName = specName;
 
-        // initialize placeholder values
-        this.bestTargetScore = Double.NaN;
-        this.bestTarget = GlycanCandidate.emptyCandidate();
-        this.bestCandidate = GlycanCandidate.emptyCandidate();
-        this.bestDecoy = GlycanCandidate.emptyCandidate();
+        this.bestTarget = null;
+        this.bestCandidate = null;
+        this.bestDecoy = null;
         allCandidates = new ArrayList<>();
     }
 
@@ -85,18 +67,6 @@ public class GlycanAssignmentResult {
         StringBuilder sb = new StringBuilder();
         // initial spectrum data
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, peptide, assignedMods, pepMass, deltaMass));
-        if (glycanAssignmentString.matches("ERROR")) {
-            // spectrum not found - print ERROR
-            sb.append("\tERROR\n");
-            return sb.toString();
-        }
-        if (glycanAssignmentString.contains(NO_GLYCAN_RESULT_STR)) {
-            // no matching glycans found - leave result empty
-            sb.append(glycanAssignmentString);
-            sb.append("\n");
-            return sb.toString();
-        }
-
         if (deltaMass > 3.5 || deltaMass < -1.5) {
             printBestGlycan(sb);
         }
@@ -107,23 +77,23 @@ public class GlycanAssignmentResult {
     private void printBestGlycan(StringBuilder sb) {
         if (!isDecoyGlycan) {
             // for target glycans, append best decoy as well
-            if (bestDecoy != null && !Double.isNaN(bestDecoyScore)) {
-                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval,bestDecoy, bestDecoyScore));
+            if (bestDecoy != null) {
+                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval,bestDecoy, bestDecoy.glycanScore));
             } else {
                 sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no decoy matches"));
             }
         } else {
             // for decoy glycans, append best target as well
-            if (bestTarget != null && !Double.isNaN(bestTargetScore)) {
-                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval, bestTarget, bestTargetScore));
+            if (bestTarget != null) {
+                sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t%.2f", bestCandidate, glycanScore, glycanQval, bestTarget, bestTarget.glycanScore));
             } else {
                 sb.append(String.format("\t%s\t%.2f\t%.4f\t%s\t", bestCandidate, glycanScore, glycanQval, "no target matches"));
             }
         }
 
-        if (featureVec != null) {
+        if (bestCandidate.featureVec != null) {
             sb.append(String.format("\t%.4f", summedScore));
-            for (double feature : featureVec) {
+            for (double feature : bestCandidate.featureVec) {
                 sb.append(String.format("\t%.4f", feature)); // append each feature value
             }
         }
@@ -152,24 +122,13 @@ public class GlycanAssignmentResult {
         StringBuilder sb = new StringBuilder();
         // initial spectrum data
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, peptide, assignedMods, pepMass, deltaMass));
-        if (glycanAssignmentString.matches("ERROR")) {
-            // spectrum not found - print ERROR
-            sb.append("\tERROR\n");
-            return sb.toString();
-        }
-        if (glycanAssignmentString.contains(NO_GLYCAN_RESULT_STR)) {
-            // no matching glycans found - leave result empty
-            sb.append(glycanAssignmentString);
-            sb.append("\n");
-            return sb.toString();
-        }
 
         if (foundGlycan) {
             printBestGlycan(sb);
             sb.append("\n");
             for (int i = 1; i < allCandidates.size(); i++) {
                 sb.append("\t\t\t\t");
-                sb.append(String.format("\t%s\t%.2f", allCandidates.get(i), allScores.get(i)));
+                sb.append(String.format("\t%s\t%.2f", allCandidates.get(i), allCandidates.get(i).glycanScore));
 
                 // glycan fragment info for target glycans
                 if (!isDecoyGlycan) {

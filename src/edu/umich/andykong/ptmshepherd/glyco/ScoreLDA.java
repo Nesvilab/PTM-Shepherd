@@ -41,9 +41,8 @@ public class ScoreLDA {
      * Calculates the LDA model and determines the score threshold based on the
      * specified false discovery rate (FDR).
      *
-     * @param fdrCutoff The maximum acceptable FDR
      */
-    public void runLDA(ArrayList<GlycanAssignmentResult> results, double fdrCutoff) {
+    public void runLDA(ArrayList<GlycanAssignmentResult> results) {
         // Calculate mean vectors for target and decoy datasets
         double[] decoyMean = calculateMean(decoyData);
         double[] targetMean = calculateMean(targetData);
@@ -74,10 +73,14 @@ public class ScoreLDA {
         // Output model coefficients
         PTMShepherd.print("\tLDA coefficients: " + java.util.Arrays.toString(coefficients));
 
-        // Calculate scores and determine threshold
+        // Calculate scores
         for (GlycanAssignmentResult result: results) {
             if (result.foundGlycan) {
-                result.glycanScore = calculateScore(result.featureVec);
+                for (GlycanCandidateResult candidate: result.allCandidates) {
+                    candidate.ldaScore = calculateScore(candidate.featureVec);
+                    candidate.glycanScore = candidate.ldaScore;
+                }
+                result.glycanScore = result.bestCandidate.ldaScore;
             }
         }
     }
