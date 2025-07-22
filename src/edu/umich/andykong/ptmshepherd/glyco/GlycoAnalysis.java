@@ -458,14 +458,14 @@ public class GlycoAnalysis {
                 if (result.isDecoyGlycan) {
                     decoys++;
                     scoreDistribution.add(new GlycoScore(result.glycanScore, true, result.specName, true));
-                    if (!Double.isNaN(result.bestTarget.glycanScore)) {
+                    if (result.bestTarget != null) {
                         targets++;
                         scoreDistribution.add(new GlycoScore(result.bestTarget.glycanScore, false, result.specName, false));
                     }
                 } else {
                     targets++;
                     scoreDistribution.add(new GlycoScore(result.glycanScore, false, result.specName, true));
-                    if (!Double.isNaN(result.bestDecoy.glycanScore)) {
+                    if (result.bestDecoy != null) {
                         decoys++;
                         scoreDistribution.add(new GlycoScore(result.bestDecoy.glycanScore, true, result.specName, false));
                     }
