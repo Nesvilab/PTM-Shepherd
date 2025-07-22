@@ -68,15 +68,16 @@ public class GlycoAnalysis {
     private static IonQuantAPI api;
 
     // Default constructor
-    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams) {
+    public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams, boolean isFirstPass) {
         this.dsName = dsName;
-        this.glycoFile = new File(PTMShepherd.normFName(dsName + PTMShepherd.rawGlycoName));
+        String firstPassName = isFirstPass ? PTMShepherd.rawGlycoFirstPass : "";
+        this.glycoFile = new File(PTMShepherd.normFName(dsName + firstPassName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
         this.glycoParams = glycoParams;
         this.useFragmentSpecificProbs = false;
         this.glycanMassBinMap = new HashMap<>();
         this.allResults = new ArrayList<>();
-        ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "";
+        ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "\t";
     }
 
     public void glycoPSMs(PSMFile psmFile,
@@ -97,7 +98,7 @@ public class GlycoAnalysis {
             condRatio = Double.parseDouble(PTMShepherd.getParam("spectra_condRatio"));
 
             //write header
-            glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
+            glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Decoy Glycan\tBest Decoy Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
 
             //map PSMs to file
             SiteLocalization.initSpectrumMappings(psmFile, mappings);
@@ -344,7 +345,7 @@ public class GlycoAnalysis {
                     }
                 }
             }
-            lda.runLDA(allResults);
+            lda.runLDA(allResults, ldaHeader);
         }
 
         // Compute FDR
@@ -360,7 +361,7 @@ public class GlycoAnalysis {
 
         try {
             PrintWriter glycoOut = new PrintWriter(new FileWriter(glycoFile));
-            glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
+            glycoOut.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Decoy Glycan\tBest Decoy Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "Fragments:");
 
             printLines(glycoOut, allResults.stream().sorted(Comparator.comparingInt(result -> result.psmLineIndex))
                     .map(GlycanAssignmentResult::printGlycoFragmentInfo)
@@ -369,7 +370,7 @@ public class GlycoAnalysis {
 
             // for debugging
             PrintWriter glycoOut2 = new PrintWriter(new FileWriter(glycoFile + "2"));
-            glycoOut2.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value\tBest Target Glycan\tBest Target Score", GLYCAN_COMP_COL_NAME) + ldaHeader + "\tFragments:");
+            glycoOut2.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value", GLYCAN_COMP_COL_NAME) + ldaHeader + "Fragments:");
             printLines(glycoOut2, allResults.stream().sorted(Comparator.comparingInt(result -> result.psmLineIndex))
                     .map(GlycanAssignmentResult::printAllCandidates)
                     .collect(Collectors.joining("")));

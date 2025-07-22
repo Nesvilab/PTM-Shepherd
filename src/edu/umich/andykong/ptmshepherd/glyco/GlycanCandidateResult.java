@@ -13,7 +13,6 @@ public class GlycanCandidateResult extends GlycanCandidate {
     public double glycanScore;
     public double ldaScore;
     public double summedScore;
-    public double foundYproportion;
     public double massError;
     public int isotope;
     double YFragmentScore;

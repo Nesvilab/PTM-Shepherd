@@ -42,7 +42,7 @@ public class ScoreLDA {
      * specified false discovery rate (FDR).
      *
      */
-    public void runLDA(ArrayList<GlycanAssignmentResult> results) {
+    public void runLDA(ArrayList<GlycanAssignmentResult> results, String ldaHeader) {
         // Calculate mean vectors for target and decoy datasets
         double[] decoyMean = calculateMean(decoyData);
         double[] targetMean = calculateMean(targetData);
@@ -71,6 +71,7 @@ public class ScoreLDA {
         intercept = calculateIntercept(targetMean, decoyMean, coefficients);
 
         // Output model coefficients
+        PTMShepherd.print("\tLDA score names: " + ldaHeader);
         PTMShepherd.print("\tLDA coefficients: " + java.util.Arrays.toString(coefficients));
 
         // Calculate scores

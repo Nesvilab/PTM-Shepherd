@@ -105,6 +105,7 @@ public class PTMShepherd {
 	public static final String rawLocalizeName = ".rawlocalize";
 	public static final String rawSimRTName = ".rawsimrt";
 	public static final String rawGlycoName = ".rawglyco";
+	public static final String rawGlycoFirstPass = "-1stPass";
 	public static final String modSummaryName = ".modsummary.tsv";
 	public static final String diagBinFilename = ".diagBIN";
 	public static final String diagMineName = ".diagmine.tsv";
@@ -459,7 +460,7 @@ public class PTMShepherd {
 		if(!Boolean.parseBoolean(params.get("output_extended"))) {
 			// delete dataset files with specific extensions
 			extsToDelete = Arrays
-					.asList(rawLocalizeName, rawSimRTName, rawGlycoName, histoName, diagBinFilename, mzBinFilename);
+					.asList(rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, histoName, diagBinFilename, mzBinFilename);
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -560,7 +561,7 @@ public class PTMShepherd {
 		// Glyco: first pass
 		TreeMap<String, GlycoAnalysis> glycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
-			GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams);
+			GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams, true);
 			if (ga.isGlycoComplete()) {
 				print(String.format("\tGlyco analysis already done for dataset %s, skipping", ds));
 				continue;
@@ -591,7 +592,7 @@ public class PTMShepherd {
 				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
 
 				// run glyco PSM-level analysis with the new database
-				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams);
+				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams, false);
 				ga2.glycanMassBinMap = ga.glycanMassBinMap;
 				ga2.useFragmentSpecificProbs = true;
 				ga2.defaultPropensity = glycoParams.defaultProp;
@@ -944,7 +945,7 @@ public class PTMShepherd {
 
 			// delete dataset files with specific extensions
 			List<String> extsToDelete = Arrays
-					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoName, modSummaryName, diagIonsExtractName);
+					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, modSummaryName, diagIonsExtractName);
 			for (String ds : datasets.keySet()) {
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
