@@ -345,7 +345,7 @@ public class PSMFile {
 				String glycanScore = String.format("%.4f", result.glycanScore);
 				String glycanQval = String.format("%.6f", result.glycanQval);
 				if (result.isDecoyGlycan && !glycoParams.printGlycoDecoys) {
-					if (Double.isNaN(result.bestTarget.glycanScore)) {
+					if (result.bestTarget == null) {
 						assignedGlycan = "No target matches";
 						glycanScore = "";
 						glycanQval = "";

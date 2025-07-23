@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import umich.ms.glyco.GlycanFragment;
 import java.util.ArrayList;
 
@@ -66,10 +67,14 @@ public class GlycanAssignmentResult {
         // initial spectrum data
         sb.append(String.format("%s\t%s\t%s\t%.4f\t%.4f", specName, peptide, assignedMods, pepMass, deltaMass));
         if (deltaMass > 3.5 || deltaMass < -1.5) {
-            printBestGlycan(sb);
-            printNextBestGlycan(sb);
-            printFeatureVector(sb, bestCandidate);
-            printFragments(sb, bestCandidate);
+            if (foundGlycan) {
+                printBestGlycan(sb);
+                printNextBestGlycan(sb);
+                printFeatureVector(sb, bestCandidate);
+                printFragments(sb, bestCandidate);
+            } else {
+                sb.append("\tno glycan matched");
+            }
         }
         sb.append("\n");
         return sb.toString();
