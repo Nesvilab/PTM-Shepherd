@@ -474,5 +474,6 @@ public class GlycoParams {
         iso,
         mass2nd,
         iso2nd,
+        glycanfreq
     }
 }

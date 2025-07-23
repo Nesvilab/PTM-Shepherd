@@ -25,8 +25,10 @@ import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import ionquant.api.Entry;
 import ionquant.api.IonQuantAPI;
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
+import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanCandidate;
 import umich.ms.glyco.GlycanFragment;
 
@@ -220,7 +222,7 @@ public class GlycoAnalysis {
                 GlycanCandidate glycan = result.bestCandidate;
                 GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, glycan.Yfragments, glycan.oxoniumFragments);
 
-                String glycanHash = fragmentInfoContainer.toString();
+                String glycanHash = Glycan.toGlycanString(fragmentInfoContainer.composition);
                 // only include good targets in fragment info
                 if (result.glycanQval < glycoParams.glycoFDR) {
                     if (glycanInputMap.containsKey(glycanHash)) {
@@ -230,21 +232,22 @@ public class GlycoAnalysis {
                         newList.add(fragmentInfoContainer);
                         glycanInputMap.put(glycanHash, newList);
                     }
-                }
-                // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
-                double deltaMass = result.deltaMass;
-                int massBin = (int) Math.floor(deltaMass);
-                if (glycanMassBinMap.containsKey(massBin)) {
-                    // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
-                    HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
-                    int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
-                    glycanCount++;
-                    massBinGlycanCounts.put(glycanHash, glycanCount);
-                } else {
-                    // New mass bin. Create a new count-by-glycan dict
-                    HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
-                    massBinGlycanCounts.put(glycanHash, 1);
-                    glycanMassBinMap.put(massBin, massBinGlycanCounts);
+
+                    // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
+                    double deltaMass = result.deltaMass;
+                    int massBin = (int) Math.floor(deltaMass);
+                    if (glycanMassBinMap.containsKey(massBin)) {
+                        // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
+                        HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
+                        int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
+                        glycanCount++;
+                        massBinGlycanCounts.put(glycanHash, glycanCount);
+                    } else {
+                        // New mass bin. Create a new count-by-glycan dict
+                        HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
+                        massBinGlycanCounts.put(glycanHash, 1);
+                        glycanMassBinMap.put(massBin, massBinGlycanCounts);
+                    }
                 }
             }
         }
@@ -822,35 +825,34 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Updated propensity score calculator. Intended use: sumLogRatio * this score gives final score.
-     * Uses min propensity param to adjust for min propensity
-     *
-     * @param glycan1   glycan candidate
+     * Glycan frequency score calculator. Essentially a prior for how likely a given glycan is given delta mass bin.
+     * Normalized to the most frequent glycan in the bin.
+     * @param candidate   glycan candidate
      * @param deltaMass delta mass bin in question
-     * @return double between min glycan propensity and 1
+     * @return frequency (between 0 and 1) of the glycan in the delta mass bin.
      */
-    public double computeGlycanPropensityScore(GlycanCandidate glycan1, double deltaMass) {
-        double minGlycProp = 0.1;   //todo: param
+    public double computeGlycanFrequencyScore(GlycanCandidate candidate, double deltaMass) {
         // determine the overall likelihood priors of these glycans given the observed delta mass
-        int glyc1Count = 0;
-        int totalGlycCountInBin = 0;
+        int candidateCount = 0;
+        int maxFrequency = 0;
+        // Decoys are not included in the saved glycans. Use the frequency of the corresponding target
+        String glycanHash = Glycan.toGlycanString(candidate.composition);
         HashMap<String, Integer> emptyMap = new HashMap<>();
-        // count glycans in this delta mass bin and nearby allowed bins
-        for (int isotope : glycoParams.glycoIsotopes) {
-            int massBin = (int) Math.floor(deltaMass + isotope);
-            HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
-            if (!glycanCountMap.isEmpty()) {
-                // count instances of glycan 1, glycan 2, and all glycans
-                glyc1Count = glyc1Count + glycanCountMap.getOrDefault(glycan1.toString(), 0);
-                for (int glycanCount : glycanCountMap.values()) {
-                    totalGlycCountInBin += glycanCount;
+        int massBin = (int) Math.floor(deltaMass);
+        HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
+        if (!glycanCountMap.isEmpty()) {
+            // count instances of glycan 1, glycan 2, and all glycans
+            candidateCount = candidateCount + glycanCountMap.getOrDefault(glycanHash, 0);
+            for (int glycanCount : glycanCountMap.values()) {
+                if (glycanCount > maxFrequency) {
+                    maxFrequency = glycanCount; // save the max frequency of any glycan in this bin
                 }
             }
         }
-
-        double propGlycan1 = glyc1Count / (double) totalGlycCountInBin;
-        double propScore = (1 - minGlycProp) * propGlycan1 + minGlycProp;       // normalize to between minGlycProp and 1.0
-        return propScore;
+        if (maxFrequency == 0) {
+            return 0.0;     // no glycans passed FDR in this bin (in 1st pass), return 0
+        }
+        return candidateCount / (double) maxFrequency;
     }
 
     public double pairwiseCompareDynamic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double deltaMass, double pepMass, Spectrum spec) {
@@ -991,7 +993,9 @@ public class GlycoAnalysis {
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
             candidate.ms1Score = calculateMS1score(candidate, spec, result.pepMass);
         }
-
+        if (!isFirstPass) {
+            candidate.frequencyPrior = computeGlycanFrequencyScore(candidate, result.deltaMass);
+        }
         generateScores(candidate);
     }
 
@@ -1491,6 +1495,12 @@ public class GlycoAnalysis {
                 case iso: // Isotope score
                     features.add(candidate.isotopeScore);
                     sumLogRatio += candidate.isotopeScore;
+                    break;
+                case glycanfreq:
+                    if (!isFirstPass) {     // frequency can only be computed in the second pass
+                        features.add(candidate.frequencyPrior);
+                        sumLogRatio += candidate.frequencyPrior;
+                    }
                     break;
             }
         }

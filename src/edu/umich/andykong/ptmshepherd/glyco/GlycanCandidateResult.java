@@ -24,6 +24,7 @@ public class GlycanCandidateResult extends GlycanCandidate {
     double isotopeScore;
     double YproportionScore;
     double ms1Score;
+    double frequencyPrior;
     double[] featureVec;
 
     // initialize with the base Candidate and add scores as they are computed
