@@ -858,9 +858,7 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Y ions
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore) ||
-                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ycount) ||
-                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yhyper))
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore))
         {
             if (glycoParams.glycoYnorm) {
                 sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
@@ -1065,9 +1063,7 @@ public class GlycoAnalysis {
     public double pairwiseCompareStatic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double deltaMass, double meanMassError, double pepMass, Spectrum spec) {
         double sumLogRatio = 0;
         // Y ions
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore) ||
-                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ycount) ||
-                glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yhyper)) {
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
             sumLogRatio += pairwiseCompareYstatic(glycan1, glycan2, glycoParams.glycoYnorm);
         }
 

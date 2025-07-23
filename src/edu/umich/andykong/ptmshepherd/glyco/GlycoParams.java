@@ -472,8 +472,6 @@ public class GlycoParams {
         oxo,
         mass,
         iso,
-        ycount,
-        yhyper
         mass2nd,
         iso2nd,
     }
