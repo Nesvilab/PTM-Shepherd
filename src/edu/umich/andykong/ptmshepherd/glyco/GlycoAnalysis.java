@@ -47,10 +47,8 @@ public class GlycoAnalysis {
     int condPeaks;
     double condRatio;
     ArrayList<GlycanCandidate> glycanDatabase;
-    double meanMassError;
+    Double meanMassError;
     double massErrorWidth;
-    public static final int NUM_ADDED_GLYCO_PSM_COLUMNS = 3;
-    public static final int NUM_ADDED_RAWGLYCO_COLUMNS = 5;
     public static final double DEFAULT_GLYCO_PPM_TOL = 30;
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
@@ -63,13 +61,15 @@ public class GlycoAnalysis {
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
     private final GlycoParams glycoParams;
-    private final ArrayList<GlycanAssignmentResult> allResults;   // all results from glycoPSMs, used for LDA
-    private String ldaHeader;
+    public final ArrayList<GlycanAssignmentResult> allResults;
+    private final String ldaHeader;
     private static IonQuantAPI api;
+    private final boolean isFirstPass;
 
     // Default constructor
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams, boolean isFirstPass) {
         this.dsName = dsName;
+        this.isFirstPass = isFirstPass;
         String firstPassName = isFirstPass ? PTMShepherd.rawGlycoFirstPass : "";
         this.glycoFile = new File(PTMShepherd.normFName(dsName + firstPassName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
@@ -114,7 +114,9 @@ public class GlycoAnalysis {
                 long t2 = System.currentTimeMillis();
                 ArrayList<Integer> clines = mappings.get(mzFileName); //lines corr to curr spec file
 
-                getMassErrorWidth(psmFile, clines);
+                if (meanMassError == null) {
+                    getMassErrorsFirstPass(psmFile, clines);
+                }
 
                 /* set up parallelization blocks */
                 final int BLOCKSIZE = 100; //number of scans to be parsed per thread (to cut down on thread creation overhead)
@@ -551,7 +553,7 @@ public class GlycoAnalysis {
      * @param psmFile PSM file to analyze
      * @param clines  line numbers in the PSM file?
      */
-    public void getMassErrorWidth(PSMFile psmFile, ArrayList<Integer> clines) {
+    public void getMassErrorsFirstPass(PSMFile psmFile, ArrayList<Integer> clines) {
         ArrayList<Double> massErrors = new ArrayList<>();
 
         // Get mass errors for PSMs with delta mass in exclusion range (-1.5 to 3.5)
@@ -573,11 +575,49 @@ public class GlycoAnalysis {
             }
         }
 
+        computeMassErrorsHelper(massErrors, maxError, minError);
+    }
+
+
+    /**
+     * Calculate the mass and isotope error distributions for PSMs from the first pass of glycan assignment.
+     * @param results results from 1st pass
+     */
+    public void getMassErrorsSecondPass(ArrayList<GlycanAssignmentResult> results) {
+        ArrayList<Double> massErrors = new ArrayList<>();
+        HashMap<Integer, Integer> isotopeCounts = new HashMap<>();
+        double minError = 10;
+        double maxError = -10;
+
+        for (GlycanAssignmentResult result : results) {
+            // only use target glyco PSMs that passed FDR
+            if (result.foundGlycan && !result.isDecoyGlycan && result.glycanQval < glycoParams.glycoFDR) {
+                // result.deltaMass is the PSM delta mass. Subtract the best candidate mass and isotope to get the final mass error
+                double massError = result.deltaMass - result.bestCandidate.mass - result.bestCandidate.isotope * AAMasses.averagineIsotopeMass;
+                massErrors.add(massError);
+                if (massError > maxError) {
+                    maxError = massError;
+                }
+                if (massError < minError) {
+                    minError = massError;
+                }
+                isotopeCounts.put(result.bestCandidate.isotope, isotopeCounts.getOrDefault(result.bestCandidate.isotope, 0) + 1); // count the number of PSMs for each isotope
+            }
+        }
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass2nd)) {
+            computeMassErrorsHelper(massErrors, maxError, minError);
+        }
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso2nd)) {
+            glycoParams.updateIsotopesProbsFromFirstPass(isotopeCounts);
+        }
+    }
+
+    private void computeMassErrorsHelper(ArrayList<Double> massErrors, double maxError, double minError) {
         if (massErrors.size() < 200) {
             // not enough unmodified PSMs to compute mass error stats - use defaults
             PTMShepherd.print("\tNot enough unmodified PSMs to determine mass error distribution, using default values");
             massErrorWidth = 0.005;
-            meanMassError = 0;
+            meanMassError = 0.0;
             return;
         }
         // Bin error values into a histogram

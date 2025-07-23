@@ -320,7 +320,7 @@ public class GlycoParams {
                 }
             }
         }
-        if (isotopeProbTable.size() == 0) {
+        if (isotopeProbTable.isEmpty()) {
             // init defaults
             isotopeProbTable.put(-2, 0.125);
             isotopeProbTable.put(-1, 0.25);
@@ -329,6 +329,28 @@ public class GlycoParams {
             isotopeProbTable.put(2, 0.5);
             isotopeProbTable.put(3, 0.25);
             isotopeProbTable.put(4, 0.125);
+        }
+    }
+
+    /**
+     * Update isotope probabilities from the first pass of glycan assignment.
+     * New probability is the proportion of the Results with this isotope, scaled so that the most common
+     * isotope has a probability of 1.0.
+     * @param isotopeCounts map of isotope: count
+     */
+    public void updateIsotopesProbsFromFirstPass(HashMap<Integer, Integer> isotopeCounts) {
+        int maxCount = isotopeCounts.values().stream().max(Integer::compare).orElse(0);
+        // set min prob to the lowest observed prob divided by 2
+        double minProb = ((double) isotopeCounts.values().stream().min(Integer::compare).orElse(0) / maxCount) / 2.0;
+
+        for (Map.Entry<Integer, Double> entry : isotopeProbTable.entrySet()) {
+            int isotope = entry.getKey();
+            if (isotopeCounts.containsKey(isotope)) {
+                double newProb = (double) isotopeCounts.get(isotope) / maxCount;  // normalize to max count
+                isotopeProbTable.put(isotope, newProb);
+            } else {
+                isotopeProbTable.put(isotope, minProb);
+            }
         }
     }
 
@@ -452,5 +474,7 @@ public class GlycoParams {
         iso,
         ycount,
         yhyper
+        mass2nd,
+        iso2nd,
     }
 }
