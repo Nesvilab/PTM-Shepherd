@@ -703,7 +703,7 @@ public class GlycoAnalysis {
                     // save oxonium ion intensity relative to base peak
                     oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
-                candidate.YproportionScore = spectrumYIntensity == 0 ? 0 : foundYIntensity / spectrumYIntensity;    // proportion of possible Y ions in the spectrum matched to the candidate
+                candidate.YproportionScore = spectrumYIntensity == 0 ? 0 : (foundYIntensity * 100) / spectrumYIntensity;    // proportion of possible Y ions in the spectrum matched to the candidate
             }
 
             // score candidates and save results
