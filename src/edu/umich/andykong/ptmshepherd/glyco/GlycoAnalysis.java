@@ -722,6 +722,11 @@ public class GlycoAnalysis {
                     comparisonScore = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError, glycoResult.pepMass, spec);
                 }
 
+                if (comparisonScore == 0) {
+                    // exact same score (e.g., from target/decoy if no Y/oxo ions found and using decoy mass = target mass)
+                    // Use a random tiebreaker to avoid bias from always picking the target
+                    comparisonScore += (glycoParams.randomGenerator.nextDouble() - 0.5) * 1E-6; // random yields a value between 0-1, so subtracting 0.5 gives (approx) equal chance of being positive or negative
+                }
                 if (comparisonScore < 0) {
                     // new best candidate - reset best candidate position and update scores at all other positions
                     bestCandidateIndex = i;
@@ -737,6 +742,14 @@ public class GlycoAnalysis {
                     scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, glycoResult.pepMass, spec);
                 } else {
                     scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError, glycoResult.pepMass, spec);
+                }
+                if (scoresVsBestCandidate[i] == 0) {
+                    // this was from a tiebreak that was already chosen as not the best candidate, so set to a small positive value for sorting (since sort is done ascending)
+                    scoresVsBestCandidate[i] = 1E-6;
+                }
+                if (scoresVsBestCandidate[i] < 0) {
+                    // after direct comparison, this candidate is now better than the best candidate. But setting this as best and going back would cause an infinite loop, leave the original best candidate in place.
+                    scoresVsBestCandidate[i] = 1E-5;
                 }
             }
             scoresVsBestCandidate[bestCandidateIndex] = 0;
