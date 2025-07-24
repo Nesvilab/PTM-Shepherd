@@ -25,7 +25,6 @@ import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import ionquant.api.Entry;
 import ionquant.api.IonQuantAPI;
-import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import umich.ms.glyco.Glycan;
@@ -740,6 +739,7 @@ public class GlycoAnalysis {
                     scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError, glycoResult.pepMass, spec);
                 }
             }
+            scoresVsBestCandidate[bestCandidateIndex] = 0;
 
             int[] sortedIndicesOfBestScores = new int[scoresVsBestCandidate.length];
             double previousBest = -1000;
@@ -763,8 +763,11 @@ public class GlycoAnalysis {
             } else {
                 computeAbsoluteScore(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
             }
+            // save candidates to the result (in descending order of scores)
             glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
-            glycoResult.allCandidates.add(glycoResult.bestCandidate);
+            for (int index : sortedIndicesOfBestScores) {
+                glycoResult.allCandidates.add(searchCandidates.get(index));
+            }
             glycoResult.summedScore = glycoResult.bestCandidate.summedScore;
             glycoResult.glycanScore = glycoResult.bestCandidate.summedScore;    // overwritten later if using LDA
             glycoResult.foundGlycan = true;
@@ -772,7 +775,7 @@ public class GlycoAnalysis {
             // if top glycan is a decoy, also write best target and best target score to subsequent columns
             boolean bestWasTarget = !searchCandidates.get(bestCandidateIndex).isDecoy;
             glycoResult.isDecoyGlycan = !bestWasTarget;
-            getNextGlycanScore(spec, bestWasTarget, glycoResult, massErrorWidth, meanMassError, searchCandidates, sortedIndicesOfBestScores);
+            getNextGlycanScores(spec, bestWasTarget, glycoResult, massErrorWidth, meanMassError);
         }
 
         return glycoResult;
@@ -785,10 +788,8 @@ public class GlycoAnalysis {
      * @param glycoResult
      * @param massErrorWidth
      * @param meanMassError
-     * @param searchCandidates
-     * @param sortedIndicesOfBestScores
      */
-    private void getNextGlycanScore(Spectrum spec, boolean bestWasTarget, GlycanAssignmentResult glycoResult, double massErrorWidth, double meanMassError, ArrayList<GlycanCandidateResult> searchCandidates, int[] sortedIndicesOfBestScores) {
+    private void getNextGlycanScores(Spectrum spec, boolean bestWasTarget, GlycanAssignmentResult glycoResult, double massErrorWidth, double meanMassError) {
         if (bestWasTarget) {
             glycoResult.bestTarget = glycoResult.bestCandidate;
         } else {
@@ -796,9 +797,9 @@ public class GlycoAnalysis {
         }
 
         boolean foundNext = false;
-        for (int bestIndex : sortedIndicesOfBestScores) {
-            GlycanCandidateResult nextCandidate = searchCandidates.get(bestIndex);
-            glycoResult.allCandidates.add(nextCandidate);
+        // compute scores for all candidates (except the best, since it was already computed)
+        for (int i = 1; i < glycoResult.allCandidates.size(); i++) {
+            GlycanCandidateResult nextCandidate = glycoResult.allCandidates.get(i);
             if (useFragmentSpecificProbs) {
                 computeAbsoluteScoreDynamic(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError);
             } else {
