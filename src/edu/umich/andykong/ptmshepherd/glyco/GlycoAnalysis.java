@@ -354,12 +354,15 @@ public class GlycoAnalysis {
 
         // Compute FDR
         PTMShepherd.print("Calculating Glycan FDR");
+        boolean fdrSuccess = false;
         if (glycoParams.useNonCompFDR) {
-            computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
+            fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
         } else {
             boolean firstFDRsuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR);
             if (!firstFDRsuccess) {
-                computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
+                fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
+            } else {
+                fdrSuccess = true;
             }
         }
 
@@ -381,6 +384,9 @@ public class GlycoAnalysis {
             glycoOut2.close();
         } catch (IOException e) {
             PTMShepherd.die("Error writing to glyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
+        }
+        if (!fdrSuccess) {
+            PTMShepherd.die("Stopping after failed glycan FDR estimation.");
         }
     }
 
@@ -446,7 +452,7 @@ public class GlycoAnalysis {
      * @param glycoFDR Maximum acceptable FDR
      * @param results List of GlycanAssignmentResults containing target and decoy scores
      */
-    public static void computeFDRNonCompetitive(List<GlycanAssignmentResult> results, double glycoFDR) {
+    public static boolean computeFDRNonCompetitive(List<GlycanAssignmentResult> results, double glycoFDR) {
         HashMap<String, GlycanAssignmentResult> resultMap = new HashMap<>();
 
         ArrayList<GlycoScore> scoreDistribution = new ArrayList<>();
@@ -517,6 +523,13 @@ public class GlycoAnalysis {
                 }
             }
         }
+        if (!foundScoreThresh) {
+            // could not reach threshold at all - stop the analysis
+            PTMShepherd.print("Could not reach glycan FDR threshold of " + glycoFDR * 100 + "% (insufficient target/decoy separation). " +
+                    "Please check the search parameters and/or try a different glycan database.");
+            return false;
+        }
+        return true;
     }
 
     /**
