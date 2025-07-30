@@ -449,9 +449,13 @@ public class GlycoParams {
     public static ArrayList<LDAFeature> parseLDAfeatures(String featuresStr) {
         ArrayList<LDAFeature> features = new ArrayList<>();
         if (featuresStr.isEmpty()) {
-            // use all features if not specified
-            return Arrays.stream(LDAFeature.values())
-                    .collect(Collectors.toCollection(ArrayList::new));
+            // use default (original) set of features
+            PTMShepherd.print("No score features specified, using default set.");
+            features.add(LDAFeature.yscore);
+            features.add(LDAFeature.oxo);
+            features.add(LDAFeature.mass);
+            features.add(LDAFeature.iso);
+            return features;
         }
         String[] featureSplits = featuresStr.split("[,\\s;/]+");
         for (String str : featureSplits) {
