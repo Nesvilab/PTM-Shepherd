@@ -351,12 +351,12 @@ public class PSMFile {
 						glycanQval = "";
 					} else {
 						// report best target glycan instead of decoy (q-value will be reported as 1)
-						assignedGlycan = result.bestTarget.toPSMString();
+						assignedGlycan = result.bestTarget.toString();
 						glycanScore = String.format("%.4f", result.bestTarget.glycanScore);
 						glycanQval = "1";
 					}
 				} else {
-					assignedGlycan = result.bestCandidate.toPSMString();
+					assignedGlycan = result.bestCandidate.toString();
 				}
 				// save glycan info directly or to the lists to add columns to the PSM table later
 				if (!hasPreviousGlycoInfo) {
