@@ -30,7 +30,7 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_9
 }
 
-version = '3.0.3'
+version = '3.0.4'
 
 application {
     // Define the main class for the application
