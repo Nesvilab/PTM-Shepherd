@@ -111,6 +111,7 @@ public class PTMShepherd {
 	public static final String diagMineName = ".diagmine.tsv";
 	public static final String diagIonsExtractName = ".diagnosticIons.tsv";
 	public static final String glycoMassListName = "glyco_masses_list.txt";
+    public static final String glycoDBname = "glycan_database.tsv";
 
 
 	public static String getParam(String key) {
@@ -557,6 +558,7 @@ public class PTMShepherd {
 		GlycoParams glycoParams = parseGlycoParams();
 		String glycoMassFilePath = normFName(glycoMassListName);
 		GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
+//        glycoParams.printGlycanDatabase(normFName(glycoDBname));
 
 		// Glyco: first pass
 		TreeMap<String, GlycoAnalysis> glycoAnalysisMap = new TreeMap<>();
@@ -590,6 +592,7 @@ public class PTMShepherd {
 				PTMShepherd.print("Assigning glycans: second pass");
 				HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
 				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
+//                glycoParams.printGlycanDatabase(normFName(glycoDBname.split("\\.")[0] + "_2nd.tsv"));
 
 				// run glyco PSM-level analysis with the new database
 				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams, false);

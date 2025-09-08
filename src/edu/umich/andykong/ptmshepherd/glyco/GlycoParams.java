@@ -247,6 +247,34 @@ public class GlycoParams {
         return newGlycoDB;
     }
 
+    // Print glycan database (including decoys and associated mass shifts) to file
+    public void printGlycanDatabase(String outputPath) {
+        try {
+            PrintWriter out = new PrintWriter(new FileWriter(outputPath));
+            out.write("Composition\tMass\tIs Decoy\tDecoy Shift (Da)\tFragment Ions\n");
+            for (GlycanCandidate candidate : glycoDatabase) {
+                StringBuilder sb = new StringBuilder();
+                sb.append(Glycan.toGlycanString(candidate.composition)).append("\t");
+                sb.append(candidate.mass).append("\t");
+                sb.append(candidate.isDecoy).append("\t");
+                sb.append(candidate.decoyMassShift).append("\t");
+                for (GlycanFragment ion : candidate.Yfragments.values()) {
+                    sb.append(String.format("\tY~%s", ion));      // format is [ion type] [ion comp] [found intensity]
+                }
+                // oxonium ions
+                for (GlycanFragment ion : candidate.oxoniumFragments.values()) {
+                    sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
+                }
+                sb.append("\n");
+                out.write(sb.toString());
+            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            PTMShepherd.die("Could not write glycan database to file " + outputPath + "\ndue to error: " + e.getMessage());
+        }
+    }
+
 
     /**
      * Parse isotopes parameter of format 'min,max' into Integer[] to pass to glyco analysis
