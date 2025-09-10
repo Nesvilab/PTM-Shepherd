@@ -948,8 +948,9 @@ public class GlycoAnalysis {
                 unique2count++;
             }
         }
-        sumLogRatio += unique1score / Math.sqrt(unique1count) - unique2score / Math.sqrt(unique2count);
-        double testOld = sumLogRatio + unique1score - unique2score;
+        double normScore1 = unique1count > 0 ? unique1score / Math.sqrt(unique1count) : 0;  // avoid divide by 0 if no unique fragments
+        double normScore2 = unique2count > 0 ? unique2score / Math.sqrt(unique2count) : 0;
+        sumLogRatio += (normScore1 - normScore2);
         return sumLogRatio;
     }
 
