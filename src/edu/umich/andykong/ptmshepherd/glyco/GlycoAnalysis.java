@@ -443,6 +443,12 @@ public class GlycoAnalysis {
             }
             result.glycanQval = result.isDecoyGlycan ? 1.0 : fdr;
         }
+        if (!foundThreshold) {
+            // could not reach threshold at all - stop the analysis
+            PTMShepherd.print("Could not reach glycan FDR threshold of " + fdrCutOff * 100 + "% (insufficient target/decoy separation). " +
+                    "Please check the search parameters and/or try a different glycan database.");
+            return false;
+        }
         return true;
     }
 
