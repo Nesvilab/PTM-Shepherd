@@ -1317,6 +1317,7 @@ public class PTMShepherd {
 		glycoParams.useNonCompFDR = !getParam("use_noncomp_glycan_fdr").isEmpty() && Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default false
 		glycoParams.defaultProp = getParam("glyco_default_propensity").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
 		glycoParams.ldaFeaturesToUse = GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
+        glycoParams.ldaTargetProp = getParam("glyco_lda_target_proportion").isEmpty() ? 0.5 : Double.parseDouble(getParam("glyco_lda_target_proportion"));
 
 		return glycoParams;
 	}

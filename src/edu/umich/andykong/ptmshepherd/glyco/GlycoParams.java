@@ -60,6 +60,7 @@ public class GlycoParams {
     public int minScansIonQuant = 1;
     public boolean isIMdata = false;
     public ArrayList<LDAFeature> ldaFeaturesToUse;
+    public double ldaTargetProp;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

@@ -42,7 +42,10 @@ public class ScoreLDA {
      * specified false discovery rate (FDR).
      *
      */
-    public void runLDA(ArrayList<GlycanAssignmentResult> results, String ldaHeader) {
+    public void runLDA(ArrayList<GlycanAssignmentResult> results, String ldaHeader, double targetProp) {
+        // filter target data prior to training the LDA since not all targets are true hits
+        filterTargetData(targetProp);
+
         // Calculate mean vectors for target and decoy datasets
         double[] decoyMean = calculateMean(decoyData);
         double[] targetMean = calculateMean(targetData);
@@ -84,6 +87,36 @@ public class ScoreLDA {
                 result.glycanScore = result.bestCandidate.ldaScore;
             }
         }
+    }
+
+    /**
+     * Filter the target data since not all targets are True values (should be bimodal distribution).
+     * Simple filter to start: take top half of target data as true to train the LDA
+     * since there is no LDA score yet, use sum of feature scores to get the "top half"
+     */
+    private void filterTargetData(double targetProp) {
+        // Calculate the sum of feature scores for each data point
+        Map<Integer, Double> scoredIndices = new HashMap<>();
+        for (int i = 0; i < targetData.size(); i++) {
+            double sum = Arrays.stream(targetData.get(i)).sum();
+            scoredIndices.put(i, sum);
+        }
+
+        // Sort the data points based on the sum of their feature scores
+        List<Map.Entry<Integer, Double>> sortedEntries = new ArrayList<>(scoredIndices.entrySet());
+        sortedEntries.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
+
+        // Determine the cutoff index for the top half
+        int cutoff = (int) Math.ceil(targetData.size() * targetProp);
+
+        // Create a new list to hold the filtered target data
+        List<double[]> filteredTargetData = new ArrayList<>();
+        for (int i = 0; i < cutoff && i < sortedEntries.size(); i++) {
+            filteredTargetData.add(targetData.get(sortedEntries.get(i).getKey()));
+        }
+
+        // Replace the original targetData with the filtered data
+        targetData = filteredTargetData;
     }
 
 

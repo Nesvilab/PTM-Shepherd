@@ -349,7 +349,7 @@ public class GlycoAnalysis {
                     }
                 }
             }
-            lda.runLDA(allResults, ldaHeader);
+            lda.runLDA(allResults, ldaHeader, glycoParams.ldaTargetProp);
         }
 
         // Compute FDR
