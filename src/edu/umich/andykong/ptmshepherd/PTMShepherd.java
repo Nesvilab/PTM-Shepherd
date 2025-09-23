@@ -77,15 +77,16 @@ public class PTMShepherd {
 	public static final String name = "PTM-Shepherd";
  	public static final String version = "3.0.4";
 
-	static HashMap<String,String> params;
-	static TreeMap<String,ArrayList<String []>> datasets;
-	static HashMap<String, ArrayList<PSMFile>> psmFiles;
-	static HashMap<String,HashMap<String,File>> mzMap;
-	static HashMap<String, HashMap<String, File>> originalMzMap;
-	static HashMap<String,Integer> datasetMS2;
-	static ArrayList<String> cacheFiles;
-	private static String outputPath;
+	public static HashMap<String,String> params;
+    public static TreeMap<String,ArrayList<String []>> datasets;
+    public static HashMap<String, ArrayList<PSMFile>> psmFiles;
+    public static HashMap<String,HashMap<String,File>> mzMap;
+    public static HashMap<String, HashMap<String, File>> originalMzMap;
+    public static HashMap<String,Integer> datasetMS2;
+    public static ArrayList<String> cacheFiles;
+    public static String outputPath;
 	public static ExecutorService executorService;
+    public static GlycoParams glycoParams;
 	private static final long glycoRandomSeed = 1364955171;
 
 	// filenames for output files
@@ -153,14 +154,8 @@ public class PTMShepherd {
 				String key = cline.substring(0, cline.indexOf("=")).trim();
 				String value = cline.substring(cline.indexOf("=") + 1).trim();
 				if (key.equals("dataset")) {
-					StringTokenizer st = new StringTokenizer(value);
-					String dsName = st.nextToken();
-					String tsvTxt = st.nextToken();
-					String mzPath = st.nextToken();
-					if (!datasets.containsKey(dsName))
-						datasets.put(dsName, new ArrayList<>());
-					datasets.get(dsName).add(new String[]{tsvTxt, mzPath});
-				} else {
+                    datasets = parseDatasetParam(value, datasets);
+                } else {
 					params.put(key, value.trim());
 				}
 			}
@@ -174,7 +169,19 @@ public class PTMShepherd {
 		}
 	}
 
-	public static void init(String [] args) {
+    private static TreeMap<String,ArrayList<String []>> parseDatasetParam(String value, TreeMap<String,ArrayList<String []>> datasets) {
+        StringTokenizer st = new StringTokenizer(value);
+        String dsName = st.nextToken();
+        String tsvTxt = st.nextToken();
+        String mzPath = st.nextToken();
+        if (!datasets.containsKey(dsName)) {
+            datasets.put(dsName, new ArrayList<>());
+        }
+        datasets.get(dsName).add(new String[]{tsvTxt, mzPath});
+        return datasets;
+    }
+
+    public static void init(String [] args) {
 		if (args.length == 1) {
 			if (args[0].equals("--config")) {
 				printConfigFiles();
@@ -554,10 +561,10 @@ public class PTMShepherd {
 		}
 	}
 
-	private static void runGlycanAssignment() {
+	public static void runGlycanAssignment() {
 		System.out.println("Beginning glycan assignment");
 		boolean alreadyPrintedParams = false;
-		GlycoParams glycoParams = parseGlycoParams();
+		glycoParams = parseGlycoParams();
 		String glycoMassFilePath = normFName(glycoMassListName);
 		GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
 //        glycoParams.printGlycanDatabase(normFName(glycoDBname));
@@ -941,7 +948,7 @@ public class PTMShepherd {
 		}
 	}
 
-	private static void deletePreviousFiles() {
+	public static void deletePreviousFiles() {
 		//After knowing where all files should be, remove ones from old runs
 		if(!Boolean.parseBoolean(params.get("run_from_old"))) {
 			List<String> filesToDelete = Arrays.asList(peaksName,
@@ -1022,7 +1029,7 @@ public class PTMShepherd {
 		}
 	}
 
-	private static void getMzDataMapping() {
+	public static void getMzDataMapping() {
 		cacheFiles = new ArrayList<>();
 
 		// Get true paths to mzData
@@ -1080,7 +1087,7 @@ public class PTMShepherd {
 	}
 
 	// Rewrite mzData to MZBIN files
-	private static void rewriteDataToMzBin() {
+	public static void rewriteDataToMzBin() {
 		for(String ds : datasets.keySet()) {
 			for (PSMFile pf: psmFiles.get(ds)) {
 				PTMShepherd.print("\tCaching data from " + ds);
@@ -1293,7 +1300,7 @@ public class PTMShepherd {
 		String glycanResidueDB = getParam("glyco_residue_list");
 		String glycanModDB = getParam("glyco_mod_list");
 		String glycoOxoDB = getParam("glyco_oxonium_list");
-		GlycoParams glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
+		glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
 		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
 
 		// parse glyco parameters and initialize database and ratio tables
@@ -1328,7 +1335,7 @@ public class PTMShepherd {
 			glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseFile(glycanDB);
 		} else {
 			// default method - glycans passed as string parameter
-			glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseString(glycanDB);
+            glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseString(glycanDB);
 		}
 		glycoParams.glycoYnorm = getParam("norm_Ys").isEmpty() || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
 		glycoParams.absScoreErrorParam = getParam("glyco_abs_score_base").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_ABS_SCORE_BASE : Double.parseDouble(getParam("glyco_abs_score_base"));
