@@ -64,6 +64,8 @@ import java.util.StringTokenizer;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
@@ -614,7 +616,7 @@ public class PTMShepherd {
 		/* Save best glycan information from glyco report to psm tables */
 		for (String ds : datasets.keySet()) {
 			for (PSMFile pf: psmFiles.get(ds)) {
-				pf.mergeGlycoTable(glycoParams);
+				pf.mergeGlycoTable(ds, glycoParams);
 			}
 		}
 
@@ -979,9 +981,15 @@ public class PTMShepherd {
 	/**
 	 * Load all PSM tables into memory for rapid access by all subsequent functions.
 	 */
-	private static void loadPSMFiles() {
+	public static void loadPSMFiles() {
 		psmFiles = new HashMap<>();
-		for(String ds : datasets.keySet()) {
+        HashMap<String, String> previousPsmFiles = getUnfilteredPsmFiles();
+        for(String ds : datasets.keySet()) {
+            // check for previous unfiltered psm.tsv files in the output directory and use if present
+            if (previousPsmFiles.containsKey(ds)) {
+                datasets.get(ds).set(0, new String[]{previousPsmFiles.get(ds), datasets.get(ds).get(0)[1]});
+            }
+
 			ArrayList<PSMFile> datasetPSMFiles = new ArrayList<>();
 			for (String[] dsData : datasets.get(ds)) {
 				PSMFile pf = new PSMFile(new File(dsData[0]), Integer.parseInt(getParam("msfragger_massdiff_to_varmod")));
@@ -1153,6 +1161,25 @@ public class PTMShepherd {
 			die(ex.getMessage());
 		}
 	}
+
+    public static HashMap<String, String> getUnfilteredPsmFiles() {
+        HashMap<String, String> result = new HashMap<>();
+        File outDir = new File(Paths.get(outputPath, outputDirName).toString());
+        if (!outDir.exists() || !outDir.isDirectory()) {
+            return result;
+        }
+        Pattern pattern = Pattern.compile("^(.+)_unfiltered_psm\\.tsv$");
+        for (File file : outDir.listFiles()) {
+            if (file.isFile()) {
+                Matcher matcher = pattern.matcher(file.getName());
+                if (matcher.matches()) {
+                    String dataset = matcher.group(1);
+                    result.put(dataset, file.getAbsolutePath());
+                }
+            }
+        }
+        return result;
+    }
 
 	/* This method adds the output directory path to file strings */
 	public static String normFName(String fpath) {

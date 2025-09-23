@@ -32,13 +32,15 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.zip.CRC32;
 
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.normFName;
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 public class PSMFile {
 
-	String [] headers;
+	public String [] headers;
 	public ArrayList<PSM> psms;
-	public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol,
+    public ArrayList<PSM> glycoRemovedPsms;
+    public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol,
 			calcMZcol, peptideCalcMassCol, chargeCol, intensityCol, specCol, msfraggerLocalizationCol, positionScoresCol,
 			bestPositionsCol, ionsBestPosCol, scoreBestPositionCol, scoreAllUnshiftedCol, ionsAllUnshiftedCol,
 			eValCol, retentionCol, glycanCompCol, glycanScoreCol, glycanQvalCol;
@@ -326,9 +328,9 @@ public class PSMFile {
 
 	/* Merges the rawglyco table onto the existing psm.tsv
 	 */
-	public void mergeGlycoTable(GlycoParams glycoParams) {
-		String tempFoutName = this.fname + ".glyco.tmp";
+	public void mergeGlycoTable(String datasetName, GlycoParams glycoParams) {
 		boolean hasPreviousGlycoInfo = hasGlycanAssignmentsWritten();
+        ArrayList<PSM> filteredPSMs = new ArrayList<>();
 
 		/* Match glycolines on PSM spectrum keys */
 		ArrayList<String> psmKeys = new ArrayList<>();
@@ -368,11 +370,18 @@ public class PSMFile {
 					psm.spLine.set(glycanScoreCol, glycanScore);
 					psm.spLine.set(glycanQvalCol, glycanQval);
 				}
-				// update assigned mods column
-				if (glycoParams.writeGlycansToAssignedMods) {
-					boolean failOrDecoy = result.isDecoyGlycan || result.glycanQval >= glycoParams.glycoFDR;
-					writeGlycanToAssignedMod(psm, assignedGlycan, failOrDecoy, glycoParams);
-				}
+                // update assigned mods column
+                boolean failOrDecoy = result.isDecoyGlycan || result.glycanQval >= glycoParams.glycoFDR;
+                if (glycoParams.writeGlycansToAssignedMods) {
+                    writeGlycanToAssignedMod(psm, assignedGlycan, failOrDecoy, glycoParams);
+                }
+
+                // keep glyco PSMs that pass FDR only
+                if (!failOrDecoy) {
+                    filteredPSMs.add(psm);
+                } else {
+                    glycoRemovedPsms.add(psm);
+                }
 
 			} else {
 				// no glycan found for this spectrum
@@ -385,6 +394,7 @@ public class PSMFile {
 					psm.spLine.set(glycanScoreCol, "");
 					psm.spLine.set(glycanQvalCol, "");
 				}
+                filteredPSMs.add(psm);  // keep non-glyco PSMs
 			}
 		}
 
@@ -395,7 +405,18 @@ public class PSMFile {
 			addColumn(observedModCol + 1, "Total Glycan Composition", psmKeys, glycanComps);
 		}
 
-		save(true);
+        // save unfiltered PSMs to separate file if glyco FDR filtering is being applied
+        if (filteredPSMs.size() != psms.size()) {
+            File unfilteredPsmFile = new File(normFName(datasetName + "_unfiltered_psm.tsv"));
+            save(unfilteredPsmFile, headers, psms, true);
+        }
+		save(fname, headers, filteredPSMs, true);
+
+        try {
+            assert psms.size() == filteredPSMs.size() + glycoRemovedPsms.size();
+        } catch (AssertionError e) {
+            PTMShepherd.die(String.format("Error: Mismatch in PSM counts after glyco FDR filtering: %d removed, %d filtered, %d total. Please report this issue to the developers.", glycoRemovedPsms.size(), filteredPSMs.size(), psms.size()));
+        }
 	}
 
 	/**
@@ -556,6 +577,7 @@ public class PSMFile {
 	 */
 	public PSMFile(File f, int massdiffToVarmod) {
 		psms = new ArrayList<>();
+        glycoRemovedPsms = new ArrayList<>();
 		scanToLineMap = new HashMap<>();
 
 		try {
@@ -736,7 +758,7 @@ public class PSMFile {
 		return values;
 	}
 
-	public void save(boolean overwrite) {
+	public static void save(File fname, String[] headers, ArrayList<PSM> psms, boolean overwrite) {
 		String tempFoutName = fname + ".tmp";
 		try {
 			PrintWriter out = new PrintWriter(new FileWriter(tempFoutName));

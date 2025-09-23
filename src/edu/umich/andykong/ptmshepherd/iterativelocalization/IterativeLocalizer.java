@@ -426,7 +426,7 @@ public class IterativeLocalizer {
                         psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Localization", specNames, strMaxProbs);
                         psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Localization", specNames, strOutputProbs);
 
-                        psmf.save(true); // Do not overwrite
+                        PSMFile.save(psmf.fname, psmf.headers, psmf.psms, true); // Do not overwrite
                         complete = true;
                     }
                 }
@@ -855,7 +855,7 @@ public class IterativeLocalizer {
                 psmf.addColumn(psmf.getColumn("delta_mass_entropy") + 1, "delta_mass_entropy_decoyAA_q",
                         specNames, entropyDecoyModelVals);
                  **/
-                psmf.save(true); // add columns
+                PSMFile.save(psmf.fname, psmf.headers, psmf.psms, true); // Do not overwrite
             }
         }
 
