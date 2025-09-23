@@ -1183,7 +1183,7 @@ public class PTMShepherd {
 
 	/* This method adds the output directory path to file strings */
 	public static String normFName(String fpath) {
-		return outputPath + outputDirName + fpath;
+		return Paths.get(outputPath, outputDirName, fpath).toString();
 	}
 
 	/* This method will move main files out of subdirectory and into main directory */
@@ -1215,7 +1215,7 @@ public class PTMShepherd {
 				if (!dir.exists())
 					dir.mkdirs();
 
-				File eoDir = new File(dpath + outputDirName);
+				File eoDir = new File(Paths.get(dpath, outputDirName).toString());
 				if (!eoDir.exists())
 					eoDir.mkdirs();
 
