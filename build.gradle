@@ -73,8 +73,6 @@ dependencies {
     implementation 'org.apache.commons:commons-lang3:3.0'
 //    implementation name: 'msftbx'
 
-    implementation 'junit:junit:4.13.1'
-
     // testing
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.4.2'
