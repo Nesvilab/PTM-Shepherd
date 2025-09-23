@@ -1,0 +1,6 @@
+peak_apex	peak_lower	peak_upper	PSMs	peak_signal	percent_also_in_unmodified	mapped_mass_1	mapped_mass_2	similarity	rt_shift	int_log2fc	localized_PSMs	n-term_localization_rate	AA1	AA1_enrichment_score	AA1_psm_count	AA2	AA2_enrichment_score	AA2_psm_count	AA3	AA3_enrichment_score	AA3_psm_count	exp1_PSMs	exp2_PSMs	exp1_percent_PSMs	exp2_percent_PSMs	exp1_peptides	exp2_peptides	exp1_percent_also_in_unmodified	exp2_percent_also_in_unmodified
+0.00020	-0.01180	0.01220	319	115.77	100.00			0.893	-0.2	NaN	22											170	149	52.795	77.202	62	31	100.00	100.00	
+2205.76920	2205.73955	2205.79885	22	7.28	0.00	Unannotated mass-shift 2205.7692		NaN	NaN	NaN	0											18	4	5.590	2.073	3	1	0.00	0.00	
+2367.82260	2367.79166	2367.85354	17	4.52	0.00	Unannotated mass-shift 2367.8226		NaN	NaN	NaN	0											17	0	5.280	0.000	3	0	0.00	0.00	
+2188.73880	2188.70929	2188.76831	12	3.93	0.00	Unannotated mass-shift 2188.7388		NaN	NaN	NaN	0											10	2	3.106	1.036	1	2	0.00	0.00	
+2350.79500	2350.76419	2350.81140	11	3.44	0.00	Unannotated mass-shift 2350.7950		NaN	NaN	NaN	0											10	1	3.106	0.518	1	1	0.00	0.00	
