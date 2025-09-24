@@ -342,10 +342,11 @@ public class GlycoAnalysis {
             // add PSM results to LDA
             for (GlycanAssignmentResult result: allResults) {
                 if (result.foundGlycan) {
-                    if (result.isDecoyGlycan) {
-                        lda.decoyData.add(result.bestCandidate.featureVec);
-                    } else {
-                        lda.targetData.add(result.bestCandidate.featureVec);
+                    if (result.bestTarget != null) {
+                        lda.targetData.add(result.bestTarget.featureVec);
+                    }
+                    if (result.bestDecoy != null) {
+                        lda.decoyData.add(result.bestDecoy.featureVec);
                     }
                 }
             }
