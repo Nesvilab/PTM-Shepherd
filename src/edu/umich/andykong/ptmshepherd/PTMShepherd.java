@@ -990,19 +990,26 @@ public class PTMShepherd {
 	 */
 	public static void loadPSMFiles() {
 		psmFiles = new HashMap<>();
-        HashMap<String, String> previousPsmFiles = getUnfilteredPsmFiles();
+        HashMap<String, ArrayList<String>> previousPsmFiles = getUnfilteredPsmFiles();
         for(String ds : datasets.keySet()) {
             // check for previous unfiltered psm.tsv files in the output directory and use if present
             if (previousPsmFiles.containsKey(ds)) {
-                datasets.get(ds).set(0, new String[]{previousPsmFiles.get(ds), datasets.get(ds).get(0)[1]});
+                ArrayList<PSMFile> datasetPSMFiles = new ArrayList<>();
+                for (int i = 0; i < previousPsmFiles.get(ds).size(); i++) {
+                    PSMFile pf = new PSMFile(new File(previousPsmFiles.get(ds).get(i)), Integer.parseInt(getParam("msfragger_massdiff_to_varmod")));
+                    pf.fname = new File(datasets.get(ds).get(i)[0]);    // set the fname to the original psm.tsv path for correct referencing
+                    datasetPSMFiles.add(pf);
+                }
+                psmFiles.put(ds, datasetPSMFiles);
+            } else {
+                // unfiltered file not present, use the input psm.tsv as normal
+                ArrayList<PSMFile> datasetPSMFiles = new ArrayList<>();
+                for (String[] dsData : datasets.get(ds)) {
+                    PSMFile pf = new PSMFile(new File(dsData[0]), Integer.parseInt(getParam("msfragger_massdiff_to_varmod")));
+                    datasetPSMFiles.add(pf);
+                }
+                psmFiles.put(ds, datasetPSMFiles);
             }
-
-			ArrayList<PSMFile> datasetPSMFiles = new ArrayList<>();
-			for (String[] dsData : datasets.get(ds)) {
-				PSMFile pf = new PSMFile(new File(dsData[0]), Integer.parseInt(getParam("msfragger_massdiff_to_varmod")));
-				datasetPSMFiles.add(pf);
-			}
-			psmFiles.put(ds, datasetPSMFiles);
 		}
 	}
 
@@ -1169,8 +1176,8 @@ public class PTMShepherd {
 		}
 	}
 
-    public static HashMap<String, String> getUnfilteredPsmFiles() {
-        HashMap<String, String> result = new HashMap<>();
+    public static HashMap<String, ArrayList<String>> getUnfilteredPsmFiles() {
+        HashMap<String, ArrayList<String>> result = new HashMap<>();
         File outDir = new File(Paths.get(outputPath, outputDirName).toString());
         if (!outDir.exists() || !outDir.isDirectory()) {
             return result;
@@ -1181,7 +1188,13 @@ public class PTMShepherd {
                 Matcher matcher = pattern.matcher(file.getName());
                 if (matcher.matches()) {
                     String dataset = matcher.group(1);
-                    result.put(dataset, file.getAbsolutePath());
+                    if (result.containsKey(dataset)) {
+                        result.get(dataset).add(file.getAbsolutePath());
+                    } else {
+                        ArrayList<String> psmPaths = new ArrayList<>();
+                        psmPaths.add(file.getAbsolutePath());
+                        result.put(dataset, psmPaths);
+                    }
                 }
             }
         }

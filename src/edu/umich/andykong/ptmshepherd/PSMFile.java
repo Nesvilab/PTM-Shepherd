@@ -48,7 +48,7 @@ public class PSMFile {
 	public int massdiffToVarmod;
 	private final HashMap<String, Integer> scanToLineMap;
 	public File fname;
-	public static final Pattern massPattern = Pattern.compile("\\(([-.\\d]+)\\)");
+    public static final Pattern massPattern = Pattern.compile("\\(([-.\\d]+)\\)");
 
 
 
