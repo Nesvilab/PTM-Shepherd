@@ -15,6 +15,8 @@ plugins {
     id 'application'
 }
 
+version = '3.0.5'
+
 repositories {
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
@@ -29,8 +31,6 @@ java {
     sourceCompatibility = JavaVersion.VERSION_1_9
     targetCompatibility = JavaVersion.VERSION_1_9
 }
-
-version = '3.0.4'
 
 application {
     // Define the main class for the application
