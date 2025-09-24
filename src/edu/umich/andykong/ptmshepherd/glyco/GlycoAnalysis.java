@@ -28,6 +28,18 @@ import ionquant.api.Entry;
 import ionquant.api.IonQuantAPI;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
+import org.jfree.chart.ChartUtils;
+import org.jfree.chart.JFreeChart;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.statistics.DefaultStatisticalCategoryDataset;
+import org.jfree.data.statistics.HistogramDataset;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.category.StatisticalBarRenderer;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.hipparchus.stat.descriptive.rank.Median;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanCandidate;
@@ -41,6 +53,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.glycoHistoName;
+import static edu.umich.andykong.ptmshepherd.PTMShepherd.normFName;
 
 public class GlycoAnalysis {
     String dsName;
@@ -83,7 +98,7 @@ public class GlycoAnalysis {
         this.dsName = dsName;
         this.isFirstPass = isFirstPass;
         String firstPassName = isFirstPass ? PTMShepherd.rawGlycoFirstPass : "";
-        this.glycoFile = new File(PTMShepherd.normFName(dsName + firstPassName + PTMShepherd.rawGlycoName));
+        this.glycoFile = new File(normFName(dsName + firstPassName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
         glycanDBmap = new LinkedHashMap<>();
         for (GlycanCandidate glycan : glycanDatabase) {
@@ -312,6 +327,23 @@ public class GlycoAnalysis {
 
         // generate decoy fragment intensity profiles
         generateDecoys2ndPass();
+
+        // generate plots of target vs decoy fragment intensities
+        for (String glycanKey : targetGlycanFragmentProps.keySet()) {
+            // make plots
+            plotFragmentComparison(normFName(glycanKey + "_Y.png"),
+                targetGlycanFragmentProps.get(glycanKey).yFragmentIntensities,
+                decoyGlycanFragmentProps.get(glycanKey).yFragmentIntensities,
+                targetGlycanFragmentProps.get(glycanKey).yFragmentStdDevs,
+                decoyGlycanFragmentProps.get(glycanKey).yFragmentStdDevs,
+                "Target", "Decoy", glycanKey + "_Y", "Fragment", "Intensity");
+            plotFragmentComparison(normFName(glycanKey + "_ox.png"),
+                targetGlycanFragmentProps.get(glycanKey).generalOxFragmentIntensities,
+                decoyGlycanFragmentProps.get(glycanKey).generalOxFragmentIntensities,
+                targetGlycanFragmentProps.get(glycanKey).generalOxFragmentStdDevs,
+                decoyGlycanFragmentProps.get(glycanKey).generalOxFragmentStdDevs,
+                "Target", "Decoy", glycanKey + "_Ox", "Fragment", "Intensity");
+        }
     }
 
     /**
@@ -323,6 +355,9 @@ public class GlycoAnalysis {
         LinkedHashMap<String, Double> yFragmentIntensities;
         LinkedHashMap<String, Double> OxFragmentIntensities;
         LinkedHashMap<String, Double> generalOxFragmentIntensities;
+        LinkedHashMap<String, Double> yFragmentStdDevs;
+        LinkedHashMap<String, Double> OxFragmentStdDevs;
+        LinkedHashMap<String, Double> generalOxFragmentStdDevs;
 
         // use fragment intensities from all PSMs and compute avg or median. Assumes all PSMs are of the same glycan.
         LinkedHashMap<String, ArrayList<Double>> YInts = new LinkedHashMap<>();
@@ -345,8 +380,14 @@ public class GlycoAnalysis {
         OxFragmentIntensities = calculateFragmentMedianInts(OxInts);
         generalOxFragmentIntensities = calculateFragmentMedianInts(generalOxInts);
 
+        // Calculate standard deviations (same for both avg and median)
+        yFragmentStdDevs = calculateFragmentStdDevs(YInts);
+        OxFragmentStdDevs = calculateFragmentStdDevs(OxInts);
+        generalOxFragmentStdDevs = calculateFragmentStdDevs(generalOxInts);
+
         // save determined propensities to the output container
-        return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+        return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities,
+                                           yFragmentStdDevs, OxFragmentStdDevs, generalOxFragmentStdDevs);
     }
 
     /**
@@ -465,8 +506,10 @@ public class GlycoAnalysis {
             generalOxFragmentIntensities.put(fragmentHash, intensity);
         }
 
-        // save determined propensities to the output container
-        return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+        // save determined propensities to the output container with empty std devs (random sampling doesn't have meaningful std devs)
+        LinkedHashMap<String, Double> emptyStdDevs = new LinkedHashMap<>();
+        return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities,
+                                           emptyStdDevs, emptyStdDevs, emptyStdDevs);
     }
 
     /**
@@ -628,6 +671,37 @@ public class GlycoAnalysis {
             fragmentMedianInts.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
         }
         return fragmentMedianInts;
+    }
+
+    // compute the standard deviation for each fragment using the associated intensity list
+    private static LinkedHashMap<String, Double> calculateFragmentStdDevs(HashMap<String, ArrayList<Double>> intensityList) {
+        LinkedHashMap<String, Double> fragmentStdDevs = new LinkedHashMap<>();
+        for (Map.Entry<String, ArrayList<Double>> fragmentEntry : intensityList.entrySet()) {
+            ArrayList<Double> values = fragmentEntry.getValue();
+            if (values.size() <= 1) {
+                fragmentStdDevs.put(fragmentEntry.getKey(), 0.0);
+                continue;
+            }
+
+            // Calculate mean
+            double sum = 0;
+            for (double value : values) {
+                sum += value;
+            }
+            double mean = sum / values.size();
+
+            // Calculate variance
+            double sumSquaredDiff = 0;
+            for (double value : values) {
+                double diff = value - mean;
+                sumSquaredDiff += diff * diff;
+            }
+            double variance = sumSquaredDiff / (values.size() - 1);  // Sample standard deviation
+            double stdDev = Math.sqrt(variance);
+
+            fragmentStdDevs.put(fragmentEntry.getKey(), stdDev);
+        }
+        return fragmentStdDevs;
     }
 
     public void summarizeGlycanResults() {
@@ -812,6 +886,307 @@ public class GlycoAnalysis {
         }
     }
 
+    public void plotFragmentComparison(String outputPath, LinkedHashMap<String, Double> map1, LinkedHashMap<String, Double> map2,
+                                      LinkedHashMap<String, Double> stdDev1, LinkedHashMap<String, Double> stdDev2,
+                                      String series1Name, String series2Name, String chartTitle, String categoryLabel, String valueLabel) {
+        // Create abbreviation mapping
+        LinkedHashMap<String, String> abbreviations = new LinkedHashMap<>();
+        abbreviations.put("HexNAc", "N");
+        abbreviations.put("Hex", "H");
+        abbreviations.put("NeuAc", "A");
+        abbreviations.put("Fuc", "F");
+        abbreviations.put("NH4", "n");
+        abbreviations.put("Fe", "f");
+
+        // Filter to top keys by map1 value
+        List<Map.Entry<String, Double>> sortedKeys = map1.entrySet().stream()
+                .sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
+                .limit(20)
+                .collect(Collectors.toList());
+
+        // Create dataset with error bars
+        DefaultStatisticalCategoryDataset dataset = new DefaultStatisticalCategoryDataset();
+
+        // Add data from both maps with abbreviated names and std devs
+        for (Map.Entry<String, Double> entry : sortedKeys) {
+            String key = entry.getKey();
+            String abbreviatedKey = key.replace("(", "").replace(")", "");
+            for (Map.Entry<String, String> abbrev : abbreviations.entrySet()) {
+                abbreviatedKey = abbreviatedKey.replace(abbrev.getKey(), abbrev.getValue());
+            }
+            double value1 = map1.get(key);
+            double value2 = map2.get(key);
+            double std1 = stdDev1.getOrDefault(key, 0.0);
+            double std2 = stdDev2.getOrDefault(key, 0.0);
+
+            dataset.add(value1, std1, series1Name, abbreviatedKey);
+            dataset.add(value2, std2, series2Name, abbreviatedKey);
+        }
+
+        // Create the bar chart with error bars
+        JFreeChart chart = ChartFactory.createBarChart(
+                chartTitle,
+                categoryLabel,
+                valueLabel,
+                dataset,
+                PlotOrientation.VERTICAL,
+                true,
+                true,
+                false
+        );
+
+        // Customize the plot to show error bars
+        org.jfree.chart.plot.CategoryPlot plot = chart.getCategoryPlot();
+        org.jfree.chart.renderer.category.StatisticalBarRenderer renderer = new org.jfree.chart.renderer.category.StatisticalBarRenderer();
+        renderer.setErrorIndicatorPaint(java.awt.Color.BLACK);
+        renderer.setDrawBarOutline(false);
+        plot.setRenderer(renderer);
+
+        // Rotate category labels to vertical
+        org.jfree.chart.axis.CategoryAxis domainAxis = plot.getDomainAxis();
+        domainAxis.setCategoryLabelPositions(org.jfree.chart.axis.CategoryLabelPositions.UP_90);
+
+        int width = 900;
+        int height = 600;
+        try {
+            ChartUtils.saveChartAsPNG(new File(outputPath), chart, width, height);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void plotAllGlycoHistograms(String datasetName, String firstPass) {
+        List<Double> targetBestScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestTarget != null)
+                .map(r -> r.bestTarget.glycanScore)
+                .collect(Collectors.toList());
+        List<Double> decoyBestScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestDecoy != null)
+                .map(r -> r.bestDecoy.glycanScore)
+                .collect(Collectors.toList());
+        List<Double> targetBestYScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestTarget != null)
+                .map(r -> r.bestTarget.ySpecSim)
+                .collect(Collectors.toList());
+        List<Double> decoyBestYScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestDecoy != null)
+                .map(r -> r.bestDecoy.ySpecSim)
+                .collect(Collectors.toList());
+        List<Double> targetBestOxScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestTarget != null)
+                .map(r -> r.bestTarget.OxFragmentScore)
+                .collect(Collectors.toList());
+        List<Double> decoyBestOxScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestDecoy != null)
+                .map(r -> r.bestDecoy.OxFragmentScore)
+                .collect(Collectors.toList());
+        List<Double> targetBestGenOxScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestTarget != null)
+                .map(r -> r.bestTarget.oxSpecSim)
+                .collect(Collectors.toList());
+        List<Double> decoyBestGenOxScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestDecoy != null)
+                .map(r -> r.bestDecoy.oxSpecSim)
+                .collect(Collectors.toList());
+        List<Double> targetBestMassScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestTarget != null)
+                .map(r -> r.bestTarget.massErrorScore)
+                .collect(Collectors.toList());
+        List<Double> decoyBestMassScores = allResults.stream()
+                .filter(r -> r.foundGlycan && r.bestDecoy != null)
+                .map(r -> r.bestDecoy.massErrorScore)
+                .collect(Collectors.toList());
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "best" + glycoHistoName), targetBestScores, decoyBestScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestY" + glycoHistoName), targetBestYScores, decoyBestYScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestOx" + glycoHistoName), targetBestOxScores, decoyBestOxScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestGenOx" + glycoHistoName), targetBestGenOxScores, decoyBestGenOxScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestMass" + glycoHistoName), targetBestMassScores, decoyBestMassScores);
+
+        List<Double> targetAllScores = new ArrayList<>();
+        List<Double> decoyAllScores = new ArrayList<>();
+        Map<String, List<Double>> targetScoresByGlycan = new LinkedHashMap<>();
+        Map<String, List<Double>> decoyScoresByGlycan = new LinkedHashMap<>();
+        for (GlycanAssignmentResult result : allResults) {
+            if (result.foundGlycan) {
+                for (GlycanCandidateResult candidate : result.allCandidates) {
+                    if (candidate.isDecoy) {
+                        decoyAllScores.add(candidate.glycanScore);
+                    } else {
+                        targetAllScores.add(candidate.glycanScore);
+                    }
+                }
+                if (result.bestTarget != null) {
+                    String glycanName = Glycan.toGlycanString(result.bestTarget.composition);
+                    targetScoresByGlycan.computeIfAbsent(glycanName, k -> new ArrayList<>())
+                            .add(result.bestTarget.glycanScore);
+                }
+                if (result.bestDecoy != null) {
+                    String glycanName = Glycan.toGlycanString(result.bestDecoy.composition);
+                    decoyScoresByGlycan.computeIfAbsent(glycanName, k -> new ArrayList<>())
+                            .add(result.bestDecoy.glycanScore);
+                }
+            }
+        }
+        plotGlycanScoreHistogram(normFName(datasetName + firstPass + "all" + glycoHistoName), targetAllScores, decoyAllScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "all" + glycoHistoName), targetAllScores, decoyAllScores);
+
+        // Plot histograms for each individual glycan
+        if (!isFirstPass) {
+            Set<String> allGlycans = new HashSet<>();
+            allGlycans.addAll(targetScoresByGlycan.keySet());
+            allGlycans.addAll(decoyScoresByGlycan.keySet());
+            for (String glycan : allGlycans) {
+                List<Double> targetScores = targetScoresByGlycan.getOrDefault(glycan, Collections.emptyList());
+                List<Double> decoyScores = decoyScoresByGlycan.getOrDefault(glycan, Collections.emptyList());
+                String filename = normFName(datasetName + firstPass + glycan + glycoHistoName);
+                plotGlycanScoreHistogramDensity(filename, targetScores, decoyScores);
+            }
+        }
+
+        // Q-value vs cumulative PSMs plot
+        String qvalName = isFirstPass ? "qval_1stpass.png" : "qval.png";
+        plotQvalCumulativePSMs(normFName(datasetName + qvalName));
+    }
+
+    public void plotQvalCumulativePSMs(String outputPath) {
+        List<GlycanAssignmentResult> targetResults = allResults.stream()
+                .filter(r -> r.foundGlycan && !r.isDecoyGlycan)
+                .sorted(Comparator.comparingDouble(r -> r.glycanQval))
+                .collect(Collectors.toList());
+
+        if (targetResults.isEmpty()) {
+            return;
+        }
+
+        XYSeries series = new XYSeries("Target PSMs");
+        for (int i = 0; i < targetResults.size(); i++) {
+            series.add(targetResults.get(i).glycanQval, i + 1);
+        }
+
+        XYSeriesCollection dataset = new XYSeriesCollection();
+        dataset.addSeries(series);
+
+        JFreeChart chart = ChartFactory.createXYLineChart(
+                "Q-value vs Cumulative PSMs",
+                "Q-value",
+                "Cumulative PSMs",
+                dataset,
+                PlotOrientation.VERTICAL,
+                true,
+                true,
+                false
+        );
+
+        XYPlot plot = (XYPlot) chart.getPlot();
+        XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer(true, false);
+        plot.setRenderer(renderer);
+
+        int width = 900;
+        int height = 600;
+        try {
+            ChartUtils.saveChartAsPNG(new File(outputPath), chart, width, height);
+        } catch (IOException e) {
+            PTMShepherd.print(String.format("Error saving q-value cumulative PSMs plot at %s due to %s", outputPath, e.getMessage()));
+        }
+    }
+
+    public void plotGlycanScoreHistogram(String outputPath, List<Double> targetScores, List<Double> decoyScores) {
+        double[] targetArray = targetScores.stream().mapToDouble(Double::doubleValue).toArray();
+        double[] decoyArray = decoyScores.stream().mapToDouble(Double::doubleValue).toArray();
+
+        // Create histogram dataset
+        HistogramDataset dataset = new HistogramDataset();
+        int numBins = 100; // Adjust number of bins as needed
+        dataset.addSeries("Target", targetArray, numBins);
+        dataset.addSeries("Decoy", decoyArray, numBins);
+
+        // Create the histogram chart
+        JFreeChart chart = ChartFactory.createHistogram(
+                "Glycan Score Distribution",
+                "Glycan Score",
+                "Count",
+                dataset,
+                PlotOrientation.VERTICAL,
+                true,
+                true,
+                false
+        );
+
+        int width = 900;
+        int height = 600;
+        try {
+            ChartUtils.saveChartAsPNG(new File(outputPath), chart, width, height);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void plotGlycanScoreHistogramDensity(String outputPath, List<Double> targetScores, List<Double> decoyScores) {
+        double[] targetArray = targetScores.stream().mapToDouble(Double::doubleValue).toArray();
+        double[] decoyArray = decoyScores.stream().mapToDouble(Double::doubleValue).toArray();
+
+        XYSeriesCollection densityDataset = new XYSeriesCollection();
+        // Create the density plot
+        JFreeChart densityChart = ChartFactory.createXYLineChart(
+                "Glycan Score Density: Target vs Decoy",
+                "Glycan Score",
+                "Density",
+                densityDataset,
+                PlotOrientation.VERTICAL,
+                true,
+                true,
+                false
+        );
+        densityDataset.addSeries(createDensitySeries(targetArray, "Target Density"));
+        densityDataset.addSeries(createDensitySeries(decoyArray, "Decoy Density"));
+        XYPlot densityPlot = (XYPlot) densityChart.getPlot();
+        XYLineAndShapeRenderer densityRenderer = new XYLineAndShapeRenderer(true, false);
+        densityPlot.setRenderer(densityRenderer);
+
+        // Add count annotation
+        String countText = String.format("Target: %d\tDecoy: %d", targetScores.size(), decoyScores.size());
+        org.jfree.chart.annotations.XYTextAnnotation annotation = new org.jfree.chart.annotations.XYTextAnnotation(
+                countText,
+                densityPlot.getDomainAxis().getRange().getUpperBound() * 0.95,
+                densityPlot.getRangeAxis().getRange().getUpperBound() * 0.95
+        );
+        annotation.setTextAnchor(org.jfree.chart.ui.TextAnchor.TOP_RIGHT);
+        annotation.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 12));
+        densityPlot.addAnnotation(annotation);
+
+        densityPlot.setDataset(1, densityDataset);
+        int width = 900;
+        int height = 600;
+        try {
+            ChartUtils.saveChartAsPNG(new File(outputPath), densityChart, width, height);
+        } catch (IOException e) {
+            PTMShepherd.print(String.format("Error saving glycan score density plot at %s due to %s", outputPath, e.getMessage()));
+        }
+    }
+
+    // Helper methods (as before)
+    private XYSeries createDensitySeries(double[] data, String name) {
+        XYSeries series = new XYSeries(name);
+        int points = 100;
+        double min = Arrays.stream(data).min().orElse(0);
+        double max = Arrays.stream(data).max().orElse(1);
+        double step = (max - min) / points;
+        for (int i = 0; i <= points; i++) {
+            double x = min + i * step;
+            double density = kernelDensityEstimate(data, x, (max - min) / 20);
+            series.add(x, density);
+        }
+        return series;
+    }
+
+    private double kernelDensityEstimate(double[] data, double x, double bandwidth) {
+        double sum = 0;
+        for (double d : data) {
+            double u = (x - d) / bandwidth;
+            sum += Math.exp(-0.5 * u * u);
+        }
+        return sum / (data.length * bandwidth * Math.sqrt(2 * Math.PI));
+    }
     /**
      * Determines the score threshold based on the specified FDR.
      *

@@ -64,6 +64,7 @@ public class GlycoParams {
     public double ldaTargetProp;
     public boolean twoPassMode;
     public boolean removeGlycans2ndPass;
+    public boolean printScoreGraphs;
     public int numDecoysPerTarget;
     public boolean checkVariableMods;
     public boolean noFDR;

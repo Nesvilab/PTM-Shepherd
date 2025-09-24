@@ -26,11 +26,29 @@ public class GlycanCandidateFragments {
     LinkedHashMap<String, Double> OxFragmentIntensities;
     LinkedHashMap<String, Double> generalOxFragmentIntensities;
 
+    // Standard deviations for error bars
+    LinkedHashMap<String, Double> yFragmentStdDevs;
+    LinkedHashMap<String, Double> OxFragmentStdDevs;
+    LinkedHashMap<String, Double> generalOxFragmentStdDevs;
+
 
     public GlycanCandidateFragments(LinkedHashMap<String, Double> yFragmentIntensities, LinkedHashMap<String, Double> OxFragmentIntensities, LinkedHashMap<String, Double> generalOxFragmentIntensities) {
         this.yFragmentIntensities = yFragmentIntensities;
         this.OxFragmentIntensities = OxFragmentIntensities;
         this.generalOxFragmentIntensities = generalOxFragmentIntensities;
+        this.yFragmentStdDevs = new LinkedHashMap<>();
+        this.OxFragmentStdDevs = new LinkedHashMap<>();
+        this.generalOxFragmentStdDevs = new LinkedHashMap<>();
+    }
+
+    public GlycanCandidateFragments(LinkedHashMap<String, Double> yFragmentIntensities, LinkedHashMap<String, Double> OxFragmentIntensities, LinkedHashMap<String, Double> generalOxFragmentIntensities,
+                                   LinkedHashMap<String, Double> yFragmentStdDevs, LinkedHashMap<String, Double> OxFragmentStdDevs, LinkedHashMap<String, Double> generalOxFragmentStdDevs) {
+        this.yFragmentIntensities = yFragmentIntensities;
+        this.OxFragmentIntensities = OxFragmentIntensities;
+        this.generalOxFragmentIntensities = generalOxFragmentIntensities;
+        this.yFragmentStdDevs = yFragmentStdDevs;
+        this.OxFragmentStdDevs = OxFragmentStdDevs;
+        this.generalOxFragmentStdDevs = generalOxFragmentStdDevs;
     }
 
     // empty constructor for candidates without fragment info
@@ -38,5 +56,8 @@ public class GlycanCandidateFragments {
         this.yFragmentIntensities = new LinkedHashMap<>();
         this.OxFragmentIntensities = new LinkedHashMap<>();
         this.generalOxFragmentIntensities = new LinkedHashMap<>();
+        this.yFragmentStdDevs = new LinkedHashMap<>();
+        this.OxFragmentStdDevs = new LinkedHashMap<>();
+        this.generalOxFragmentStdDevs = new LinkedHashMap<>();
     }
 }

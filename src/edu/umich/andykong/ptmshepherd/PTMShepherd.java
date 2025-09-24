@@ -102,7 +102,8 @@ public class PTMShepherd {
 	public static final String rawSimRTName = ".rawsimrt";
 	public static final String rawGlycoName = ".rawglyco";
 	public static final String rawGlycoFirstPass = "-1stPass";
-	public static final String modSummaryName = ".modsummary.tsv";
+    public static final String glycoHistoName = ".glycoscores.png";
+    public static final String modSummaryName = ".modsummary.tsv";
 	public static final String diagBinFilename = ".diagBIN";
 	public static final String diagMineName = ".diagmine.tsv";
 	public static final String diagIonsExtractName = ".diagnosticIons.tsv";
@@ -463,7 +464,7 @@ public class PTMShepherd {
 		if(!Boolean.parseBoolean(params.get("output_extended"))) {
 			// delete dataset files with specific extensions
 			extsToDelete = Arrays
-					.asList(rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, histoName, diagBinFilename, mzBinFilename);
+					.asList(rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, histoName, glycoHistoName, diagBinFilename, mzBinFilename);
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -610,6 +611,9 @@ public class PTMShepherd {
 				ga.glycoPSMs(pf, mzMap.get(ds), ms1MzMap.get(ds), executorService);
 			}
 			ga.runScoresAndFDR();
+            if (glycoParams.printScoreGraphs) {
+                ga.plotAllGlycoHistograms(ds, "first-pass");
+            }
 			ga.completeGlyco();
 			glycoAnalysisMap.put(ds, ga);
 		}
@@ -647,7 +651,11 @@ public class PTMShepherd {
 					ga2.glycoPSMs(pf, mzMap.get(ds), ms1MzMap.get(ds), executorService);
 				}
 				ga2.runScoresAndFDR();
-				ga2.completeGlyco();
+                if (glycoParams.printScoreGraphs) {
+					String firstPass = passNum > 1 ? String.format("%d", passNum) : "";
+                    ga2.plotAllGlycoHistograms(ds, firstPass);
+                }
+                ga2.completeGlyco();
 				ga = ga2; // set ga to the new analysis for next iteration
 			}
 			finalGlycoAnalysisMap.put(ds, ga);
@@ -1011,7 +1019,7 @@ public class PTMShepherd {
 
 			// delete dataset files with specific extensions
 			List<String> extsToDelete = Arrays
-					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, modSummaryName, diagIonsExtractName);
+					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, glycoHistoName, modSummaryName, diagIonsExtractName);
 			for (String ds : datasets.keySet()) {
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
@@ -1429,6 +1437,7 @@ public class PTMShepherd {
 		glycoParams.minDecoyFragmentDiff = getParam("glyco_min_fragment_diff").isEmpty() ? 0.05 : Double.parseDouble(getParam("glyco_min_fragment_diff"));	// default 0.05
 		glycoParams.updateGlycoLib = !getParam("glyco_update_lib").isEmpty() && Boolean.parseBoolean(getParam("glyco_update_lib"));	// default false
 
+        glycoParams.printScoreGraphs = !getParam("glyco_score_plots").isEmpty() && Boolean.parseBoolean(getParam("glyco_score_plots"));	// default false
 		return glycoParams;
 	}
 
