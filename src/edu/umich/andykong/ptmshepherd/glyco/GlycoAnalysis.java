@@ -896,7 +896,11 @@ public class GlycoAnalysis {
         // Y ions
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore))
         {
-            sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+            if (glycoParams.glycoYnorm) {
+                sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+            } else {
+                sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+            }
         }
 
         // oxonium ions
