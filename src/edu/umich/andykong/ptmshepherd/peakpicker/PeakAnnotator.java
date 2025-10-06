@@ -235,6 +235,9 @@ public class PeakAnnotator {
 	public void addMod(String tag, double v) {
 		for(int i = 0; i < mod_diffs.size(); i++) {
 			if(Math.abs(v-mod_diffs.get(i)) < modEqual_tol) {
+                if (mods.get(i).equalsIgnoreCase(tag)) {
+                    return;     // do not duplicate tag if already present
+                }
 				mods.set(i, mods.get(i)+ "/"+tag);
 				return;
 			}
@@ -307,7 +310,7 @@ public class PeakAnnotator {
 			String cline;
 			while ((cline = in.readLine()) != null) {
 				String[] sp = cline.split("\\t|%");
-				addMod(sp[0].trim(), Double.parseDouble(sp[1].trim()));
+                addMod(sp[0].trim(), Double.parseDouble(sp[1].trim()));
 			}
 			in.close();
 		} catch (IOException e) {
