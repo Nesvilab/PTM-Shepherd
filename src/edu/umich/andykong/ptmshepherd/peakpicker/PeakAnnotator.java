@@ -288,8 +288,17 @@ public class PeakAnnotator {
 				modSource = "common_mods_20251006.txt";
 				in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 			} else if (modSourcePath.toLowerCase().trim().equals("glyco")) {
+                // add both glyco and common mods
 				modSource = "glyco_mods_20210127.txt";
 				in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
+                String cline;
+                while ((cline = in.readLine()) != null) {
+                    String[] sp = cline.split("\\t|%");
+                    addMod(sp[0].trim(), Double.parseDouble(sp[1].trim()));
+                }
+                in.close();
+                modSource = "common_mods_20251006.txt";
+                in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 			} else {
 				modSource = modSourcePath.trim();
 				in = new BufferedReader(new FileReader(modSource));
