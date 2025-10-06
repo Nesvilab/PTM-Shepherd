@@ -1141,9 +1141,9 @@ Photo-induced Glycine Adduct	89.011293
 Photo-induced Glutamate adduct	161.032422
 MBS_233p24 plus peptide 1250p53	1482.77
 phenyl phosphate	155.997631
-RNA-protein UVC-crosslinked, hydrofluoride-digested uridine adduct 	244.069536
-Super Heavy TMTpro  313.231019
-RNA-protein UVA-crosslinked, hydrofluoride-digested 4-thiouridine adduct    226.058972
-RNA-protein UVA-crosslinked, hydrofluoride-digested 6-thioguanosine adduct  265.081104
-Monomodification with glutamine 128.058578
-Glyceroyl   88.016044
+RNA-protein UVC-crosslinked, hydrofluoride-digested uridine adduct	244.069536
+Super Heavy TMTpro	313.231019
+RNA-protein UVA-crosslinked, hydrofluoride-digested 4-thiouridine adduct	226.058972
+RNA-protein UVA-crosslinked, hydrofluoride-digested 6-thioguanosine adduct	265.081104
+Monomodification with glutamine	128.058578
+Glyceroyl	88.016044
