@@ -252,7 +252,7 @@ glycerylphosphorylethanolamine	197.04531
 triiodo	469.716159
 tetraiodo	595.612807
 Dehydroalanine (from Tyrosine)	-94.041865
-2-amino-3-oxo-butanoic_acid	-2.01565
+Didehydro	-2.01565
 oxoalanine	-17.992806
 lactic acid from N-term Ser	-15.010899
 diglutamyl	258.085186
@@ -552,7 +552,7 @@ Side reaction of PGPG with Side chain of aspartic or glutamic acid	308.148455
 Loss of arginine due to transpeptidation	-156.101111
 Addition of arginine due to transpeptidation	156.101111
 Glycosylation with IME linked Hex(2) NeuAc	688.199683
-Butyryl	70.041865
+Crotonaldehyde/Butyryl	70.041865
 Double Carbamidomethylation	114.042927
 Dimethyl-Medium	34.068961
 SUMOylation leaving GlyGlyGln	242.101505

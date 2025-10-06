@@ -267,14 +267,25 @@ public class PeakAnnotator {
 		for (int i = 0; i < vModNames.size(); i++) {
 			addMod(vModNames.get(i), vModMasses.get(i));
 		}
+        //add isotopic peaks to modification list
+        addMod("Isotopic peak error", -1 * C13delta);
+        addMod("First isotopic peak", C13delta);
+        addMod("Second isotopic peak", 2 * C13delta);
+        addMod("Third isotopic peak", 3 * C13delta);
+        //addMod("Oxidation or Hydroxylation",15.994915);
+        //make isotopic peaks statically accessible
+        //add user-defined mods to modification list
+        for (int i = 0; i < mods.size(); i++) {
+            allowed_list.add(i);
+        }
 
 		try {
 			BufferedReader in;
-			if (modSourcePath.equals("") || modSourcePath.toLowerCase().trim().equals("unimod")) {
-				modSource = "unimod_20210623.txt";
+			if (modSourcePath.isEmpty() || modSourcePath.toLowerCase().trim().equals("unimod")) {
+				modSource = "unimod_20221028.txt";
 				in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 			} else if (modSourcePath.toLowerCase().trim().equals("common")) {
-				modSource = "common_mods_20200813.txt";
+				modSource = "common_mods_20251006.txt";
 				in = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(modSource)));
 			} else if (modSourcePath.toLowerCase().trim().equals("glyco")) {
 				modSource = "glyco_mods_20210127.txt";
@@ -285,18 +296,6 @@ public class PeakAnnotator {
 			}
 
 			String cline;
-			//add isotopic peaks to modification list
-			addMod("Isotopic peak error", -1 * C13delta);
-			addMod("First isotopic peak", C13delta);
-			addMod("Second isotopic peak", 2 * C13delta);
-			addMod("Third isotopic peak", 3 * C13delta);
-			//addMod("Oxidation or Hydroxylation",15.994915);
-			//make isotopic peaks statically accessible
-			//add user-defined mods to modification list
-			for (int i = 0; i < mods.size(); i++) {
-				allowed_list.add(i);
-			}
-
 			while ((cline = in.readLine()) != null) {
 				String[] sp = cline.split("\\t|%");
 				addMod(sp[0].trim(), Double.parseDouble(sp[1].trim()));

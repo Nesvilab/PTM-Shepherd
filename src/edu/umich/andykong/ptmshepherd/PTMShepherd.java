@@ -327,7 +327,7 @@ public class PTMShepherd {
 
 	private static void printAnnotationFiles() {
 		extractFile("peakpicker/glyco_mods_20210127.txt", "glyco_annotation.txt");
-		extractFile("peakpicker/common_mods_20200813.txt", "common_mods_annotation.txt");
+		extractFile("peakpicker/common_mods_20251006.txt", "common_mods_annotation.txt");
 		extractFile("peakpicker/unimod_20221028.txt", "unimod_annotation.txt");
 	}
 
