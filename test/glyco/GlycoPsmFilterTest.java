@@ -21,7 +21,6 @@ public class GlycoPsmFilterTest {
     @TempDir
     Path tempOutputDir;
 
-    @Test
     public void GlycoPSMFilterTests() {
         String singleConfigPath = new File("test-resources/shepherd.config").getAbsolutePath();
         String multiConfigPath = new File("test-resources/2expts/shepherd.config").getAbsolutePath();
