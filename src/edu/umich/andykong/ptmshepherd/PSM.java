@@ -4,10 +4,8 @@ import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanAssignmentResult;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
@@ -133,6 +131,7 @@ public class PSM {
                         break;
                     }
                 }
+                deltaMassPos = handleTerminalDeltaMass(deltaMassPos);
 
                 // remove the delta mass from the assigned mods and add its mass to the dMass for analysis
                 assignedMods = new TreeMap<>();
@@ -162,7 +161,39 @@ public class PSM {
                     calcPepMass = originalCalcPepMass;
                 }
             }
+            assignedMods = assignedMods.entrySet().stream().sorted(Map.Entry.comparingByValue())
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e2, e1) -> e1, TreeMap::new));
         }
+    }
+
+    /**
+     * Handle the case where the delta mass is at the N- or C-terminus and has been placed by MSFragger. This means
+     * the MSFragger localization string will show it as the first or last side chain, but the assigned modifications
+     * string will show it as a terminal modification.
+     * Note: if there is both a terminal mod and a side chain mod at the first or last AA, this assumes the terminal
+     * mod is the delta mass rather than the side chain mod.
+     * todo: (ideally) handle case if there is both an offset & a variable/fixed mod at first or last AA (one terminal and one on side chain). Requires reading pepxml or propagating more info to psm.tsv
+     * @param deltaMassPos initial deltaMassPos from MSFragger localization string
+     * @return updated deltaMassPos
+     */
+    private int handleTerminalDeltaMass(int deltaMassPos) {
+        if (deltaMassPos == 1) {
+            for (Map.Entry<Integer, Float> mod : originalAssignedMods.entrySet()) {
+                if (mod.getKey() == 0) {
+                    deltaMassPos = 0;
+                    break;
+                }
+            }
+        }
+        if (deltaMassPos == peptide.length()) {
+            for (Map.Entry<Integer, Float> mod : originalAssignedMods.entrySet()) {
+                if (mod.getKey() == peptide.length() + 1) {
+                    deltaMassPos = peptide.length() + 1;
+                    break;
+                }
+            }
+        }
+        return deltaMassPos;
     }
 
     public TreeMap<Integer, Float> initAssignedMods(int assignedModCol) {
@@ -219,6 +250,9 @@ public class PSM {
 
     public String printAssignedMods() {
         ArrayList<String> modStrs = new ArrayList<>();
+        // ensure mods are sorted by ascending position (most mods are, but terminal ones may not be if coming from the delta mass placement)
+        assignedMods = assignedMods.entrySet().stream().sorted(Map.Entry.comparingByValue())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e2, e1) -> e1, TreeMap::new));
         for (Map.Entry<Integer, Float> mod : assignedMods.entrySet()) {
             StringBuilder sb = new StringBuilder();
             if (mod.getKey() == 0) {
