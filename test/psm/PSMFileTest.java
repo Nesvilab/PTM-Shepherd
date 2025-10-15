@@ -39,15 +39,38 @@ public class PSMFileTest {
 
         PSM psm1 = psmFile.psms.get(0);
         assert psm1.getScanNum() == 382;
-        assert psm1.getDMass() + -0.0045 < tol;
+        assert Math.abs(psm1.getDMass() + 0.0045) < tol;
         assert psm1.getAssignedMods().isEmpty();
 
         PSM psm4 = psmFile.psms.get(3);
         assert psm4.getScanNum() == 2903;
-        assert psm4.getDMass() - 0.0048 - 2512.8455 < tol;
-        assert psm4.getOriginalDeltaMass() - 0.0048 < tol;
+        assert Math.abs(psm4.getDMass() - 0.0048 - 2512.8455) < tol;
+        assert Math.abs(psm4.getOriginalDeltaMass() - 0.0048) < tol;
         assert psm4.getAssignedMods().isEmpty();
         assert psm4.getOriginalAssignedMods().get(3) - 2512.8455 < tol;
+
+        // N-term modification from varmod
+        PSM psmNvarmod = psmFile.psms.get(6);
+        assert psmNvarmod.getScanNum() == 7005;
+        assert Math.abs(psmNvarmod.getDMass() + 0.0007) < tol;
+        assert Math.abs(psmNvarmod.getAssignedMods().get(0) - 42.0106) < tol;
+        assert Math.abs(psmNvarmod.getOriginalAssignedMods().get(0) - 42.0106) < tol;
+
+        // N-term modification from offset
+        PSM psmNoffset = psmFile.psms.get(7);
+        assert psmNoffset.getScanNum() == 7516;
+        assert Math.abs(psmNoffset.getDMass() - 0.0007 - 27.9949) < tol;
+        assert Math.abs(psmNoffset.getOriginalDeltaMass() - 0.0007) < tol;
+        assert psmNoffset.getAssignedMods().isEmpty();
+        assert Math.abs(psmNoffset.getOriginalAssignedMods().get(0) - 27.9949) < tol;
+
+        // C-term modification from offset
+        PSM psmCoffset = psmFile.psms.get(8);
+        assert psmCoffset.getScanNum() == 118089;
+        assert Math.abs(psmCoffset.getDMass() - 0.0059 + 0.98401) < tol;
+        assert Math.abs(psmCoffset.getOriginalDeltaMass() - 0.0059) < tol;
+        assert psmCoffset.getAssignedMods().isEmpty();
+        assert Math.abs(psmCoffset.getOriginalAssignedMods().get(19) + 0.98401) < tol;
     }
 
     @Test
@@ -62,10 +85,10 @@ public class PSMFileTest {
 
         PSM psm4 = psmFile.psms.get(3);
         assert psm4.getScanNum() == 2903;
-        assert psm4.getDMass() - 0.0048 - 2512.8455 < tol;
-        assert psm4.getOriginalDeltaMass() - 0.0048 - 2512.8455 < tol;
+        assert Math.abs(psm4.getDMass() - 0.0048 - 2512.8455) < tol;
+        assert Math.abs(psm4.getOriginalDeltaMass() - 0.0048 - 2512.8455) < tol;
         assert psm4.getAssignedMods().isEmpty();
-        assert psm4.getOriginalAssignedMods().get(3) - 2512.8455 < tol;
+        assert Math.abs(psm4.getOriginalAssignedMods().get(3) - 2512.8455) < tol;
     }
 
     @Test
@@ -78,14 +101,14 @@ public class PSMFileTest {
         float prevDMass = psm.getDMass();
 
         psm.updateDeltaMass(2512.8455f, 0, 0, psmFile.peptideCalcMassCol, psmFile.calcMZcol, psmFile.dMassCol, psmFile.assignedModCol);
-        assert psm.getDMass() - 0.8503 < tol;
-        assert psm.getDMass() - prevDMass < tol;
-        assert psm.getCalcPepMass() - (prevCalcMass + 2512.8455f) < tol;
-        assert Float.parseFloat(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512.8455) < tol;
+        assert Math.abs(psm.getDMass() - 0.0048) < tol;
+        assert Math.abs(psm.getOriginalDeltaMass() - prevDMass) < tol;
+        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455f)) < tol;
+        assert Math.abs(Float.parseFloat(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512.8455)) < tol;
 
         psm.updateDeltaMass(2512.8455f, 1, 2512.8455f, psmFile.peptideCalcMassCol, psmFile.calcMZcol, psmFile.dMassCol, psmFile.assignedModCol);
-        assert psm.getDMass() - 0.8503 < tol;
-        assert psm.getCalcPepMass() - (prevCalcMass + 2512.8455f) < tol;
+        assert Math.abs(psm.getDMass() - 0.0048) < tol;
+        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455f)) < tol;
     }
 
     @Test
@@ -158,6 +181,24 @@ public class PSMFileTest {
         psm.editModifiedPeptide(3, 2512.8455, 1, psmFile.modPeptideCol);
         assert psm.getModifiedPeptide().equals("NFN[2627]DSSTK");
         assert psm.spLine.get(psmFile.modPeptideCol).equals("NFN[2627]DSSTK");
+
+        PSM nVarmodPsm = psmFile.psms.get(6);
+        nVarmodPsm.editModifiedPeptide(0, 42.0106, 1, psmFile.modPeptideCol);
+        assert nVarmodPsm.getOriginalModifiedPeptide().equals("n[43]AKPAQGAK");
+        assert nVarmodPsm.getModifiedPeptide().equals("n[43]AKPAQGAK");
+        assert nVarmodPsm.spLine.get(psmFile.modPeptideCol).equals("n[43]AKPAQGAK");
+
+        PSM nOffsetPsm = psmFile.psms.get(7);
+        nOffsetPsm.editModifiedPeptide(0, 27.9949, 1, psmFile.modPeptideCol);
+        assert nOffsetPsm.getOriginalModifiedPeptide().equals("n[29]AKHHAISAK");
+        assert nOffsetPsm.getModifiedPeptide().equals("n[29]AKHHAISAK");
+        assert nOffsetPsm.spLine.get(psmFile.modPeptideCol).equals("n[29]AKHHAISAK");
+
+        PSM cOffsetPsm = psmFile.psms.get(8);
+        cOffsetPsm.editModifiedPeptide(19, -0.98401, 1, psmFile.modPeptideCol);
+        assert cOffsetPsm.getOriginalModifiedPeptide().equals("ILTEAEIDAHLVALAERDc[17]");
+        assert cOffsetPsm.getModifiedPeptide().equals("ILTEAEIDAHLVALAERDc[17]");
+        assert cOffsetPsm.spLine.get(psmFile.modPeptideCol).equals("ILTEAEIDAHLVALAERDc[17]");
     }
 
     @Test

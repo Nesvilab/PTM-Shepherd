@@ -308,6 +308,9 @@ public class PSM {
      * mod needs to be removed first and do so if necessary.
      */
     public void editModifiedPeptide(int modLocation, double modMass, int massdiffToVarmod, int modPeptideCol) {
+        if (modLocation == 0 || modLocation == peptide.length() + 1) {
+            return;   // do not edit terminal mods because glycan assignment will never adjust them
+        }
         if (massdiffToVarmod != 0) {
             int adjustedModIndex = getModPepIndex(modifiedPeptide, modLocation);
             if (modifiedPeptide.charAt(adjustedModIndex + 1) == '[') {
@@ -321,6 +324,9 @@ public class PSM {
 
     // add a modification to a modified peptide string
     public static String addModToModifiedPeptide(String previousModPep, int modLocation, double modMass) {
+        if (modLocation == 0 || modLocation == previousModPep.length() + 1) {
+            return previousModPep;   // do not edit terminal mods because glycan assignment will never adjust them
+        }
         int residueIndex = getModPepIndex(previousModPep, modLocation);
         int AAindex = previousModPep.charAt(residueIndex) - 65;		// capital alphabet starts at 65
         int roundedModMass = (int) Math.round(modMass + AAMasses.monoisotopic_masses[AAindex]);     // round to match existing pepxml format
@@ -328,19 +334,32 @@ public class PSM {
     }
 
     // delete a modification from a modified peptide string
-    public static String removeModFromModifiedPeptide(String previousModPep, int modLocation) {
-        int adjustedIndex = getModPepIndex(previousModPep, modLocation);
+    public String removeModFromModifiedPeptide(String previousModPep, int modLocation) {
+        if (modLocation == 0) {
+            return previousModPep;   // do not edit terminal mods because glycan assignment will never adjust them
+            // N-term mod. Remove n[##] from start (split on first ']')
+//            int endBracket = previousModPep.indexOf(']') + 1;
+//            return previousModPep.substring(endBracket);
+        } else if (modLocation == peptide.length() + 1) {
+            return previousModPep;   // do not edit terminal mods because glycan assignment will never adjust them
+            // C-term mod. Remove c[##] from end (split on last '[')
+//            int startBracket = previousModPep.lastIndexOf('[');
+//            return previousModPep.substring(0, startBracket - 1);   // need to also remove preceding 'c'
+        } else {
+            // non-terminal mods
+            int adjustedIndex = getModPepIndex(previousModPep, modLocation);
 
-        // Find the start and end of the bracketed number
-        int startBracket = previousModPep.indexOf('[', adjustedIndex);
-        int endBracket = previousModPep.indexOf(']', startBracket) + 1;
+            // Find the start and end of the bracketed number
+            int startBracket = previousModPep.indexOf('[', adjustedIndex);
+            int endBracket = previousModPep.indexOf(']', startBracket) + 1;
 
-        // Remove the bracketed number
-        return previousModPep.substring(0, startBracket) + previousModPep.substring(endBracket);
-
+            // Remove the bracketed number
+            return previousModPep.substring(0, startBracket) + previousModPep.substring(endBracket);
+        }
     }
 
     // get the 0-indexed site in a modified peptide String for the mod location (including other mods, if present)
+    // Note: does NOT handle terminal mods (since glycan assignment will never adjust them)
     private static int getModPepIndex(String previousModPep, int modLocation) {
         int residueIndex = -1;
         int letterCount = 0;
