@@ -213,22 +213,38 @@ public class GlycoAnalysis {
      */
     public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs(GlycoParams glycoParams) {
         HashMap<String, GlycanCandidateFragments> glycanCandidateFragmentsMap = new HashMap<>();
-        HashMap<String, ArrayList<GlycanCandidate>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
+        HashMap<String, ArrayList<GlycanCandidateResult>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
 
         // read all glycan info in
         for (GlycanAssignmentResult result : allResults) {
             if (result.foundGlycan) {
-                GlycanCandidate glycan = result.bestCandidate;
+                GlycanCandidateResult glycan = result.bestCandidate;
                 GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, glycan.Yfragments, glycan.oxoniumFragments);
 
                 String glycanHash = Glycan.toGlycanString(fragmentInfoContainer.composition);
                 // only include good targets in fragment info
                 if (result.glycanQval < glycoParams.glycoFDR) {
+                    if (glycoParams.minYsForConsensus > 0) {
+                        int foundYs = 0;
+                        boolean notEnoughYs = true;
+                        for (GlycanFragment yFragment : glycan.Yfragments.values()) {
+                            if (yFragment.foundIntensity > 0) {
+                                foundYs++;
+                                if (foundYs >= glycoParams.minYsForConsensus) {
+                                    notEnoughYs = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (notEnoughYs) {
+                            continue;
+                        }
+                    }
                     if (glycanInputMap.containsKey(glycanHash)) {
-                        glycanInputMap.get(glycanHash).add(fragmentInfoContainer);
+                        glycanInputMap.get(glycanHash).add(glycan);
                     } else {
-                        ArrayList<GlycanCandidate> newList = new ArrayList<>();
-                        newList.add(fragmentInfoContainer);
+                        ArrayList<GlycanCandidateResult> newList = new ArrayList<>();
+                        newList.add(glycan);
                         glycanInputMap.put(glycanHash, newList);
                     }
 
@@ -253,16 +269,22 @@ public class GlycoAnalysis {
 
 
         // summarize results for each glycan to get final fragment propensities
-        for (Map.Entry<String, ArrayList<GlycanCandidate>> glycanEntry : glycanInputMap.entrySet()) {
+        for (Map.Entry<String, ArrayList<GlycanCandidateResult>> glycanEntry : glycanInputMap.entrySet()) {
             // Determine the fragment likelihoods based on all PSMs for this entry
             HashMap<String, Integer> YCounts = new HashMap<>();
             HashMap<String, Integer> OxCounts = new HashMap<>();
             HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
             HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
-            ArrayList<GlycanCandidate> allPSMsWithThisGlycan = glycanEntry.getValue();
+            ArrayList<GlycanCandidateResult> allPSMsWithThisGlycan = glycanEntry.getValue();
             // skip generating fragment information for glycans with too few PSMs to get reasonable values
             if (allPSMsWithThisGlycan.size() < MIN_GLYCO_PSMS_FOR_BOOTSTRAP) {
                 continue;
+            }
+            if (glycoParams.topPctSpectraForConsensus < 1.0) {
+                // sort PSMs by glycan score and keep only the top X%
+                allPSMsWithThisGlycan.sort(Comparator.comparingDouble((GlycanCandidateResult result) -> result.glycanScore).reversed());
+                int numToKeep = (int) Math.ceil(allPSMsWithThisGlycan.size() * glycoParams.topPctSpectraForConsensus);
+                allPSMsWithThisGlycan = new ArrayList<>(allPSMsWithThisGlycan.subList(0, numToKeep));
             }
 
             for (GlycanCandidate inputGlycan : allPSMsWithThisGlycan) {
@@ -726,6 +748,10 @@ public class GlycoAnalysis {
                     oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
                 candidate.YproportionScore = spectrumYIntensity == 0 ? 0 : (foundYIntensity * 100) / spectrumYIntensity;    // proportion of possible Y ions in the spectrum matched to the candidate
+                if (glycoParams.normFragmentIntensities) {
+                    GlycanCandidateResult.normalizeIntensities(candidate.Yfragments);
+//                    GlycanCandidateResult.normalizeIntensities(candidate.oxoniumFragments);   // todo: enable once generalized oxos available
+                }
             }
 
             // score candidates and save results

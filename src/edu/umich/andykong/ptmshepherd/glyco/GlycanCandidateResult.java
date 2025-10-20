@@ -43,4 +43,24 @@ public class GlycanCandidateResult extends GlycanCandidate {
         this.Yfragments = copiedYfragments;
         this.oxoniumFragments = copiedOxoniumFragments;
     }
+
+
+    /**
+     * Normalize a map of fragment intensities within itself (e.g., Ys and oxoniums separately)
+     *
+     * @param fragmentIntensities input map
+     */
+    public static void normalizeIntensities(TreeMap<String, GlycanFragment> fragmentIntensities) {
+        double maxIntensity = 0;
+        for (Map.Entry<String, GlycanFragment> entry : fragmentIntensities.entrySet()) {
+            if (entry.getValue().foundIntensity > maxIntensity) {
+                maxIntensity = entry.getValue().foundIntensity;
+            }
+        }
+        if (maxIntensity > 0) {
+            for (Map.Entry<String, GlycanFragment> entry : fragmentIntensities.entrySet()) {
+                entry.getValue().foundIntensity = entry.getValue().foundIntensity / maxIntensity;
+            }
+        }
+    }
 }

@@ -53,6 +53,9 @@ public class GlycoParams {
     public HashMap<Integer, Double> isotopeProbTable;
     public double massProbScaling;
     public boolean glycoLDA;
+    public boolean normFragmentIntensities;     // (separately) normalize Y and oxonium fragment intensities
+    public double topPctSpectraForConsensus;
+    public int minYsForConsensus;
     // IonQuant MS1 params
     public float rtTol = 0.4f;
     public float imTol = 0.05f;
