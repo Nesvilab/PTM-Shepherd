@@ -25,6 +25,8 @@ public class GlycanCandidateResult extends GlycanCandidate {
     double YproportionScore;
     double ms1Score;
     double frequencyPrior;
+    double ySpecSim;
+    double oxSpecSim;
     double[] featureVec;
 
     // initialize with the base Candidate and add scores as they are computed

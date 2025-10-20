@@ -22,7 +22,6 @@ import umich.ms.glyco.*;
 
 import java.io.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Organization - putting a bunch of glyco-specific utilities here rather than cluttering the main PTM-S.java
@@ -237,7 +236,7 @@ public class GlycoParams {
         ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
         for (GlycanCandidate oldCandidate : oldGlycoDB) {
             GlycanCandidate newCandidate;
-            String currentGlycanHash = oldCandidate.toString();
+            String currentGlycanHash = Glycan.toGlycanString(oldCandidate.composition);
             if (oldCandidate.isDecoy) {
                 // use target glycan propensity information for decoys as well
                 currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
@@ -510,6 +509,8 @@ public class GlycoParams {
         iso,
         mass2nd,
         iso2nd,
-        glycanfreq
+        glycanfreq,
+        ysim,
+        oxsim,
     }
 }

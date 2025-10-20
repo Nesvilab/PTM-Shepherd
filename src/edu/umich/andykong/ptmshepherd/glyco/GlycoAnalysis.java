@@ -27,6 +27,7 @@ import ionquant.api.Entry;
 import ionquant.api.IonQuantAPI;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
+import org.hipparchus.stat.descriptive.rank.Median;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanCandidate;
 import umich.ms.glyco.GlycanFragment;
@@ -294,10 +295,10 @@ public class GlycoAnalysis {
                     count++;
                     YCounts.put(fragmentHash, count);
                     if (YInts.containsKey(fragmentHash)) {
-                        YInts.get(fragmentHash).add(inputGlycan.Yfragments.get(fragmentHash).expectedIntensity);
+                        YInts.get(fragmentHash).add(inputGlycan.Yfragments.get(fragmentHash).foundIntensity);
                     } else {
                         ArrayList<Double> newList = new ArrayList<>();
-                        newList.add(inputGlycan.Yfragments.get(fragmentHash).expectedIntensity);
+                        newList.add(inputGlycan.Yfragments.get(fragmentHash).foundIntensity);
                         YInts.put(fragmentHash, newList);
                     }
                 }
@@ -306,10 +307,10 @@ public class GlycoAnalysis {
                     count++;
                     OxCounts.put(fragmentHash, count);
                     if (OxInts.containsKey(fragmentHash)) {
-                        OxInts.get(fragmentHash).add(inputGlycan.oxoniumFragments.get(fragmentHash).expectedIntensity);
+                        OxInts.get(fragmentHash).add(inputGlycan.oxoniumFragments.get(fragmentHash).foundIntensity);
                     } else {
                         ArrayList<Double> newList = new ArrayList<>();
-                        newList.add(inputGlycan.oxoniumFragments.get(fragmentHash).expectedIntensity);
+                        newList.add(inputGlycan.oxoniumFragments.get(fragmentHash).foundIntensity);
                         OxInts.put(fragmentHash, newList);
                     }
                 }
@@ -335,7 +336,10 @@ public class GlycoAnalysis {
                 for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
                     intensities[i] = fragmentEntry.getValue().get(i);
                 }
-                yFragmentIntensities.put(fragmentEntry.getKey(), Arrays.stream(intensities).average().orElse(0));
+                Median median = new Median();
+//                double testAvg = Arrays.stream(intensities).average().orElse(0);
+//                double testMedian = median.evaluate(Arrays.stream(intensities).toArray());
+                yFragmentIntensities.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
             }
             HashMap<String, Double> OxFragmentIntensities = new HashMap<>();
             for (Map.Entry<String, ArrayList<Double>> fragmentEntry : OxInts.entrySet()) {
@@ -343,7 +347,8 @@ public class GlycoAnalysis {
                 for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
                     intensities[i] = fragmentEntry.getValue().get(i);
                 }
-                OxFragmentIntensities.put(fragmentEntry.getKey(), Arrays.stream(intensities).average().orElse(0));
+                Median median = new Median();
+                OxFragmentIntensities.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
             }
 
             // save determined propensities to the output container
@@ -1028,23 +1033,41 @@ public class GlycoAnalysis {
      */
     public void computeAbsoluteScoreDynamic(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
         // Y ions
+        int index = 0;
         double yScore = 0;
+        double[] foundYs = new double[candidate.Yfragments.size()];
+        double[] expectedYs = new double[candidate.Yfragments.size()];
         for (GlycanFragment fragment : candidate.Yfragments.values()) {
             double probRatio = computeFragmentAbsoluteScore(fragment);
             yScore += Math.log(probRatio);
+            foundYs[index] = fragment.foundIntensity;
+            expectedYs[index] = fragment.expectedIntensity;
+            index++;
         }
         if (glycoParams.glycoYnorm) {
             yScore = yScore / Math.sqrt(candidate.Yfragments.size());
         }
         candidate.YFragmentScore = yScore;
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ysim)) {
+            candidate.ySpecSim = entropyScore(expectedYs, foundYs);
+        }
 
         // oxonium ions
+        index = 0;
         double oxoScore = 0;
+        double[] foundOxos = new double[candidate.oxoniumFragments.size()];
+        double[] expectedOxos = new double[candidate.oxoniumFragments.size()];
         for (GlycanFragment fragment : candidate.oxoniumFragments.values()) {
             double probRatio = computeFragmentAbsoluteScore(fragment);
             oxoScore += Math.log(probRatio);
+            foundOxos[index] = fragment.foundIntensity;
+            expectedOxos[index] = fragment.expectedIntensity;
+            index++;
         }
         candidate.OxFragmentScore = oxoScore;
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
+            candidate.oxSpecSim = entropyScore(expectedOxos, foundOxos);
+        }
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
         candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
@@ -1525,6 +1548,61 @@ public class GlycoAnalysis {
     }
 
     /**
+     * Compute unweighted spectral entropy between the two spectrum vectors, as in
+     * www.nature.com/articles/s41592-021-01331-z. Assumes spectrum vectors are of equal
+     * length.
+     */
+    private double entropyScore(double[] theoreticalPks, double[] exptPks) {
+        double[] SabVector = new double[theoreticalPks.length];
+        int numFrags = 0;
+        for (double j : exptPks) {
+            if (j != 0) {
+                numFrags += 1;
+            }
+        }
+        double[] normThyPks = normalize(theoreticalPks);
+        double[] normExptPks = normalize(exptPks);
+
+        if (numFrags < 2) {
+            return 0;
+        } else {
+            for (int i = 0; i < SabVector.length; i++) {
+                SabVector[i] = (normThyPks[i] + normExptPks[i]) / 2;
+            }
+        }
+        return 1 - ( ((2 * spectralEntropy(SabVector)) - spectralEntropy(normExptPks) - spectralEntropy(normThyPks)) / Math.log(4));
+    }
+
+    private double spectralEntropy(double[] vector) {
+        double entropy = 0;
+        for (double f : vector) {
+            if (f != 0) {
+                entropy += (f * Math.log(f));
+            }
+        }
+        return -1 * entropy;
+    }
+
+    /**
+     * Normalize input vector so that the sum of all entries is 1
+     */
+    private double[] normalize(double[] vector) {
+        double total = 0;
+        for (double i : vector) {
+            total += i;
+        }
+        if (total == 0) {
+            return vector;
+        }
+        double[] output = new double[vector.length];
+        for (int i=0; i < vector.length; i++) {
+            output[i] = vector[i] / total;
+        }
+        return output;
+    }
+
+
+    /**
      * Generate the feature vector for LDA and the summed score for the glycan candidate result using the
      * list of features to use.
      */
@@ -1563,9 +1641,24 @@ public class GlycoAnalysis {
                         sumLogRatio += candidate.frequencyPrior;
                     }
                     break;
+                case ysim:
+                    if (!isFirstPass) {
+                        features.add(candidate.ySpecSim);
+                        sumLogRatio += candidate.ySpecSim;
+                    }
+                    break;
+                case oxsim:
+                    if (!isFirstPass) {
+                        features.add(candidate.oxSpecSim);
+                        sumLogRatio += candidate.oxSpecSim;
+                    }
+                    break;
             }
         }
         candidate.summedScore = sumLogRatio;
+        if (Double.isNaN(sumLogRatio)) {
+            int x=0;
+        }
         if (!glycoParams.glycoLDA) {
             candidate.glycanScore = candidate.summedScore;
         }
