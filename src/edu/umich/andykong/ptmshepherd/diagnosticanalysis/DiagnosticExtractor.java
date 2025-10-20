@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticanalysis;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
@@ -266,7 +267,7 @@ public class DiagnosticExtractor {
         return oxoniumIonIntensities;
     }
 
-    public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, TreeMap<Integer, Float> smods, float[] deltaScores, float[][] remainderInts, int[][] remainderCounts) {
+    public boolean[][] localizeRemainderFragments(Spectrum spec, String seq, ArrayList<Mod> smods, float[] deltaScores, float[][] remainderInts, int[][] remainderCounts) {
         //initialize allowed positions
         boolean [] allowedPoses = SiteLocalization.parseAllowedPositions(seq, PTMShepherd.getParam("localization_allowed_res"));
         //initialize remainder delta scores

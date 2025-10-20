@@ -25,8 +25,8 @@ public class PSM {
     private float originalCalcPepMass;
     private final int charge;
     private float originalDeltaMass;	// what was listed in the PSM table before analysis
-    private TreeMap<Integer, Float> originalAssignedMods;
-    private TreeMap<Integer, Float> assignedMods;		// position -> mass
+    private ArrayList<Mod> originalAssignedMods;
+    private ArrayList<Mod> assignedMods;		// position -> mass
     private String modifiedPeptide;
     private String originalModifiedPeptide;
     public GlycanAssignmentResult glycanAssignmentResult = null; // result of glycan assignment, if any
@@ -134,14 +134,16 @@ public class PSM {
                 deltaMassPos = handleTerminalDeltaMass(deltaMassPos);
 
                 // remove the delta mass from the assigned mods and add its mass to the dMass for analysis
-                assignedMods = new TreeMap<>();
+                assignedMods = new ArrayList<>();
                 boolean foundDeltaMod = false;
-                for (Map.Entry<Integer, Float> mod : originalAssignedMods.entrySet()) {
-                    if (mod.getKey() != deltaMassPos) {
-                        assignedMods.put(mod.getKey(), mod.getValue());
+                float modMassAtDeltaPos = 0.0f;
+                for (Mod mod : originalAssignedMods) {
+                    if (mod.position != deltaMassPos) {
+                        assignedMods.add(mod);
                     } else {
                         // this is the delta mod. Do not include it in the new assigned mods
                         foundDeltaMod = true;
+                        modMassAtDeltaPos += mod.mass;  // in case there are multiple (e.g., fixed + offset at same site)
                     }
                 }
 
@@ -154,15 +156,13 @@ public class PSM {
 
                 // if delta mass was removed, add it back (but do not if it was kept)
                 if (massdiffToVarmod == 1 && foundDeltaMod) {
-                    dMass = originalDeltaMass + originalAssignedMods.get(deltaMassPos);
-                    calcPepMass = originalCalcPepMass - originalAssignedMods.get(deltaMassPos);
+                    dMass = originalDeltaMass + modMassAtDeltaPos;
+                    calcPepMass = originalCalcPepMass - modMassAtDeltaPos;
                 } else {
                     dMass = originalDeltaMass;
                     calcPepMass = originalCalcPepMass;
                 }
             }
-            assignedMods = assignedMods.entrySet().stream().sorted(Map.Entry.comparingByValue())
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e2, e1) -> e1, TreeMap::new));
         }
     }
 
@@ -178,16 +178,16 @@ public class PSM {
      */
     private int handleTerminalDeltaMass(int deltaMassPos) {
         if (deltaMassPos == 1) {
-            for (Map.Entry<Integer, Float> mod : originalAssignedMods.entrySet()) {
-                if (mod.getKey() == 0) {
+            for (Mod mod : originalAssignedMods) {
+                if (mod.position == 0) {
                     deltaMassPos = 0;
                     break;
                 }
             }
         }
         if (deltaMassPos == peptide.length()) {
-            for (Map.Entry<Integer, Float> mod : originalAssignedMods.entrySet()) {
-                if (mod.getKey() == peptide.length() + 1) {
+            for (Mod mod : originalAssignedMods) {
+                if (mod.position == peptide.length() + 1) {
                     deltaMassPos = peptide.length() + 1;
                     break;
                 }
@@ -196,8 +196,8 @@ public class PSM {
         return deltaMassPos;
     }
 
-    public TreeMap<Integer, Float> initAssignedMods(int assignedModCol) {
-        TreeMap<Integer, Float> mods = new TreeMap<>();
+    public ArrayList<Mod> initAssignedMods(int assignedModCol) {
+        ArrayList<Mod> mods = new ArrayList<>();
         String strMods = spLine.get(assignedModCol);
         if (!strMods.isEmpty()) {
             String[] spMods = strMods.split(",", -1);
@@ -213,7 +213,7 @@ public class PSM {
                     pos = this.getPeptide().length() + 1;   // record C-term as last residue + 1
                 else
                     pos = Integer.parseInt(spos.substring(0, spos.length() - 1));
-                mods.put(pos, mass);
+                mods.add(new Mod(pos, mass));
             }
         }
         return mods;
@@ -223,13 +223,13 @@ public class PSM {
         if (modArr == null) {
             modArr = new float[getPeptide().length()];
             Arrays.fill(modArr, 0.0f);
-            for (Map.Entry<Integer, Float> mod : assignedMods.entrySet()) {
-                if (mod.getKey() == 0)
-                    modArr[0] = mod.getValue();
-                else if (mod.getKey() == getPeptide().length() + 1)
-                    modArr[modArr.length - 1] = mod.getValue(); // C-term is last residue + 1, so last index
+            for (Mod mod : assignedMods) {
+                if (mod.position == 0)
+                    modArr[0] = mod.mass;
+                else if (mod.position == getPeptide().length() + 1)
+                    modArr[modArr.length - 1] = mod.mass; // C-term is last residue + 1, so last index
                 else
-                    modArr[mod.getKey()-1] = mod.getValue();
+                    modArr[mod.position-1] = mod.mass;
             }
         }
         return modArr;
@@ -240,29 +240,26 @@ public class PSM {
         return dMass;
     }
 
-    public TreeMap<Integer, Float> getAssignedMods() {
+    public ArrayList<Mod> getAssignedMods() {
         return assignedMods;
     }
 
-    public TreeMap<Integer, Float> getOriginalAssignedMods() {
+    public ArrayList<Mod> getOriginalAssignedMods() {
         return originalAssignedMods;
     }
 
     public String printAssignedMods() {
         ArrayList<String> modStrs = new ArrayList<>();
-        // ensure mods are sorted by ascending position (most mods are, but terminal ones may not be if coming from the delta mass placement)
-        assignedMods = assignedMods.entrySet().stream().sorted(Map.Entry.comparingByValue())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e2, e1) -> e1, TreeMap::new));
-        for (Map.Entry<Integer, Float> mod : assignedMods.entrySet()) {
+        for (Mod mod : assignedMods) {
             StringBuilder sb = new StringBuilder();
-            if (mod.getKey() == 0) {
+            if (mod.position == 0) {
                 sb.append("N-term");
-            } else if (mod.getKey() == getPeptide().length() + 1) {
+            } else if (mod.position == getPeptide().length() + 1) {
                 sb.append("C-term");
             } else {
-                sb.append(mod.getKey()).append(getPeptide().charAt(mod.getKey()-1));
+                sb.append(mod.position).append(getPeptide().charAt(mod.position-1));
             }
-            sb.append(String.format("(%.4f)", mod.getValue()));
+            sb.append(String.format("(%.4f)", mod.mass));
             modStrs.add(sb.toString());
         }
         return String.join(",", modStrs);

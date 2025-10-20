@@ -294,18 +294,18 @@ public class SiteLocalization {
 		return scores;
 	}
 
-	public static void localizeMods(TreeMap<Integer, Float> assignedMods, float[] mods) {
-		for (Map.Entry<Integer, Float> mod : assignedMods.entrySet()) {
+	public static void localizeMods(ArrayList<Mod> assignedMods, float[] mods) {
+		for (Mod mod : assignedMods) {
 			// Mods are 1-indexed in PSMs, except for terminal mods which are 0 (N-term) or length+1 (C-term)
 			int pos;
-            if (mod.getKey() == 0) {
+            if (mod.position == 0) {
                 pos = 0;                    // N-term
-            } else if (mod.getKey() == mods.length + 1) {
+            } else if (mod.position == mods.length + 1) {
                 pos = mods.length - 1;      // C-term
             } else {
-                pos = mod.getKey() - 1;     // all other mods
+                pos = mod.position - 1;     // all other mods
             }
-			float mass = mod.getValue();
+			float mass = mod.mass;
             mods[pos] += mass;
 		}
 	}

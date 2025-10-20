@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
@@ -515,7 +516,7 @@ public class DiagnosticPeakPicker {
         int charge = psm.getCharge();
         int scanNum = psm.getScanNum();
         String pepSeq = psm.getPeptide();
-        TreeMap<Integer, Float> smods = psm.getAssignedMods();
+        ArrayList<Mod> smods = psm.getAssignedMods();
         float dmass = psm.getDMass();
         float pepMass = psm.getCalcPepmass();
 
@@ -569,7 +570,7 @@ public class DiagnosticPeakPicker {
     }
 
 
-    public float[] formatMods(TreeMap<Integer, Float> smods, String seq) {
+    public float[] formatMods(ArrayList<Mod> smods, String seq) {
         float [] mods = new float[seq.length()];
         Arrays.fill(mods, 0f);
         SiteLocalization.localizeMods(smods, mods);

@@ -186,8 +186,8 @@ public class PSMFile {
 			ArrayList<Float> psmMods = new ArrayList<>();
 			psmMods.add(psm.getDMass());
 			if (useAssignedMods) {
-				for (Map.Entry<Integer, Float> mod : psm.getAssignedMods().entrySet()) {
-					psmMods.add(mod.getValue());
+				for (Mod mod : psm.getAssignedMods()) {
+					psmMods.add(mod.mass);
 				}
 			}
 			res.add(psmMods);
@@ -478,14 +478,20 @@ public class PSMFile {
 		int glycanLocation = readMSFraggerGlycanLocation(psm.spLine, glycoParams.nGlycan, glycoParams.allowedLocalizationResidues);
 
 		/* write mass and location to Assigned Mods */
-		double prevGlycanMass = 0;
-		if (psm.getAssignedMods().containsKey(glycanLocation + 1)) {
-			prevGlycanMass = psm.getAssignedMods().get(glycanLocation + 1);
-		}
+        Mod prevGlycanMod = null;
+        for (Mod mod: psm.getAssignedMods()) {
+            if (mod.position == glycanLocation + 1) {
+                prevGlycanMod = mod;
+                break;
+            }
+        }
+        float prevGlycanMass = prevGlycanMod == null? 0 : prevGlycanMod.mass;
 
 		// add the assigned glycan to the updated mod list (from which we removed any old glycan mods) if not failed FDR or is decoy
 		if (editPSMGlycoEntry) {
-			psm.getAssignedMods().put(glycanLocation + 1, (float) glycanMass);
+            int originalIndex = psm.getAssignedMods().indexOf(prevGlycanMod);
+            psm.getAssignedMods().remove(prevGlycanMod);
+			psm.getAssignedMods().add(originalIndex, new Mod(glycanLocation + 1, (float) glycanMass));
 		}
 		psm.spLine.set(assignedModCol, psm.printAssignedMods());
 
@@ -493,7 +499,7 @@ public class PSMFile {
 
 		/* Update delta mass AND calc m/z columns */
 		if (glycoParams.removeGlycanDeltaMass) {
-			psm.updateDeltaMass((float) glycanMass, massdiffToVarmod, (float) prevGlycanMass, peptideCalcMassCol, calcMZcol, dMassCol, assignedModCol);
+			psm.updateDeltaMass((float) glycanMass, massdiffToVarmod, prevGlycanMass, peptideCalcMassCol, calcMZcol, dMassCol, assignedModCol);
 		}
 	}
 

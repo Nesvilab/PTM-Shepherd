@@ -19,6 +19,7 @@ package edu.umich.andykong.ptmshepherd.peakpicker;
 import java.io.*;
 import java.util.*;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
@@ -247,9 +248,9 @@ public class PeakSummary {
 			double deltaMass = psm.getDMass();
 			appendPSMsHelper(pf, psm, deltaMass);
 			if (useAssignedMods) {
-				TreeMap<Integer, Float> mods = psm.getAssignedMods();
-				for (Map.Entry<Integer, Float> mod : mods.entrySet()) {
-					appendPSMsHelper(pf, psm, mod.getValue());
+                ArrayList<Mod> mods = psm.getAssignedMods();
+				for (Mod mod : mods) {
+					appendPSMsHelper(pf, psm, mod.mass);
 				}
 			}
 		}

@@ -47,14 +47,14 @@ public class PSMFileTest {
         assert Math.abs(psm4.getDMass() - 0.0048 - 2512.8455) < tol;
         assert Math.abs(psm4.getOriginalDeltaMass() - 0.0048) < tol;
         assert psm4.getAssignedMods().isEmpty();
-        assert psm4.getOriginalAssignedMods().get(3) - 2512.8455 < tol;
+        assert psm4.getOriginalAssignedMods().get(0).mass - 2512.8455 < tol;
 
         // N-term modification from varmod
         PSM psmNvarmod = psmFile.psms.get(6);
         assert psmNvarmod.getScanNum() == 7005;
         assert Math.abs(psmNvarmod.getDMass() + 0.0007) < tol;
-        assert Math.abs(psmNvarmod.getAssignedMods().get(0) - 42.0106) < tol;
-        assert Math.abs(psmNvarmod.getOriginalAssignedMods().get(0) - 42.0106) < tol;
+        assert Math.abs(psmNvarmod.getAssignedMods().get(0).mass - 42.0106) < tol;
+        assert Math.abs(psmNvarmod.getOriginalAssignedMods().get(0).mass - 42.0106) < tol;
 
         // N-term modification from offset
         PSM psmNoffset = psmFile.psms.get(7);
@@ -62,7 +62,7 @@ public class PSMFileTest {
         assert Math.abs(psmNoffset.getDMass() - 0.0007 - 27.9949) < tol;
         assert Math.abs(psmNoffset.getOriginalDeltaMass() - 0.0007) < tol;
         assert psmNoffset.getAssignedMods().isEmpty();
-        assert Math.abs(psmNoffset.getOriginalAssignedMods().get(0) - 27.9949) < tol;
+        assert Math.abs(psmNoffset.getOriginalAssignedMods().get(0).mass - 27.9949) < tol;
 
         // C-term modification from offset
         PSM psmCoffset = psmFile.psms.get(8);
@@ -70,7 +70,12 @@ public class PSMFileTest {
         assert Math.abs(psmCoffset.getDMass() - 0.0059 + 0.98401) < tol;
         assert Math.abs(psmCoffset.getOriginalDeltaMass() - 0.0059) < tol;
         assert psmCoffset.getAssignedMods().isEmpty();
-        assert Math.abs(psmCoffset.getOriginalAssignedMods().get(19) + 0.98401) < tol;
+        assert Math.abs(psmCoffset.getOriginalAssignedMods().get(0).mass + 0.98401) < tol;
+
+        PSM psmFixedAndOffsetCys = psmFile.psms.get(9);
+        assert psmFixedAndOffsetCys.getScanNum() == 38977;
+        assert Math.abs(psmFixedAndOffsetCys.getDMass() - 57.02146 + 9.0367 + 0.0052) < tol;
+        assert Math.abs(psmFixedAndOffsetCys.getOriginalDeltaMass() + 0.0052) < tol;
     }
 
     @Test
@@ -88,7 +93,7 @@ public class PSMFileTest {
         assert Math.abs(psm4.getDMass() - 0.0048 - 2512.8455) < tol;
         assert Math.abs(psm4.getOriginalDeltaMass() - 0.0048 - 2512.8455) < tol;
         assert psm4.getAssignedMods().isEmpty();
-        assert Math.abs(psm4.getOriginalAssignedMods().get(3) - 2512.8455) < tol;
+        assert Math.abs(psm4.getOriginalAssignedMods().get(0).mass - 2512.8455) < tol;
     }
 
     @Test

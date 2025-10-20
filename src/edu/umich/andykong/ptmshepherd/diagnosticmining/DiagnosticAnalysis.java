@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.diagnosticmining;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
@@ -148,7 +149,7 @@ public class DiagnosticAnalysis {
         String pepSeq = psm.getPeptide();
         float dmass = psm.getDMass();
         float pepMass = psm.getCalcPepmass();
-        TreeMap<Integer, Float> smods = psm.getAssignedMods();
+        ArrayList<Mod> smods = psm.getAssignedMods();
 
         /* Prep spec and normalize to base peak */
         Spectrum spec = mr.getSpectrum(reNormName(specName));
@@ -190,14 +191,14 @@ public class DiagnosticAnalysis {
         return peaks;
     }
 
-    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, String pepSeq, TreeMap<Integer, Float> smods, String ionTypes, String filterIonTypes, int maxCharge) {
+    public HashMap<Character, float[][]> calcSquigglePeaks(Spectrum spec, float specTol, String pepSeq, ArrayList<Mod> smods, String ionTypes, String filterIonTypes, int maxCharge) {
         //Get dem mods and put 'em on the peptide
         float [] mods = parseModifications(smods, pepSeq);
         HashMap<Character, float[][]> squigglePeaks = spec.calcSquigglePeaks(specTol, pepSeq, mods, ionTypes, filterIonTypes, maxCharge);
         return squigglePeaks;
     }
 
-    public float[] parseModifications(TreeMap<Integer, Float> smods, String pepSeq) {
+    public float[] parseModifications(ArrayList<Mod> smods, String pepSeq) {
         float [] mods = new float[pepSeq.length()];
         Arrays.fill(mods, 0f);
         SiteLocalization.localizeMods(smods, mods);
