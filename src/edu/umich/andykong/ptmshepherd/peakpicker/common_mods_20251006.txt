@@ -9,6 +9,7 @@ Loss of arginine due to transpeptidation	156.1011
 Bacillosamine	228.111
 Replacement of 2 protons by calcium	37.9469
 Iodoacetamide derivative	57.0215
+S-carbamoylmethylcysteine cyclization (N-terminus)	39.994915
 Carbamylation	43.0058
 formaldehyde adduct	12
 Carboxylation	43.9898
