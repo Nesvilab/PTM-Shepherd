@@ -55,6 +55,7 @@ public class GlycoParams {
     public boolean normFragmentIntensities;     // (separately) normalize Y and oxonium fragment intensities
     public double topPctSpectraForConsensus;
     public int minYsForConsensus;
+    public int minPSMsForConsensus;
     // IonQuant MS1 params
     public float rtTol = 0.4f;
     public float imTol = 0.05f;

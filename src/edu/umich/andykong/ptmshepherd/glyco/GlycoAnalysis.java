@@ -59,7 +59,6 @@ public class GlycoAnalysis {
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
-    public static final int MIN_GLYCO_PSMS_FOR_BOOTSTRAP = 10;      // todo: param
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
     private final GlycoParams glycoParams;
@@ -278,7 +277,7 @@ public class GlycoAnalysis {
             HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
             ArrayList<GlycanCandidateResult> allPSMsWithThisGlycan = glycanEntry.getValue();
             // skip generating fragment information for glycans with too few PSMs to get reasonable values
-            if (allPSMsWithThisGlycan.size() < MIN_GLYCO_PSMS_FOR_BOOTSTRAP) {
+            if (allPSMsWithThisGlycan.size() < glycoParams.minPSMsForConsensus) {
                 continue;
             }
             if (glycoParams.topPctSpectraForConsensus < 1.0) {
