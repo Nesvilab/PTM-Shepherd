@@ -479,7 +479,7 @@ public class PSMFile {
 
 		/* write mass and location to Assigned Mods */
         Mod prevGlycanMod = null;
-        for (Mod mod: psm.getAssignedMods()) {
+        for (Mod mod: psm.getOriginalAssignedMods()) {
             if (mod.position == glycanLocation + 1) {
                 prevGlycanMod = mod;
                 break;
@@ -489,10 +489,22 @@ public class PSMFile {
 
 		// add the assigned glycan to the updated mod list (from which we removed any old glycan mods) if not failed FDR or is decoy
 		if (editPSMGlycoEntry) {
-            int originalIndex = psm.getAssignedMods().indexOf(prevGlycanMod);
-            psm.getAssignedMods().remove(prevGlycanMod);
-			psm.getAssignedMods().add(originalIndex, new Mod(glycanLocation + 1, (float) glycanMass));
-		}
+            int originalIndex = psm.getOriginalAssignedMods().indexOf(prevGlycanMod);
+            if (originalIndex == -1) {
+                // glycan not previously placed, add at appropriate position
+                int addIndex = 0;
+                for (Mod mod : psm.getAssignedMods()) {
+                    if (mod.position < glycanLocation + 1) {
+                        addIndex++;
+                    } else {
+                        break;
+                    }
+                }
+                psm.getAssignedMods().add(addIndex, new Mod(glycanLocation + 1, (float) glycanMass));
+            } else {
+                psm.getAssignedMods().add(originalIndex, new Mod(glycanLocation + 1, (float) glycanMass));
+            }
+        }
 		psm.spLine.set(assignedModCol, psm.printAssignedMods());
 
 		psm.editModifiedPeptide(glycanLocation + 1, glycanMass, massdiffToVarmod, modPeptideCol);

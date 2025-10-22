@@ -111,7 +111,7 @@ public class PSM {
         if (massdiffToVarmod == 0) {
             // no mass diff to varmod, use original delta mass and assigned mods
             dMass = originalDeltaMass;
-            assignedMods = originalAssignedMods;
+            assignedMods = copyMods(originalAssignedMods);
             modifiedPeptide = originalModifiedPeptide;
             calcPepMass = originalCalcPepMass;
         } else {
@@ -119,7 +119,7 @@ public class PSM {
             if (msfraggerLocStr.isEmpty()) {
                 // unmodified PSM
                 dMass = originalDeltaMass;
-                assignedMods = originalAssignedMods;
+                assignedMods = copyMods(originalAssignedMods);
                 modifiedPeptide = originalModifiedPeptide;
                 calcPepMass = originalCalcPepMass;
             } else {
@@ -248,6 +248,14 @@ public class PSM {
         return originalAssignedMods;
     }
 
+    private ArrayList<Mod> copyMods(ArrayList<Mod> mods) {
+        ArrayList<Mod> newMods = new ArrayList<>();
+        for (Mod mod : mods) {
+            newMods.add(new Mod(mod.position, mod.mass));
+        }
+        return newMods;
+    }
+
     public String printAssignedMods() {
         ArrayList<String> modStrs = new ArrayList<>();
         for (Mod mod : assignedMods) {
@@ -277,20 +285,18 @@ public class PSM {
      * Update the delta mass for this PSM (e.g., after glycan analysis), including updating the
      * calculated peptide mz and mass columns. If the delta mass was previously placed as a variable mod,
      * reset the delta mass to the original value before updating with the new delta mass.
-     * @param newDeltaMass new delta mass
+     * @param newTheoreticalMass new delta mass
      */
-    public void updateDeltaMass(float newDeltaMass, int massdiffToVarmod, float prevTheoreticalMass, int peptideCalcMassCol, int calcMZcol, int dmassCol, int assignedModCol) {
-        double prevCalcPeptideMass = calcPepMass;
+    public void updateDeltaMass(float newTheoreticalMass, int massdiffToVarmod, float prevTheoreticalMass, int peptideCalcMassCol, int calcMZcol, int dmassCol, int assignedModCol) {
         if (massdiffToVarmod == 1) {
-            float originalDeltaMass = dMass + prevTheoreticalMass;
-            dMass = originalDeltaMass - newDeltaMass;		// update delta mass in case the glycan composition has changed
-            // Remove previous mass prior to subtracting the new delta mass (in case the new delta mass is different)
-            double correctedMass = prevCalcPeptideMass - prevTheoreticalMass;
-            calcPepMass = (float) (correctedMass + newDeltaMass);
+            // Original dMass does not have the glycan: only need to adjust if the glycan composition has changed. If same composition, changeInDeltaMass will be 0
+            float changeInDeltaMass = newTheoreticalMass - prevTheoreticalMass;
+            dMass = originalDeltaMass + changeInDeltaMass;
+            calcPepMass = originalCalcPepMass + changeInDeltaMass;
         } else {
             // original delta mass was left intact, simply subtract the glycan mass
-            dMass = dMass - newDeltaMass;
-            calcPepMass = (float) (prevCalcPeptideMass + newDeltaMass);
+            dMass = dMass - newTheoreticalMass;
+            calcPepMass = originalCalcPepMass + newTheoreticalMass;
         }
 
         // update the spLine
