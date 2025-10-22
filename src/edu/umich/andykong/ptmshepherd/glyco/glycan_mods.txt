@@ -1,8 +1,12 @@
-#Name	mass	yProb +	yProb -	alt names	Required residue(s)	Max Allowed	Is Fixed
-Phospho	79.96633	2	0.5	P,phosph,phosphorylation,phosphate	Hex	0	FALSE
-Sulfo	79.95682			S,sulfo,sulf,sulfation	HexNAc	0	FALSE
-NH4	17.02655			ammonium,nh3,ammonia		0	FALSE
-Na	21.981944	2	0.5	sodium adduct,sodium,Na+		0	FALSE
-Fe	52.911462	2	0.5	Fe3,iron,iron adduct,Fe3+		0	FALSE
-Ca	37.946938	2	0.5	calcium,calcium adduct,Ca2+		0	FALSE
-Al	23.958062	2	0.5	Al3,aluminum,aluminum adduct,Al3+		0	FALSE
+#Name	Mass	yProb+	yProb-	Alternate Names	Elemental Composition	Required Residue(s)	Intrinsic Charge
+Phospho	79.96633148	2	0.5	P,phosph,phosphorylation,phosphate	P	Hex
+Sulfo	79.95681763			S,sulfo,sulf,sulfation	S	HexNAc
+NH4	17.02655029			ammonium,nh3,ammonia	NH4		1
+Na	21.98194313	2	0.5	sodium adduct,sodium,Na+	Na		1
+Fe	52.91146088	2	0.5	Fe3,iron,iron adduct,Fe3+	Fe		3
+Ca	37.94693756	2	0.5	calcium,calcium adduct,Ca2+	Ca		2
+Al	23.95806122	2	0.5	Al3,aluminum,aluminum adduct,Al3+	Al		3
+K	38.96370697	2	0.5	K+,potassium,potassium adduct	K		1
+Formyl	27.99490929	2	0.5	formylation,M	CO
+Acetyl	42.01055908	2	0.5	acetylation,Ac,C	C2H2O
+Succinyl	100.0160828	2	0.5	succinylation,U	C4H4O3
