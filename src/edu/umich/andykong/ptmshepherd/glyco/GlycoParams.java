@@ -64,6 +64,7 @@ public class GlycoParams {
     public boolean isIMdata = false;
     public ArrayList<LDAFeature> ldaFeaturesToUse;
     public double ldaTargetProp;
+    public boolean useShuffledIntensities;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -245,10 +246,76 @@ public class GlycoParams {
 
             // Get fragment info if present and initialize new candidate based on the old and fragment info (if present)
             GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
-            newCandidate = GlycanCandidate.initCandidateFromProps(oldCandidate, this.glycanResiduesMap, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
+            if (useShuffledIntensities) {
+                // new method: shuffle fragment intensities rather than giving random masses. Init as target, then change
+                newCandidate = GlycanCandidate.initGlycanCandidate(oldCandidate.composition,
+                        0.0,
+                        false,
+                        this.glycanResiduesMap,
+                        this.nGlycan,
+                        this.randomGenerator,
+                        this.glycoOxoniumDatabase);
+                newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
+                newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
+
+                if (oldCandidate.isDecoy) {
+                    newCandidate.isDecoy = true;
+                    newCandidate.mass = oldCandidate.mass;
+                    newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
+                    // shuffle intensities
+                    shuffleFragmentIntensities(newCandidate.Yfragments);
+                    shuffleFragmentIntensities(newCandidate.oxoniumFragments);
+                }
+            } else {
+                // original method: shift decoy masses with same propensities/intensities as target
+                newCandidate = GlycanCandidate.copyCandidate(oldCandidate, this.glycanResiduesMap);
+                newCandidate.Yfragments = initFragmentsFromConsensus(oldCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
+                newCandidate.oxoniumFragments = initFragmentsFromConsensus(oldCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
+            }
+
             newGlycoDB.add(newCandidate);
         }
         return newGlycoDB;
+    }
+
+    private TreeMap<String, GlycanFragment> initFragmentsFromConsensus(TreeMap<String, GlycanFragment> originalFragments,
+                                                                      HashMap<String, Double> fragmentPropensities,
+                                                                      HashMap<String, Double> fragmentIntensities) {
+        TreeMap<String, GlycanFragment> fragments = new TreeMap<>();
+        for (Map.Entry<String, GlycanFragment> originalFragEntry : originalFragments.entrySet()) {
+            String fragmentKey = originalFragEntry.getKey().replace("Decoy_", "");  // give decoys same fragment info as targets
+            double expectedIntensity;
+            double propensity;
+            GlycanFragment origFrag = originalFragEntry.getValue();
+            if (fragmentPropensities.containsKey(fragmentKey)) {
+                // have propensity/intensity info for this fragment - read from input fragmentInfo
+                expectedIntensity = fragmentIntensities.get(fragmentKey);
+                propensity = fragmentPropensities.get(fragmentKey);
+            } else {
+                // no added info - copy the original
+                expectedIntensity = origFrag.expectedIntensity;
+                propensity = origFrag.propensity;
+            }
+            GlycanFragment newFragment = GlycanFragment.copyFragmentWithPropensity(origFrag, expectedIntensity, propensity);
+            fragments.put(originalFragEntry.getKey(), newFragment);
+        }
+        return fragments;
+    }
+
+    private void shuffleFragmentIntensities(TreeMap<String, GlycanFragment> fragments) {
+        // extract intensities
+        ArrayList<Double> intensities = new ArrayList<>();
+        for (GlycanFragment fragment : fragments.values()) {
+            intensities.add(fragment.expectedIntensity);
+        }
+        // shuffle
+        Collections.shuffle(intensities, randomGenerator);
+        // reassign
+        int index = 0;
+        for (GlycanFragment fragment : fragments.values()) {
+            fragment.expectedIntensity = intensities.get(index);
+            index++;
+        }
     }
 
     // Print glycan database (including decoys and associated mass shifts) to file
