@@ -1552,6 +1552,9 @@ public class GlycoAnalysis {
      * length.
      */
     private double entropyScore(double[] theoreticalPks, double[] exptPks) {
+        if (Arrays.stream(theoreticalPks).sum() == 0) {
+            return 0;
+        }
         double[] SabVector = new double[theoreticalPks.length];
         int numFrags = 0;
         for (double j : exptPks) {
