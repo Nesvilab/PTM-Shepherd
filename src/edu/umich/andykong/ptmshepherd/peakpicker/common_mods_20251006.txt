@@ -28,6 +28,7 @@ dihydroxy	31.9898
 Ethylation	28.0313
 Farnesylation	204.1878
 Replacement of 2 protons by iron	53.9193
+Replacement of 3 protons by iron	52.911464
 Formylation	27.9949
 Gluconoylation	178.0477
 glucosylgalactosyl hydroxylysine	340.1006
@@ -71,3 +72,5 @@ Tryptophan oxidation to hydroxykynurenin	19.9898
 ubiquitinylation residue	114.042927
 Unidentified modification of 301.9864 found in open search	301.9865
 Replacement of 2 protons by zinc	61.9135
+Pyro-glu from E	-18.010565
+Pyro-glu from Q	-17.026549
