@@ -146,6 +146,19 @@ public class PSM {
                         modMassAtDeltaPos += mod.mass;  // in case there are multiple (e.g., fixed + offset at same site)
                     }
                 }
+                // handle C-2 (disulfide) case where the delta mass is actually removal of 2 fixed mods
+                boolean overrideForCysDisulfide = false;
+                if (deltaMassPos > 0 && deltaMassPos < peptide.length() && peptide.charAt(deltaMassPos - 1) == 'C') {
+                    if (checkCysDisulfide(deltaMassPos)) {
+                        modMassAtDeltaPos = -2.01565f;  // found disulfide: set mass manually
+                        // keep all original assigned mods because we don't know which Cys had the disulfide links if there were >2
+                        assignedMods = copyMods(originalAssignedMods);
+                        overrideForCysDisulfide = true;
+                        if (massdiffToVarmod == 2 ) {
+                            dMass = originalDeltaMass + 2 * 57.02146f; // add back two fixed mods if delta mass was kept
+                        }
+                    }
+                }
 
                 // remove the delta mass from the modified peptide if it is present as an assigned mod
                 if (foundDeltaMod) {
@@ -159,11 +172,33 @@ public class PSM {
                     dMass = originalDeltaMass + modMassAtDeltaPos;
                     calcPepMass = originalCalcPepMass - modMassAtDeltaPos;
                 } else {
-                    dMass = originalDeltaMass;
+                    // keep same delta mass as original, unless overridden for Cys disulfide case
+                    if (!(massdiffToVarmod == 2 && overrideForCysDisulfide)) {
+                        dMass = originalDeltaMass;
+                    }
                     calcPepMass = originalCalcPepMass;
                 }
             }
         }
+    }
+
+    private boolean checkCysDisulfide(int deltaMassPos) {
+        // check for C-116 mod and two C+57 mods
+        boolean hasC116 = false, hasC57 = false;
+        int c57count = 0;
+        for (Mod mod : originalAssignedMods) {
+            if (Math.abs(mod.mass - 57.02146f) < 0.01f) {
+                c57count++;
+            }
+            if (mod.position == deltaMassPos) {
+                if (Math.abs(mod.mass + 116.0586f) < 0.01f) {
+                    hasC116 = true;
+                } else if (Math.abs(mod.mass - 57.02146f) < 0.01f) {
+                    hasC57 = true;
+                }
+            }
+        }
+        return hasC116 && hasC57 && c57count > 1;
     }
 
     /**

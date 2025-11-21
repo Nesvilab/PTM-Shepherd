@@ -1,5 +1,6 @@
 package psm;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
@@ -77,6 +78,14 @@ public class PSMFileTest {
         assert psmFixedAndOffsetCys.getScanNum() == 38977;
         assert Math.abs(psmFixedAndOffsetCys.getDMass() - 57.02146 + 9.0367 + 0.0052) < tol;
         assert Math.abs(psmFixedAndOffsetCys.getOriginalDeltaMass() + 0.0052) < tol;
+
+        // Cys disulfide special handling
+        PSM psmCysDisulfide = psmFile.psms.get(10);
+        assert psmCysDisulfide.getScanNum() == 8213;
+        assert Math.abs(psmCysDisulfide.getDMass() + 2.01565 - psmCysDisulfide.getOriginalDeltaMass()) < tol;
+        for (int i=0; i < psmCysDisulfide.getOriginalAssignedMods().size(); i++) {
+            assert psmCysDisulfide.getAssignedMods().get(i).equals(psmCysDisulfide.getOriginalAssignedMods().get(i));
+        }
     }
 
     @Test
@@ -95,6 +104,14 @@ public class PSMFileTest {
         assert Math.abs(psm4.getOriginalDeltaMass() - 0.0048 - 2512.8455) < tol;
         assert psm4.getAssignedMods().isEmpty();
         assert Math.abs(psm4.getOriginalAssignedMods().get(0).mass - 2512.8455) < tol;
+
+        // Cys disulfide special handling
+        PSM psmCysDisulfide = psmFile.psms.get(6);
+        assert psmCysDisulfide.getScanNum() == 8213;
+        assert Math.abs(psmCysDisulfide.getDMass() - psmCysDisulfide.getOriginalDeltaMass() - (2 * 57.02146)) < tol;
+        for (int i=0; i < psmCysDisulfide.getOriginalAssignedMods().size(); i++) {
+            assert psmCysDisulfide.getAssignedMods().get(i).equals(psmCysDisulfide.getOriginalAssignedMods().get(i));
+        }
     }
 
     @Test

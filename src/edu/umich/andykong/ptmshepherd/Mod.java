@@ -12,4 +12,8 @@ public class Mod {
     public String toString() {
         return String.format("%d(%.4f)", position, mass);
     }
+
+    public boolean equals(Mod other) {
+        return this.position == other.position && this.mass == other.mass;
+    }
 }
