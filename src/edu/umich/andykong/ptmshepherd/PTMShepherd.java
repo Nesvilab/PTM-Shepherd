@@ -1370,6 +1370,7 @@ public class PTMShepherd {
         glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 1 : Integer.parseInt(getParam("min_y_consensus"));
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));
         glycoParams.useShuffledIntensities = !getParam("shuffle_decoy_intensities").isEmpty() && Boolean.parseBoolean(getParam("shuffle_decoy_intensities"));	// default false
+		glycoParams.simOnly2ndPass = !getParam("specsim_only_2nd_pass").isEmpty() && Boolean.parseBoolean(getParam("specsim_only_2nd_pass"));	// default false
 
 		return glycoParams;
 	}

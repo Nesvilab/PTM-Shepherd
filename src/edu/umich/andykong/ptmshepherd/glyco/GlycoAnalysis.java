@@ -1610,57 +1610,58 @@ public class GlycoAnalysis {
      */
     private void generateScores(GlycanCandidateResult candidate) {
         ArrayList<Double> features = new ArrayList<>();
-        double sumLogRatio = 0;
+        double summedScore = 0;
         for (GlycoParams.LDAFeature feature : glycoParams.ldaFeaturesToUse) {
             switch (feature) {
                 case kl: // KL score
                     features.add(candidate.ms1Score);
-                    sumLogRatio += candidate.ms1Score;
+                    summedScore += candidate.ms1Score;
                     break;
                 case yprop: // Y proportion score
-                    features.add(candidate.YproportionScore);
-                    sumLogRatio += candidate.YproportionScore;
+                    if (isFirstPass || !glycoParams.simOnly2ndPass) {
+                        features.add(candidate.YproportionScore);
+                        summedScore += candidate.YproportionScore;
+                    }
                     break;
                 case yscore: // Y fragment score
-                    features.add(candidate.YFragmentScore);
-                    sumLogRatio += candidate.YFragmentScore;
+                    if (isFirstPass || !glycoParams.simOnly2ndPass) {
+                        features.add(candidate.YFragmentScore);
+                        summedScore += candidate.YFragmentScore;
+                    }
                     break;
                 case oxo: // Oxonium ion score
                     features.add(candidate.OxFragmentScore);
-                    sumLogRatio += candidate.OxFragmentScore;
+                    summedScore += candidate.OxFragmentScore;
                     break;
                 case mass: // Mass error score
                     features.add(candidate.massErrorScore);
-                    sumLogRatio += candidate.massErrorScore;
+                    summedScore += candidate.massErrorScore;
                     break;
                 case iso: // Isotope score
                     features.add(candidate.isotopeScore);
-                    sumLogRatio += candidate.isotopeScore;
+                    summedScore += candidate.isotopeScore;
                     break;
                 case glycanfreq:
                     if (!isFirstPass) {     // frequency can only be computed in the second pass
                         features.add(candidate.frequencyPrior);
-                        sumLogRatio += candidate.frequencyPrior;
+                        summedScore += candidate.frequencyPrior;
                     }
                     break;
                 case ysim:
                     if (!isFirstPass) {
                         features.add(candidate.ySpecSim);
-                        sumLogRatio += candidate.ySpecSim;
+                        summedScore += candidate.ySpecSim;
                     }
                     break;
                 case oxsim:
                     if (!isFirstPass) {
                         features.add(candidate.oxSpecSim);
-                        sumLogRatio += candidate.oxSpecSim;
+                        summedScore += candidate.oxSpecSim;
                     }
                     break;
             }
         }
-        candidate.summedScore = sumLogRatio;
-        if (Double.isNaN(sumLogRatio)) {
-            int x=0;
-        }
+        candidate.summedScore = summedScore;
         if (!glycoParams.glycoLDA) {
             candidate.glycanScore = candidate.summedScore;
         }
