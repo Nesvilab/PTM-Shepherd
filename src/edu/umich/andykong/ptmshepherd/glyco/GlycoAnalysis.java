@@ -61,6 +61,7 @@ public class GlycoAnalysis {
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
+    public static final double MIN_SIMILARITY = 0.1;
     private final GlycoParams glycoParams;
     public final ArrayList<GlycanAssignmentResult> allResults;
     private final String ldaHeader;
@@ -948,18 +949,29 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Y ions
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore))
-        {
-            if (glycoParams.glycoYnorm) {
-                sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
-            } else {
-                sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+        if (isFirstPass || !glycoParams.simOnly2ndPass) {
+            if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
+                if (glycoParams.glycoYnorm) {
+                    sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+                } else {
+                    sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
+                }
             }
         }
+        if (!isFirstPass && glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ysim)) {
+            double ySim1 = computeSimilarityScore(new ArrayList<>(glycan1.Yfragments.values()));
+            double ySim2 = computeSimilarityScore(new ArrayList<>(glycan2.Yfragments.values()));
+            sumLogRatio += Math.log(ySim1 / ySim2);
+        }
 
-        // oxonium ions
+            // oxonium ions
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxo)) {
             sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
+        }
+        if (!isFirstPass && glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
+            double oxSim1 = computeSimilarityScore(new ArrayList<>(glycan1.generalOxoniumFragments.values()));
+            double oxSim2 = computeSimilarityScore(new ArrayList<>(glycan2.generalOxoniumFragments.values()));
+            sumLogRatio += Math.log(oxSim1 / oxSim2);
         }
 
         // mass and isotope error
@@ -983,9 +995,16 @@ public class GlycoAnalysis {
     private double computeSimilarityScore(ArrayList<GlycanFragment> fragments) {
         double[] foundYs = new double[fragments.size()];
         double[] expectedYs = new double[fragments.size()];
+        boolean foundNonZero = false;
         for (int i = 0; i < fragments.size(); i++) {
             foundYs[i] = fragments.get(i).foundIntensity;
+            if (foundYs[i] > 0) {
+                foundNonZero = true;
+            }
             expectedYs[i] = fragments.get(i).expectedIntensity;
+        }
+        if (!foundNonZero) {
+            return MIN_SIMILARITY; // no matching ions found, return minimum similarity
         }
         return entropyScore(foundYs, expectedYs);
     }
