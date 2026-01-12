@@ -245,6 +245,11 @@ public class GlycoParams {
                 currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
             }
 
+            // Do not include candidates without any fragment info (i.e., not passing filters after 1st pass)
+            if (!fragmentDB.containsKey(currentGlycanHash)) {
+                continue;
+            }
+
             // initialize new candidate
             if (useShuffledIntensities) {
                 // new method: shuffle fragment intensities rather than giving random masses. Init as target, then change
@@ -260,7 +265,6 @@ public class GlycoParams {
                 newCandidate = GlycanCandidate.copyCandidate(oldCandidate, this.glycanResiduesMap);
             }
 
-            // get fragment info for this glycan if present
             GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
             newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
             newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
