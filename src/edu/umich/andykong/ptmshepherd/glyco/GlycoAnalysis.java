@@ -383,7 +383,7 @@ public class GlycoAnalysis {
      */
     public void runScoresAndFDR() {
         // LDA method
-        if (glycoParams.glycoLDA) {
+        if (glycoParams.glycoLDA && !isFirstPass) {
             ScoreLDA lda = new ScoreLDA();
             // add PSM results to LDA
             for (GlycanAssignmentResult result: allResults) {
