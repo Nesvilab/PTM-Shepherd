@@ -219,7 +219,7 @@ public class GlycoAnalysis {
         for (GlycanAssignmentResult result : allResults) {
             if (result.foundGlycan) {
                 GlycanCandidateResult glycan = result.bestCandidate;
-                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, glycan.Yfragments, glycan.oxoniumFragments);
+                GlycanCandidate fragmentInfoContainer = new GlycanCandidate(glycan.composition, 0, false, glycoParams.glycanResiduesMap, glycan.Yfragments, glycan.oxoniumFragments, glycan.generalOxoniumFragments);
 
                 String glycanHash = Glycan.toGlycanString(fragmentInfoContainer.composition);
                 // only include good targets in fragment info
@@ -275,6 +275,7 @@ public class GlycoAnalysis {
             HashMap<String, Integer> OxCounts = new HashMap<>();
             HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
             HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
+            HashMap<String, ArrayList<Double>> generalOxInts = new HashMap<>();
             ArrayList<GlycanCandidateResult> allPSMsWithThisGlycan = glycanEntry.getValue();
             // skip generating fragment information for glycans with too few PSMs to get reasonable values
             if (allPSMsWithThisGlycan.size() < glycoParams.minPSMsForConsensus) {
@@ -313,6 +314,15 @@ public class GlycoAnalysis {
                         OxInts.put(fragmentHash, newList);
                     }
                 }
+                for (String fragmentHash : inputGlycan.generalOxoniumFragments.keySet()) {
+                    if (generalOxInts.containsKey(fragmentHash)) {
+                        generalOxInts.get(fragmentHash).add(inputGlycan.generalOxoniumFragments.get(fragmentHash).foundIntensity);
+                    } else {
+                        ArrayList<Double> newList = new ArrayList<>();
+                        newList.add(inputGlycan.generalOxoniumFragments.get(fragmentHash).foundIntensity);
+                        generalOxInts.put(fragmentHash, newList);
+                    }
+                }
             }
 
             // now that all fragment info from all PSMs of this glycan is collected, determine propensities for each fragment
@@ -349,9 +359,18 @@ public class GlycoAnalysis {
                 Median median = new Median();
                 OxFragmentIntensities.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
             }
+            HashMap<String, Double> generalOxFragmentIntensities = new HashMap<>();
+            for (Map.Entry<String, ArrayList<Double>> fragmentEntry : generalOxInts.entrySet()) {
+                double[] intensities = new double[fragmentEntry.getValue().size()];
+                for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
+                    intensities[i] = fragmentEntry.getValue().get(i);
+                }
+                Median median = new Median();
+                generalOxFragmentIntensities.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
+            }
 
             // save determined propensities to the output container
-            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentProps, OxFragmentProps, yFragmentIntensities, OxFragmentIntensities);
+            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentProps, OxFragmentProps, yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
             glycanCandidateFragmentsMap.put(glycanEntry.getKey(), fragmentInfo);
         }
         return glycanCandidateFragmentsMap;
@@ -751,11 +770,16 @@ public class GlycoAnalysis {
                     // save oxonium ion intensity relative to base peak
                     oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
-                candidate.YproportionScore = spectrumYIntensity == 0 ? 0 : (foundYIntensity * 100) / spectrumYIntensity;    // proportion of possible Y ions in the spectrum matched to the candidate
-                if (glycoParams.normFragmentIntensities) {
-                    GlycanCandidateResult.normalizeIntensities(candidate.Yfragments);
-//                    GlycanCandidateResult.normalizeIntensities(candidate.oxoniumFragments);   // todo: enable once generalized oxos available
+                for (GlycanFragment generalOxoFragment: candidate.generalOxoniumFragments.values()) {
+                    // save generalized oxonium ion intensity relative to base peak
+                    generalOxoFragment.foundIntensity = spec.findIon(generalOxoFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
+
+                candidate.YproportionScore = spectrumYIntensity == 0 ? 0 : (foundYIntensity * 100) / spectrumYIntensity;    // proportion of possible Y ions in the spectrum matched to the candidate
+//                if (glycoParams.normFragmentIntensities) {
+//                    GlycanCandidateResult.normalizeIntensities(candidate.Yfragments);
+////                    GlycanCandidateResult.normalizeIntensities(candidate.generalOxoniumFragments);   // todo: enable once generalized oxos available
+//                }
             }
 
             // score candidates and save results
@@ -951,6 +975,22 @@ public class GlycoAnalysis {
     }
 
     /**
+     * Compute similarity score between found and expected intensities for a set of fragments. Requires that
+     * the fragment found and expected intensities are already populated.
+     * @param fragments list of fragments to compute similarity
+     * @return (double) similarity score
+     */
+    private double computeSimilarityScore(ArrayList<GlycanFragment> fragments) {
+        double[] foundYs = new double[fragments.size()];
+        double[] expectedYs = new double[fragments.size()];
+        for (int i = 0; i < fragments.size(); i++) {
+            foundYs[i] = fragments.get(i).foundIntensity;
+            expectedYs[i] = fragments.get(i).expectedIntensity;
+        }
+        return entropyScore(foundYs, expectedYs);
+    }
+
+    /**
      * Compute sum log probability ratios for the compared glycans for a particular fragment type.
      *
      * @param fragmentsMap1 Fragments from candidate 1
@@ -1052,20 +1092,14 @@ public class GlycoAnalysis {
         }
 
         // oxonium ions
-        index = 0;
         double oxoScore = 0;
-        double[] foundOxos = new double[candidate.oxoniumFragments.size()];
-        double[] expectedOxos = new double[candidate.oxoniumFragments.size()];
         for (GlycanFragment fragment : candidate.oxoniumFragments.values()) {
             double probRatio = computeFragmentAbsoluteScore(fragment);
             oxoScore += Math.log(probRatio);
-            foundOxos[index] = fragment.foundIntensity;
-            expectedOxos[index] = fragment.expectedIntensity;
-            index++;
         }
         candidate.OxFragmentScore = oxoScore;
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
-            candidate.oxSpecSim = entropyScore(expectedOxos, foundOxos);
+            candidate.oxSpecSim = computeSimilarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
         }
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)

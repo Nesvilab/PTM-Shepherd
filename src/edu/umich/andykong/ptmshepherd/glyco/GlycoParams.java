@@ -245,8 +245,7 @@ public class GlycoParams {
                 currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
             }
 
-            // Get fragment info if present and initialize new candidate based on the old and fragment info (if present)
-            GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
+            // initialize new candidate
             if (useShuffledIntensities) {
                 // new method: shuffle fragment intensities rather than giving random masses. Init as target, then change
                 newCandidate = GlycanCandidate.initGlycanCandidate(oldCandidate.composition,
@@ -256,24 +255,27 @@ public class GlycoParams {
                         this.nGlycan,
                         this.randomGenerator,
                         this.glycoOxoniumDatabase);
-                newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
-                newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
+            } else {
+                // original method: shift decoy masses with same propensities/intensities as target
+                newCandidate = GlycanCandidate.copyCandidate(oldCandidate, this.glycanResiduesMap);
+            }
 
+            // get fragment info for this glycan if present
+            GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
+            newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
+            newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
+            newCandidate.generalOxoniumFragments = initFragmentsFromConsensus(oldCandidate.generalOxoniumFragments, fragmtInfo.generalOxFragmentIntensities, fragmtInfo.generalOxFragmentIntensities);
+
+            if (useShuffledIntensities) {
                 if (oldCandidate.isDecoy) {
                     newCandidate.isDecoy = true;
                     newCandidate.mass = oldCandidate.mass;
                     newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
-                    // shuffle intensities
                     shuffleFragmentIntensities(newCandidate.Yfragments);
                     shuffleFragmentIntensities(newCandidate.oxoniumFragments);
+                    shuffleFragmentIntensities(newCandidate.generalOxoniumFragments);
                 }
-            } else {
-                // original method: shift decoy masses with same propensities/intensities as target
-                newCandidate = GlycanCandidate.copyCandidate(oldCandidate, this.glycanResiduesMap);
-                newCandidate.Yfragments = initFragmentsFromConsensus(oldCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
-                newCandidate.oxoniumFragments = initFragmentsFromConsensus(oldCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
             }
-
             newGlycoDB.add(newCandidate);
         }
         return newGlycoDB;

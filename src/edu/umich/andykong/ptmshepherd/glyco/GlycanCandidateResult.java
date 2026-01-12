@@ -31,7 +31,7 @@ public class GlycanCandidateResult extends GlycanCandidate {
 
     // initialize with the base Candidate and add scores as they are computed
     public GlycanCandidateResult(GlycanCandidate candidate, HashMap<String, GlycanResidue> glycanResiduesMap) {
-        super(candidate.composition, candidate.decoyMassShift, candidate.isDecoy, glycanResiduesMap, candidate.Yfragments, candidate.oxoniumFragments);
+        super(candidate.composition, candidate.decoyMassShift, candidate.isDecoy, glycanResiduesMap, candidate.Yfragments, candidate.oxoniumFragments, candidate.generalOxoniumFragments);
 
         // deep copy the fragments
         TreeMap<String, GlycanFragment> copiedYfragments = new TreeMap<>();
@@ -42,8 +42,13 @@ public class GlycanCandidateResult extends GlycanCandidate {
         for (Map.Entry<String, GlycanFragment> entry : candidate.oxoniumFragments.entrySet()) {
             copiedOxoniumFragments.put(entry.getKey(), GlycanFragment.copyFragment(entry.getValue()));
         }
+        TreeMap<String, GlycanFragment> copiedGeneralOxoniumFragments = new TreeMap<>();
+        for (Map.Entry<String, GlycanFragment> entry : candidate.generalOxoniumFragments.entrySet()) {
+            copiedGeneralOxoniumFragments.put(entry.getKey(), GlycanFragment.copyFragment(entry.getValue()));
+        }
         this.Yfragments = copiedYfragments;
         this.oxoniumFragments = copiedOxoniumFragments;
+        this.generalOxoniumFragments = copiedGeneralOxoniumFragments;
     }
 
 

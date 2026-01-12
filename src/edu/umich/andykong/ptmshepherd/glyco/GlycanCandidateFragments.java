@@ -26,13 +26,15 @@ public class GlycanCandidateFragments {
     HashMap<String, Double> yFragmentIntensities;
     HashMap<String, Double> OxFragmentProps;
     HashMap<String, Double> OxFragmentIntensities;
+    HashMap<String, Double> generalOxFragmentIntensities;
 
 
-    public GlycanCandidateFragments(HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, HashMap<String, Double> yFragmentIntensities, HashMap<String, Double> OxFragmentIntensities) {
+    public GlycanCandidateFragments(HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, HashMap<String, Double> yFragmentIntensities, HashMap<String, Double> OxFragmentIntensities, HashMap<String, Double> generalOxFragmentIntensities) {
         this.yFragmentProps = yFragmentProps;
         this.OxFragmentProps = OxFragmentProps;
         this.yFragmentIntensities = yFragmentIntensities;
         this.OxFragmentIntensities = OxFragmentIntensities;
+        this.generalOxFragmentIntensities = generalOxFragmentIntensities;
     }
 
     // empty constructor for candidates without fragment info
@@ -41,5 +43,6 @@ public class GlycanCandidateFragments {
         this.OxFragmentProps = new HashMap<>();
         this.yFragmentIntensities = new HashMap<>();
         this.OxFragmentIntensities = new HashMap<>();
+        this.generalOxFragmentIntensities = new HashMap<>();
     }
 }
