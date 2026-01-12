@@ -1565,9 +1565,9 @@ public class GlycoAnalysis {
             double massLo = isotopeCorrMass - massRangeDa - pepMass;    // remove pep mass after PPM calc for final calculation
             double massHi = isotopeCorrMass + massRangeDa - pepMass;
             for (GlycanCandidate glycan : glycanDatabase) {
-                // see if mass within specified ranges
-                if (glycan.mass >= massLo && glycan.mass <= massHi) {
-                    // match. todo: check duplicates (could be if user inputs them)
+                // ensure same targets and decoys match by removing the decoy mass shift (mass shift is for scoring only). Target mass shift = 0
+                double correctedMass = glycan.mass - glycan.decoyMassShift;
+                if (correctedMass >= massLo && correctedMass <= massHi) {
                     // add copy of candidate to allow multi-threading without competing access
                     matchingGlycans.add(new GlycanCandidateResult(glycan, glycoParams.glycanResiduesMap));
                 }
