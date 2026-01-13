@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import umich.ms.glyco.GlycanFragment;
 import java.util.ArrayList;
@@ -40,15 +41,15 @@ public class GlycanAssignmentResult {
     float pepMass;
     String assignedMods;
     String specName;
+    ArrayList<Mod> assignedModsList;
 
-
-
-    public GlycanAssignmentResult(int psmLineIndex, String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {
+    public GlycanAssignmentResult(int psmLineIndex, String peptide, float deltaMass, float pepMass, String assignedMods, ArrayList<Mod> assignedModsList, String specName) {
         this.psmLineIndex = psmLineIndex;
         this.peptide = peptide;
         this.deltaMass = deltaMass;
         this.pepMass = pepMass;
         this.assignedMods = assignedMods;
+        this.assignedModsList = assignedModsList;
         this.specName = specName;
 
         this.bestTarget = null;

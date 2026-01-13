@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
@@ -28,9 +29,12 @@ import ionquant.api.IonQuantAPI;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import org.hipparchus.stat.descriptive.rank.Median;
+import org.jspecify.annotations.NonNull;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanCandidate;
 import umich.ms.glyco.GlycanFragment;
+import umich.ms.util.AminoAcids;
+import umich.ms.util.ElementalComposition;
 
 import java.io.*;
 import java.util.*;
@@ -68,6 +72,8 @@ public class GlycoAnalysis {
     private final String ldaHeader;
     private static IonQuantAPI api;
     private final boolean isFirstPass;
+    private static final float ISOTOPE_MASS_DIFF = 1.00235f;
+    private static final int MAX_ISOTOPE_PEAKS = 6;
 
     // Default constructor
     public GlycoAnalysis(String dsName, ArrayList<GlycanCandidate> glycoDatabase, GlycoParams glycoParams, boolean isFirstPass) {
@@ -175,7 +181,7 @@ public class GlycoAnalysis {
      * @param params Parameters controlling the feature detection
      */
     public static IonQuantAPI indexBuilder(String filePath, GlycoParams params) {
-        if (params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
+        if (params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl) || params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)) {
             PTMShepherd.print("\tBuilding IonQuant index for " + filePath);
             api = new IonQuantAPI(
                     filePath,
@@ -724,7 +730,7 @@ public class GlycoAnalysis {
      */
     public void processPSM(PSM psm) {
         // get basic info
-        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.lineNum, psm.getPeptide(), psm.getDMass(), psm.getCalcPepmass(), psm.printAssignedMods(), psm.getSpec());
+        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.lineNum, psm.getPeptide(), psm.getDMass(), psm.getCalcPepmass(), psm.printAssignedMods(), psm.getAssignedMods(), psm.getSpec());
 
         // read spectrum and condition
         Spectrum spec = mr.getSpectrum(psm.getSpec());
@@ -793,9 +799,9 @@ public class GlycoAnalysis {
                 }
                 double comparisonScore;
                 if (useFragmentSpecificProbs) {
-                    comparisonScore = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, glycoResult.pepMass, spec);
+                    comparisonScore = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
-                    comparisonScore = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError, glycoResult.pepMass, spec);
+                    comparisonScore = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
                 }
 
                 if (comparisonScore == 0) {
@@ -815,9 +821,9 @@ public class GlycoAnalysis {
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i < bestCandidateIndex; i++) {
                 if (useFragmentSpecificProbs) {
-                    scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, glycoResult.pepMass, spec);
+                    scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
-                    scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult.deltaMass, meanMassError, glycoResult.pepMass, spec);
+                    scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
                 }
                 if (scoresVsBestCandidate[i] == 0) {
                     // this was from a tiebreak that was already chosen as not the best candidate, so set to a small positive value for sorting (since sort is done ascending)
@@ -945,7 +951,7 @@ public class GlycoAnalysis {
         return candidateCount / (double) maxFrequency;
     }
 
-    public double pairwiseCompareDynamic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double deltaMass, double pepMass, Spectrum spec) {
+    public double pairwiseCompareDynamic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, GlycanAssignmentResult glycoResult, Spectrum spec) {
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
 
@@ -976,11 +982,16 @@ public class GlycoAnalysis {
         }
 
         // mass and isotope error
-        sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
+        sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, glycoResult.deltaMass, meanMassError);
 
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
-            double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
-            double ms1score2 = calculateMS1score(glycan2, spec, pepMass);
+            double ms1score1 = calculateMS1score(glycan1, spec, glycoResult.pepMass);
+            double ms1score2 = calculateMS1score(glycan2, spec, glycoResult.pepMass);
+            sumLogRatio += (ms1score1 - ms1score2);
+        }
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)) {
+            double ms1score1 = calculateMS1CentroidScore(glycan1, spec, glycoResult);
+            double ms1score2 = calculateMS1CentroidScore(glycan2, spec, glycoResult);
             sumLogRatio += (ms1score1 - ms1score2);
         }
 
@@ -1138,6 +1149,9 @@ public class GlycoAnalysis {
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
             candidate.ms1Score = calculateMS1score(candidate, spec, result.pepMass);
         }
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)) {
+            candidate.ms1Score = calculateMS1CentroidScore(candidate, spec, result);
+        }
         if (!isFirstPass && glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.glycanfreq)) {
             candidate.frequencyPrior = computeGlycanFrequencyScore(candidate, result.deltaMass);
         }
@@ -1206,10 +1220,9 @@ public class GlycoAnalysis {
      *
      * @param glycan1   candidate 1
      * @param glycan2   candidate 2
-     * @param deltaMass observed delta mass
      * @return output probability score (sum of log ratios)
      */
-    public double pairwiseCompareStatic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double deltaMass, double meanMassError, double pepMass, Spectrum spec) {
+    public double pairwiseCompareStatic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double meanMassError, GlycanAssignmentResult glycoResult, Spectrum spec) {
         double sumLogRatio = 0;
         // Y ions
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
@@ -1222,11 +1235,16 @@ public class GlycoAnalysis {
         }
 
         // isotope and mass errors
-        sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, deltaMass, meanMassError);
+        sumLogRatio += computeMassIsoScorePairwise(glycan1, glycan2, glycoResult.deltaMass, meanMassError);
 
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
-            double ms1score1 = calculateMS1score(glycan1, spec, pepMass);
-            double ms1score2 = calculateMS1score(glycan2, spec, pepMass);
+            double ms1score1 = calculateMS1score(glycan1, spec, glycoResult.pepMass);
+            double ms1score2 = calculateMS1score(glycan2, spec, glycoResult.pepMass);
+            sumLogRatio += (ms1score1 - ms1score2);
+        }
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)) {
+            double ms1score1 = calculateMS1CentroidScore(glycan1, spec, glycoResult);
+            double ms1score2 = calculateMS1CentroidScore(glycan2, spec, glycoResult);
             sumLogRatio += (ms1score1 - ms1score2);
         }
 
@@ -1476,6 +1494,9 @@ public class GlycoAnalysis {
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
             candidate.ms1Score = calculateMS1score(candidate, spec, result.pepMass);
         }
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)) {
+            candidate.ms1Score = calculateMS1CentroidScore(candidate, spec, result);
+        }
 
         generateScores(candidate);
     }
@@ -1627,6 +1648,87 @@ public class GlycoAnalysis {
             score = Math.log(1.0 / Math.abs(quantifiedEntry.kl));
         }
         return score;
+    }
+
+    /**
+     * Calculate MS1 isotope envelope centroid score for glycan candidate. Uses IonQuant API to get the experimental
+     * isotope envelope and compares the centroid (weighted average) m/z to the theoretical centroid m/z for
+     * the glycan candidate. Requires glycan elemental compositions to be provided.
+     * Note: modification elemental compositions are NOT used, but would improve the results. Instead, mod masses
+     * are assumed to be composed of averagine, which is not ideal. Peptide sequence and glycan elemental compositions
+     * are used to compute the theoretical isotope envelope.
+     *
+     * Score: log(1 / |theoretical centroid - experimental centroid|)
+     * A score of 0 is given if no experimental envelope is found.
+     *
+     * @param candidate current glycan candidate to score
+     * @param spec spectrum
+     * @param glycoResult glycan assignment result container with peptide sequence and mods info
+     * @return double: MS1 score
+     */
+    private double calculateMS1CentroidScore(GlycanCandidate candidate, Spectrum spec, GlycanAssignmentResult glycoResult) {
+        // Calculate theoretical isotope envelope for peptide + glycan + mods
+        ElementalComposition glycanComp = candidate.getElementalCompositionOfIon();
+        ElementalComposition peptideComp = ElementalComposition.getElementalCompositionOfPeptide(glycoResult.peptide);
+        peptideComp.addComposition(new ElementalComposition("H2O"), false, 1);   // add terminal H2O
+        glycanComp.addComposition(peptideComp, false, 1);
+        double modsMass = 0;
+        for (Mod mod : glycoResult.assignedModsList) {
+            modsMass += mod.mass;
+        }
+        double modAvgMass = modsMass + AminoAcids.AVERAGINE_AVG_MASS_PER_DA * modsMass;
+        double avgMassThy = glycanComp.getAverageMass() + modAvgMass;
+
+        // get experimental isotope envelope using IonQuant API
+        double candidateMass = candidate.mass + glycoResult.pepMass;    // pep mass + glycan mass
+        double mz = Spectrum.calcMZ(candidateMass, spec.charge);
+        HashMap<Integer, Double> isotopeEnvelope = new HashMap<>();
+        Entry monoisotopicPeak = api.quantXIC((float) mz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
+        if (monoisotopicPeak != null) {
+            isotopeEnvelope.put(0, (double) monoisotopicPeak.intensity);
+        }
+        isotopeEnvelope.putAll(searchForIsotopePeaks(spec, mz, 1, 1));
+        isotopeEnvelope.putAll(searchForIsotopePeaks(spec, mz, -1, -1));
+        double sumWeightedMz = 0;
+        double sumIntensities = 0;
+        for (Map.Entry<Integer, Double> isoPeak : isotopeEnvelope.entrySet()) {
+            double isoMz = mz + ((isoPeak.getKey() * ISOTOPE_MASS_DIFF) / spec.charge);
+            sumWeightedMz += isoMz * isoPeak.getValue();
+            sumIntensities += isoPeak.getValue();
+        }
+
+        if (sumIntensities == 0) {
+            return 0;   // no peaks found
+        }
+        double avgMassObs = Spectrum.mzToNeutralMass((float) (sumWeightedMz / sumIntensities), spec.charge);
+        return Math.log(Math.abs(avgMassThy - avgMassObs));
+    }
+
+    /**
+     * Check for isotope peaks in the spectrum starting at the given m/z and isotope and continuing in the provided
+     * step (direction) until a peak is not found.
+     * @return HashMap of isotope index to intensity for all found peaks
+     */
+    private static HashMap<Integer, Double> searchForIsotopePeaks(Spectrum spec, double mz, int startIso, int step) {
+        HashMap<Integer, Double> isotopeEnvelope = new HashMap<>();
+        boolean foundPeak = true;
+        int isoIndex = startIso;
+        int count = 0;
+        while (foundPeak) {
+            if (count > MAX_ISOTOPE_PEAKS) {
+                break;
+            }
+            float newMz = (float) (mz + ((isoIndex + step) * ISOTOPE_MASS_DIFF ) / (float) spec.charge);
+            Entry isotopePeak = api.quantXIC(newMz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
+            if (isotopePeak != null) {
+                isotopeEnvelope.put(isoIndex, (double) isotopePeak.intensity);
+                isoIndex += step;
+            } else {
+                foundPeak = false;
+            }
+            count++;
+        }
+        return isotopeEnvelope;
     }
 
     /**

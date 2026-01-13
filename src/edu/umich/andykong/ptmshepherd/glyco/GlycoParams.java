@@ -578,6 +578,7 @@ public class GlycoParams {
 
     public enum LDAFeature {
         kl,
+        ms1,
         yprop,
         yscore,
         oxo,
