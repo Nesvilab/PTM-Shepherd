@@ -56,6 +56,7 @@ public class GlycoAnalysis {
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final double DEFAULT_GLYCO_ABS_SCORE_BASE = 5;
     public static final double DEFAULT_MASS_PROB_SCALING = 1;
+    private static final double DEFAULT_MIN_ISO_PROB = 0.1;
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
     public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
@@ -1122,7 +1123,9 @@ public class GlycoAnalysis {
         }
 
         // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
-        candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso)) {
+            candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
+        }
         candidate.massErrorScore = computeMassScoreAbs(candidate, result, massErrorWidth, meanMassError);
 
         // only calculate MS1 score if requested because it requires slow index building
@@ -1453,7 +1456,9 @@ public class GlycoAnalysis {
             candidate.YFragmentScore = computeYAbsoluteScore(candidate);
         }
         candidate.OxFragmentScore = computeOxoAbsoluteScore(candidate);
-        candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso)) {
+            candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
+        }
         candidate.massErrorScore = computeMassScoreAbs(candidate, result, massErrorWidth, meanMassError);
 
         // only calculate MS1 score if requested because it requires slow index building
@@ -1484,7 +1489,7 @@ public class GlycoAnalysis {
         float iso1 = (float) (result.deltaMass - candidate.mass);
         int roundedIso1 = Math.round(iso1);
         candidate.isotope = roundedIso1;
-        double isotopeProbRatio = glycoParams.isotopeProbTable.get(roundedIso1) / glycoParams.isotopeProbTable.get(0);
+        double isotopeProbRatio = glycoParams.isotopeProbTable.getOrDefault(roundedIso1, DEFAULT_MIN_ISO_PROB) / glycoParams.isotopeProbTable.get(0);
         return Math.log(isotopeProbRatio);
     }
 
