@@ -1126,7 +1126,13 @@ public class GlycoAnalysis {
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso)) {
             candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
         }
-        candidate.massErrorScore = computeMassScoreAbs(candidate, result, massErrorWidth, meanMassError);
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
+            if (glycoParams.useNormMassScore) {
+                candidate.massErrorScore = computeNormedMassScore(candidate, result, glycoParams);
+            } else {
+                candidate.massErrorScore = computeMassScoreAbs(candidate, result, massErrorWidth, meanMassError);
+            }
+        }
 
         // only calculate MS1 score if requested because it requires slow index building
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
@@ -1459,8 +1465,13 @@ public class GlycoAnalysis {
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso)) {
             candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
         }
-        candidate.massErrorScore = computeMassScoreAbs(candidate, result, massErrorWidth, meanMassError);
-
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
+            if (glycoParams.useNormMassScore) {
+                candidate.massErrorScore = computeNormedMassScore(candidate, result, glycoParams);
+            } else {
+                candidate.massErrorScore = computeMassScoreAbs(candidate, result, massErrorWidth, meanMassError);
+            }
+        }
         // only calculate MS1 score if requested because it requires slow index building
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
             candidate.ms1Score = calculateMS1score(candidate, spec, result.pepMass);
@@ -1483,6 +1494,20 @@ public class GlycoAnalysis {
         } else {
             return 1;
         }
+    }
+
+    /**
+     * Compute normalized mass error score for a glycan candidate and store in the candidate result.
+     * Score = (params.glycoPPMtol - massErrorPPM) / params.glycoPPMtol, capped at a minimum of 0.
+     */
+    private double computeNormedMassScore(GlycanCandidateResult candidate, GlycanAssignmentResult result, GlycoParams params) {
+        int isotopeErr = Math.toIntExact(Math.round(result.deltaMass - candidate.mass));
+        double massError = result.deltaMass - candidate.mass - (isotopeErr * AAMasses.averagineIsotopeMass);
+        candidate.massError = massError;
+        double massErrorPPM = (massError / (result.pepMass + candidate.mass)) * 1e6;
+        double massScore = (params.glycoPPMtol - massErrorPPM) / params.glycoPPMtol;
+        candidate.massErrorScore = Math.max(massScore, 0);
+        return candidate.massErrorScore;
     }
 
     private double computeIsoScoreAbs(GlycanCandidateResult candidate, GlycanAssignmentResult result) {
