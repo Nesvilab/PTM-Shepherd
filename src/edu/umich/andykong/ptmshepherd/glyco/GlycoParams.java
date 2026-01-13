@@ -583,7 +583,6 @@ public class GlycoParams {
         oxo,
         mass,
         iso,
-        mass2nd,
         iso2nd,
         glycanfreq,
         ysim,

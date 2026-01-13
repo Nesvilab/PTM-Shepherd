@@ -673,7 +673,7 @@ public class GlycoAnalysis {
                 isotopeCounts.put(result.bestCandidate.isotope, isotopeCounts.getOrDefault(result.bestCandidate.isotope, 0) + 1); // count the number of PSMs for each isotope
             }
         }
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass2nd)) {
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
             computeMassErrorsHelper(massErrors, maxError, minError);
         }
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso2nd)) {
@@ -1138,7 +1138,7 @@ public class GlycoAnalysis {
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
             candidate.ms1Score = calculateMS1score(candidate, spec, result.pepMass);
         }
-        if (!isFirstPass) {
+        if (!isFirstPass && glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.glycanfreq)) {
             candidate.frequencyPrior = computeGlycanFrequencyScore(candidate, result.deltaMass);
         }
         generateScores(candidate);
