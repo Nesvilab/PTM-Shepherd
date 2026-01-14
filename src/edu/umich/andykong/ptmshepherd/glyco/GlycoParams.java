@@ -36,7 +36,6 @@ public class GlycoParams {
     public double glycoPPMtol;
     public Integer[] glycoIsotopes;
     public boolean nGlycan;
-    public boolean glycoYnorm;
     public double absScoreErrorParam;
     public double glycoFDR;
     public boolean printFullParams;
@@ -530,7 +529,6 @@ public class GlycoParams {
                 isoString.append(String.format(" %d:%.1f", isoEntry.getKey(), isoEntry.getValue()));
             }
             PTMShepherd.print(isoString.toString());
-            PTMShepherd.print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
             PTMShepherd.print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
             PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
             if (printGlycoDecoys) {

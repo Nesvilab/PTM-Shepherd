@@ -1347,7 +1347,6 @@ public class PTMShepherd {
 			// default method - glycans passed as string parameter
             glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseString(glycanDB);
 		}
-		glycoParams.glycoYnorm = getParam("norm_Ys").isEmpty() || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
 		glycoParams.absScoreErrorParam = getParam("glyco_abs_score_base").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_ABS_SCORE_BASE : Double.parseDouble(getParam("glyco_abs_score_base"));
 		String glycoFDRParam = getParam("glyco_fdr");
 		glycoParams.glycoFDR = glycoFDRParam.isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_FDR : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value

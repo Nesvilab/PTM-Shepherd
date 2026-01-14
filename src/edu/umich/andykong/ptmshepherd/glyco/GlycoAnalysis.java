@@ -1155,7 +1155,7 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
         // Y ions
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
-            sumLogRatio += pairwiseCompareYstatic(glycan1, glycan2, glycoParams.glycoYnorm);
+            sumLogRatio += pairwiseCompareYstatic(glycan1, glycan2);
         }
 
         // oxonium ions
@@ -1189,7 +1189,7 @@ public class GlycoAnalysis {
      * @param glycan2 candidate 2
      * @return sum log probability with normalization included
      */
-    public double pairwiseCompareYstatic(GlycanCandidate glycan1, GlycanCandidate glycan2, boolean normYions) {
+    public double pairwiseCompareYstatic(GlycanCandidate glycan1, GlycanCandidate glycan2) {
         int cand1Misses = 0;
         int cand2Misses = 0;
         int cand1Hits = 0;
@@ -1230,17 +1230,10 @@ public class GlycoAnalysis {
          *      hits1 - hits2 - misses1 + misses2
          * so score is increased by hits for 1 and misses for 2, and decreased by hits for 2 and misses for 1
          */
-        if (normYions) {
-            sumLogRatio += Math.sqrt(cand1Hits) * Math.log(cand1HitProb);       // candidate 1 hits - added
-            sumLogRatio -= Math.sqrt(cand2Hits) * Math.log(cand2HitProb);       // candidate 2 hits - subtracted
-            sumLogRatio += Math.sqrt(cand1Misses) * Math.log(cand1MissProb);    // candidate 1 misses - negative value added
-            sumLogRatio -= Math.sqrt(cand2Misses) * Math.log(cand2MissProb);    // candidate 2 misses - negative value subtracted
-        } else {
-            sumLogRatio += cand1Hits * Math.log(cand1HitProb);       // candidate 1 hits - added
-            sumLogRatio -= cand2Hits * Math.log(cand2HitProb);       // candidate 2 hits - subtracted
-            sumLogRatio += cand1Misses * Math.log(cand1MissProb);    // candidate 1 misses - negative value added
-            sumLogRatio -= cand2Misses * Math.log(cand2MissProb);    // candidate 2 misses - negative value subtracted
-        }
+        sumLogRatio += Math.sqrt(cand1Hits) * Math.log(cand1HitProb);       // candidate 1 hits - added
+        sumLogRatio -= Math.sqrt(cand2Hits) * Math.log(cand2HitProb);       // candidate 2 hits - subtracted
+        sumLogRatio += Math.sqrt(cand1Misses) * Math.log(cand1MissProb);    // candidate 1 misses - negative value added
+        sumLogRatio -= Math.sqrt(cand2Misses) * Math.log(cand2MissProb);    // candidate 2 misses - negative value subtracted
         return sumLogRatio;
     }
 
