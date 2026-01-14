@@ -783,7 +783,6 @@ public class GlycoAnalysis {
                     generalOxoFragment.foundIntensity = spec.findIon(generalOxoFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
 
-                candidate.YproportionScore = spectrumYIntensity == 0 ? 0 : (foundYIntensity * 100) / spectrumYIntensity;    // proportion of possible Y ions in the spectrum matched to the candidate
 //                if (glycoParams.normFragmentIntensities) {
 //                    GlycanCandidateResult.normalizeIntensities(candidate.Yfragments);
 ////                    GlycanCandidateResult.normalizeIntensities(candidate.generalOxoniumFragments);   // todo: enable once generalized oxos available
@@ -1801,12 +1800,6 @@ public class GlycoAnalysis {
                 case kl: // KL score
                     features.add(candidate.ms1Score);
                     summedScore += candidate.ms1Score;
-                    break;
-                case yprop: // Y proportion score
-                    if (isFirstPass || !glycoParams.simOnly2ndPass) {
-                        features.add(candidate.YproportionScore);
-                        summedScore += candidate.YproportionScore;
-                    }
                     break;
                 case yscore: // Y fragment score
                     if (isFirstPass || !glycoParams.simOnly2ndPass) {
