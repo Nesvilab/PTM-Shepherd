@@ -665,9 +665,7 @@ public class GlycoAnalysis {
                 isotopeCounts.put(result.bestCandidate.isotope, isotopeCounts.getOrDefault(result.bestCandidate.isotope, 0) + 1); // count the number of PSMs for each isotope
             }
         }
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
-            computeMassErrorsHelper(massErrors, maxError, minError);
-        }
+        computeMassErrorsHelper(massErrors, maxError, minError);
     }
 
     private void computeMassErrorsHelper(ArrayList<Double> massErrors, double maxError, double minError) {
@@ -782,7 +780,7 @@ public class GlycoAnalysis {
                 if (!isFirstPass) {
                     comparisonScore = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
-                    comparisonScore = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
+                    comparisonScore = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 }
 
                 if (comparisonScore == 0) {
@@ -804,7 +802,7 @@ public class GlycoAnalysis {
                 if (!isFirstPass) {
                     scoresVsBestCandidate[i] = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
-                    scoresVsBestCandidate[i] = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
+                    scoresVsBestCandidate[i] = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 }
                 if (scoresVsBestCandidate[i] == 0) {
                     // this was from a tiebreak that was already chosen as not the best candidate, so set to a small positive value for sorting (since sort is done ascending)
@@ -835,9 +833,9 @@ public class GlycoAnalysis {
 
             // compute absolute score for best glycan
             if (!isFirstPass) {
-                computeAbsoluteScore2ndPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
+                computeAbsoluteScore2ndPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult);
             } else {
-                computeAbsoluteScore1stPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
+                computeAbsoluteScore1stPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult);
             }
             // save candidates to the result (in descending order of scores)
             glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
@@ -877,9 +875,9 @@ public class GlycoAnalysis {
         for (int i = 1; i < glycoResult.allCandidates.size(); i++) {
             GlycanCandidateResult nextCandidate = glycoResult.allCandidates.get(i);
             if (!isFirstPass) {
-                computeAbsoluteScore2ndPass(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError);
+                computeAbsoluteScore2ndPass(spec, nextCandidate, glycoResult);
             } else {
-                computeAbsoluteScore1stPass(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError);
+                computeAbsoluteScore1stPass(spec, nextCandidate, glycoResult);
             }
 
             // if Best hit was target, look for Next to be decoy and vice versa
@@ -945,17 +943,13 @@ public class GlycoAnalysis {
      * @param glycan2   candidate 2
      * @return output probability score (sum of log ratios)
      */
-    public double pairwiseCompare1stPass(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double meanMassError, GlycanAssignmentResult glycoResult, Spectrum spec) {
+    public double pairwiseCompare1stPass(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, GlycanAssignmentResult glycoResult, Spectrum spec) {
         double sumLogRatio = 0;
         // Y ions
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
-            sumLogRatio += pairwiseScoreY1stPass(glycan1, glycan2);
-        }
+        sumLogRatio += pairwiseScoreY1stPass(glycan1, glycan2);
 
         // oxonium ions
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxo)) {
-            sumLogRatio += pairwiseScoreOxo1stPass(glycan1, glycan2);
-        }
+        sumLogRatio += pairwiseScoreOxo1stPass(glycan1, glycan2);
 
         // isotope and mass errors
         double massScore1 = Math.max(normedMassScore(glycan1, glycoResult), MIN_SIMILARITY);  // prevent extreme values from divide by zero/small value
@@ -1076,16 +1070,12 @@ public class GlycoAnalysis {
      *
      * @param candidate     glycan candidate to calculate score for
      * @param result         result container
-     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
-     * @param meanMassError  mean mass error of non-delta mass peptides
      */
-    public void computeAbsoluteScore1stPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
+    public void computeAbsoluteScore1stPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result) {
         candidate.YFragmentScore = absoluteYScore1stPass(candidate);
         candidate.OxFragmentScore = absoluteOxoScore1stPass(candidate);
+        candidate.massErrorScore = normedMassScore(candidate, result);
 
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
-            candidate.massErrorScore = normedMassScore(candidate, result);
-        }
         // only calculate MS1 score if requested because it requires slow index building
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
             candidate.ms1Score = klMS1score(candidate, spec, result.pepMass);
@@ -1150,22 +1140,16 @@ public class GlycoAnalysis {
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
         // Y ions (similarity score)
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ysim)) {
-            double ySim1 = similarityScore(new ArrayList<>(glycan1.Yfragments.values()));
-            double ySim2 = similarityScore(new ArrayList<>(glycan2.Yfragments.values()));
-            sumLogRatio += Math.log(ySim1 / ySim2);
-        }
+        double ySim1 = similarityScore(new ArrayList<>(glycan1.Yfragments.values()));
+        double ySim2 = similarityScore(new ArrayList<>(glycan2.Yfragments.values()));
+        sumLogRatio += Math.log(ySim1 / ySim2);
 
         // diagnostic oxonium ions (empirical score)
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxo)) {
-            sumLogRatio += pairwiseEmpiricalOxoScore2ndPass(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
-        }
+        sumLogRatio += pairwiseEmpiricalOxoScore2ndPass(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
         // general oxonium ions (similarity score)
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
-            double oxSim1 = similarityScore(new ArrayList<>(glycan1.generalOxoniumFragments.values()));
-            double oxSim2 = similarityScore(new ArrayList<>(glycan2.generalOxoniumFragments.values()));
-            sumLogRatio += Math.log(oxSim1 / oxSim2);
-        }
+        double oxSim1 = similarityScore(new ArrayList<>(glycan1.generalOxoniumFragments.values()));
+        double oxSim2 = similarityScore(new ArrayList<>(glycan2.generalOxoniumFragments.values()));
+        sumLogRatio += Math.log(oxSim1 / oxSim2);
 
         // mass error score
         double massScore1 = Math.max(normedMassScore(glycan1, glycoResult), MIN_SIMILARITY);  // prevent extreme values from divide by zero/small value
@@ -1334,12 +1318,8 @@ public class GlycoAnalysis {
     /**
      * Compute the "absolute" score of this glycan for the given spectrum, meaning the score if all ions are distinguishing
      * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
-     *
-     * @param candidate     glycan candidate to calculate score for
-     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
-     * @param meanMassError  mean mass error of non-delta mass peptides
      */
-    public void computeAbsoluteScore2ndPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
+    public void computeAbsoluteScore2ndPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result) {
         // Y ions
         int index = 0;
         double[] foundYs = new double[candidate.Yfragments.size()];
@@ -1349,19 +1329,13 @@ public class GlycoAnalysis {
             expectedYs[index] = fragment.expectedIntensity;
             index++;
         }
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ysim)) {
-            candidate.ySpecSim = entropyScore(expectedYs, foundYs);
-        }
+        candidate.ySpecSim = entropyScore(expectedYs, foundYs);
 
         // oxonium ions
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
-            candidate.oxSpecSim = similarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
-        }
+        candidate.oxSpecSim = similarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
 
         // mass error score
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
-            candidate.massErrorScore = normedMassScore(candidate, result);
-        }
+        candidate.massErrorScore = normedMassScore(candidate, result);
 
         // only calculate MS1 score if requested because it requires slow index building
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
@@ -1615,42 +1589,42 @@ public class GlycoAnalysis {
     private void generateScores(GlycanCandidateResult candidate) {
         ArrayList<Double> features = new ArrayList<>();
         double summedScore = 0;
+
+        // some scores are always included
+        // Y ions
+        if (isFirstPass) {
+            features.add(candidate.YFragmentScore);
+            summedScore += candidate.YFragmentScore;
+        } else {
+            features.add(candidate.ySpecSim);
+            summedScore += candidate.ySpecSim;
+        }
+        // oxonium ions
+        features.add(candidate.OxFragmentScore);
+        summedScore += candidate.OxFragmentScore;
+        if (!isFirstPass) {
+            features.add(candidate.oxSpecSim);
+            summedScore += candidate.oxSpecSim;
+        }
+        // mass error
+        features.add(candidate.massErrorScore);
+        summedScore += candidate.massErrorScore;
+
+        // some scores are only included if requested
         for (GlycoParams.LDAFeature feature : glycoParams.ldaFeaturesToUse) {
             switch (feature) {
                 case kl: // KL score
                     features.add(candidate.ms1Score);
                     summedScore += candidate.ms1Score;
                     break;
-                case yscore: // Y fragment score
-                    if (isFirstPass) {
-                        features.add(candidate.YFragmentScore);
-                        summedScore += candidate.YFragmentScore;
-                    }
-                    break;
-                case oxo: // Oxonium ion score
-                    features.add(candidate.OxFragmentScore);
-                    summedScore += candidate.OxFragmentScore;
-                    break;
-                case mass: // Mass error score
-                    features.add(candidate.massErrorScore);
-                    summedScore += candidate.massErrorScore;
+                case ms1: // MS1 centroid score
+                    features.add(candidate.ms1Score);
+                    summedScore += candidate.ms1Score;
                     break;
                 case glycanfreq:
                     if (!isFirstPass) {     // frequency can only be computed in the second pass
                         features.add(candidate.frequencyPrior);
                         summedScore += candidate.frequencyPrior;
-                    }
-                    break;
-                case ysim:
-                    if (!isFirstPass) {
-                        features.add(candidate.ySpecSim);
-                        summedScore += candidate.ySpecSim;
-                    }
-                    break;
-                case oxsim:
-                    if (!isFirstPass) {
-                        features.add(candidate.oxSpecSim);
-                        summedScore += candidate.oxSpecSim;
                     }
                     break;
             }

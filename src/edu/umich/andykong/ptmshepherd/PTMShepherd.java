@@ -604,9 +604,8 @@ public class PTMShepherd {
 
 				// run glyco PSM-level analysis with the new database
 				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams, false);
-				if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
-					ga2.getMassErrorsSecondPass(ga.allResults);
-				}
+				ga2.getMassErrorsSecondPass(ga.allResults);
+
 				ga2.glycanMassBinMap = ga.glycanMassBinMap;
 				for (PSMFile pf : psmFiles.get(ds)) {
 					ga2.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);

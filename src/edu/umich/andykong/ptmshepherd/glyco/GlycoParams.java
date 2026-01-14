@@ -435,6 +435,7 @@ public class GlycoParams {
     public String generateLDAheader() {
         StringBuilder sb = new StringBuilder();
         sb.append("\t");
+        sb.append("Y score\tOx diagnostic score\tOx similarity score\tMass score\t");      // always used
         for (LDAFeature feature : ldaFeaturesToUse) {
             sb.append(feature.name()).append("\t");
         }
@@ -444,12 +445,6 @@ public class GlycoParams {
     public static ArrayList<LDAFeature> parseLDAfeatures(String featuresStr) {
         ArrayList<LDAFeature> features = new ArrayList<>();
         if (featuresStr.isEmpty()) {
-            // use default (original) set of features
-            PTMShepherd.print("No score features specified, using default set.");
-            features.add(LDAFeature.yscore);
-            features.add(LDAFeature.oxo);
-            features.add(LDAFeature.mass);
-            features.add(LDAFeature.iso);
             return features;
         }
         String[] featureSplits = featuresStr.split("[,\\s;/]+");
@@ -467,14 +462,6 @@ public class GlycoParams {
     public enum LDAFeature {
         kl,
         ms1,
-        yprop,
-        yscore,
-        oxo,
-        mass,
-        iso,
-        iso2nd,
         glycanfreq,
-        ysim,
-        oxsim,
     }
 }
