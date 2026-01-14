@@ -1314,8 +1314,6 @@ public class PTMShepherd {
 		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
 
 		// parse glyco parameters and initialize database and ratio tables
-		glycoParams.initIsotopeProbs(getParam("prob_isotope"));
-		glycoParams.massProbScaling = getParam("prob_mass").isEmpty() ? GlycoAnalysis.DEFAULT_MASS_PROB_SCALING :  Double.parseDouble(getParam("prob_mass"));
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
 		String decoyParam = getParam("decoy_type");
 		glycoParams.decoyType = !decoyParam.isEmpty() ? Integer.parseInt(decoyParam): GlycoAnalysis.DEFAULT_GLYCO_DECOY_TYPE;
@@ -1347,7 +1345,6 @@ public class PTMShepherd {
 			// default method - glycans passed as string parameter
             glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseString(glycanDB);
 		}
-		glycoParams.absScoreErrorParam = getParam("glyco_abs_score_base").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_ABS_SCORE_BASE : Double.parseDouble(getParam("glyco_abs_score_base"));
 		String glycoFDRParam = getParam("glyco_fdr");
 		glycoParams.glycoFDR = glycoFDRParam.isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_FDR : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
 		glycoParams.printFullParams = !getParam("print_full_glyco_params").isEmpty() && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
@@ -1364,7 +1361,6 @@ public class PTMShepherd {
         glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 1 : Integer.parseInt(getParam("min_y_consensus"));
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));
         glycoParams.useShuffledIntensities = !getParam("shuffle_decoy_intensities").isEmpty() && Boolean.parseBoolean(getParam("shuffle_decoy_intensities"));	// default false
-		glycoParams.useNormMassScore = !getParam("norm_mass_score").isEmpty() && Boolean.parseBoolean(getParam("norm_mass_score"));	// default false
 		glycoParams.twoPassMode = getParam("glyco_two_pass_search").isEmpty() || Boolean.parseBoolean(getParam("glyco_two_pass_search"));	// default true
 
 		return glycoParams;

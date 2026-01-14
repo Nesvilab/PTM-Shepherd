@@ -36,7 +36,6 @@ public class GlycoParams {
     public double glycoPPMtol;
     public Integer[] glycoIsotopes;
     public boolean nGlycan;
-    public double absScoreErrorParam;
     public double glycoFDR;
     public boolean printFullParams;
     public boolean writeGlycansToAssignedMods;
@@ -48,7 +47,6 @@ public class GlycoParams {
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
     public HashMap<Integer, Double> isotopeProbTable;
-    public double massProbScaling;
     public boolean glycoLDA;
     public double topPctSpectraForConsensus;
     public int minYsForConsensus;
@@ -62,7 +60,6 @@ public class GlycoParams {
     public ArrayList<LDAFeature> ldaFeaturesToUse;
     public double ldaTargetProp;
     public boolean useShuffledIntensities;
-    public boolean useNormMassScore;
     public boolean twoPassMode;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
@@ -402,103 +399,6 @@ public class GlycoParams {
             return isotopes.toArray(new Integer[0]);
         }
     }
-
-    /**
-     * Initialize a default glyco probability table and update it with probabilities from
-     * parameters, if any are present.
-     * Param formats:
-     * -Fragments (Y/Oxo): 8 values, comma separated
-     * -mass/isotope: key1:value1,key2:value2,etc
-     * @return ProbabilityTable to use
-     */
-    public void initIsotopeProbs(String paramStr) {
-        isotopeProbTable = new HashMap<>();
-        if (!paramStr.matches("")) {
-            String[] isoSplits = paramStr.split(",");
-            for (String split : isoSplits) {
-                String[] keyValue = split.trim().split(":");
-                try {
-                    isotopeProbTable.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
-                } catch (NumberFormatException ex) {
-                    System.out.printf("Illegal character %s in parameter prob_isotopes, must pairs of numbers like '0:1.5,1:0.75'", split);
-                }
-            }
-        }
-        if (isotopeProbTable.isEmpty()) {
-            // init defaults
-            isotopeProbTable.put(-2, 0.125);
-            isotopeProbTable.put(-1, 0.25);
-            isotopeProbTable.put(0, 1.0);
-            isotopeProbTable.put(1, 0.95);
-            isotopeProbTable.put(2, 0.5);
-            isotopeProbTable.put(3, 0.25);
-            isotopeProbTable.put(4, 0.125);
-        }
-    }
-
-    /**
-     * Update isotope probabilities from the first pass of glycan assignment.
-     * New probability is the proportion of the Results with this isotope, scaled so that the most common
-     * isotope has a probability of 1.0.
-     * @param isotopeCounts map of isotope: count
-     */
-    public void updateIsotopesProbsFromFirstPass(HashMap<Integer, Integer> isotopeCounts) {
-        int maxCount = isotopeCounts.values().stream().max(Integer::compare).orElse(0);
-        // set min prob to the lowest observed prob divided by 2
-        double minProb = ((double) isotopeCounts.values().stream().min(Integer::compare).orElse(0) / maxCount) / 2.0;
-
-        for (Map.Entry<Integer, Double> entry : isotopeProbTable.entrySet()) {
-            int isotope = entry.getKey();
-            if (isotopeCounts.containsKey(isotope)) {
-                double newProb = (double) isotopeCounts.get(isotope) / maxCount;  // normalize to max count
-                isotopeProbTable.put(isotope, newProb);
-            } else {
-                isotopeProbTable.put(isotope, minProb);
-            }
-        }
-    }
-
-    /**
-     * Helper method to parse probability arrays from provided parameters with error checking. Returns
-     * double[] of length 2 if successful or empty array if failed.
-     * @param paramStr param to parse
-     * @return double[] of length 2 if successful or empty array if failed.
-     */
-    public static double[] parseProbParam(String paramStr, String paramName) {
-        String[] splits = paramStr.split(",");
-        if (splits.length == 2 || splits.length == 3) {
-            double[] values = new double[splits.length];
-            for (int i = 0; i < splits.length; i++) {
-                try {
-                    values[i] = Double.parseDouble(splits[i]);
-                } catch (NumberFormatException ex) {
-                    System.out.printf("Invalid character in value %s, must be a number", splits[i]);
-                    return new double[0];
-                }
-            }
-            return values;
-        } else {
-            System.out.printf("Invalid format for parameter %s, must have 2 or 3 comma-separated values. Param was: %s\n", paramName, paramStr);
-            return new double[0];
-        }
-    }
-
-    /**
-     * Helper method for determining column numbers in the .rawglyco file
-     * @param headerSplits file header string, split on the appropriate delimiter
-     * @param columnName name of the column to find
-     * @return column index
-     */
-    public static int getHeaderColIndex(String[] headerSplits, String columnName) {
-        for (int i = 0; i < headerSplits.length; i++) {
-            if (headerSplits[i].trim().matches(columnName)) {
-                return i;
-            }
-        }
-        // column not found, return -1
-        return -1;
-    }
-
     /**
      * Print glyco params used
      */
@@ -523,13 +423,6 @@ public class GlycoParams {
         }
 
         if (printFullParams) {
-            PTMShepherd.print(String.format("\tMass prob (score scaling): %.1f", massProbScaling));
-            StringBuilder isoString = new StringBuilder("\tIsotope probs:");
-            for (Map.Entry<Integer, Double> isoEntry: isotopeProbTable.entrySet()) {
-                isoString.append(String.format(" %d:%.1f", isoEntry.getKey(), isoEntry.getValue()));
-            }
-            PTMShepherd.print(isoString.toString());
-            PTMShepherd.print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
             PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
             if (printGlycoDecoys) {
                 PTMShepherd.print("\tPrinting decoy glycans");
