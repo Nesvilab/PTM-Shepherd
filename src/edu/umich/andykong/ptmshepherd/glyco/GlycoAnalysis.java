@@ -402,16 +402,9 @@ public class GlycoAnalysis {
 
         // Compute FDR
         PTMShepherd.print("Calculating Glycan FDR");
-        boolean fdrSuccess = false;
-        if (glycoParams.useNonCompFDR) {
+        boolean fdrSuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR);
+        if (!fdrSuccess) {
             fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
-        } else {
-            boolean firstFDRsuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR);
-            if (!firstFDRsuccess) {
-                fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
-            } else {
-                fdrSuccess = true;
-            }
         }
 
         try {

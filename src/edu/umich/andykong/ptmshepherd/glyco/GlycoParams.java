@@ -42,7 +42,6 @@ public class GlycoParams {
     public boolean removeGlycanDeltaMass;
     public boolean printGlycoDecoys;
     public int numThreads;
-    public boolean useNonCompFDR ;
     public double defaultProp;
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
