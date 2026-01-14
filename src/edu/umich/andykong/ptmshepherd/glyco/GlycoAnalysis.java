@@ -60,7 +60,7 @@ public class GlycoAnalysis {
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;
-    public static final double MIN_SIMILARITY = 0.1;
+    public static final double MIN_SIMILARITY = 0.01;
     private final GlycoParams glycoParams;
     public final ArrayList<GlycanAssignmentResult> allResults;
     private final String ldaHeader;
@@ -1426,7 +1426,11 @@ public class GlycoAnalysis {
         if (!foundNonZero) {
             return MIN_SIMILARITY; // no matching ions found, return minimum similarity
         }
-        return entropyScore(foundYs, expectedYs);
+        double score = entropyScore(foundYs, expectedYs);
+        if (score < MIN_SIMILARITY) {
+            score = MIN_SIMILARITY;     // cap at minimum similarity to prevent extreme values and log(0) issues
+        }
+        return score;
     }
 
 
