@@ -59,8 +59,7 @@ public class GlycoAnalysis {
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
-    public double defaultPropensity;
-    public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
+    public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;
     public static final double MIN_SIMILARITY = 0.1;
     private final GlycoParams glycoParams;
     public final ArrayList<GlycanAssignmentResult> allResults;
@@ -969,6 +968,8 @@ public class GlycoAnalysis {
             sumLogRatio += (ms1score1 - ms1score2);
         }
 
+        // todo: glycan freq score for pairwise? I think it's good not to bias the comparison, but this is to remember that it is NOT used in pairwise
+
         return sumLogRatio;
     }
 
@@ -1086,7 +1087,6 @@ public class GlycoAnalysis {
             if (fragment1.foundIntensity > 0) {
                 // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
                 probRatio = computePropensityRatio(fragment1, fragment2);
-                // todo: optional, test multiplying by intensity ratio (obs/exp) for fragment1 only
             } else {
                 // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
                 probRatio = computePropensityRatio(fragment2, fragment1);
@@ -1398,12 +1398,12 @@ public class GlycoAnalysis {
                 propensityRatio = Math.sqrt(propensityRatio);   // todo: param, test
             } else {
                 // only propensity for fragment 1 - score against default min prop (if prop > min prop)
-                propensityRatio = fragment1.propensity > defaultPropensity ? fragment1.propensity / defaultPropensity : 1;
+                propensityRatio = fragment1.propensity > DEFAULT_GLYCO_PROPENSITY ? fragment1.propensity / DEFAULT_GLYCO_PROPENSITY : 1;
             }
         } else {
             if (fragment2.propensity > 0) {
                 // only propensity for fragment 2 - score against default min prop as a negative for candidate 1
-                propensityRatio = fragment2.propensity > defaultPropensity ? defaultPropensity / fragment2.propensity : 1;
+                propensityRatio = fragment2.propensity > DEFAULT_GLYCO_PROPENSITY ? DEFAULT_GLYCO_PROPENSITY / fragment2.propensity : 1;
             } else {
                 // ignore if no propensity present for this fragment
                 // todo: use all-glycan fragment lookup in this case?

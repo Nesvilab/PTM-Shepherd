@@ -42,7 +42,6 @@ public class GlycoParams {
     public boolean removeGlycanDeltaMass;
     public boolean printGlycoDecoys;
     public int numThreads;
-    public double defaultProp;
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
     public HashMap<Integer, Double> isotopeProbTable;
@@ -422,6 +421,7 @@ public class GlycoParams {
         }
 
         if (printFullParams) {
+            // todo: add new params
             PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
             if (printGlycoDecoys) {
                 PTMShepherd.print("\tPrinting decoy glycans");
