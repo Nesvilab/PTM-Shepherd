@@ -21,7 +21,6 @@ public class GlycanCandidateResult extends GlycanCandidate {
     double YFragmentScore;
     double OxFragmentScore;
     double massErrorScore;
-    double isotopeScore;
     double ms1Score;
     double frequencyPrior;
     double ySpecSim;

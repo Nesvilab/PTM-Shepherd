@@ -1132,10 +1132,7 @@ public class GlycoAnalysis {
             candidate.oxSpecSim = computeSimilarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
         }
 
-        // isotope and mass errors. Isotope is ratio relative to no isotope error (0)
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso)) {
-            candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
-        }
+        // mass error score
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
             if (glycoParams.useNormMassScore) {
                 candidate.massErrorScore = computeNormedMassScore(candidate, result, glycoParams);
@@ -1479,9 +1476,7 @@ public class GlycoAnalysis {
             candidate.YFragmentScore = computeYAbsoluteScore(candidate);
         }
         candidate.OxFragmentScore = computeOxoAbsoluteScore(candidate);
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso)) {
-            candidate.isotopeScore = computeIsoScoreAbs(candidate, result);
-        }
+
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
             if (glycoParams.useNormMassScore) {
                 candidate.massErrorScore = computeNormedMassScore(candidate, result, glycoParams);
@@ -1814,10 +1809,6 @@ public class GlycoAnalysis {
                 case mass: // Mass error score
                     features.add(candidate.massErrorScore);
                     summedScore += candidate.massErrorScore;
-                    break;
-                case iso: // Isotope score
-                    features.add(candidate.isotopeScore);
-                    summedScore += candidate.isotopeScore;
                     break;
                 case glycanfreq:
                     if (!isFirstPass) {     // frequency can only be computed in the second pass
