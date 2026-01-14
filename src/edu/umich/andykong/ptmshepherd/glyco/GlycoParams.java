@@ -64,7 +64,6 @@ public class GlycoParams {
     public ArrayList<LDAFeature> ldaFeaturesToUse;
     public double ldaTargetProp;
     public boolean useShuffledIntensities;
-    public boolean simOnly2ndPass;
     public boolean useNormMassScore;
 
     private static final String defaultResiduePath = "glycan_residues.txt";

@@ -954,7 +954,7 @@ public class GlycoAnalysis {
         double sumLogRatio = 0;
 
         // Y ions
-        if (isFirstPass || !glycoParams.simOnly2ndPass) {
+        if (isFirstPass) {
             if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
                 if (glycoParams.glycoYnorm) {
                     sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
@@ -1796,7 +1796,7 @@ public class GlycoAnalysis {
                     summedScore += candidate.ms1Score;
                     break;
                 case yscore: // Y fragment score
-                    if (isFirstPass || !glycoParams.simOnly2ndPass) {
+                    if (isFirstPass) {
                         features.add(candidate.YFragmentScore);
                         summedScore += candidate.YFragmentScore;
                     }
