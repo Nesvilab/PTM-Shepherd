@@ -1365,7 +1365,6 @@ public class PTMShepherd {
 		glycoParams.defaultProp = getParam("glyco_default_propensity").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
 		glycoParams.ldaFeaturesToUse = GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
         glycoParams.ldaTargetProp = getParam("glyco_lda_target_proportion").isEmpty() ? 0.5 : Double.parseDouble(getParam("glyco_lda_target_proportion"));
-        glycoParams.normFragmentIntensities = getParam("norm_fragment_intensities").isEmpty() || Boolean.parseBoolean(getParam("norm_fragment_intensities"));	// default true
         glycoParams.topPctSpectraForConsensus = getParam("top_pct_gpsms").isEmpty() ? 1.0 : Double.parseDouble(getParam("top_pct_gpsms"));
         glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 1 : Integer.parseInt(getParam("min_y_consensus"));
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));

@@ -783,10 +783,9 @@ public class GlycoAnalysis {
                     generalOxoFragment.foundIntensity = spec.findIon(generalOxoFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
                 }
 
-//                if (glycoParams.normFragmentIntensities) {
-//                    GlycanCandidateResult.normalizeIntensities(candidate.Yfragments);
-////                    GlycanCandidateResult.normalizeIntensities(candidate.generalOxoniumFragments);   // todo: enable once generalized oxos available
-//                }
+                // normalize intensities for Y and oxonium ions separately, so that the ratio of Y to oxo (or unfragmented precursor/etc) does not impact scores
+                GlycanCandidateResult.normalizeIntensities(candidate.Yfragments);
+                GlycanCandidateResult.normalizeIntensities(candidate.generalOxoniumFragments);
             }
 
             // score candidates and save results
