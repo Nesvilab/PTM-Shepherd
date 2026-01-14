@@ -1073,7 +1073,7 @@ public class GlycoAnalysis {
      */
     public void computeAbsoluteScore1stPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result) {
         candidate.YFragmentScore = absoluteYScore1stPass(candidate);
-        candidate.OxFragmentScore = absoluteOxoScore1stPass(candidate);
+        candidate.OxFragmentScore = absoluteOxoScore(candidate);
         candidate.massErrorScore = normedMassScore(candidate, result);
 
         // only calculate MS1 score if requested because it requires slow index building
@@ -1123,7 +1123,7 @@ public class GlycoAnalysis {
      * @param bestGlycan glycan candidate to calculate score for
      * @return absolute score
      */
-    public double absoluteOxoScore1stPass(GlycanCandidate bestGlycan) {
+    public double absoluteOxoScore(GlycanCandidate bestGlycan) {
         double sumLogRatio = 0;
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
             if (fragment.foundIntensity > 0) {
@@ -1332,6 +1332,7 @@ public class GlycoAnalysis {
         candidate.ySpecSim = entropyScore(expectedYs, foundYs);
 
         // oxonium ions
+        candidate.OxFragmentScore = absoluteOxoScore(candidate);
         candidate.oxSpecSim = similarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
 
         // mass error score
