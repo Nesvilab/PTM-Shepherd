@@ -44,7 +44,6 @@ public class GlycoParams {
     public boolean removeGlycanDeltaMass;
     public boolean printGlycoDecoys;
     public int numThreads;
-    public boolean useGlycanFragmentProbs;
     public boolean useNonCompFDR ;
     public double defaultProp;
     public String allowedLocalizationResidues;
@@ -65,6 +64,7 @@ public class GlycoParams {
     public double ldaTargetProp;
     public boolean useShuffledIntensities;
     public boolean useNormMassScore;
+    public boolean twoPassMode;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

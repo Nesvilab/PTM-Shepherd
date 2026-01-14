@@ -29,7 +29,6 @@ import ionquant.api.IonQuantAPI;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import org.hipparchus.stat.descriptive.rank.Median;
-import org.jspecify.annotations.NonNull;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanCandidate;
 import umich.ms.glyco.GlycanFragment;
@@ -62,7 +61,6 @@ public class GlycoAnalysis {
     public static final double DEFAULT_MASS_PROB_SCALING = 1;
     private static final double DEFAULT_MIN_ISO_PROB = 0.1;
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
-    public boolean useFragmentSpecificProbs;
     public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
     public double defaultPropensity;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;      // todo: param?
@@ -71,7 +69,7 @@ public class GlycoAnalysis {
     public final ArrayList<GlycanAssignmentResult> allResults;
     private final String ldaHeader;
     private static IonQuantAPI api;
-    private final boolean isFirstPass;
+    public final boolean isFirstPass;
     private static final float ISOTOPE_MASS_DIFF = 1.00235f;
     private static final int MAX_ISOTOPE_PEAKS = 6;
 
@@ -83,7 +81,6 @@ public class GlycoAnalysis {
         this.glycoFile = new File(PTMShepherd.normFName(dsName + firstPassName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
         this.glycoParams = glycoParams;
-        this.useFragmentSpecificProbs = false;
         this.glycanMassBinMap = new HashMap<>();
         this.allResults = new ArrayList<>();
         ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "\t";
@@ -796,10 +793,10 @@ public class GlycoAnalysis {
                     continue;
                 }
                 double comparisonScore;
-                if (useFragmentSpecificProbs) {
-                    comparisonScore = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
+                if (!isFirstPass) {
+                    comparisonScore = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
-                    comparisonScore = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
+                    comparisonScore = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
                 }
 
                 if (comparisonScore == 0) {
@@ -818,10 +815,10 @@ public class GlycoAnalysis {
 
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i < bestCandidateIndex; i++) {
-                if (useFragmentSpecificProbs) {
-                    scoresVsBestCandidate[i] = pairwiseCompareDynamic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
+                if (!isFirstPass) {
+                    scoresVsBestCandidate[i] = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
-                    scoresVsBestCandidate[i] = pairwiseCompareStatic(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
+                    scoresVsBestCandidate[i] = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), meanMassError, glycoResult, spec);
                 }
                 if (scoresVsBestCandidate[i] == 0) {
                     // this was from a tiebreak that was already chosen as not the best candidate, so set to a small positive value for sorting (since sort is done ascending)
@@ -851,10 +848,10 @@ public class GlycoAnalysis {
             }
 
             // compute absolute score for best glycan
-            if (useFragmentSpecificProbs) {
-                computeAbsoluteScoreDynamic(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
+            if (!isFirstPass) {
+                computeAbsoluteScore2ndPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
             } else {
-                computeAbsoluteScore(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
+                computeAbsoluteScore1stPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult, massErrorWidth, meanMassError);
             }
             // save candidates to the result (in descending order of scores)
             glycoResult.bestCandidate = searchCandidates.get(bestCandidateIndex);
@@ -893,10 +890,10 @@ public class GlycoAnalysis {
         // compute scores for all candidates (except the best, since it was already computed)
         for (int i = 1; i < glycoResult.allCandidates.size(); i++) {
             GlycanCandidateResult nextCandidate = glycoResult.allCandidates.get(i);
-            if (useFragmentSpecificProbs) {
-                computeAbsoluteScoreDynamic(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError);
+            if (!isFirstPass) {
+                computeAbsoluteScore2ndPass(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError);
             } else {
-                computeAbsoluteScore(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError);
+                computeAbsoluteScore1stPass(spec, nextCandidate, glycoResult, massErrorWidth, meanMassError);
             }
 
             // if Best hit was target, look for Next to be decoy and vice versa
@@ -949,31 +946,22 @@ public class GlycoAnalysis {
         return candidateCount / (double) maxFrequency;
     }
 
-    public double pairwiseCompareDynamic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, GlycanAssignmentResult glycoResult, Spectrum spec) {
+    public double pairwiseCompare2ndPass(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, GlycanAssignmentResult glycoResult, Spectrum spec) {
         // calculate fragment-specific prob estimates based on observed fragment ions
         double sumLogRatio = 0;
-
-        // Y ions
-        if (isFirstPass) {
-            if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
-                if (glycoParams.glycoYnorm) {
-                    sumLogRatio += pairwiseCompareDynamicNormed(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
-                } else {
-                    sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.Yfragments, glycan2.Yfragments, glycan1, glycan2);
-                }
-            }
-        }
-        if (!isFirstPass && glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ysim)) {
+        // Y ions (similarity score)
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ysim)) {
             double ySim1 = computeSimilarityScore(new ArrayList<>(glycan1.Yfragments.values()));
             double ySim2 = computeSimilarityScore(new ArrayList<>(glycan2.Yfragments.values()));
             sumLogRatio += Math.log(ySim1 / ySim2);
         }
 
-            // oxonium ions
+        // diagnostic oxonium ions (empirical score)
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxo)) {
             sumLogRatio += pairwiseCompareDynamicNotNorm(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
         }
-        if (!isFirstPass && glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
+        // general oxonium ions (similarity score)
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
             double oxSim1 = computeSimilarityScore(new ArrayList<>(glycan1.generalOxoniumFragments.values()));
             double oxSim2 = computeSimilarityScore(new ArrayList<>(glycan2.generalOxoniumFragments.values()));
             sumLogRatio += Math.log(oxSim1 / oxSim2);
@@ -1027,47 +1015,6 @@ public class GlycoAnalysis {
      * @param glycan2       candidate 2
      * @return sum log probability with normalization included
      */
-    public double pairwiseCompareDynamicNormed(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan1, GlycanCandidate glycan2) {
-        double sumLogRatio = 0;
-        double unique1score = 0;
-        double unique2score = 0;
-        int unique1count = 0;
-        int unique2count = 0;
-        for (GlycanFragment fragment1 : fragmentsMap1.values()) {
-            double probRatio;
-            if (fragment1.isAllowedFragment(glycan2, glycoParams.glycanResiduesMap)) {
-                GlycanFragment fragment2 = fragmentsMap2.get(fragment1.hash);
-                probRatio = computeFragmentPairwiseScore(fragment1, fragment2);
-                sumLogRatio += Math.log(probRatio);
-            } else {
-                // fragment only possible for glycan 1, use glycan 1 only estimate
-                probRatio = computeFragmentAbsoluteScore(fragment1);
-                unique1score += Math.log(probRatio);
-                unique1count++;
-            }
-        }
-        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
-        for (GlycanFragment fragment : fragmentsMap2.values()) {
-            if (!fragment.isAllowedFragment(glycan1, glycoParams.glycanResiduesMap)) {
-                double probRatio = computeFragmentAbsoluteScore(fragment);
-                unique2score += Math.log(probRatio);
-                unique2count++;
-            }
-        }
-        double normScore1 = unique1count > 0 ? unique1score / Math.sqrt(unique1count) : 0;  // avoid divide by 0 if no unique fragments
-        double normScore2 = unique2count > 0 ? unique2score / Math.sqrt(unique2count) : 0;
-        sumLogRatio += (normScore1 - normScore2);
-        return sumLogRatio;
-    }
-
-    /**
-     * Compute sum log probability ratios for the compared glycans for a particular fragment type.
-     *
-     * @param fragmentsMap1 Fragments from candidate 1
-     * @param fragmentsMap2 Fragments from candidate 2
-     * @param glycan2       candidate 2
-     * @return sum log probability with normalization included
-     */
     public double pairwiseCompareDynamicNotNorm(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan1, GlycanCandidate glycan2) {
         double sumLogRatio = 0;
         for (GlycanFragment fragment1 : fragmentsMap1.values()) {
@@ -1099,34 +1046,21 @@ public class GlycoAnalysis {
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
      * @param meanMassError  mean mass error of non-delta mass peptides
      */
-    public void computeAbsoluteScoreDynamic(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
+    public void computeAbsoluteScore2ndPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
         // Y ions
         int index = 0;
-        double yScore = 0;
         double[] foundYs = new double[candidate.Yfragments.size()];
         double[] expectedYs = new double[candidate.Yfragments.size()];
         for (GlycanFragment fragment : candidate.Yfragments.values()) {
-            double probRatio = computeFragmentAbsoluteScore(fragment);
-            yScore += Math.log(probRatio);
             foundYs[index] = fragment.foundIntensity;
             expectedYs[index] = fragment.expectedIntensity;
             index++;
         }
-        if (glycoParams.glycoYnorm) {
-            yScore = yScore / Math.sqrt(candidate.Yfragments.size());
-        }
-        candidate.YFragmentScore = yScore;
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ysim)) {
             candidate.ySpecSim = entropyScore(expectedYs, foundYs);
         }
 
         // oxonium ions
-        double oxoScore = 0;
-        for (GlycanFragment fragment : candidate.oxoniumFragments.values()) {
-            double probRatio = computeFragmentAbsoluteScore(fragment);
-            oxoScore += Math.log(probRatio);
-        }
-        candidate.OxFragmentScore = oxoScore;
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.oxsim)) {
             candidate.oxSpecSim = computeSimilarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
         }
@@ -1147,7 +1081,7 @@ public class GlycoAnalysis {
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)) {
             candidate.ms1Score = calculateMS1CentroidScore(candidate, spec, result);
         }
-        if (!isFirstPass && glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.glycanfreq)) {
+        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.glycanfreq)) {
             candidate.frequencyPrior = computeGlycanFrequencyScore(candidate, result.deltaMass);
         }
         generateScores(candidate);
@@ -1217,7 +1151,7 @@ public class GlycoAnalysis {
      * @param glycan2   candidate 2
      * @return output probability score (sum of log ratios)
      */
-    public double pairwiseCompareStatic(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double meanMassError, GlycanAssignmentResult glycoResult, Spectrum spec) {
+    public double pairwiseCompare1stPass(GlycanCandidateResult glycan1, GlycanCandidateResult glycan2, double meanMassError, GlycanAssignmentResult glycoResult, Spectrum spec) {
         double sumLogRatio = 0;
         // Y ions
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.yscore)) {
@@ -1426,26 +1360,6 @@ public class GlycoAnalysis {
      * @param bestGlycan glycan candidate to calculate score for
      * @return absolute score
      */
-    public double computeYAbsoluteScore(GlycanCandidate bestGlycan) {
-        double sumLogRatio = 0;
-        for (GlycanFragment yFragment : bestGlycan.Yfragments.values()) {
-            if (yFragment.foundIntensity > 0) {
-                sumLogRatio += Math.log(yFragment.ruleProbabilities[0]);     // found in spectrum - ion supports this glycan
-            } else {
-                sumLogRatio += Math.log(yFragment.ruleProbabilities[1]);     // not found in spectrum - ion does not support this glycan
-            }
-        }
-
-        return sumLogRatio;
-    }
-
-    /**
-     * Compute the "absolute" score of the Y ions of the provided glycan for the given spectrum, meaning the score if all ions are distinguishing
-     * (i.e. the sum total evidence for/against this glycan, not relative to another glycan).
-     *
-     * @param bestGlycan glycan candidate to calculate score for
-     * @return absolute score
-     */
     public double computeOxoAbsoluteScore(GlycanCandidate bestGlycan) {
         double sumLogRatio = 0;
         for (GlycanFragment fragment : bestGlycan.oxoniumFragments.values()) {
@@ -1468,12 +1382,8 @@ public class GlycoAnalysis {
      * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides to use for determining probability of glycan candidates
      * @param meanMassError  mean mass error of non-delta mass peptides
      */
-    public void computeAbsoluteScore(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
-        if (glycoParams.glycoYnorm) {
-            candidate.YFragmentScore = computeYAbsoluteScoreNormed(candidate);
-        } else {
-            candidate.YFragmentScore = computeYAbsoluteScore(candidate);
-        }
+    public void computeAbsoluteScore1stPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result, double massErrorWidth, double meanMassError) {
+        candidate.YFragmentScore = computeYAbsoluteScoreNormed(candidate);
         candidate.OxFragmentScore = computeOxoAbsoluteScore(candidate);
 
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {

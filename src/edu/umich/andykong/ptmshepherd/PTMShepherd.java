@@ -66,7 +66,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
 import umich.ms.fileio.filetypes.mzbin.MZBINFile;
@@ -596,7 +595,7 @@ public class PTMShepherd {
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = glycoAnalysisMap.get(ds);
 
-			if (glycoParams.useGlycanFragmentProbs) {
+			if (glycoParams.twoPassMode) {
 				// second pass - calculate fragment propensities, regenerate database, and re-run
 				PTMShepherd.print("Assigning glycans: second pass");
 				HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
@@ -609,8 +608,6 @@ public class PTMShepherd {
 					ga2.getMassErrorsSecondPass(ga.allResults);
 				}
 				ga2.glycanMassBinMap = ga.glycanMassBinMap;
-				ga2.useFragmentSpecificProbs = true;
-				ga2.defaultPropensity = glycoParams.defaultProp;
 				for (PSMFile pf : psmFiles.get(ds)) {
 					ga2.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
 				}
@@ -1360,7 +1357,6 @@ public class PTMShepherd {
 		glycoParams.printGlycoDecoys = !getParam("print_decoys").isEmpty() && Boolean.parseBoolean(getParam("print_decoys"));	// default false
 		glycoParams.allowedLocalizationResidues = getParam("localization_allowed_res");
 		glycoParams.numThreads = Integer.parseInt(params.get("threads"));
-		glycoParams.useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").isEmpty() && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
 		glycoParams.useNonCompFDR = !getParam("use_noncomp_glycan_fdr").isEmpty() && Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default false
 		glycoParams.defaultProp = getParam("glyco_default_propensity").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
 		glycoParams.ldaFeaturesToUse = GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
@@ -1370,6 +1366,7 @@ public class PTMShepherd {
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));
         glycoParams.useShuffledIntensities = !getParam("shuffle_decoy_intensities").isEmpty() && Boolean.parseBoolean(getParam("shuffle_decoy_intensities"));	// default false
 		glycoParams.useNormMassScore = !getParam("norm_mass_score").isEmpty() && Boolean.parseBoolean(getParam("norm_mass_score"));	// default false
+		glycoParams.twoPassMode = getParam("glyco_two_pass_search").isEmpty() || Boolean.parseBoolean(getParam("glyco_two_pass_search"));	// default true
 
 		return glycoParams;
 	}
