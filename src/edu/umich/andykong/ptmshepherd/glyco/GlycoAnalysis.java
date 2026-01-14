@@ -958,7 +958,9 @@ public class GlycoAnalysis {
         }
 
         // isotope and mass errors
-        sumLogRatio += pairwiseEmpiricalMassScore(glycan1, glycan2, glycoResult.deltaMass, meanMassError);
+        double massScore1 = Math.max(normedMassScore(glycan1, glycoResult), MIN_SIMILARITY);  // prevent extreme values from divide by zero/small value
+        double massScore2 = Math.max(normedMassScore(glycan2, glycoResult), MIN_SIMILARITY);
+        sumLogRatio += Math.log(massScore1 / massScore2);
 
         if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl)) {
             double ms1score1 = klMS1score(glycan1, spec, glycoResult.pepMass);
@@ -1066,40 +1068,6 @@ public class GlycoAnalysis {
             }
         }
         return sumLogRatio;
-    }
-
-    /**
-     * Determine the probability ratio for this pairwise comparison based on isotope error. Currently
-     * uses hard-coded isotope probabilities, but could be updated to get rate from dataset
-     *
-     * @param glycan1       glycan 1
-     * @param glycan2       glycan 2
-     * @param deltaMass     observed delta mass
-     * @param meanMassError mean mass error of non-delta mass peptides
-     * @return probability ratio (glycan 1 over 2)
-     */
-    public double pairwiseEmpiricalMassScore(GlycanCandidate glycan1, GlycanCandidate glycan2, double deltaMass, double meanMassError) {
-        // Determine isotopes
-        float iso1 = (float) (deltaMass - glycan1.mass);
-        int roundedIso1 = Math.round(iso1);
-        float iso2 = (float) (deltaMass - glycan2.mass);
-        int roundedIso2 = Math.round(iso2);
-
-        // mass error calc
-        double massProbRatio = 1.0;
-        double minMassError = deltaMass * (glycoParams.glycoPPMtol * 0.01) * 1e-6;  // min mass error is ppmTol / 100
-        double massError1 = deltaMass - glycan1.mass - (roundedIso1 * AAMasses.averagineIsotopeMass);
-        double massStDevs1 = massError1 - meanMassError;
-        if (Math.abs(massStDevs1) < minMassError)
-            massStDevs1 = minMassError;
-        double massError2 = deltaMass - glycan2.mass - (roundedIso2 * AAMasses.averagineIsotopeMass);
-        double massStDevs2 = massError2 - meanMassError;
-        if (Math.abs(massStDevs2) < minMassError)
-            massStDevs2 = minMassError;
-        if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass)) {
-            massProbRatio = Math.abs(massStDevs2 / massStDevs1);     // divide #2 by #1 to get ratio for likelihood of #1 vs #2, adjust by scaling factor
-        }
-        return Math.log(massProbRatio);
     }
 
     /**
