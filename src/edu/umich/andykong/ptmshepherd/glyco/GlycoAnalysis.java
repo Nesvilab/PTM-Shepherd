@@ -1321,15 +1321,7 @@ public class GlycoAnalysis {
      */
     public void computeAbsoluteScore2ndPass(Spectrum spec, GlycanCandidateResult candidate, GlycanAssignmentResult result) {
         // Y ions
-        int index = 0;
-        double[] foundYs = new double[candidate.Yfragments.size()];
-        double[] expectedYs = new double[candidate.Yfragments.size()];
-        for (GlycanFragment fragment : candidate.Yfragments.values()) {
-            foundYs[index] = fragment.foundIntensity;
-            expectedYs[index] = fragment.expectedIntensity;
-            index++;
-        }
-        candidate.ySpecSim = entropyScore(expectedYs, foundYs);
+        candidate.ySpecSim = similarityScore(new ArrayList<>(candidate.Yfragments.values()));
 
         // oxonium ions
         candidate.OxFragmentScore = absoluteOxoScore(candidate);
@@ -1371,7 +1363,13 @@ public class GlycoAnalysis {
         if (!foundNonZero) {
             return MIN_SIMILARITY; // no matching ions found, return minimum similarity
         }
-        double score = entropyScore(expectedYs, foundYs);
+
+        double score;
+        if (glycoParams.cosineSimilarityScoring) {
+            score = cosineSimilarity(expectedYs, foundYs);
+        } else {
+            score = entropyScore(expectedYs, foundYs);
+        }
         if (score < MIN_SIMILARITY) {
             score = MIN_SIMILARITY;     // cap at minimum similarity to prevent extreme values and log(0) issues
         }
@@ -1562,6 +1560,36 @@ public class GlycoAnalysis {
             }
         }
         return -1 * entropy;
+    }
+
+    /**
+     * Compute cosine similarity between two spectrum vectors. Returns a score between 0 and 1,
+     * where 1 indicates identical spectra and 0 indicates completely dissimilar spectra.
+     * Assumes spectrum vectors are of equal length.
+     *
+     * @param theoreticalPks theoretical peak intensities
+     * @param exptPks experimental peak intensities
+     * @return cosine similarity score (0 to 1)
+     */
+    private double cosineSimilarity(double[] theoreticalPks, double[] exptPks) {
+        if (Arrays.stream(theoreticalPks).sum() == 0 || Arrays.stream(exptPks).sum() == 0) {
+            return 0;
+        }
+        double dotProduct = 0;
+        double normThySq = 0;
+        double normExptSq = 0;
+
+        for (int i = 0; i < theoreticalPks.length; i++) {
+            dotProduct += theoreticalPks[i] * exptPks[i];
+            normThySq += theoreticalPks[i] * theoreticalPks[i];
+            normExptSq += exptPks[i] * exptPks[i];
+        }
+
+        double magnitude = Math.sqrt(normThySq) * Math.sqrt(normExptSq);
+        if (magnitude == 0) {
+            return 0;
+        }
+        return dotProduct / magnitude;
     }
 
     /**

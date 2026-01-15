@@ -60,6 +60,7 @@ public class GlycoParams {
     public boolean useShuffledIntensities;
     public boolean twoPassMode;
     public boolean removeGlycans2ndPass;
+    public boolean cosineSimilarityScoring;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
