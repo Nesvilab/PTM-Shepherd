@@ -59,6 +59,7 @@ public class GlycoParams {
     public double ldaTargetProp;
     public boolean useShuffledIntensities;
     public boolean twoPassMode;
+    public boolean removeGlycans2ndPass;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -238,9 +239,11 @@ public class GlycoParams {
                 currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
             }
 
-            // Do not include candidates without any fragment info (i.e., not passing filters after 1st pass)
-            if (!fragmentDB.containsKey(currentGlycanHash)) {
-                continue;
+            if (removeGlycans2ndPass) {
+                // Do not include candidates without any fragment info (i.e., not passing filters after 1st pass)
+                if (!fragmentDB.containsKey(currentGlycanHash)) {
+                    continue;
+                }
             }
 
             // initialize new candidate
