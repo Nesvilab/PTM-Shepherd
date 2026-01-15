@@ -1371,7 +1371,7 @@ public class GlycoAnalysis {
         if (!foundNonZero) {
             return MIN_SIMILARITY; // no matching ions found, return minimum similarity
         }
-        double score = entropyScore(foundYs, expectedYs);
+        double score = entropyScore(expectedYs, foundYs);
         if (score < MIN_SIMILARITY) {
             score = MIN_SIMILARITY;     // cap at minimum similarity to prevent extreme values and log(0) issues
         }
