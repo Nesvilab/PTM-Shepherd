@@ -1144,8 +1144,6 @@ public class GlycoAnalysis {
         double ySim2 = similarityScore(new ArrayList<>(glycan2.Yfragments.values()));
         sumLogRatio += Math.log(ySim1 / ySim2);
 
-        // diagnostic oxonium ions (empirical score)
-        sumLogRatio += pairwiseEmpiricalOxoScore2ndPass(glycan1.oxoniumFragments, glycan2.oxoniumFragments, glycan1, glycan2);
         // general oxonium ions (similarity score)
         double oxSim1 = similarityScore(new ArrayList<>(glycan1.generalOxoniumFragments.values()));
         double oxSim2 = similarityScore(new ArrayList<>(glycan2.generalOxoniumFragments.values()));
@@ -1171,122 +1169,6 @@ public class GlycoAnalysis {
         // todo: glycan freq score for pairwise? I think it's good not to bias the comparison, but this is to remember that it is NOT used in pairwise
 
         return sumLogRatio;
-    }
-
-    /**
-     * Compute sum log probability ratios for the compared glycans for a particular fragment type.
-     *
-     * @param fragmentsMap1 Fragments from candidate 1
-     * @param fragmentsMap2 Fragments from candidate 2
-     * @param glycan2       candidate 2
-     * @return sum log probability with normalization included
-     */
-    public double pairwiseEmpiricalOxoScore2ndPass(TreeMap<String, GlycanFragment> fragmentsMap1, TreeMap<String, GlycanFragment> fragmentsMap2, GlycanCandidate glycan1, GlycanCandidate glycan2) {
-        double sumLogRatio = 0;
-        for (GlycanFragment fragment1 : fragmentsMap1.values()) {
-            double probRatio;
-            if (fragment1.isAllowedFragment(glycan2, glycoParams.glycanResiduesMap)) {
-                GlycanFragment fragment2 = fragmentsMap2.get(fragment1.hash);
-                probRatio = fragmentEmpiricalPairwiseHelper(fragment1, fragment2);
-            } else {
-                // fragment only possible for glycan 1, use glycan 1 only estimate
-                probRatio = fragmentEmpiricalAbsoluteHelper(fragment1);
-            }
-            sumLogRatio += Math.log(probRatio);
-        }
-        // glycan 2 fragments - unique fragments get scored the same way as in the absolute method, and subtracted since they support glycan 2 not 1
-        for (GlycanFragment fragment : fragmentsMap2.values()) {
-            if (!fragment.isAllowedFragment(glycan1, glycoParams.glycanResiduesMap)) {
-                double probRatio = fragmentEmpiricalAbsoluteHelper(fragment);
-                sumLogRatio -= Math.log(probRatio);
-            }
-        }
-        return sumLogRatio;
-    }
-
-    /**
-     * Compute propensity-specific score for fragment ion that is NOT unique (i.e., shared between two candidates).
-     * Score is the ratio of the propensities for the two candidates, positive towards candidate 1 if found in the
-     * spectrum or towards candidate 2 if not.
-     *
-     * @param fragment1 fragment from glycan 1
-     * @param fragment2 fragment from glycan 2
-     * @return ratio of fragment probs
-     */
-    public double fragmentEmpiricalPairwiseHelper(GlycanFragment fragment1, GlycanFragment fragment2) {
-        double probRatio;
-        if (fragment1.propensity > 0 && fragment2.propensity > 0) {
-            if (fragment1.foundIntensity > 0) {
-                // "hit": fragment found in spectrum. Compute prob of glycans given the presence of this ion
-                probRatio = computePropensityRatio(fragment1, fragment2);
-            } else {
-                // "miss": fragment not found. Compute prob of glycans given absence of this ion. Miss propensity = 1 - hit propensity
-                probRatio = computePropensityRatio(fragment2, fragment1);
-            }
-        } else {
-            probRatio = 1;
-        }
-        return probRatio;
-    }
-
-    /**
-     * Helper for computing absolute score of Y or oxonium fragments. Uses empirical probability for this fragment
-     * type and weights it by intensity vs expected
-     *
-     * @param fragment fragment to consider
-     * @return sum log ratio of fragment probs
-     */
-    public double fragmentEmpiricalAbsoluteHelper(GlycanFragment fragment) {
-        double probRatio;
-        if (fragment.foundIntensity > 0) {
-            // only compute fragment intensity ratio for oxonium ions, not Y
-            double intensityRatio = fragment.fragType == GlycanFragment.FragType.Ox ? computeIntensityRatio(fragment) : 1.0;
-            probRatio = fragment.ruleProbabilities[0] * intensityRatio;     // found in spectrum - ion supports this glycan
-        } else {
-            if (fragment.fragType == GlycanFragment.FragType.Y) {
-                if (fragment.propensity > 0) {
-                    // Weight misses by propensity (if known), so that unlikely Y ions don't over-penalize a reasonable glycan
-                    // formula sets range from prob = 1 as prop -> 0 to prob = ruleprobs[1] as prop -> 1
-                    probRatio = 1 - fragment.propensity * (1 - fragment.ruleProbabilities[1]);
-                } else {
-                    probRatio = fragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
-                }
-            } else {
-                probRatio = fragment.ruleProbabilities[1];     // not found in spectrum - ion does not support this glycan
-            }
-        }
-        return probRatio;
-    }
-
-    /**
-     * Compute propensity adjustment for fragments in common between candidates. Caps it so that low-propensity fragments being found
-     * can't reduce the score (same as is done for intensity ratio). Assumes both propensities are non-zero!
-     *
-     * @param fragment1
-     * @param fragment2
-     * @return
-     */
-    public double computePropensityRatio(GlycanFragment fragment1, GlycanFragment fragment2) {
-        double propensityRatio;
-        if (fragment1.propensity > 0) {
-            if (fragment2.propensity > 0) {
-                propensityRatio = fragment1.propensity / fragment2.propensity;
-                propensityRatio = Math.sqrt(propensityRatio);   // todo: param, test
-            } else {
-                // only propensity for fragment 1 - score against default min prop (if prop > min prop)
-                propensityRatio = fragment1.propensity > DEFAULT_GLYCO_PROPENSITY ? fragment1.propensity / DEFAULT_GLYCO_PROPENSITY : 1;
-            }
-        } else {
-            if (fragment2.propensity > 0) {
-                // only propensity for fragment 2 - score against default min prop as a negative for candidate 1
-                propensityRatio = fragment2.propensity > DEFAULT_GLYCO_PROPENSITY ? DEFAULT_GLYCO_PROPENSITY / fragment2.propensity : 1;
-            } else {
-                // ignore if no propensity present for this fragment
-                // todo: use all-glycan fragment lookup in this case?
-                propensityRatio = 1;
-            }
-        }
-        return propensityRatio;
     }
 
     /**
@@ -1324,7 +1206,6 @@ public class GlycoAnalysis {
         candidate.ySpecSim = similarityScore(new ArrayList<>(candidate.Yfragments.values()));
 
         // oxonium ions
-        candidate.OxFragmentScore = absoluteOxoScore(candidate);
         candidate.oxSpecSim = similarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
 
         // mass error score
@@ -1629,9 +1510,10 @@ public class GlycoAnalysis {
             summedScore += candidate.ySpecSim;
         }
         // oxonium ions
-        features.add(candidate.OxFragmentScore);
-        summedScore += candidate.OxFragmentScore;
-        if (!isFirstPass) {
+        if (isFirstPass) {
+            features.add(candidate.OxFragmentScore);
+            summedScore += candidate.OxFragmentScore;
+        } else {
             features.add(candidate.oxSpecSim);
             summedScore += candidate.oxSpecSim;
         }
