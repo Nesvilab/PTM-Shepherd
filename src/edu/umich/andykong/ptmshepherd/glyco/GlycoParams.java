@@ -272,9 +272,9 @@ public class GlycoParams {
                     newCandidate.isDecoy = true;
                     newCandidate.mass = oldCandidate.mass;
                     newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
-                    shuffleFragmentIntensities(newCandidate.Yfragments);
-                    shuffleFragmentIntensities(newCandidate.oxoniumFragments);
-                    shuffleFragmentIntensities(newCandidate.generalOxoniumFragments);
+                    newCandidate.Yfragments = shuffleFragmentIntensities(newCandidate.Yfragments);
+                    newCandidate.oxoniumFragments = shuffleFragmentIntensities(newCandidate.oxoniumFragments);
+                    newCandidate.generalOxoniumFragments = shuffleFragmentIntensities(newCandidate.generalOxoniumFragments);
                 }
             }
             newGlycoDB.add(newCandidate);
@@ -306,7 +306,14 @@ public class GlycoParams {
         return fragments;
     }
 
-    private void shuffleFragmentIntensities(TreeMap<String, GlycanFragment> fragments) {
+    /**
+     * Shuffle expected intensities among fragments to generate decoy fragments. Returns a new map of fragments
+     * to make sure hashes are updated correctly as decoys.
+     * @param fragments input fragment map
+     * @return new fragment map with shuffled intensities
+     */
+    private TreeMap<String, GlycanFragment> shuffleFragmentIntensities(TreeMap<String, GlycanFragment> fragments) {
+        TreeMap<String, GlycanFragment> newFragments = new TreeMap<>();
         // extract intensities
         ArrayList<Double> intensities = new ArrayList<>();
         for (GlycanFragment fragment : fragments.values()) {
@@ -318,8 +325,12 @@ public class GlycoParams {
         int index = 0;
         for (GlycanFragment fragment : fragments.values()) {
             fragment.expectedIntensity = intensities.get(index);
+            fragment.isDecoy = true;        // mark fragment as decoy (since it was initialized as target to avoid mass shifting)
+            fragment.hash = GlycanFragment.toFragmentHash(fragment.requiredComposition, fragment.isDecoy, fragment.compositionComment);
+            newFragments.put(fragment.hash, fragment);
             index++;
         }
+        return newFragments;
     }
 
     // Print glycan database (including decoys and associated mass shifts) to file
