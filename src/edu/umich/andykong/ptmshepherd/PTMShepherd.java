@@ -1362,6 +1362,7 @@ public class PTMShepherd {
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
 		glycoParams.decoyFragmentType = Integer.parseInt(params.get("decoy_fragment_type"));
 
+		glycoParams.initSortedGlycanDatabase();
 		return glycoParams;
 	}
 
