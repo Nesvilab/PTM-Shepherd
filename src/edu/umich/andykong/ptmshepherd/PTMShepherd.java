@@ -1361,8 +1361,6 @@ public class PTMShepherd {
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
 		glycoParams.decoyFragmentType = Integer.parseInt(params.get("decoy_fragment_type"));
-
-		glycoParams.initSortedGlycanDatabase();
 		return glycoParams;
 	}
 
