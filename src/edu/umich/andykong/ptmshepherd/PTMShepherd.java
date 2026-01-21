@@ -1357,10 +1357,10 @@ public class PTMShepherd {
         glycoParams.topPctSpectraForConsensus = getParam("top_pct_gpsms").isEmpty() ? 1.0 : Double.parseDouble(getParam("top_pct_gpsms"));
         glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 1 : Integer.parseInt(getParam("min_y_consensus"));
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));
-        glycoParams.useShuffledIntensities = !getParam("shuffle_decoy_intensities").isEmpty() && Boolean.parseBoolean(getParam("shuffle_decoy_intensities"));	// default false
 		glycoParams.twoPassMode = getParam("glyco_two_pass_search").isEmpty() || Boolean.parseBoolean(getParam("glyco_two_pass_search"));	// default true
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
+		glycoParams.decoyFragmentType = Integer.parseInt(params.get("decoy_fragment_type"));
 
 		return glycoParams;
 	}
