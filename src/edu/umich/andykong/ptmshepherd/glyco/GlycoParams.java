@@ -290,9 +290,9 @@ public class GlycoParams {
             }
 
             GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
-            newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
-            newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
-            newCandidate.generalOxoniumFragments = initFragmentsFromConsensus(oldCandidate.generalOxoniumFragments, fragmtInfo.generalOxFragmentIntensities, fragmtInfo.generalOxFragmentIntensities);
+            newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentIntensities);
+            newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentIntensities);
+            newCandidate.generalOxoniumFragments = initFragmentsFromConsensus(oldCandidate.generalOxoniumFragments, fragmtInfo.generalOxFragmentIntensities);
 
             if (oldCandidate.isDecoy) {
                 if (!(decoyFragmentType == 0)) {
@@ -320,24 +320,13 @@ public class GlycoParams {
     }
 
     private TreeMap<String, GlycanFragment> initFragmentsFromConsensus(TreeMap<String, GlycanFragment> originalFragments,
-                                                                      HashMap<String, Double> fragmentPropensities,
                                                                       HashMap<String, Double> fragmentIntensities) {
         TreeMap<String, GlycanFragment> fragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> originalFragEntry : originalFragments.entrySet()) {
             String fragmentKey = originalFragEntry.getKey().replace("Decoy_", "");  // give decoys same fragment info as targets
-            double expectedIntensity;
-            double propensity;
             GlycanFragment origFrag = originalFragEntry.getValue();
-            if (fragmentPropensities.containsKey(fragmentKey)) {
-                // have propensity/intensity info for this fragment - read from input fragmentInfo
-                expectedIntensity = fragmentIntensities.get(fragmentKey);
-                propensity = fragmentPropensities.get(fragmentKey);
-            } else {
-                // no added info - copy the original
-                expectedIntensity = origFrag.expectedIntensity;
-                propensity = origFrag.propensity;
-            }
-            GlycanFragment newFragment = GlycanFragment.copyFragmentWithPropensity(origFrag, expectedIntensity, propensity);
+            double expectedIntensity = fragmentIntensities.getOrDefault(fragmentKey, origFrag.expectedIntensity);   // copy from original if new value not provided
+            GlycanFragment newFragment = GlycanFragment.copyFragmentWithPropensity(origFrag, expectedIntensity, 0);
             fragments.put(originalFragEntry.getKey(), newFragment);
         }
         return fragments;

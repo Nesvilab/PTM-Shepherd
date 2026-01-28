@@ -22,16 +22,12 @@ import java.util.HashMap;
  * Container for holding fragment propensities for a given glycan
  */
 public class GlycanCandidateFragments {
-    HashMap<String, Double> yFragmentProps;
     HashMap<String, Double> yFragmentIntensities;
-    HashMap<String, Double> OxFragmentProps;
     HashMap<String, Double> OxFragmentIntensities;
     HashMap<String, Double> generalOxFragmentIntensities;
 
 
-    public GlycanCandidateFragments(HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, HashMap<String, Double> yFragmentIntensities, HashMap<String, Double> OxFragmentIntensities, HashMap<String, Double> generalOxFragmentIntensities) {
-        this.yFragmentProps = yFragmentProps;
-        this.OxFragmentProps = OxFragmentProps;
+    public GlycanCandidateFragments(HashMap<String, Double> yFragmentIntensities, HashMap<String, Double> OxFragmentIntensities, HashMap<String, Double> generalOxFragmentIntensities) {
         this.yFragmentIntensities = yFragmentIntensities;
         this.OxFragmentIntensities = OxFragmentIntensities;
         this.generalOxFragmentIntensities = generalOxFragmentIntensities;
@@ -39,8 +35,6 @@ public class GlycanCandidateFragments {
 
     // empty constructor for candidates without fragment info
     public GlycanCandidateFragments() {
-        this.yFragmentProps = new HashMap<>();
-        this.OxFragmentProps = new HashMap<>();
         this.yFragmentIntensities = new HashMap<>();
         this.OxFragmentIntensities = new HashMap<>();
         this.generalOxFragmentIntensities = new HashMap<>();

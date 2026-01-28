@@ -272,8 +272,6 @@ public class GlycoAnalysis {
         // summarize results for each glycan to get final fragment propensities
         for (Map.Entry<String, ArrayList<GlycanCandidateResult>> glycanEntry : glycanInputMap.entrySet()) {
             // Determine the fragment likelihoods based on all PSMs for this entry
-            HashMap<String, Integer> YCounts = new HashMap<>();
-            HashMap<String, Integer> OxCounts = new HashMap<>();
             HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
             HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
             HashMap<String, ArrayList<Double>> generalOxInts = new HashMap<>();
@@ -292,9 +290,6 @@ public class GlycoAnalysis {
             for (GlycanCandidate inputGlycan : allPSMsWithThisGlycan) {
                 // read all fragments from each input glycan into the count database
                 for (String fragmentHash : inputGlycan.Yfragments.keySet()) {
-                    int count = YCounts.getOrDefault(fragmentHash, 0);
-                    count++;
-                    YCounts.put(fragmentHash, count);
                     if (YInts.containsKey(fragmentHash)) {
                         YInts.get(fragmentHash).add(inputGlycan.Yfragments.get(fragmentHash).foundIntensity);
                     } else {
@@ -304,9 +299,6 @@ public class GlycoAnalysis {
                     }
                 }
                 for (String fragmentHash : inputGlycan.oxoniumFragments.keySet()) {
-                    int count = OxCounts.getOrDefault(fragmentHash, 0);
-                    count++;
-                    OxCounts.put(fragmentHash, count);
                     if (OxInts.containsKey(fragmentHash)) {
                         OxInts.get(fragmentHash).add(inputGlycan.oxoniumFragments.get(fragmentHash).foundIntensity);
                     } else {
@@ -324,18 +316,6 @@ public class GlycoAnalysis {
                         generalOxInts.put(fragmentHash, newList);
                     }
                 }
-            }
-
-            // now that all fragment info from all PSMs of this glycan is collected, determine propensities for each fragment
-            HashMap<String, Double> yFragmentProps = new HashMap<>();
-            for (Map.Entry<String, Integer> fragmentEntry : YCounts.entrySet()) {
-                // save the proportion of PSMs that had this fragment
-                yFragmentProps.put(fragmentEntry.getKey(), fragmentEntry.getValue() / (double) allPSMsWithThisGlycan.size());
-            }
-            HashMap<String, Double> OxFragmentProps = new HashMap<>();
-            for (Map.Entry<String, Integer> fragmentEntry : OxCounts.entrySet()) {
-                // save the proportion of PSMs that had this fragment
-                OxFragmentProps.put(fragmentEntry.getKey(), fragmentEntry.getValue() / (double) allPSMsWithThisGlycan.size());
             }
 
             // save intensities
@@ -371,7 +351,7 @@ public class GlycoAnalysis {
             }
 
             // save determined propensities to the output container
-            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentProps, OxFragmentProps, yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
             glycanCandidateFragmentsMap.put(glycanEntry.getKey(), fragmentInfo);
         }
         return glycanCandidateFragmentsMap;
