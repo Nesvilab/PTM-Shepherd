@@ -598,8 +598,9 @@ public class PTMShepherd {
 			if (glycoParams.twoPassMode) {
 				// second pass - calculate fragment propensities, regenerate database, and re-run
 				PTMShepherd.print("Assigning glycans: second pass");
-				HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
-				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
+				ga.summarizeGlycanResults();
+				ga.computeGlycanFragmentProbs();
+				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(ga.targetGlycanFragmentProps, ga.decoyGlycanFragmentProps, glycoParams.glycoDatabase);
 //                glycoParams.printGlycanDatabase(normFName(glycoDBname.split("\\.")[0] + "_2nd.tsv"));
 
 				// run glyco PSM-level analysis with the new database
@@ -1361,6 +1362,9 @@ public class PTMShepherd {
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
 		glycoParams.decoyFragmentType = Integer.parseInt(params.get("decoy_fragment_type"));
+		glycoParams.includeLowScoreTargets = !getParam("glyco_low_score_targets").isEmpty() && Boolean.parseBoolean(getParam("glyco_low_score_targets"));	// default false
+		glycoParams.glycoAvgInts = !getParam("glyco_avg_spectra").isEmpty() && Boolean.parseBoolean(getParam("glyco_avg_spectra"));	// default false
+
 		return glycoParams;
 	}
 

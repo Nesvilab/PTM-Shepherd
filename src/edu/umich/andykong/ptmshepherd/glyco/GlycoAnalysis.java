@@ -63,6 +63,10 @@ public class GlycoAnalysis {
     public static final double MIN_SIMILARITY = 0.01;
     private final GlycoParams glycoParams;
     public final ArrayList<GlycanAssignmentResult> allResults;
+    public HashMap<String, ArrayList<GlycanCandidateResult>> targetGlycansMap;
+    public HashMap<String, ArrayList<GlycanCandidateResult>> decoyGlycansMap;
+    public HashMap<String, GlycanCandidateFragments> targetGlycanFragmentProps;
+    public HashMap<String, GlycanCandidateFragments> decoyGlycanFragmentProps;
     private final String ldaHeader;
     private static IonQuantAPI api;
     public final boolean isFirstPass;
@@ -79,6 +83,10 @@ public class GlycoAnalysis {
         this.glycoParams = glycoParams;
         this.glycanMassBinMap = new HashMap<>();
         this.allResults = new ArrayList<>();
+        this.targetGlycansMap = new HashMap<>();
+        this.decoyGlycansMap = new HashMap<>();
+        this.targetGlycanFragmentProps = new HashMap<>();
+        this.decoyGlycanFragmentProps = new HashMap<>();
         ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "\t";
     }
 
@@ -207,15 +215,132 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Read the PSM level glycan assignment results to determine glycan fragment probabilities for each glycan in the database.
-     * Option to save prevalence file for diagnostics/info to be added?
-     *
-     * @return Map of glycan string : fragment propensities container
+     * Process summarized glycan fragment information from the first pass to compute fragment intensities
+     * for each glycan as a target and decoy. Target fragments are from filtered (FDR passed, sufficient PSMs, at least
+     * min Y fragments) glycans. Decoy fragments are from all PSMs not passing those filters.
+     * If insufficient target PSMs, the glycan is not considered in the second pass.
+     * If insufficient decoy PSMs, the lowest scoring target PSMs for that glycan are used to fill up to the min PSMs.
      */
-    public HashMap<String, GlycanCandidateFragments> computeGlycanFragmentProbs(GlycoParams glycoParams) {
-        HashMap<String, GlycanCandidateFragments> glycanCandidateFragmentsMap = new HashMap<>();
-        HashMap<String, ArrayList<GlycanCandidateResult>> glycanInputMap = new HashMap<>();    // container for glycan: glycan fragment info (read in from file)
+    public void computeGlycanFragmentProbs() {
+        // filter target glycans to only those with sufficient PSMs
+        HashMap<String, ArrayList<GlycanCandidateResult>> filteredTargetInputs = (HashMap<String, ArrayList<GlycanCandidateResult>>) targetGlycansMap.entrySet().stream().filter(e -> e.getValue().size() > glycoParams.minPSMsForConsensus).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        HashMap<String, ArrayList<GlycanCandidateResult>> lowScoreTargetsMap = new HashMap<>();
 
+        // Generate target fragment intensity profiles
+        for (Map.Entry<String, ArrayList<GlycanCandidateResult>> glycanEntry : filteredTargetInputs.entrySet()) {
+            // Determine the fragment likelihoods based on all PSMs for this entry
+            ArrayList<GlycanCandidateResult> targetGlycoPSMs = glycanEntry.getValue();
+            // skip generating fragment information for glycans with too few PSMs to get reasonable values
+            if (targetGlycoPSMs.size() < glycoParams.minPSMsForConsensus) {
+                continue;
+            }
+            if (glycoParams.topPctSpectraForConsensus < 1.0) {
+                // sort PSMs by glycan score and keep only the top X%
+                targetGlycoPSMs.sort(Comparator.comparingDouble((GlycanCandidateResult result) -> result.glycanScore).reversed());
+                int numToKeep = (int) Math.ceil(targetGlycoPSMs.size() * glycoParams.topPctSpectraForConsensus);
+                if (numToKeep > glycoParams.minPSMsForConsensus) {
+                    targetGlycoPSMs = new ArrayList<>(targetGlycoPSMs.subList(0, numToKeep));
+                    // save unused PSMs for potential use in decoy fragment generation (if insufficient other decoys)
+                    ArrayList<GlycanCandidateResult> lowScoreTargets = new ArrayList<>(glycanEntry.getValue().subList(numToKeep, glycanEntry.getValue().size()));
+                    lowScoreTargets.sort(Comparator.comparingDouble((GlycanCandidateResult result) -> result.glycanScore).reversed());
+                    lowScoreTargetsMap.put(glycanEntry.getKey(), lowScoreTargets);
+                }
+            }
+            GlycanCandidateFragments fragmentInfo = getGlycanCandidateFragments(targetGlycoPSMs);
+            targetGlycanFragmentProps.put(glycanEntry.getKey(), fragmentInfo);
+        }
+
+        // generate decoy fragment intensity profiles
+        for (String glycanKey : targetGlycanFragmentProps.keySet()) {
+            ArrayList<GlycanCandidateResult> decoyPSMs = decoyGlycansMap.getOrDefault(glycanKey, new ArrayList<>());
+            int decoyPSMcount = decoyPSMs.size();
+            if (decoyPSMcount < glycoParams.minPSMsForConsensus || glycoParams.includeLowScoreTargets) {
+                // add low scoring target PSMs if available
+                if (lowScoreTargetsMap.containsKey(glycanKey)) {
+                    ArrayList<GlycanCandidateResult> lowScoreTargets = lowScoreTargetsMap.get(glycanKey);
+                    for (GlycanCandidateResult targetPSM : lowScoreTargets) {
+                        decoyPSMs.add(targetPSM);
+                        decoyPSMcount++;
+                        if (decoyPSMcount >= glycoParams.minPSMsForConsensus && !glycoParams.includeLowScoreTargets) {
+                            break;
+                        }
+                    }
+                }
+            }
+            if (decoyPSMcount == 0) {
+                // no PSMs that did not pass filtering or low scoring targets to use for this glycan, use half of target PSMs
+                PTMShepherd.print(String.format("Warning: No low score PSMs found for glycan %s. Using target PSMs to generate decoy fragment spectrum.", glycanKey));
+                ArrayList<GlycanCandidateResult> targetPSMs = targetGlycansMap.get(glycanKey);
+                targetPSMs.sort(Comparator.comparingDouble((GlycanCandidateResult result) -> result.glycanScore));
+                int halfSize = targetPSMs.size() / 2;
+                decoyPSMs.addAll(targetPSMs.subList(0, halfSize));
+            }
+            GlycanCandidateFragments fragmentInfo = getGlycanCandidateFragments(decoyPSMs);
+            decoyGlycanFragmentProps.put(glycanKey, fragmentInfo);
+        }
+    }
+
+    private GlycanCandidateFragments getGlycanCandidateFragments(ArrayList<GlycanCandidateResult> glycanPSMlist) {
+        HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
+        HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
+        HashMap<String, ArrayList<Double>> generalOxInts = new HashMap<>();
+        for (GlycanCandidate inputGlycan : glycanPSMlist) {
+            // read all fragments from each input glycan into the intensity lists
+            for (String fragmentHash : inputGlycan.Yfragments.keySet()) {
+                YInts.computeIfAbsent(fragmentHash, k -> new ArrayList<>()).add(inputGlycan.Yfragments.get(fragmentHash).foundIntensity);
+            }
+            for (String fragmentHash : inputGlycan.oxoniumFragments.keySet()) {
+                OxInts.computeIfAbsent(fragmentHash, k -> new ArrayList<>()).add(inputGlycan.oxoniumFragments.get(fragmentHash).foundIntensity);
+            }
+            for (String fragmentHash : inputGlycan.generalOxoniumFragments.keySet()) {
+                generalOxInts.computeIfAbsent(fragmentHash, k -> new ArrayList<>()).add(inputGlycan.generalOxoniumFragments.get(fragmentHash).foundIntensity);
+            }
+        }
+        // save intensities
+        HashMap<String, Double> yFragmentIntensities;
+        HashMap<String, Double> OxFragmentIntensities;
+        HashMap<String, Double> generalOxFragmentIntensities;
+        if (glycoParams.glycoAvgInts) {
+            yFragmentIntensities = calculateFragmentAvgInts(YInts);
+            OxFragmentIntensities = calculateFragmentAvgInts(OxInts);
+            generalOxFragmentIntensities = calculateFragmentAvgInts(generalOxInts);
+        } else {
+            yFragmentIntensities = calculateFragmentMedianInts(YInts);
+            OxFragmentIntensities = calculateFragmentMedianInts(OxInts);
+            generalOxFragmentIntensities = calculateFragmentMedianInts(generalOxInts);
+        }
+        // save determined propensities to the output container
+        return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+    }
+
+    // compute the avg intensity for each fragment using the associated intensity list
+    private static HashMap<String, Double> calculateFragmentAvgInts(HashMap<String, ArrayList<Double>> intensityList) {
+        HashMap<String, Double> fragmentAvgInts = new HashMap<>();
+        for (Map.Entry<String, ArrayList<Double>> fragmentEntry : intensityList.entrySet()) {
+            double sum = 0;
+            for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
+                sum += fragmentEntry.getValue().get(i);
+            }
+            fragmentAvgInts.put(fragmentEntry.getKey(), sum / (double) fragmentEntry.getValue().size());
+        }
+        return fragmentAvgInts;
+    }
+
+    // compute the median intensity for each fragment using the associated intensity list
+    private static HashMap<String, Double> calculateFragmentMedianInts(HashMap<String, ArrayList<Double>> intensityList) {
+        HashMap<String, Double> fragmentMedianInts = new HashMap<>();
+        for (Map.Entry<String, ArrayList<Double>> fragmentEntry : intensityList.entrySet()) {
+            double[] intensities = new double[fragmentEntry.getValue().size()];
+            for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
+                intensities[i] = fragmentEntry.getValue().get(i);
+            }
+            Median median = new Median();
+            fragmentMedianInts.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
+        }
+        return fragmentMedianInts;
+    }
+
+    public void summarizeGlycanResults() {
         // read all glycan info in
         for (GlycanAssignmentResult result : allResults) {
             if (result.foundGlycan) {
@@ -238,16 +363,11 @@ public class GlycoAnalysis {
                             }
                         }
                         if (notEnoughYs) {
+                            addGlycanToMap(decoyGlycansMap, glycanHash, glycan);
                             continue;
                         }
                     }
-                    if (glycanInputMap.containsKey(glycanHash)) {
-                        glycanInputMap.get(glycanHash).add(glycan);
-                    } else {
-                        ArrayList<GlycanCandidateResult> newList = new ArrayList<>();
-                        newList.add(glycan);
-                        glycanInputMap.put(glycanHash, newList);
-                    }
+                    addGlycanToMap(targetGlycansMap, glycanHash, glycan);
 
                     // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
                     double deltaMass = result.deltaMass;
@@ -264,97 +384,24 @@ public class GlycoAnalysis {
                         massBinGlycanCounts.put(glycanHash, 1);
                         glycanMassBinMap.put(massBin, massBinGlycanCounts);
                     }
+                } else {
+                    if (result.isDecoyGlycan) {
+                        glycan = result.bestTarget;
+                    }
+                    addGlycanToMap(decoyGlycansMap, glycanHash, glycan);
                 }
             }
         }
+    }
 
-
-        // summarize results for each glycan to get final fragment propensities
-        for (Map.Entry<String, ArrayList<GlycanCandidateResult>> glycanEntry : glycanInputMap.entrySet()) {
-            // Determine the fragment likelihoods based on all PSMs for this entry
-            HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
-            HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
-            HashMap<String, ArrayList<Double>> generalOxInts = new HashMap<>();
-            ArrayList<GlycanCandidateResult> allPSMsWithThisGlycan = glycanEntry.getValue();
-            // skip generating fragment information for glycans with too few PSMs to get reasonable values
-            if (allPSMsWithThisGlycan.size() < glycoParams.minPSMsForConsensus) {
-                continue;
-            }
-            if (glycoParams.topPctSpectraForConsensus < 1.0) {
-                // sort PSMs by glycan score and keep only the top X%
-                allPSMsWithThisGlycan.sort(Comparator.comparingDouble((GlycanCandidateResult result) -> result.glycanScore).reversed());
-                int numToKeep = (int) Math.ceil(allPSMsWithThisGlycan.size() * glycoParams.topPctSpectraForConsensus);
-                allPSMsWithThisGlycan = new ArrayList<>(allPSMsWithThisGlycan.subList(0, numToKeep));
-            }
-
-            for (GlycanCandidate inputGlycan : allPSMsWithThisGlycan) {
-                // read all fragments from each input glycan into the count database
-                for (String fragmentHash : inputGlycan.Yfragments.keySet()) {
-                    if (YInts.containsKey(fragmentHash)) {
-                        YInts.get(fragmentHash).add(inputGlycan.Yfragments.get(fragmentHash).foundIntensity);
-                    } else {
-                        ArrayList<Double> newList = new ArrayList<>();
-                        newList.add(inputGlycan.Yfragments.get(fragmentHash).foundIntensity);
-                        YInts.put(fragmentHash, newList);
-                    }
-                }
-                for (String fragmentHash : inputGlycan.oxoniumFragments.keySet()) {
-                    if (OxInts.containsKey(fragmentHash)) {
-                        OxInts.get(fragmentHash).add(inputGlycan.oxoniumFragments.get(fragmentHash).foundIntensity);
-                    } else {
-                        ArrayList<Double> newList = new ArrayList<>();
-                        newList.add(inputGlycan.oxoniumFragments.get(fragmentHash).foundIntensity);
-                        OxInts.put(fragmentHash, newList);
-                    }
-                }
-                for (String fragmentHash : inputGlycan.generalOxoniumFragments.keySet()) {
-                    if (generalOxInts.containsKey(fragmentHash)) {
-                        generalOxInts.get(fragmentHash).add(inputGlycan.generalOxoniumFragments.get(fragmentHash).foundIntensity);
-                    } else {
-                        ArrayList<Double> newList = new ArrayList<>();
-                        newList.add(inputGlycan.generalOxoniumFragments.get(fragmentHash).foundIntensity);
-                        generalOxInts.put(fragmentHash, newList);
-                    }
-                }
-            }
-
-            // save intensities
-            // todo: test median vs average
-            HashMap<String, Double> yFragmentIntensities = new HashMap<>();
-            for (Map.Entry<String, ArrayList<Double>> fragmentEntry : YInts.entrySet()) {
-                double[] intensities = new double[fragmentEntry.getValue().size()];
-                for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
-                    intensities[i] = fragmentEntry.getValue().get(i);
-                }
-                Median median = new Median();
-//                double testAvg = Arrays.stream(intensities).average().orElse(0);
-//                double testMedian = median.evaluate(Arrays.stream(intensities).toArray());
-                yFragmentIntensities.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
-            }
-            HashMap<String, Double> OxFragmentIntensities = new HashMap<>();
-            for (Map.Entry<String, ArrayList<Double>> fragmentEntry : OxInts.entrySet()) {
-                double[] intensities = new double[fragmentEntry.getValue().size()];
-                for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
-                    intensities[i] = fragmentEntry.getValue().get(i);
-                }
-                Median median = new Median();
-                OxFragmentIntensities.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
-            }
-            HashMap<String, Double> generalOxFragmentIntensities = new HashMap<>();
-            for (Map.Entry<String, ArrayList<Double>> fragmentEntry : generalOxInts.entrySet()) {
-                double[] intensities = new double[fragmentEntry.getValue().size()];
-                for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
-                    intensities[i] = fragmentEntry.getValue().get(i);
-                }
-                Median median = new Median();
-                generalOxFragmentIntensities.put(fragmentEntry.getKey(), median.evaluate(Arrays.stream(intensities).toArray()));
-            }
-
-            // save determined propensities to the output container
-            GlycanCandidateFragments fragmentInfo = new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
-            glycanCandidateFragmentsMap.put(glycanEntry.getKey(), fragmentInfo);
+    private static void addGlycanToMap(HashMap<String, ArrayList<GlycanCandidateResult>> targetInputGlycans, String glycanHash, GlycanCandidateResult glycan) {
+        if (targetInputGlycans.containsKey(glycanHash)) {
+            targetInputGlycans.get(glycanHash).add(glycan);
+        } else {
+            ArrayList<GlycanCandidateResult> newList = new ArrayList<>();
+            newList.add(glycan);
+            targetInputGlycans.put(glycanHash, newList);
         }
-        return glycanCandidateFragmentsMap;
     }
 
     /**
@@ -1521,7 +1568,7 @@ public class GlycoAnalysis {
             }
         }
         candidate.summedScore = summedScore;
-        if (!glycoParams.glycoLDA) {
+        if (!glycoParams.glycoLDA || isFirstPass) {
             candidate.glycanScore = candidate.summedScore;
         }
         candidate.featureVec = features.stream().mapToDouble(Double::doubleValue).toArray();

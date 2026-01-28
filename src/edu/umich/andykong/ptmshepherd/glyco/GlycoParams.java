@@ -64,6 +64,8 @@ public class GlycoParams {
     public boolean twoPassMode;
     public boolean removeGlycans2ndPass;
     public boolean cosineSimilarityScoring;
+    public boolean includeLowScoreTargets;
+    public boolean glycoAvgInts;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -242,7 +244,7 @@ public class GlycoParams {
      * @param oldGlycoDB original glycan DB used for bootstrap analysis (or just initial DB provided by user)
      * @return glycan candidate arraylist
      */
-    public ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, ArrayList<GlycanCandidate> oldGlycoDB) {
+    public ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, HashMap<String, GlycanCandidateFragments> decoyFragmentDB, ArrayList<GlycanCandidate> oldGlycoDB) {
         ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
         if (removeGlycans2ndPass) {
             ArrayList<GlycanCandidate> reducedDB = new ArrayList<>();
@@ -261,8 +263,10 @@ public class GlycoParams {
             initSortedGlycanDatabase(oldGlycoDB);     // initialize sorted glycan DB for nearest mass lookups
         }
         GlycanCandidateFragments averageFragments = null;
+        GlycanCandidateFragments averageDecoyFragments = null;
         if (decoyFragmentType == 2 || decoyFragmentType == 4) {
             averageFragments = averageGlycanFragments(fragmentDB);      // precompute average fragments for all glycans in DB
+            averageDecoyFragments = averageGlycanFragments(decoyFragmentDB);
         }
 
         // update the glycan candidates to generate the new database
@@ -305,13 +309,17 @@ public class GlycoParams {
                     newCandidate.oxoniumFragments = shuffleFragmentIntensities(newCandidate.oxoniumFragments);
                     newCandidate.generalOxoniumFragments = shuffleFragmentIntensities(newCandidate.generalOxoniumFragments);
                 } else if (decoyFragmentType == 2 || decoyFragmentType == 4) {
-                    newCandidate.Yfragments = initAverageFragments(newCandidate.Yfragments, averageFragments, "Y");
-                    newCandidate.oxoniumFragments = initAverageFragments(newCandidate.oxoniumFragments, averageFragments, "Ox");
-                    newCandidate.generalOxoniumFragments = initAverageFragments(newCandidate.generalOxoniumFragments, averageFragments, "generalOx");
+                    newCandidate.Yfragments = initAverageFragments(newCandidate.Yfragments, averageDecoyFragments, "Y");
+                    newCandidate.oxoniumFragments = initAverageFragments(newCandidate.oxoniumFragments, averageDecoyFragments, "Ox");
+                    newCandidate.generalOxoniumFragments = initAverageFragments(newCandidate.generalOxoniumFragments, averageDecoyFragments, "generalOx");
                 } else if (decoyFragmentType == 3 || decoyFragmentType == 5) {
                     GlycanCandidateFragments nearestGlycan = findNearestMassGlycan(oldCandidate, sortedGlycansByMass, fragmentDB);
                     updateFragmentsFromNearestGlycan(newCandidate.Yfragments, nearestGlycan.yFragmentIntensities);
                     updateFragmentsFromNearestGlycan(newCandidate.generalOxoniumFragments, nearestGlycan.generalOxFragmentIntensities);
+                } else if (decoyFragmentType == 7) {
+                    GlycanCandidateFragments sameGlycan = decoyFragmentDB.get(currentGlycanHash);
+                    updateFragmentsFromNearestGlycan(newCandidate.Yfragments, sameGlycan.yFragmentIntensities);
+                    updateFragmentsFromNearestGlycan(newCandidate.generalOxoniumFragments, sameGlycan.generalOxFragmentIntensities);
                 }
             }
             newGlycoDB.add(newCandidate);
