@@ -1233,6 +1233,7 @@ public class GlycoAnalysis {
         candidate.ySpecSim = similarityScore(new ArrayList<>(candidate.Yfragments.values()));
 
         // oxonium ions
+        candidate.OxFragmentScore = similarityScore(new ArrayList<>(candidate.oxoniumFragments.values()));
         candidate.oxSpecSim = similarityScore(new ArrayList<>(candidate.generalOxoniumFragments.values()));
 
         // mass error score
@@ -1537,10 +1538,9 @@ public class GlycoAnalysis {
             summedScore += candidate.ySpecSim;
         }
         // oxonium ions
-        if (isFirstPass) {
-            features.add(candidate.OxFragmentScore);
-            summedScore += candidate.OxFragmentScore;
-        } else {
+        features.add(candidate.OxFragmentScore);
+        summedScore += candidate.OxFragmentScore;
+        if (!isFirstPass) {
             features.add(candidate.oxSpecSim);
             summedScore += candidate.oxSpecSim;
         }
