@@ -259,15 +259,6 @@ public class GlycoParams {
             }
             oldGlycoDB = reducedDB;
         }
-        if (decoyFragmentType == 3 || decoyFragmentType == 5) {
-            initSortedGlycanDatabase(oldGlycoDB);     // initialize sorted glycan DB for nearest mass lookups
-        }
-        GlycanCandidateFragments averageFragments = null;
-        GlycanCandidateFragments averageDecoyFragments = null;
-        if (decoyFragmentType == 2 || decoyFragmentType == 4) {
-            averageFragments = averageGlycanFragments(fragmentDB);      // precompute average fragments for all glycans in DB
-            averageDecoyFragments = averageGlycanFragments(decoyFragmentDB);
-        }
 
         // update the glycan candidates to generate the new database
         for (GlycanCandidate oldCandidate : oldGlycoDB) {
@@ -293,35 +284,22 @@ public class GlycoParams {
                         this.glycoOxoniumDatabase);
             }
 
-            GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
+            GlycanCandidateFragments fragmtInfo;
+            if (oldCandidate.isDecoy) {
+                fragmtInfo = decoyFragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
+                if (!(decoyFragmentType == 0)) {
+                    newCandidate.isDecoy = true;
+                    // todo: change to mass of the alternate matched glycan?
+                    newCandidate.mass = oldCandidate.mass;
+                    newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
+                }
+            } else {
+                fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
+            }
             newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentIntensities);
             newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentIntensities);
             newCandidate.generalOxoniumFragments = initFragmentsFromConsensus(oldCandidate.generalOxoniumFragments, fragmtInfo.generalOxFragmentIntensities);
 
-            if (oldCandidate.isDecoy) {
-                if (!(decoyFragmentType == 0)) {
-                    newCandidate.isDecoy = true;
-                    newCandidate.mass = oldCandidate.mass;
-                    newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
-                }
-                if (decoyFragmentType == 1 || decoyFragmentType == 6) {
-                    newCandidate.Yfragments = shuffleFragmentIntensities(newCandidate.Yfragments);
-                    newCandidate.oxoniumFragments = shuffleFragmentIntensities(newCandidate.oxoniumFragments);
-                    newCandidate.generalOxoniumFragments = shuffleFragmentIntensities(newCandidate.generalOxoniumFragments);
-                } else if (decoyFragmentType == 2 || decoyFragmentType == 4) {
-                    newCandidate.Yfragments = initAverageFragments(newCandidate.Yfragments, averageDecoyFragments, "Y");
-                    newCandidate.oxoniumFragments = initAverageFragments(newCandidate.oxoniumFragments, averageDecoyFragments, "Ox");
-                    newCandidate.generalOxoniumFragments = initAverageFragments(newCandidate.generalOxoniumFragments, averageDecoyFragments, "generalOx");
-                } else if (decoyFragmentType == 3 || decoyFragmentType == 5) {
-                    GlycanCandidateFragments nearestGlycan = findNearestMassGlycan(oldCandidate, sortedGlycansByMass, fragmentDB);
-                    updateFragmentsFromNearestGlycan(newCandidate.Yfragments, nearestGlycan.yFragmentIntensities);
-                    updateFragmentsFromNearestGlycan(newCandidate.generalOxoniumFragments, nearestGlycan.generalOxFragmentIntensities);
-                } else if (decoyFragmentType == 7) {
-                    GlycanCandidateFragments sameGlycan = decoyFragmentDB.get(currentGlycanHash);
-                    updateFragmentsFromNearestGlycan(newCandidate.Yfragments, sameGlycan.yFragmentIntensities);
-                    updateFragmentsFromNearestGlycan(newCandidate.generalOxoniumFragments, sameGlycan.generalOxFragmentIntensities);
-                }
-            }
             newGlycoDB.add(newCandidate);
         }
         return newGlycoDB;
@@ -333,208 +311,11 @@ public class GlycoParams {
         for (Map.Entry<String, GlycanFragment> originalFragEntry : originalFragments.entrySet()) {
             String fragmentKey = originalFragEntry.getKey().replace("Decoy_", "");  // give decoys same fragment info as targets
             GlycanFragment origFrag = originalFragEntry.getValue();
-            double expectedIntensity = fragmentIntensities.getOrDefault(fragmentKey, origFrag.expectedIntensity);   // copy from original if new value not provided
+            double expectedIntensity = fragmentIntensities.getOrDefault(fragmentKey, 0.0);
             GlycanFragment newFragment = GlycanFragment.copyFragmentWithPropensity(origFrag, expectedIntensity, 0);
             fragments.put(originalFragEntry.getKey(), newFragment);
         }
         return fragments;
-    }
-
-    /**
-     * Shuffle expected intensities among fragments to generate decoy fragments. Returns a new map of fragments
-     * to make sure hashes are updated correctly as decoys.
-     * @param fragments input fragment map
-     * @return new fragment map with shuffled intensities
-     */
-    private TreeMap<String, GlycanFragment> shuffleFragmentIntensities(TreeMap<String, GlycanFragment> fragments) {
-        TreeMap<String, GlycanFragment> newFragments = new TreeMap<>();
-        // extract intensities
-        ArrayList<Double> intensities = new ArrayList<>();
-        for (GlycanFragment fragment : fragments.values()) {
-            intensities.add(fragment.expectedIntensity);
-        }
-        // shuffle
-        ArrayList<Double> originalIntensities = new ArrayList<>(intensities);
-        Collections.shuffle(intensities, randomGenerator);
-        // reassign
-        int index = 0;
-        for (GlycanFragment fragment : fragments.values()) {
-            if (decoyFragmentType == 6 && fragment.fragType == GlycanFragment.FragType.Y && fragment.neutralMass < 1060) {
-                // do not shuffle core Y ions if requested
-                fragment.expectedIntensity = originalIntensities.get(index);
-            } else {
-                fragment.expectedIntensity = intensities.get(index);
-            }
-            fragment.isDecoy = true;        // mark fragment as decoy (since it was initialized as target to avoid mass shifting)
-            fragment.hash = GlycanFragment.toFragmentHash(fragment.requiredComposition, fragment.isDecoy, fragment.compositionComment);
-            newFragments.put(fragment.hash, fragment);
-            index++;
-        }
-        return newFragments;
-    }
-
-    /**
-     * Generate an "average" glycan fragment container from a database of glycan fragment containers. All fragments
-     * from all glycans are included, with intensities averaged across all glycans containing that fragment.
-     * @param fragmentsDB input map of glycan string: fragment container
-     * @return average glycan fragment container
-     */
-    private GlycanCandidateFragments averageGlycanFragments(HashMap<String, GlycanCandidateFragments> fragmentsDB) {
-        GlycanCandidateFragments averageFragment = new GlycanCandidateFragments();
-        HashMap<String, ArrayList<Double>> yFragmentIntensities = new HashMap<>();
-        HashMap<String, ArrayList<Double>> oxFragmentIntensities = new HashMap<>();
-
-        for (GlycanCandidateFragments fragment : fragmentsDB.values()) {
-            for (Map.Entry<String, Double> entry : fragment.yFragmentIntensities.entrySet()) {
-                String fragKey = entry.getKey();
-                double intensity = entry.getValue();
-                if (!yFragmentIntensities.containsKey(fragKey)) {
-                    yFragmentIntensities.put(fragKey, new ArrayList<>());
-                }
-                yFragmentIntensities.get(fragKey).add(intensity);
-            }
-            for (Map.Entry<String, Double> entry : fragment.generalOxFragmentIntensities.entrySet()) {
-                String fragKey = entry.getKey();
-                double intensity = entry.getValue();
-                if (!oxFragmentIntensities.containsKey(fragKey)) {
-                    oxFragmentIntensities.put(fragKey, new ArrayList<>());
-                }
-                oxFragmentIntensities.get(fragKey).add(intensity);
-            }
-        }
-        // compute averages or random, depending on setting
-        for (Map.Entry<String, ArrayList<Double>> entry : yFragmentIntensities.entrySet()) {
-            ArrayList<Double> intensities = entry.getValue();
-            if (decoyFragmentType == 2) {
-                double sum = 0;
-                for (double intensity : intensities) {
-                    sum += intensity;
-                }
-                double average = sum / (double) intensities.size();
-                averageFragment.yFragmentIntensities.put(entry.getKey(), average);
-            } else {
-                double randomIntensity = intensities.get(randomGenerator.nextInt(intensities.size()));
-                averageFragment.yFragmentIntensities.put(entry.getKey(), randomIntensity);
-            }
-        }
-        for (Map.Entry<String, ArrayList<Double>> entry : oxFragmentIntensities.entrySet()) {
-            ArrayList<Double> intensities = entry.getValue();
-            if (decoyFragmentType == 2) {
-                double sum = 0;
-                for (double intensity : intensities) {
-                    sum += intensity;
-                }
-                double average = sum / (double) intensities.size();
-                averageFragment.generalOxFragmentIntensities.put(entry.getKey(), average);
-            } else {
-                double randomIntensity = intensities.get(randomGenerator.nextInt(intensities.size()));
-                averageFragment.generalOxFragmentIntensities.put(entry.getKey(), randomIntensity);
-            }
-        }
-
-        return averageFragment;
-    }
-
-    /**
-     * Look for all fragments of the original GlycanCandidate in the average fragment container, and initialize
-     * a new fragment map with the average intensities of each.
-     * @param originalFragments original fragment map
-     * @param averageFragments average fragment container (GlycanCandidateFragments)
-     * @param fragmentType Y, oxonium, or general oxonium (Y, Ox, generalOx)
-     * @return new fragment map with average intensities as expected intensities
-     */
-    private TreeMap<String, GlycanFragment> initAverageFragments(TreeMap<String, GlycanFragment> originalFragments,
-                                                                 GlycanCandidateFragments averageFragments,
-                                                                 String fragmentType) {
-        TreeMap<String, GlycanFragment> fragments = new TreeMap<>();
-        for (Map.Entry<String, GlycanFragment> originalFragEntry : originalFragments.entrySet()) {
-            String fragmentKey = originalFragEntry.getKey().replace("Decoy_", "");  // avg fragment container uses target keys
-            GlycanFragment origFrag = originalFragEntry.getValue();
-
-            double expectedIntensity;
-            if (fragmentType.equals("Y")) {
-                expectedIntensity = averageFragments.yFragmentIntensities.getOrDefault(fragmentKey, 0.0);
-            } else if (fragmentType.equals("Ox")) {
-                expectedIntensity = averageFragments.OxFragmentIntensities.getOrDefault(fragmentKey, 0.0);
-            } else {
-                expectedIntensity = averageFragments.generalOxFragmentIntensities.getOrDefault(fragmentKey, 0.0);
-            }
-            GlycanFragment newFragment = GlycanFragment.copyFragmentWithPropensity(origFrag, expectedIntensity, origFrag.propensity);
-            fragments.put(originalFragEntry.getKey(), newFragment);
-        }
-        return fragments;
-    }
-
-
-    /**
-     * Find the GlycanCandidate with the nearest mass to the given candidate's mass.
-     * Uses binary search on pre-sorted database for O(log n) performance.
-     *
-     * @param target the GlycanCandidate to find nearest mass for
-     * @param glycoDB list of GlycanCandidates to search (should be sorted by mass)
-     * @return GlycanCandidate with nearest mass, or null if candidates list is empty
-     */
-    public GlycanCandidateFragments findNearestMassGlycan(GlycanCandidate target, ArrayList<GlycanCandidate> glycoDB, HashMap<String, GlycanCandidateFragments> fragmentDB) {
-        if (glycoDB == null || glycoDB.isEmpty()) {
-            return null;
-        }
-        // Create filtered list excluding the target candidate itself, and all decoy candidates
-        ArrayList<GlycanCandidate> candidates = new ArrayList<>();
-        for (GlycanCandidate candidate : glycoDB) {
-            if (!candidate.isDecoy && !toGlycanString(candidate.composition).equals(toGlycanString(target.composition))) {
-                candidates.add(candidate);
-            }
-        }
-
-        if (decoyFragmentType == 5) {
-            GlycanCandidate randomCandidate = candidates.get(randomGenerator.nextInt(candidates.size()));
-            return fragmentDB.get(toGlycanString(randomCandidate.composition));
-        }
-
-        double targetMass = target.mass;
-        int index = Collections.binarySearch(candidates, target, Comparator.comparingDouble(g -> g.mass));
-
-        // If exact match found (unlikely with doubles), return it
-        if (index >= 0) {
-            return fragmentDB.get(toGlycanString(candidates.get(index).composition));
-        }
-
-        // Convert insertion point to actual index
-        int insertionPoint = -(index + 1);
-
-        // Check boundary cases
-        if (insertionPoint == 0) {
-            return fragmentDB.get(toGlycanString(candidates.get(0).composition));
-        }
-        if (insertionPoint >= candidates.size()) {
-            return fragmentDB.get(toGlycanString(candidates.get(candidates.size() - 1).composition));
-        }
-
-        // Compare the two candidates surrounding the insertion point
-        GlycanCandidate lower = candidates.get(insertionPoint - 1);
-        GlycanCandidate upper = candidates.get(insertionPoint);
-
-        double lowerDiff = Math.abs(targetMass - lower.mass);
-        double upperDiff = Math.abs(targetMass - upper.mass);
-
-        return lowerDiff <= upperDiff ? fragmentDB.get(toGlycanString(lower.composition)) : fragmentDB.get(toGlycanString(upper.composition));
-    }
-
-    /**
-     * Give the fragments of the candidate the same fragment intensities as the nearest glycan. If the candidate has
-     * any fragments not found in the nearest glycan, assign those a random value between 0 and 1.
-     * @param candidateFragments: fragments of the candidate glycan
-     * @param nearestGlycanFragmentIntensities: fragment intensities of the nearest glycan to use for updating intensities
-     */
-    private void updateFragmentsFromNearestGlycan(TreeMap<String, GlycanFragment> candidateFragments, HashMap<String, Double> nearestGlycanFragmentIntensities) {
-        for (GlycanFragment fragment : candidateFragments.values()) {
-            String fragKey = fragment.hash.replace("Decoy_", "");  // nearest glycan is target, so use target keys
-            if (nearestGlycanFragmentIntensities.containsKey(fragKey)) {
-                fragment.expectedIntensity = nearestGlycanFragmentIntensities.get(fragKey);
-            } else {
-                fragment.expectedIntensity = randomGenerator.nextDouble();    // assign random intensity between 0 and 1
-            }
-        }
     }
 
     // Print glycan database (including decoys and associated mass shifts) to file

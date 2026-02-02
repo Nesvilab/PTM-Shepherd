@@ -52,6 +52,7 @@ public class GlycoAnalysis {
     int condPeaks;
     double condRatio;
     ArrayList<GlycanCandidate> glycanDatabase;
+    HashMap<String, GlycanCandidate> glycanDBmap;
     Double meanMassError;
     double massErrorWidth;
     public static final double DEFAULT_GLYCO_PPM_TOL = 30;
@@ -63,8 +64,8 @@ public class GlycoAnalysis {
     public static final double MIN_SIMILARITY = 0.01;
     private final GlycoParams glycoParams;
     public final ArrayList<GlycanAssignmentResult> allResults;
-    public HashMap<String, ArrayList<GlycanCandidateResult>> targetGlycansMap;
-    public HashMap<String, ArrayList<GlycanCandidateResult>> decoyGlycansMap;
+    public HashMap<String, ArrayList<GlycanCandidateResult>> highConfidenceResultMap;
+    public HashMap<String, ArrayList<GlycanCandidateResult>> lowConfidenceResultMap;
     public HashMap<String, GlycanCandidateFragments> targetGlycanFragmentProps;
     public HashMap<String, GlycanCandidateFragments> decoyGlycanFragmentProps;
     private final String ldaHeader;
@@ -80,11 +81,18 @@ public class GlycoAnalysis {
         String firstPassName = isFirstPass ? PTMShepherd.rawGlycoFirstPass : "";
         this.glycoFile = new File(PTMShepherd.normFName(dsName + firstPassName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
+        glycanDBmap = new HashMap<>();
+        for (GlycanCandidate glycan : glycanDatabase) {
+            if (!glycan.isDecoy) {
+                String glycanHash = Glycan.toGlycanString(glycan.composition);
+                glycanDBmap.put(glycanHash, glycan);
+            }
+        }
         this.glycoParams = glycoParams;
         this.glycanMassBinMap = new HashMap<>();
         this.allResults = new ArrayList<>();
-        this.targetGlycansMap = new HashMap<>();
-        this.decoyGlycansMap = new HashMap<>();
+        this.highConfidenceResultMap = new HashMap<>();
+        this.lowConfidenceResultMap = new HashMap<>();
         this.targetGlycanFragmentProps = new HashMap<>();
         this.decoyGlycanFragmentProps = new HashMap<>();
         ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "\t";
@@ -215,6 +223,62 @@ public class GlycoAnalysis {
     }
 
     /**
+     * Generate decoy glycan candidates for 2nd pass using glycan fragment information from 1st pass.
+     * Decoys are generated using spectra/masses from alternate possible composition matches for a target.
+     * Called after target glycan spectra are initialized (computeGlycanFragmentProbs).
+     */
+    public void generateDecoys2ndPass() {
+        for (String glycanKey : targetGlycanFragmentProps.keySet()) {
+            GlycanCandidate target = glycanDBmap.get(glycanKey);
+            // find all possible compositions that could match to this mass
+            ArrayList<GlycanCandidateResult> matchingComps = getMatchingGlycansByMass(1500, target.mass, glycanDatabase, glycoParams.glycoIsotopes, glycoParams.glycoPPMtol);
+
+            // see if any matching glycans are found in high-confidence results
+            boolean foundDecoySource = false;
+            for (GlycanCandidateResult matchedComposition : matchingComps) {
+                String matchedName = Glycan.toGlycanString(matchedComposition.composition);
+                if (matchedName.equals(glycanKey)) {
+                    continue;   // skip self
+                }
+                if (highConfidenceResultMap.containsKey(matchedName)) {
+                    // found a matching glycan composition that has high-confidence PSMs, use those spectra to generate decoy fragments
+                    ArrayList<GlycanCandidateResult> matchedPSMs = highConfidenceResultMap.get(matchedName);
+                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs, false);
+                    decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
+                    foundDecoySource = true;
+                    break; // only need to find one matching glycan with high-confidence PSMs
+                }
+            }
+            if (!foundDecoySource) {
+                // check low confidence results
+                for (GlycanCandidateResult matchedComposition : matchingComps) {
+                    String matchedName = Glycan.toGlycanString(matchedComposition.composition);
+                    if (matchedName.equals(glycanKey)) {
+                        continue;   // skip self
+                    }
+                    if (lowConfidenceResultMap.containsKey(matchedName)) {
+                        // found a matching glycan composition that has low-confidence PSMs, use those spectra to generate decoy fragments
+                        ArrayList<GlycanCandidateResult> matchedPSMs = lowConfidenceResultMap.get(matchedName);
+                        GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs, false);
+                        decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
+                        foundDecoySource = true;
+                        break; // only need to find one matching glycan with PSMs
+                    }
+                }
+            } if (!foundDecoySource) {
+                // no other candidates found to generate decoy fragments, use target fragments with shuffled intensities
+                if (lowConfidenceResultMap.containsKey(glycanKey)) {
+                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(lowConfidenceResultMap.get(glycanKey), true);
+                    decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
+                } else {
+                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(highConfidenceResultMap.get(glycanKey), true);
+                    decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
+                }
+            }
+        }
+    }
+
+    /**
      * Process summarized glycan fragment information from the first pass to compute fragment intensities
      * for each glycan as a target and decoy. Target fragments are from filtered (FDR passed, sufficient PSMs, at least
      * min Y fragments) glycans. Decoy fragments are from all PSMs not passing those filters.
@@ -223,8 +287,7 @@ public class GlycoAnalysis {
      */
     public void computeGlycanFragmentProbs() {
         // filter target glycans to only those with sufficient PSMs
-        HashMap<String, ArrayList<GlycanCandidateResult>> filteredTargetInputs = (HashMap<String, ArrayList<GlycanCandidateResult>>) targetGlycansMap.entrySet().stream().filter(e -> e.getValue().size() > glycoParams.minPSMsForConsensus).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        HashMap<String, ArrayList<GlycanCandidateResult>> lowScoreTargetsMap = new HashMap<>();
+        HashMap<String, ArrayList<GlycanCandidateResult>> filteredTargetInputs = (HashMap<String, ArrayList<GlycanCandidateResult>>) highConfidenceResultMap.entrySet().stream().filter(e -> e.getValue().size() > glycoParams.minPSMsForConsensus).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         // Generate target fragment intensity profiles
         for (Map.Entry<String, ArrayList<GlycanCandidateResult>> glycanEntry : filteredTargetInputs.entrySet()) {
@@ -243,44 +306,18 @@ public class GlycoAnalysis {
                     // save unused PSMs for potential use in decoy fragment generation (if insufficient other decoys)
                     ArrayList<GlycanCandidateResult> lowScoreTargets = new ArrayList<>(glycanEntry.getValue().subList(numToKeep, glycanEntry.getValue().size()));
                     lowScoreTargets.sort(Comparator.comparingDouble((GlycanCandidateResult result) -> result.glycanScore).reversed());
-                    lowScoreTargetsMap.put(glycanEntry.getKey(), lowScoreTargets);
+                    lowConfidenceResultMap.put(glycanEntry.getKey(), lowScoreTargets);
                 }
             }
-            GlycanCandidateFragments fragmentInfo = getGlycanCandidateFragments(targetGlycoPSMs);
+            GlycanCandidateFragments fragmentInfo = getGlycanCandidateFragments(targetGlycoPSMs, false);
             targetGlycanFragmentProps.put(glycanEntry.getKey(), fragmentInfo);
         }
 
         // generate decoy fragment intensity profiles
-        for (String glycanKey : targetGlycanFragmentProps.keySet()) {
-            ArrayList<GlycanCandidateResult> decoyPSMs = decoyGlycansMap.getOrDefault(glycanKey, new ArrayList<>());
-            int decoyPSMcount = decoyPSMs.size();
-            if (decoyPSMcount < glycoParams.minPSMsForConsensus || glycoParams.includeLowScoreTargets) {
-                // add low scoring target PSMs if available
-                if (lowScoreTargetsMap.containsKey(glycanKey)) {
-                    ArrayList<GlycanCandidateResult> lowScoreTargets = lowScoreTargetsMap.get(glycanKey);
-                    for (GlycanCandidateResult targetPSM : lowScoreTargets) {
-                        decoyPSMs.add(targetPSM);
-                        decoyPSMcount++;
-                        if (decoyPSMcount >= glycoParams.minPSMsForConsensus && !glycoParams.includeLowScoreTargets) {
-                            break;
-                        }
-                    }
-                }
-            }
-            if (decoyPSMcount == 0) {
-                // no PSMs that did not pass filtering or low scoring targets to use for this glycan, use half of target PSMs
-                PTMShepherd.print(String.format("Warning: No low score PSMs found for glycan %s. Using target PSMs to generate decoy fragment spectrum.", glycanKey));
-                ArrayList<GlycanCandidateResult> targetPSMs = targetGlycansMap.get(glycanKey);
-                targetPSMs.sort(Comparator.comparingDouble((GlycanCandidateResult result) -> result.glycanScore));
-                int halfSize = targetPSMs.size() / 2;
-                decoyPSMs.addAll(targetPSMs.subList(0, halfSize));
-            }
-            GlycanCandidateFragments fragmentInfo = getGlycanCandidateFragments(decoyPSMs);
-            decoyGlycanFragmentProps.put(glycanKey, fragmentInfo);
-        }
+        generateDecoys2ndPass();
     }
 
-    private GlycanCandidateFragments getGlycanCandidateFragments(ArrayList<GlycanCandidateResult> glycanPSMlist) {
+    private GlycanCandidateFragments getGlycanCandidateFragments(ArrayList<GlycanCandidateResult> glycanPSMlist, boolean shuffle) {
         HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
         HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
         HashMap<String, ArrayList<Double>> generalOxInts = new HashMap<>();
@@ -300,6 +337,7 @@ public class GlycoAnalysis {
         HashMap<String, Double> yFragmentIntensities;
         HashMap<String, Double> OxFragmentIntensities;
         HashMap<String, Double> generalOxFragmentIntensities;
+        // todo: add random option instead of average/median
         if (glycoParams.glycoAvgInts) {
             yFragmentIntensities = calculateFragmentAvgInts(YInts);
             OxFragmentIntensities = calculateFragmentAvgInts(OxInts);
@@ -309,8 +347,33 @@ public class GlycoAnalysis {
             OxFragmentIntensities = calculateFragmentMedianInts(OxInts);
             generalOxFragmentIntensities = calculateFragmentMedianInts(generalOxInts);
         }
+
+        // shuffle order of intensities if specified (for decoy generation)
+        if (shuffle) {
+            // retain Y1 intensity if present
+            Double y1Intensity = yFragmentIntensities.getOrDefault("HexNAc(1)", null);
+            shuffleValues(yFragmentIntensities);
+            if (y1Intensity != null) {
+                yFragmentIntensities.put("HexNAc(1)", y1Intensity);
+            }
+            shuffleValues(OxFragmentIntensities);
+            shuffleValues(generalOxFragmentIntensities);
+        }
+
         // save determined propensities to the output container
         return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+    }
+
+    private void shuffleValues(HashMap<String, Double> map) {
+        List<String> keys = new ArrayList<>(map.keySet());
+        Collections.sort(keys);     // Ensure consistent key order so that shuffling is reproducible
+
+        List<Double> values = new ArrayList<>(map.values());
+        Collections.shuffle(values, glycoParams.randomGenerator);
+
+        for (int i = 0; i < keys.size(); i++) {
+            map.put(keys.get(i), values.get(i));
+        }
     }
 
     // compute the avg intensity for each fragment using the associated intensity list
@@ -363,11 +426,11 @@ public class GlycoAnalysis {
                             }
                         }
                         if (notEnoughYs) {
-                            addGlycanToMap(decoyGlycansMap, glycanHash, glycan);
+                            addGlycanToMap(lowConfidenceResultMap, glycanHash, glycan);
                             continue;
                         }
                     }
-                    addGlycanToMap(targetGlycansMap, glycanHash, glycan);
+                    addGlycanToMap(highConfidenceResultMap, glycanHash, glycan);
 
                     // add to delta mass map for calculating glycan prevalence priors (targets and decoys)
                     double deltaMass = result.deltaMass;
@@ -388,7 +451,7 @@ public class GlycoAnalysis {
                     if (result.isDecoyGlycan) {
                         glycan = result.bestTarget;
                     }
-                    addGlycanToMap(decoyGlycansMap, glycanHash, glycan);
+                    addGlycanToMap(lowConfidenceResultMap, glycanHash, glycan);
                 }
             }
         }
