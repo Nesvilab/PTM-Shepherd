@@ -19,7 +19,7 @@ public class PSM {
     private String fileName;
     private final int specNum;
     private final String peptide;
-    private float [] modArr;
+    private double [] modArr;
     private Float dMass;
     private float calcPepMass;
     private float originalCalcPepMass;
@@ -143,7 +143,7 @@ public class PSM {
                     } else {
                         // this is the delta mod. Do not include it in the new assigned mods
                         foundDeltaMod = true;
-                        modMassAtDeltaPos += mod.mass;  // in case there are multiple (e.g., fixed + offset at same site)
+                        modMassAtDeltaPos = (float) (modMassAtDeltaPos + mod.mass);  // in case there are multiple (e.g., fixed + offset at same site)
                     }
                 }
                 // handle C-2 (disulfide) case where the delta mass is actually removal of 2 fixed mods
@@ -240,7 +240,7 @@ public class PSM {
                 int p = spMod.indexOf("(");
                 int q = spMod.indexOf(")");
                 String spos = spMod.substring(0, p).trim();
-                float mass = Float.parseFloat(spMod.substring(p + 1, q).trim());
+                double mass = Double.parseDouble(spMod.substring(p + 1, q).trim());
                 int pos;
                 if (spos.equals("N-term"))
                     pos = 0;
@@ -254,10 +254,10 @@ public class PSM {
         return mods;
     }
 
-    public float [] getModsAsArray() {
+    public double [] getModsAsArray() {
         if (modArr == null) {
-            modArr = new float[getPeptide().length()];
-            Arrays.fill(modArr, 0.0f);
+            modArr = new double[getPeptide().length()];
+            Arrays.fill(modArr, 0.0);
             for (Mod mod : assignedMods) {
                 if (mod.position == 0)
                     modArr[0] = mod.mass;
@@ -322,16 +322,16 @@ public class PSM {
      * reset the delta mass to the original value before updating with the new delta mass.
      * @param newTheoreticalMass new delta mass
      */
-    public void updateDeltaMass(float newTheoreticalMass, int massdiffToVarmod, float prevTheoreticalMass, int peptideCalcMassCol, int calcMZcol, int dmassCol, int assignedModCol) {
+    public void updateDeltaMass(double newTheoreticalMass, int massdiffToVarmod, double prevTheoreticalMass, int peptideCalcMassCol, int calcMZcol, int dmassCol, int assignedModCol) {
         if (massdiffToVarmod == 1) {
             // Original dMass does not have the glycan: only need to adjust if the glycan composition has changed. If same composition, changeInDeltaMass will be 0
-            float changeInDeltaMass = newTheoreticalMass - prevTheoreticalMass;
-            dMass = originalDeltaMass + changeInDeltaMass;
-            calcPepMass = originalCalcPepMass + changeInDeltaMass;
+            double changeInDeltaMass = newTheoreticalMass - prevTheoreticalMass;
+            dMass = (float) (originalDeltaMass + changeInDeltaMass);
+            calcPepMass = (float) (originalCalcPepMass + changeInDeltaMass);
         } else {
             // original delta mass was left intact, simply subtract the glycan mass
-            dMass = dMass - newTheoreticalMass;
-            calcPepMass = originalCalcPepMass + newTheoreticalMass;
+            dMass = (float) (dMass - newTheoreticalMass);
+            calcPepMass = (float) (originalCalcPepMass + newTheoreticalMass);
         }
 
         // update the spLine

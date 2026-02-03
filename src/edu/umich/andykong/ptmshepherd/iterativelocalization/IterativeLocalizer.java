@@ -131,7 +131,7 @@ public class IterativeLocalizer {
                             continue;
                         String specName = psm.getSpec();
                         String pep = psm.getPeptide();
-                        float[] mods = psm.getModsAsArray();
+                        double[] mods = psm.getModsAsArray();
 
                         Spectrum spec = mr.getSpectrum(specName);
                         if(spec == null) {
@@ -377,7 +377,7 @@ public class IterativeLocalizer {
                             //}
 
                             // Calculate site-specific localization probabilities
-                            float[] mods = psm.getModsAsArray();
+                            double[] mods = psm.getModsAsArray();
                             boolean[] allowedPoses = parseAllowedPositions(pep, this.allowedAAs, mods);
                             double[] siteProbs = localizePsm(psm, spec, pep, mods, dMassApex, cBin, allowedPoses, false);
 
@@ -484,7 +484,7 @@ public class IterativeLocalizer {
     }
 
     //todo mods should be parsed here if we don't want to localize on top of var mods
-    public static boolean[] parseAllowedPositions(String seq, String allowedAAs, float[] mods) {
+    public static boolean[] parseAllowedPositions(String seq, String allowedAAs, double[] mods) {
         boolean[] allowedPoses = new boolean[seq.length()];
         if (allowedAAs.equals("all") || allowedAAs.equals(""))
             Arrays.fill(allowedPoses, true);
@@ -893,7 +893,7 @@ public class IterativeLocalizer {
      * @param allowedPoses  array of allowed positions based on peptide sequence localization restrictions TODO add mods
      * @return double[] of localization probabilities
      */
-    private double[] localizePsm (PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
+    private double[] localizePsm (PSM psm, Spectrum spec, String pep, double[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
         double[] sitePriorProbs;
         double[] siteLikelihoods = new double[pep.length()];
         double marginalProb = 0.0;
@@ -957,7 +957,7 @@ public class IterativeLocalizer {
      * @param spec Spectrum object containing peaks
      * @return likelihoods of each site as double array
      */
-    private double[] computePoissonBinomialLikelihood(String pep, float[] mods, float dMass, boolean[] allowedPoses,
+    private double[] computePoissonBinomialLikelihood(String pep, double[] mods, float dMass, boolean[] allowedPoses,
                                                       Spectrum spec) {
         // First calculate the set of shifted and unshifted ions
         ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
@@ -1054,7 +1054,7 @@ public class IterativeLocalizer {
      * @param spec
      * @return likelihood of a particular site
      */
-    private double[] computeLikelihoods(String pep, float[] mods, float dMass, boolean[] allowedPoses,
+    private double[] computeLikelihoods(String pep, double[] mods, float dMass, boolean[] allowedPoses,
                                       Spectrum spec) {
         // First calculate the set of shifted and unshifted ions
         ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);

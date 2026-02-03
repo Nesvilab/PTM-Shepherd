@@ -305,7 +305,7 @@ public class SiteLocalization {
             } else {
                 pos = mod.position - 1;     // all other mods
             }
-			float mass = mod.mass;
+			float mass = (float) mod.mass;
             mods[pos] += mass;
 		}
 	}

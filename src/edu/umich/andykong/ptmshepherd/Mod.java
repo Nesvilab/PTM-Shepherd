@@ -2,9 +2,9 @@ package edu.umich.andykong.ptmshepherd;
 
 public class Mod {
     public int position;
-    public float mass;
+    public double mass;
 
-    public Mod(int position, float mass) {
+    public Mod(int position, double mass) {
         this.position = position;
         this.mass = mass;
     }

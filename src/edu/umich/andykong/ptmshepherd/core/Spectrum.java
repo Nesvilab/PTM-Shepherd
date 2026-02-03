@@ -516,7 +516,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		return nB+nY;
 	}
 
-	public float[] getMatchedFrags(String seq, float [] mods, double ppmTol, String it, float dMass) {
+	public float[] getMatchedFrags(String seq, double [] mods, double ppmTol, String it, float dMass) {
 		int maxCharge = 1;
 
 		float [] aaMasses = AAMasses.monoisotopic_masses;

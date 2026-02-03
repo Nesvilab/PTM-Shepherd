@@ -15,10 +15,10 @@ public class PeptideTest {
     @Test
     void generateDecoy() {
         String seq = "PEPTIDE";
-        float[] mods = new float[]{1.0f, 0.0f, 0.0f, 2.0f, 0.0f, 0.0f, 3.0f};
+        double[] mods = new double[]{1.0, 0.0, 0.0, 2.0, 0.0, 0.0, 3.0};
         Random rng = new Random(1);
         String expectedSeq = "PTIPDEE";
-        float[] expectedMods = new float[]{1.0f, 2.0f, 0.0f, 0.0f, 0.0f ,0.0f, 3.0f};
+        double[] expectedMods = new double[]{1.0, 2.0, 0.0, 0.0, 0.0 ,0.0, 3.0};
 
         Peptide decoy =  Peptide.generateDecoy(seq, mods, rng, "shuffled");
         assertEquals(expectedSeq, decoy.pepSeq);
@@ -37,7 +37,7 @@ public class PeptideTest {
     @Test
     void calculatePeptideFragments() {
         String seq = "PEPT";
-        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f};
+        double[] mods = new double[]{0.0, 0.0, 0.0, 0.0};
         Peptide pep = new Peptide(seq, mods);
 
         ArrayList<Float> sitePepFrags = pep.calculatePeptideFragments("b", 1);
@@ -54,7 +54,7 @@ public class PeptideTest {
         }
 
         seq = "GDRGEIGPPGPR";
-        mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0004f, 0.0f, 0.0f, 0.0f, 0.0f};
+        mods = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 16.0004, 0.0, 0.0, 0.0, 0.0};
         pep = new Peptide(seq, mods);
 
         sitePepFrags = pep.calculatePeptideFragments("b", 1);
@@ -66,7 +66,7 @@ public class PeptideTest {
     @Test
     void calculatePeptideFragmentsBetween() {
         String seq = "PEPTIDE";
-        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        double[] mods = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         Peptide pep = new Peptide(seq, mods);
 
         ArrayList<Float> expectedFrags = new ArrayList<>(Arrays.asList(324.1554f, 425.20306f, 376.17145f, 477.21912f));
@@ -97,7 +97,7 @@ public class PeptideTest {
     @Test
     void calculateComplementaryPeptideFragments() {
         String seq = "PEPT";
-        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        double[] mods = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         Peptide pep = new Peptide(seq, mods);
 
         // Simulate 1.0f dmass on position P3
@@ -123,15 +123,15 @@ public class PeptideTest {
     @Test
     void AddModTest() {
         String seq = "PEP";
-        float[] mods = new float[]{1.0f, 0.0f, 0.0f};
-        float[] expectedMods = new float[]{0.0f, 0.0f, 0.0f};
+        double[] mods = new double[]{1.0, 0.0, 0.0};
+        double[] expectedMods = new double[]{0.0, 0.0, 0.0};
         Peptide pep =  new Peptide(seq, mods);
 
-        pep.addMod(-1*1.0f, 0);
+        pep.addMod(-1*1.0, 0);
         assertArrayEquals(pep.mods, expectedMods);
 
-        pep.addMod(1.0f, 0);
-        expectedMods = new float[]{1.0f, 0.0f, 0.0f};
+        pep.addMod(1.0, 0);
+        expectedMods = new double[]{1.0, 0.0, 0.0};
         assertArrayEquals(pep.mods, expectedMods);
     }
 }
