@@ -947,6 +947,9 @@ public class GlycoAnalysis {
             boolean bestWasTarget = !searchCandidates.get(bestCandidateIndex).isDecoy;
             glycoResult.isDecoyGlycan = !bestWasTarget;
             getNextGlycanScores(spec, bestWasTarget, glycoResult, massErrorWidth, meanMassError);
+        } else {
+            // no glycan candidates found for this delta mass - filter out of results
+            glycoResult.foundGlycan = false;
         }
 
         return glycoResult;
