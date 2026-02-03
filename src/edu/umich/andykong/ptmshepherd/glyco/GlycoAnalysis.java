@@ -731,7 +731,7 @@ public class GlycoAnalysis {
         double minError = 10;
         double maxError = -10;
         for (Integer cline : clines) {//for relevant line in curr spec file
-            float deltaMass = psmFile.psms.get(cline).getDMass();
+            float deltaMass = (float) psmFile.psms.get(cline).getDMass();
 
             if (deltaMass > -1.5 && deltaMass < 3.5) {
                 int isotopeError = Math.round(deltaMass);
@@ -821,7 +821,7 @@ public class GlycoAnalysis {
      */
     public void processPSM(PSM psm) {
         // get basic info
-        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.lineNum, psm.getPeptide(), psm.getDMass(), psm.getCalcPepmass(), psm.printAssignedMods(), psm.getAssignedMods(), psm.getSpec());
+        GlycanAssignmentResult glycoResult = new GlycanAssignmentResult(psm.lineNum, psm.getPeptide(), (float) psm.getDMass(), (float) (double) psm.getCalcPepmass(), psm.printAssignedMods(), psm.getAssignedMods(), psm.getSpec());
 
         // read spectrum and condition
         Spectrum spec = mr.getSpectrum(psm.getSpec());

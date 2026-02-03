@@ -125,8 +125,8 @@ public class PSMFileTest {
         PSMFile psmFile = new PSMFile(testFile, 0);
 
         PSM psm = psmFile.psms.get(3);
-        float prevCalcMass = psm.getCalcPepMass();
-        float prevDMass = psm.getDMass();
+        double prevCalcMass = psm.getCalcPepMass();
+        double prevDMass = psm.getDMass();
         GlycoParams params = new GlycoParams("", "", "");
         params.removeGlycanDeltaMass = true;
         params.writeGlycansToAssignedMods = true;
@@ -134,8 +134,8 @@ public class PSMFileTest {
         psmFile.writeGlycanToAssignedMod(psm, "HexNAc(2)Hex(13)", false, params);
         assert Math.abs(psm.getDMass() - 0.0049) < tol;
         assert Math.abs(psm.getOriginalDeltaMass() - prevDMass) < tol;
-        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455f)) < tol;
-        assert Math.abs(Float.parseFloat(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512.8455)) < tol;
+        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455)) < tol;
+        assert Math.abs(Double.parseDouble(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512.8455)) < tol;
 
         // simulate re-run of the same file with previous mod
         psm.spLine.set(psmFile.peptideCalcMassCol, String.format("%.4f", psm.getCalcPepMass()));    // reset calc mass column as if reading from new psm file
@@ -143,7 +143,7 @@ public class PSMFileTest {
         psmFile.massdiffToVarmod = 1;
         psmFile.writeGlycanToAssignedMod(psm, "HexNAc(2)Hex(13)", false, params);
         assert Math.abs(psm.getDMass() - 0.0049) < tol;
-        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455f)) < tol;
+        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455)) < tol;
         assert psm.getAssignedMods().size() == 1;
     }
 

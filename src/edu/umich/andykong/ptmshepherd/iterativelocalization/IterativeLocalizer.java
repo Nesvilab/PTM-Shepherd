@@ -124,7 +124,7 @@ public class IterativeLocalizer {
                     // Get matched ion intensities for unmodified peptides
                     for (int j : runToLine.get(cf)) {
                         PSM psm = psmf.getLine(j);
-                        float dMass = psm.getDMass();
+                        float dMass = (float) psm.getDMass();
 
                         // Limit to unmodified peptides
                         if ((dMass <= zbL) || (dMass >= zbR))
@@ -318,7 +318,7 @@ public class IterativeLocalizer {
                             }
 
                             PSM psm = psmf.getLine(j);
-                            float dMass = psm.getDMass();
+                            float dMass = (float) psm.getDMass();
                             String pep = psm.getPeptide();
                             String specName = psm.getSpec();
                             int cBin = this.locate.getIndex(dMass);

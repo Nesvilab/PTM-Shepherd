@@ -173,7 +173,7 @@ public class PSMFile {
 	public ArrayList<Float> getMassDiffs() {
 		ArrayList<Float> res = new ArrayList<>();
 		for (PSM psm : psms) {
-            res.add(psm.getDMass());
+            res.add((float) psm.getDMass());
         }
 		return res;
 	}
@@ -182,7 +182,7 @@ public class PSMFile {
 		ArrayList<ArrayList<Float>> res = new ArrayList<>();
 		for (PSM psm : psms) {
 			ArrayList<Float> psmMods = new ArrayList<>();
-			psmMods.add(psm.getDMass());
+			psmMods.add((float) psm.getDMass());
 			if (useAssignedMods) {
 				for (Mod mod : psm.getAssignedMods()) {
 					psmMods.add((float) mod.mass);

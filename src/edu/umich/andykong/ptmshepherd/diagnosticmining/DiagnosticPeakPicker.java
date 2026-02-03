@@ -141,7 +141,7 @@ public class DiagnosticPeakPicker {
             int scanNum = psm.getScanNum();
             String mods = psm.printAssignedMods();
             float eVal = Float.parseFloat(psm.getSpLine().get(pf.eValCol));
-            float dmass = psm.getDMass();
+            float dmass = (float) psm.getDMass();
             int peakIndx = locate.getIndex(dmass);
             String pepKey = pepSeq + mods + charge;
 
@@ -517,8 +517,8 @@ public class DiagnosticPeakPicker {
         int scanNum = psm.getScanNum();
         String pepSeq = psm.getPeptide();
         ArrayList<Mod> smods = psm.getAssignedMods();
-        float dmass = psm.getDMass();
-        float pepMass = psm.getCalcPepmass();
+        float dmass = (float) psm.getDMass();
+        float pepMass = (float) (double) psm.getCalcPepmass();
 
         // Make sure PSM falls into PTMS MS1 bin
         int dmassIndx = locate.getIndex(dmass);

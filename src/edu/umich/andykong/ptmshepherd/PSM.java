@@ -20,11 +20,11 @@ public class PSM {
     private final int specNum;
     private final String peptide;
     private double [] modArr;
-    private Float dMass;
-    private float calcPepMass;
-    private float originalCalcPepMass;
+    private double dMass;
+    private double calcPepMass;
+    private double originalCalcPepMass;
     private final int charge;
-    private float originalDeltaMass;	// what was listed in the PSM table before analysis
+    private double originalDeltaMass;	// what was listed in the PSM table before analysis
     private ArrayList<Mod> originalAssignedMods;
     private ArrayList<Mod> assignedMods;		// position -> mass
     private String modifiedPeptide;
@@ -77,11 +77,11 @@ public class PSM {
         return charge;
     }
 
-    public Float getCalcPepmass() {
+    public Double getCalcPepmass() {
         return calcPepMass;
     }
 
-    public float getOriginalDeltaMass() {
+    public double getOriginalDeltaMass() {
         return originalDeltaMass;
     }
     public String getModifiedPeptide() {
@@ -90,10 +90,10 @@ public class PSM {
     public String getOriginalModifiedPeptide() {
         return originalModifiedPeptide;
     }
-    public float getCalcPepMass() {
+    public double getCalcPepMass() {
         return calcPepMass;
     }
-    public float getOriginalCalcPepMass() {
+    public double getOriginalCalcPepMass() {
         return originalCalcPepMass;
     }
 
@@ -103,10 +103,10 @@ public class PSM {
      * @param massdiffToVarmod MSFragger setting for mass diff to varmod (0 = none, 1 = remove, 2 = keep)
      */
     public void initializeMods(int massdiffToVarmod, int dMassCol, int assignedModCol, int modPepCol, int msfraggerLocalizationCol, int calcMassCol) {
-        originalDeltaMass = Float.parseFloat(spLine.get(dMassCol));
+        originalDeltaMass = Double.parseDouble(spLine.get(dMassCol));
         originalAssignedMods = initAssignedMods(assignedModCol);
         originalModifiedPeptide = spLine.get(modPepCol).isEmpty() ? peptide : spLine.get(modPepCol);    // use peptide if no modified peptide
-        originalCalcPepMass = Float.parseFloat(spLine.get(calcMassCol));
+        originalCalcPepMass = Double.parseDouble(spLine.get(calcMassCol));
 
         if (massdiffToVarmod == 0) {
             // no mass diff to varmod, use original delta mass and assigned mods
@@ -136,26 +136,26 @@ public class PSM {
                 // remove the delta mass from the assigned mods and add its mass to the dMass for analysis
                 assignedMods = new ArrayList<>();
                 boolean foundDeltaMod = false;
-                float modMassAtDeltaPos = 0.0f;
+                double modMassAtDeltaPos = 0.0;
                 for (Mod mod : originalAssignedMods) {
                     if (mod.position != deltaMassPos) {
                         assignedMods.add(mod);
                     } else {
                         // this is the delta mod. Do not include it in the new assigned mods
                         foundDeltaMod = true;
-                        modMassAtDeltaPos = (float) (modMassAtDeltaPos + mod.mass);  // in case there are multiple (e.g., fixed + offset at same site)
+                        modMassAtDeltaPos = modMassAtDeltaPos + mod.mass;  // in case there are multiple (e.g., fixed + offset at same site)
                     }
                 }
                 // handle C-2 (disulfide) case where the delta mass is actually removal of 2 fixed mods
                 boolean overrideForCysDisulfide = false;
                 if (deltaMassPos > 0 && deltaMassPos < peptide.length() && peptide.charAt(deltaMassPos - 1) == 'C') {
                     if (checkCysDisulfide(deltaMassPos)) {
-                        modMassAtDeltaPos = -2.01565f;  // found disulfide: set mass manually
+                        modMassAtDeltaPos = -2.01565;  // found disulfide: set mass manually
                         // keep all original assigned mods because we don't know which Cys had the disulfide links if there were >2
                         assignedMods = copyMods(originalAssignedMods);
                         overrideForCysDisulfide = true;
                         if (massdiffToVarmod == 2 ) {
-                            dMass = originalDeltaMass + 2 * 57.02146f; // add back two fixed mods if delta mass was kept
+                            dMass = originalDeltaMass + 2 * 57.02146; // add back two fixed mods if delta mass was kept
                         }
                     }
                 }
@@ -271,7 +271,7 @@ public class PSM {
     }
 
     // use this to get the delta mass for actual analyses
-    public float getDMass() {
+    public double getDMass() {
         return dMass;
     }
 
@@ -326,17 +326,17 @@ public class PSM {
         if (massdiffToVarmod == 1) {
             // Original dMass does not have the glycan: only need to adjust if the glycan composition has changed. If same composition, changeInDeltaMass will be 0
             double changeInDeltaMass = newTheoreticalMass - prevTheoreticalMass;
-            dMass = (float) (originalDeltaMass + changeInDeltaMass);
-            calcPepMass = (float) (originalCalcPepMass + changeInDeltaMass);
+            dMass = originalDeltaMass + changeInDeltaMass;
+            calcPepMass = originalCalcPepMass + changeInDeltaMass;
         } else {
             // original delta mass was left intact, simply subtract the glycan mass
-            dMass = (float) (dMass - newTheoreticalMass);
-            calcPepMass = (float) (originalCalcPepMass + newTheoreticalMass);
+            dMass = dMass - newTheoreticalMass;
+            calcPepMass = originalCalcPepMass + newTheoreticalMass;
         }
 
         // update the spLine
         spLine.set(peptideCalcMassCol, String.format("%.4f", calcPepMass));
-        spLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ(calcPepMass, getCharge())));
+        spLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) calcPepMass, getCharge())));
         spLine.set(dmassCol, String.format("%.4f", dMass));
         spLine.set(assignedModCol, printAssignedMods());
     }
