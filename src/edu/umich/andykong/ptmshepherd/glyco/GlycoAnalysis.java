@@ -52,22 +52,22 @@ public class GlycoAnalysis {
     int condPeaks;
     double condRatio;
     ArrayList<GlycanCandidate> glycanDatabase;
-    HashMap<String, GlycanCandidate> glycanDBmap;
+    LinkedHashMap<String, GlycanCandidate> glycanDBmap;
     Double meanMassError;
     double massErrorWidth;
     public static final double DEFAULT_GLYCO_PPM_TOL = 30;
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
-    public HashMap<Integer, HashMap<String, Integer>> glycanMassBinMap;
+    public LinkedHashMap<Integer, LinkedHashMap<String, Integer>> glycanMassBinMap;
     public static final double DEFAULT_GLYCO_PROPENSITY = 0.1;
     public static final double MIN_SIMILARITY = 0.01;
     private final GlycoParams glycoParams;
     public final ArrayList<GlycanAssignmentResult> allResults;
-    public HashMap<String, ArrayList<GlycanCandidateResult>> highConfidenceResultMap;
-    public HashMap<String, ArrayList<GlycanCandidateResult>> lowConfidenceResultMap;
-    public HashMap<String, GlycanCandidateFragments> targetGlycanFragmentProps;
-    public HashMap<String, GlycanCandidateFragments> decoyGlycanFragmentProps;
+    public LinkedHashMap<String, ArrayList<GlycanCandidateResult>> highConfidenceResultMap;
+    public LinkedHashMap<String, ArrayList<GlycanCandidateResult>> lowConfidenceResultMap;
+    public LinkedHashMap<String, GlycanCandidateFragments> targetGlycanFragmentProps;
+    public LinkedHashMap<String, GlycanCandidateFragments> decoyGlycanFragmentProps;
     private final String ldaHeader;
     private static IonQuantAPI api;
     public final boolean isFirstPass;
@@ -81,7 +81,7 @@ public class GlycoAnalysis {
         String firstPassName = isFirstPass ? PTMShepherd.rawGlycoFirstPass : "";
         this.glycoFile = new File(PTMShepherd.normFName(dsName + firstPassName + PTMShepherd.rawGlycoName));
         this.glycanDatabase = glycoDatabase;
-        glycanDBmap = new HashMap<>();
+        glycanDBmap = new LinkedHashMap<>();
         for (GlycanCandidate glycan : glycanDatabase) {
             if (!glycan.isDecoy) {
                 String glycanHash = Glycan.toGlycanString(glycan.composition);
@@ -89,12 +89,12 @@ public class GlycoAnalysis {
             }
         }
         this.glycoParams = glycoParams;
-        this.glycanMassBinMap = new HashMap<>();
+        this.glycanMassBinMap = new LinkedHashMap<>();
         this.allResults = new ArrayList<>();
-        this.highConfidenceResultMap = new HashMap<>();
-        this.lowConfidenceResultMap = new HashMap<>();
-        this.targetGlycanFragmentProps = new HashMap<>();
-        this.decoyGlycanFragmentProps = new HashMap<>();
+        this.highConfidenceResultMap = new LinkedHashMap<>();
+        this.lowConfidenceResultMap = new LinkedHashMap<>();
+        this.targetGlycanFragmentProps = new LinkedHashMap<>();
+        this.decoyGlycanFragmentProps = new LinkedHashMap<>();
         ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "\t";
     }
 
@@ -287,7 +287,14 @@ public class GlycoAnalysis {
      */
     public void computeGlycanFragmentProbs() {
         // filter target glycans to only those with sufficient PSMs
-        HashMap<String, ArrayList<GlycanCandidateResult>> filteredTargetInputs = (HashMap<String, ArrayList<GlycanCandidateResult>>) highConfidenceResultMap.entrySet().stream().filter(e -> e.getValue().size() > glycoParams.minPSMsForConsensus).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        LinkedHashMap<String, ArrayList<GlycanCandidateResult>> filteredTargetInputs = highConfidenceResultMap.entrySet().stream()
+                .filter(e -> e.getValue().size() > glycoParams.minPSMsForConsensus)
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> v1,  // merge function (not needed here, but required)
+                        LinkedHashMap::new  // supplier to create LinkedHashMap
+                ));
 
         // Generate target fragment intensity profiles
         for (Map.Entry<String, ArrayList<GlycanCandidateResult>> glycanEntry : filteredTargetInputs.entrySet()) {
@@ -318,9 +325,9 @@ public class GlycoAnalysis {
     }
 
     private GlycanCandidateFragments getGlycanCandidateFragments(ArrayList<GlycanCandidateResult> glycanPSMlist, boolean shuffle) {
-        HashMap<String, ArrayList<Double>> YInts = new HashMap<>();
-        HashMap<String, ArrayList<Double>> OxInts = new HashMap<>();
-        HashMap<String, ArrayList<Double>> generalOxInts = new HashMap<>();
+        LinkedHashMap<String, ArrayList<Double>> YInts = new LinkedHashMap<>();
+        LinkedHashMap<String, ArrayList<Double>> OxInts = new LinkedHashMap<>();
+        LinkedHashMap<String, ArrayList<Double>> generalOxInts = new LinkedHashMap<>();
         for (GlycanCandidate inputGlycan : glycanPSMlist) {
             // read all fragments from each input glycan into the intensity lists
             for (String fragmentHash : inputGlycan.Yfragments.keySet()) {
@@ -334,9 +341,9 @@ public class GlycoAnalysis {
             }
         }
         // save intensities
-        HashMap<String, Double> yFragmentIntensities;
-        HashMap<String, Double> OxFragmentIntensities;
-        HashMap<String, Double> generalOxFragmentIntensities;
+        LinkedHashMap<String, Double> yFragmentIntensities;
+        LinkedHashMap<String, Double> OxFragmentIntensities;
+        LinkedHashMap<String, Double> generalOxFragmentIntensities;
         // todo: add random option instead of average/median
         if (glycoParams.glycoAvgInts) {
             yFragmentIntensities = calculateFragmentAvgInts(YInts);
@@ -377,8 +384,8 @@ public class GlycoAnalysis {
     }
 
     // compute the avg intensity for each fragment using the associated intensity list
-    private static HashMap<String, Double> calculateFragmentAvgInts(HashMap<String, ArrayList<Double>> intensityList) {
-        HashMap<String, Double> fragmentAvgInts = new HashMap<>();
+    private static LinkedHashMap<String, Double> calculateFragmentAvgInts(HashMap<String, ArrayList<Double>> intensityList) {
+        LinkedHashMap<String, Double> fragmentAvgInts = new LinkedHashMap<>();
         for (Map.Entry<String, ArrayList<Double>> fragmentEntry : intensityList.entrySet()) {
             double sum = 0;
             for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
@@ -390,8 +397,8 @@ public class GlycoAnalysis {
     }
 
     // compute the median intensity for each fragment using the associated intensity list
-    private static HashMap<String, Double> calculateFragmentMedianInts(HashMap<String, ArrayList<Double>> intensityList) {
-        HashMap<String, Double> fragmentMedianInts = new HashMap<>();
+    private static LinkedHashMap<String, Double> calculateFragmentMedianInts(HashMap<String, ArrayList<Double>> intensityList) {
+        LinkedHashMap<String, Double> fragmentMedianInts = new LinkedHashMap<>();
         for (Map.Entry<String, ArrayList<Double>> fragmentEntry : intensityList.entrySet()) {
             double[] intensities = new double[fragmentEntry.getValue().size()];
             for (int i = 0; i < fragmentEntry.getValue().size(); i++) {
@@ -437,13 +444,13 @@ public class GlycoAnalysis {
                     int massBin = (int) Math.floor(deltaMass);
                     if (glycanMassBinMap.containsKey(massBin)) {
                         // seen this mass bin before. Get the count-by-glycan dict and increment the count for this glycan
-                        HashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
+                        LinkedHashMap<String, Integer> massBinGlycanCounts = glycanMassBinMap.get(massBin);
                         int glycanCount = massBinGlycanCounts.getOrDefault(glycanHash, 0);
                         glycanCount++;
                         massBinGlycanCounts.put(glycanHash, glycanCount);
                     } else {
                         // New mass bin. Create a new count-by-glycan dict
-                        HashMap<String, Integer> massBinGlycanCounts = new HashMap<>();
+                        LinkedHashMap<String, Integer> massBinGlycanCounts = new LinkedHashMap<>();
                         massBinGlycanCounts.put(glycanHash, 1);
                         glycanMassBinMap.put(massBin, massBinGlycanCounts);
                     }
@@ -457,7 +464,7 @@ public class GlycoAnalysis {
         }
     }
 
-    private static void addGlycanToMap(HashMap<String, ArrayList<GlycanCandidateResult>> targetInputGlycans, String glycanHash, GlycanCandidateResult glycan) {
+    private static void addGlycanToMap(LinkedHashMap<String, ArrayList<GlycanCandidateResult>> targetInputGlycans, String glycanHash, GlycanCandidateResult glycan) {
         if (targetInputGlycans.containsKey(glycanHash)) {
             targetInputGlycans.get(glycanHash).add(glycan);
         } else {
@@ -589,7 +596,7 @@ public class GlycoAnalysis {
      * @param results List of GlycanAssignmentResults containing target and decoy scores
      */
     public static boolean computeFDRNonCompetitive(List<GlycanAssignmentResult> results, double glycoFDR) {
-        HashMap<String, GlycanAssignmentResult> resultMap = new HashMap<>();
+        LinkedHashMap<String, GlycanAssignmentResult> resultMap = new LinkedHashMap<>();
 
         ArrayList<GlycoScore> scoreDistribution = new ArrayList<>();
         int targets = 0;
@@ -736,7 +743,7 @@ public class GlycoAnalysis {
      */
     public void getMassErrorsSecondPass(ArrayList<GlycanAssignmentResult> results) {
         ArrayList<Double> massErrors = new ArrayList<>();
-        HashMap<Integer, Integer> isotopeCounts = new HashMap<>();
+        LinkedHashMap<Integer, Integer> isotopeCounts = new LinkedHashMap<>();
         double minError = 10;
         double maxError = -10;
 
@@ -1362,9 +1369,9 @@ public class GlycoAnalysis {
         int maxFrequency = 0;
         // Decoys are not included in the saved glycans. Use the frequency of the corresponding target
         String glycanHash = Glycan.toGlycanString(candidate.composition);
-        HashMap<String, Integer> emptyMap = new HashMap<>();
+        LinkedHashMap<String, Integer> emptyMap = new LinkedHashMap<>();
         int massBin = (int) Math.floor(deltaMass);
-        HashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
+        LinkedHashMap<String, Integer> glycanCountMap = glycanMassBinMap.getOrDefault(massBin, emptyMap);
         if (!glycanCountMap.isEmpty()) {
             // count instances of glycan 1, glycan 2, and all glycans
             candidateCount = candidateCount + glycanCountMap.getOrDefault(glycanHash, 0);
@@ -1446,7 +1453,7 @@ public class GlycoAnalysis {
         // get experimental isotope envelope using IonQuant API
         double candidateMass = candidate.mass + glycoResult.pepMass;    // pep mass + glycan mass
         double mz = Spectrum.calcMZ(candidateMass, spec.charge);
-        HashMap<Integer, Double> isotopeEnvelope = new HashMap<>();
+        LinkedHashMap<Integer, Double> isotopeEnvelope = new LinkedHashMap<>();
         Entry monoisotopicPeak = api.quantXIC((float) mz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
         if (monoisotopicPeak != null) {
             isotopeEnvelope.put(0, (double) monoisotopicPeak.intensity);
@@ -1471,10 +1478,10 @@ public class GlycoAnalysis {
     /**
      * Check for isotope peaks in the spectrum starting at the given m/z and isotope and continuing in the provided
      * step (direction) until a peak is not found.
-     * @return HashMap of isotope index to intensity for all found peaks
+     * @return LinkedHashMap of isotope index to intensity for all found peaks
      */
-    private static HashMap<Integer, Double> searchForIsotopePeaks(Spectrum spec, double mz, int startIso, int step) {
-        HashMap<Integer, Double> isotopeEnvelope = new HashMap<>();
+    private static LinkedHashMap<Integer, Double> searchForIsotopePeaks(Spectrum spec, double mz, int startIso, int step) {
+        LinkedHashMap<Integer, Double> isotopeEnvelope = new LinkedHashMap<>();
         boolean foundPeak = true;
         int isoIndex = startIso;
         int count = 0;

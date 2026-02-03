@@ -160,7 +160,7 @@ public class GlycoParams {
                                                                         double glycoPPMtol,
                                                                         Integer[] glycoIsotopes,
                                                                         Random randomGenerator) {
-        HashMap<String, Boolean> glycansInDB = new HashMap<>();
+        LinkedHashMap<String, Boolean> glycansInDB = new LinkedHashMap<>();
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
         for (Glycan glycan: glycans) {
             if (glycan.composition.isEmpty()) {
@@ -244,7 +244,7 @@ public class GlycoParams {
      * @param oldGlycoDB original glycan DB used for bootstrap analysis (or just initial DB provided by user)
      * @return glycan candidate arraylist
      */
-    public ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, HashMap<String, GlycanCandidateFragments> decoyFragmentDB, ArrayList<GlycanCandidate> oldGlycoDB) {
+    public ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, LinkedHashMap<String, GlycanCandidateFragments> decoyFragmentDB, ArrayList<GlycanCandidate> oldGlycoDB) {
         ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
         if (removeGlycans2ndPass) {
             ArrayList<GlycanCandidate> reducedDB = new ArrayList<>();
@@ -306,7 +306,7 @@ public class GlycoParams {
     }
 
     private TreeMap<String, GlycanFragment> initFragmentsFromConsensus(TreeMap<String, GlycanFragment> originalFragments,
-                                                                      HashMap<String, Double> fragmentIntensities) {
+                                                                      LinkedHashMap<String, Double> fragmentIntensities) {
         TreeMap<String, GlycanFragment> fragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> originalFragEntry : originalFragments.entrySet()) {
             String fragmentKey = originalFragEntry.getKey().replace("Decoy_", "");  // give decoys same fragment info as targets
