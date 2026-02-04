@@ -51,7 +51,7 @@ public class GlycoAnalysis {
     float ppmTol;
     int condPeaks;
     double condRatio;
-    ArrayList<GlycanCandidate> glycanDatabase;
+    public ArrayList<GlycanCandidate> glycanDatabase;
     LinkedHashMap<String, GlycanCandidate> glycanDBmap;
     Double meanMassError;
     double massErrorWidth;
@@ -221,6 +221,19 @@ public class GlycoAnalysis {
 
     private static synchronized void printLines(PrintWriter out, String linesBlock) {
         out.print(linesBlock);
+    }
+
+    /**
+     * Converged when glycan database stops changing size between passes.
+     * @param passNum current pass number
+     * @param newGlycanDB new glycan database generated from prev pass
+     * @return true if converged
+     */
+    public boolean checkConvergence(int passNum, ArrayList<GlycanCandidate> newGlycanDB) {
+        if (passNum == 1) {
+            return false;   // always run at least 2 passes
+        }
+        return newGlycanDB.size() == glycanDatabase.size();
     }
 
     /**
@@ -570,7 +583,7 @@ public class GlycoAnalysis {
         }
 
         // Compute FDR
-        PTMShepherd.print("Calculating Glycan FDR");
+        PTMShepherd.print("\tCalculating Glycan FDR");
         boolean fdrSuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR);
         if (!fdrSuccess) {
             fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
@@ -646,7 +659,7 @@ public class GlycoAnalysis {
             if (!foundThreshold) {
                 if (fdr < fdrCutOff) {
 //                    scoreThreshold = results.get(i).glycanScore;
-                    PTMShepherd.print(String.format("Found glycan score threshold: %.2f with %d decoys, %d targets for %.2f%% estimated FDR (%d total inputs)",
+                    PTMShepherd.print(String.format("\tFound glycan score threshold: %.2f with %d decoys, %d targets for %.2f%% estimated FDR (%d total inputs)",
                             result.glycanScore, decoyCount, targetCount, fdr * 100, glycoResultCount));
                     foundThreshold = true;
                 }

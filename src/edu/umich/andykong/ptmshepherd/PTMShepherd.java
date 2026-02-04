@@ -592,18 +592,29 @@ public class PTMShepherd {
 		}
 
 		// second pass: calculate fragment propensity-based glycan assignment and update results
+		int passNum = 1;
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = glycoAnalysisMap.get(ds);
-
-			if (glycoParams.twoPassMode) {
-				// second pass - calculate fragment propensities, regenerate database, and re-run
-				PTMShepherd.print("Assigning glycans: second pass");
+			boolean converged = false;
+            while (!converged) {
+				if (glycoParams.twoPassMode && passNum == 2) {
+					break;
+				}
+				// calculate fragment propensities, regenerate database, and re-run
 				ga.summarizeGlycanResults();
 				ga.computeGlycanFragmentProbs();
 				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(ga.targetGlycanFragmentProps, ga.decoyGlycanFragmentProps, glycoParams.glycoDatabase);
 //                glycoParams.printGlycanDatabase(normFName(glycoDBname.split("\\.")[0] + "_2nd.tsv"));
+				converged = ga.checkConvergence(passNum, propensityGlycanDB);
+				PTMShepherd.print("\tGlycan list reduced from " + ga.glycanDatabase.size() / 2 + " to " + propensityGlycanDB.size() / 2 + " high confidence glycans from pass " + passNum);
+				if (converged) {
+					PTMShepherd.print("Glycan assignment converged after pass " + passNum);
+					break;
+				}
+				passNum++;
 
 				// run glyco PSM-level analysis with the new database
+				PTMShepherd.print("Assigning glycans: pass " + passNum);
 				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams, false);
 				ga2.getMassErrorsSecondPass(ga.allResults);
 
@@ -613,7 +624,9 @@ public class PTMShepherd {
 				}
 				ga2.runScoresAndFDR();
 				ga2.completeGlyco();
+				ga = ga2; // set ga to the new analysis for next iteration
 			}
+
 		}
 
 
