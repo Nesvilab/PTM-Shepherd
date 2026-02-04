@@ -229,6 +229,9 @@ public class GlycoAnalysis {
      * Called after target glycan spectra are initialized (computeGlycanFragmentProbs).
      */
     public void generateDecoys2ndPass() {
+        // Pre-create a set of high-confidence glycan keys for faster lookup
+        Set<String> highConfidenceGlycanKeys = highConfidenceResultMap.keySet();
+
         for (String glycanKey : targetGlycanFragmentProps.keySet()) {
             GlycanCandidate target = glycanDBmap.get(glycanKey);
             // find all possible compositions that could match to this mass
@@ -243,7 +246,7 @@ public class GlycoAnalysis {
                 if (matchedName.equals(glycanKey)) {
                     continue;   // skip self
                 }
-                if (highConfidenceResultMap.containsKey(matchedName)) {
+                if (highConfidenceGlycanKeys.contains(matchedName)) {
                     // found a matching glycan composition that has high-confidence PSMs, use those spectra to generate decoy fragments
                     matchedPSMs.addAll(highConfidenceResultMap.get(matchedName));
                 }
@@ -361,44 +364,66 @@ public class GlycoAnalysis {
         LinkedHashMap<String, Double> OxFragmentIntensities = new LinkedHashMap<>();
         LinkedHashMap<String, Double> generalOxFragmentIntensities = new LinkedHashMap<>();
 
+        // Pre-filter PSMs to exclude target glycan - this is much faster than checking in every iteration
+        ArrayList<GlycanCandidateResult> eligiblePSMs = new ArrayList<>();
+        for (GlycanCandidateResult psm : PSMlist) {
+            if (!psm.composition.equals(targetGlycan.composition)) {
+                eligiblePSMs.add(psm);
+            }
+        }
+
+        // If no eligible PSMs, return empty fragment info
+        if (eligiblePSMs.isEmpty()) {
+            return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+        }
+
+        final int MAX_RETRIES = 100;  // Prevent infinite loops
+
         // randomly select fragment intensities from input PSMs. Input PSMs do not need to be of the same glycan.
         for (String fragmentHash : targetGlycan.Yfragments.keySet()) {
             double intensity = -1;
-            while (intensity == -1) {
-                GlycanCandidateResult randomPSM = PSMlist.get(glycoParams.randomGenerator.nextInt(PSMlist.size()));
-                if (randomPSM.composition.equals(targetGlycan.composition)) {
-                    continue;   // skip self
-                }
+            int retries = 0;
+            while (intensity == -1 && retries < MAX_RETRIES) {
+                GlycanCandidateResult randomPSM = eligiblePSMs.get(glycoParams.randomGenerator.nextInt(eligiblePSMs.size()));
                 if (randomPSM.Yfragments.containsKey(fragmentHash)) {
                     intensity = randomPSM.Yfragments.get(fragmentHash).foundIntensity;
                     yFragmentIntensities.put(fragmentHash, intensity);
                 }
+                retries++;
+            }
+            // If no match found after max retries, use intensity of 0
+            if (intensity == -1) {
+                yFragmentIntensities.put(fragmentHash, 0.0);
             }
         }
         for (String fragmentHash : targetGlycan.oxoniumFragments.keySet()) {
             double intensity = -1;
-            while (intensity == -1) {
-                GlycanCandidateResult randomPSM = PSMlist.get(glycoParams.randomGenerator.nextInt(PSMlist.size()));
-                if (randomPSM.composition.equals(targetGlycan.composition)) {
-                    continue;   // skip self
-                }
+            int retries = 0;
+            while (intensity == -1 && retries < MAX_RETRIES) {
+                GlycanCandidateResult randomPSM = eligiblePSMs.get(glycoParams.randomGenerator.nextInt(eligiblePSMs.size()));
                 if (randomPSM.oxoniumFragments.containsKey(fragmentHash)) {
                     intensity = randomPSM.oxoniumFragments.get(fragmentHash).foundIntensity;
                     OxFragmentIntensities.put(fragmentHash, intensity);
                 }
+                retries++;
+            }
+            if (intensity == -1) {
+                OxFragmentIntensities.put(fragmentHash, 0.0);
             }
         }
         for (String fragmentHash : targetGlycan.generalOxoniumFragments.keySet()) {
             double intensity = -1;
-            while (intensity == -1) {
-                GlycanCandidateResult randomPSM = PSMlist.get(glycoParams.randomGenerator.nextInt(PSMlist.size()));
-                if (randomPSM.composition.equals(targetGlycan.composition)) {
-                    continue;   // skip self
-                }
+            int retries = 0;
+            while (intensity == -1 && retries < MAX_RETRIES) {
+                GlycanCandidateResult randomPSM = eligiblePSMs.get(glycoParams.randomGenerator.nextInt(eligiblePSMs.size()));
                 if (randomPSM.generalOxoniumFragments.containsKey(fragmentHash)) {
                     intensity = randomPSM.generalOxoniumFragments.get(fragmentHash).foundIntensity;
                     generalOxFragmentIntensities.put(fragmentHash, intensity);
                 }
+                retries++;
+            }
+            if (intensity == -1) {
+                generalOxFragmentIntensities.put(fragmentHash, 0.0);
             }
         }
 
