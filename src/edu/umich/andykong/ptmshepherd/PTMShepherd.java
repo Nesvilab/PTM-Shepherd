@@ -26,7 +26,6 @@ import edu.umich.andykong.ptmshepherd.diagnosticanalysis.DiagnosticExtractor;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import umich.ms.glyco.GlycanCandidate;
-import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidateFragments;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
@@ -1375,7 +1374,7 @@ public class PTMShepherd {
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
 		glycoParams.decoyFragmentType = getParam("decoy_fragment_type").isEmpty() ? 2 : Integer.parseInt(getParam("decoy_fragment_type"));
-		glycoParams.includeLowScoreTargets = !getParam("glyco_low_score_targets").isEmpty() && Boolean.parseBoolean(getParam("glyco_low_score_targets"));	// default false
+		glycoParams.includeHighScoreTargets = !getParam("glyco_high_score_targets").isEmpty() && Boolean.parseBoolean(getParam("glyco_high_score_targets"));	// default false
 		glycoParams.glycoAvgInts = !getParam("glyco_avg_spectra").isEmpty() && Boolean.parseBoolean(getParam("glyco_avg_spectra"));	// default false
 
 		return glycoParams;

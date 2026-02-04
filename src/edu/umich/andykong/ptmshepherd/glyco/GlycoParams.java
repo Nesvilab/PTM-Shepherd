@@ -64,7 +64,7 @@ public class GlycoParams {
     public boolean twoPassMode;
     public boolean removeGlycans2ndPass;
     public boolean cosineSimilarityScoring;
-    public boolean includeLowScoreTargets;
+    public boolean includeHighScoreTargets;
     public boolean glycoAvgInts;
 
     private static final String defaultResiduePath = "glycan_residues.txt";

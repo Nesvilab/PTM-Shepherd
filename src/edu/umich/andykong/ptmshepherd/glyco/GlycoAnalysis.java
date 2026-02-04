@@ -244,30 +244,31 @@ public class GlycoAnalysis {
     public void generateDecoys2ndPass() {
         // Pre-create a set of high-confidence glycan keys for faster lookup
         Set<String> highConfidenceGlycanKeys = highConfidenceResultMap.keySet();
-
         for (String glycanKey : targetGlycanFragmentProps.keySet()) {
-            GlycanCandidate target = glycanDBmap.get(glycanKey);
-            // find all possible compositions that could match to this mass
-            ArrayList<GlycanCandidateResult> matchingComps = getMatchingGlycansByMass(1500, target.mass, glycanDatabase, glycoParams.glycoIsotopes, glycoParams.glycoPPMtol);
-            matchingComps = (matchingComps.stream().filter(g -> !g.isDecoy).collect(Collectors.toCollection(ArrayList::new)));
-
-            // see if any matching glycans are found in high-confidence results
             boolean foundDecoySource = false;
-            ArrayList<GlycanCandidateResult> matchedPSMs = new ArrayList<>();
-            for (GlycanCandidateResult matchedComposition : matchingComps) {
-                String matchedName = Glycan.toGlycanString(matchedComposition.composition);
-                if (matchedName.equals(glycanKey)) {
-                    continue;   // skip self
+            GlycanCandidate target = glycanDBmap.get(glycanKey);
+            if (glycoParams.includeHighScoreTargets) {
+                // find all possible compositions that could match to this mass
+                ArrayList<GlycanCandidateResult> matchingComps = getMatchingGlycansByMass(1500, target.mass, glycanDatabase, glycoParams.glycoIsotopes, glycoParams.glycoPPMtol);
+                matchingComps = (matchingComps.stream().filter(g -> !g.isDecoy).collect(Collectors.toCollection(ArrayList::new)));
+
+                // see if any matching glycans are found in high-confidence results
+                ArrayList<GlycanCandidateResult> matchedPSMs = new ArrayList<>();
+                for (GlycanCandidateResult matchedComposition : matchingComps) {
+                    String matchedName = Glycan.toGlycanString(matchedComposition.composition);
+                    if (matchedName.equals(glycanKey)) {
+                        continue;   // skip self
+                    }
+                    if (highConfidenceGlycanKeys.contains(matchedName)) {
+                        // found a matching glycan composition that has high-confidence PSMs, use those spectra to generate decoy fragments
+                        matchedPSMs.addAll(highConfidenceResultMap.get(matchedName));
+                    }
                 }
-                if (highConfidenceGlycanKeys.contains(matchedName)) {
-                    // found a matching glycan composition that has high-confidence PSMs, use those spectra to generate decoy fragments
-                    matchedPSMs.addAll(highConfidenceResultMap.get(matchedName));
+                if (matchedPSMs.size() > glycoParams.minPSMsForConsensus) {
+                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs);
+                    decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
+                    foundDecoySource = true;
                 }
-            }
-            if (matchedPSMs.size() > glycoParams.minPSMsForConsensus) {
-                GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs);
-                decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
-                foundDecoySource = true;
             }
 
             if (!foundDecoySource) {
