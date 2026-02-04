@@ -245,47 +245,21 @@ public class GlycoAnalysis {
                 if (highConfidenceResultMap.containsKey(matchedName)) {
                     // found a matching glycan composition that has high-confidence PSMs, use those spectra to generate decoy fragments
                     matchedPSMs.addAll(highConfidenceResultMap.get(matchedName));
-//                    PTMShepherd.print("\tHigh-confidence " + matchedName + " added to decoy for " + glycanKey + " with " + matchedPSMs.size() + " PSMs");
                 }
             }
             if (matchedPSMs.size() > glycoParams.minPSMsForConsensus) {
                 GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs, false);
                 decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
                 foundDecoySource = true;
-            } else {
-                // check low confidence results
-                matchedPSMs = new ArrayList<>();
-                for (GlycanCandidateResult matchedComposition : matchingComps) {
-                    String matchedName = Glycan.toGlycanString(matchedComposition.composition);
-                    if (matchedName.equals(glycanKey)) {
-                        continue;   // skip self
-                    }
-                    if (lowConfidenceResultMap.containsKey(matchedName)) {
-                        // found a matching glycan composition that has low-confidence PSMs, use those spectra to generate decoy fragments
-                        matchedPSMs.addAll(lowConfidenceResultMap.get(matchedName));
-                        GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs, false);
-                        decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
-//                        PTMShepherd.print("\tLow-confidence " + matchedName + " added to decoy for " + glycanKey + " with " + matchedPSMs.size() + " PSMs");
-                    }
-                }
             }
             if (!foundDecoySource) {
-                // didn't find decoy from high-conf, see if enough PSMs from low conf
-                if (matchedPSMs.size() > glycoParams.minPSMsForConsensus) {
-                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs, false);
+                // no other candidates found to generate decoy fragments, use target fragments with shuffled intensities
+                if (lowConfidenceResultMap.containsKey(glycanKey)) {
+                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(lowConfidenceResultMap.get(glycanKey), true);
                     decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
                 } else {
-                    // no other candidates found to generate decoy fragments, use target fragments with shuffled intensities
-//                    PTMShepherd.print("only found " + matchedPSMs.size() + " PSMs for decoy generation for " + glycanKey + ", using self-targets as decoy");
-                    if (lowConfidenceResultMap.containsKey(glycanKey)) {
-                        GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(lowConfidenceResultMap.get(glycanKey), true);
-                        decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
-//                        PTMShepherd.print("\tlow self-targets as decoy for " + glycanKey + " with " + lowConfidenceResultMap.get(glycanKey).size() + " PSMs");
-                    } else {
-                        GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(highConfidenceResultMap.get(glycanKey), true);
-                        decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
-//                        PTMShepherd.print("\thigh self-targets as decoy for " + glycanKey + " with " + highConfidenceResultMap.get(glycanKey).size() + " PSMs");
-                    }
+                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(highConfidenceResultMap.get(glycanKey), true);
+                    decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
                 }
             }
         }
