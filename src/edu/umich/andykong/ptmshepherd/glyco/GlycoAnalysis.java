@@ -65,6 +65,7 @@ public class GlycoAnalysis {
     private final GlycoParams glycoParams;
     public final ArrayList<GlycanAssignmentResult> allResults;
     public LinkedHashMap<String, ArrayList<GlycanCandidateResult>> highConfidenceResultMap;
+    private ArrayList<GlycanCandidateResult> allHighConfidenceResults;
     public LinkedHashMap<String, ArrayList<GlycanCandidateResult>> lowConfidenceResultMap;
     public LinkedHashMap<String, GlycanCandidateFragments> targetGlycanFragmentProps;
     public LinkedHashMap<String, GlycanCandidateFragments> decoyGlycanFragmentProps;
@@ -248,19 +249,15 @@ public class GlycoAnalysis {
                 }
             }
             if (matchedPSMs.size() > glycoParams.minPSMsForConsensus) {
-                GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs, false);
+                GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(matchedPSMs);
                 decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
                 foundDecoySource = true;
             }
+
             if (!foundDecoySource) {
-                // no other candidates found to generate decoy fragments, use target fragments with shuffled intensities
-                if (lowConfidenceResultMap.containsKey(glycanKey)) {
-                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(lowConfidenceResultMap.get(glycanKey), true);
-                    decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
-                } else {
-                    GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragments(highConfidenceResultMap.get(glycanKey), true);
-                    decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
-                }
+                // not enough nearby candidates found, so pull from all possible high-confidence glycans
+                GlycanCandidateFragments decoyFragmentInfo = getGlycanCandidateFragmentsRandom(target, allHighConfidenceResults);
+                decoyGlycanFragmentProps.put(glycanKey, decoyFragmentInfo);
             }
         }
     }
@@ -303,7 +300,7 @@ public class GlycoAnalysis {
                     lowConfidenceResultMap.put(glycanEntry.getKey(), lowScoreTargets);
                 }
             }
-            GlycanCandidateFragments fragmentInfo = getGlycanCandidateFragments(targetGlycoPSMs, false);
+            GlycanCandidateFragments fragmentInfo = getGlycanCandidateFragments(targetGlycoPSMs);
             targetGlycanFragmentProps.put(glycanEntry.getKey(), fragmentInfo);
         }
 
@@ -311,7 +308,17 @@ public class GlycoAnalysis {
         generateDecoys2ndPass();
     }
 
-    private GlycanCandidateFragments getGlycanCandidateFragments(ArrayList<GlycanCandidateResult> glycanPSMlist, boolean shuffle) {
+    /**
+     * Compute glycan candidate fragment intensities from a list of PSMs for that glycan.
+     * @param glycanPSMlist list of PSMs for the glycan
+     * @return container with computed fragment intensities
+     */
+    private GlycanCandidateFragments getGlycanCandidateFragments(ArrayList<GlycanCandidateResult> glycanPSMlist) {
+        LinkedHashMap<String, Double> yFragmentIntensities;
+        LinkedHashMap<String, Double> OxFragmentIntensities;
+        LinkedHashMap<String, Double> generalOxFragmentIntensities;
+
+        // use fragment intensities from all PSMs and compute avg or median. Assumes all PSMs are of the same glycan.
         LinkedHashMap<String, ArrayList<Double>> YInts = new LinkedHashMap<>();
         LinkedHashMap<String, ArrayList<Double>> OxInts = new LinkedHashMap<>();
         LinkedHashMap<String, ArrayList<Double>> generalOxInts = new LinkedHashMap<>();
@@ -327,11 +334,7 @@ public class GlycoAnalysis {
                 generalOxInts.computeIfAbsent(fragmentHash, k -> new ArrayList<>()).add(inputGlycan.generalOxoniumFragments.get(fragmentHash).foundIntensity);
             }
         }
-        // save intensities
-        LinkedHashMap<String, Double> yFragmentIntensities;
-        LinkedHashMap<String, Double> OxFragmentIntensities;
-        LinkedHashMap<String, Double> generalOxFragmentIntensities;
-        // todo: add random option instead of average/median
+        // combine intensities
         if (glycoParams.glycoAvgInts) {
             yFragmentIntensities = calculateFragmentAvgInts(YInts);
             OxFragmentIntensities = calculateFragmentAvgInts(OxInts);
@@ -342,16 +345,61 @@ public class GlycoAnalysis {
             generalOxFragmentIntensities = calculateFragmentMedianInts(generalOxInts);
         }
 
-        // shuffle order of intensities if specified (for decoy generation)
-        if (shuffle) {
-            // retain Y1 intensity if present
-            Double y1Intensity = yFragmentIntensities.getOrDefault("HexNAc(1)", null);
-            shuffleValues(yFragmentIntensities);
-            if (y1Intensity != null) {
-                yFragmentIntensities.put("HexNAc(1)", y1Intensity);
+        // save determined propensities to the output container
+        return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+    }
+
+    /**
+     * Compute glycan candidate fragment intensities from a list of PSMs for that glycan by randomly selecting
+     * fragment intensities from the input PSMs.
+     * @param targetGlycan the glycan candidate to generate fragments for
+     * @param PSMlist list of PSMs to pull fragment intensities from
+     * @return
+     */
+    private GlycanCandidateFragments getGlycanCandidateFragmentsRandom(GlycanCandidate targetGlycan, ArrayList<GlycanCandidateResult> PSMlist) {
+        LinkedHashMap<String, Double> yFragmentIntensities = new LinkedHashMap<>();
+        LinkedHashMap<String, Double> OxFragmentIntensities = new LinkedHashMap<>();
+        LinkedHashMap<String, Double> generalOxFragmentIntensities = new LinkedHashMap<>();
+
+        // randomly select fragment intensities from input PSMs. Input PSMs do not need to be of the same glycan.
+        for (String fragmentHash : targetGlycan.Yfragments.keySet()) {
+            double intensity = -1;
+            while (intensity == -1) {
+                GlycanCandidateResult randomPSM = PSMlist.get(glycoParams.randomGenerator.nextInt(PSMlist.size()));
+                if (randomPSM.composition.equals(targetGlycan.composition)) {
+                    continue;   // skip self
+                }
+                if (randomPSM.Yfragments.containsKey(fragmentHash)) {
+                    intensity = randomPSM.Yfragments.get(fragmentHash).foundIntensity;
+                    yFragmentIntensities.put(fragmentHash, intensity);
+                }
             }
-            shuffleValues(OxFragmentIntensities);
-            shuffleValues(generalOxFragmentIntensities);
+        }
+        for (String fragmentHash : targetGlycan.oxoniumFragments.keySet()) {
+            double intensity = -1;
+            while (intensity == -1) {
+                GlycanCandidateResult randomPSM = PSMlist.get(glycoParams.randomGenerator.nextInt(PSMlist.size()));
+                if (randomPSM.composition.equals(targetGlycan.composition)) {
+                    continue;   // skip self
+                }
+                if (randomPSM.oxoniumFragments.containsKey(fragmentHash)) {
+                    intensity = randomPSM.oxoniumFragments.get(fragmentHash).foundIntensity;
+                    OxFragmentIntensities.put(fragmentHash, intensity);
+                }
+            }
+        }
+        for (String fragmentHash : targetGlycan.generalOxoniumFragments.keySet()) {
+            double intensity = -1;
+            while (intensity == -1) {
+                GlycanCandidateResult randomPSM = PSMlist.get(glycoParams.randomGenerator.nextInt(PSMlist.size()));
+                if (randomPSM.composition.equals(targetGlycan.composition)) {
+                    continue;   // skip self
+                }
+                if (randomPSM.generalOxoniumFragments.containsKey(fragmentHash)) {
+                    intensity = randomPSM.generalOxoniumFragments.get(fragmentHash).foundIntensity;
+                    generalOxFragmentIntensities.put(fragmentHash, intensity);
+                }
+            }
         }
 
         // save determined propensities to the output container
@@ -448,6 +496,19 @@ public class GlycoAnalysis {
                     addGlycanToMap(lowConfidenceResultMap, glycanHash, glycan);
                 }
             }
+        }
+        // filter high confidence results to only those with sufficient PSMs
+        highConfidenceResultMap = highConfidenceResultMap.entrySet().stream()
+                .filter(e -> e.getValue().size() >= glycoParams.minPSMsForConsensus)
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> v1,
+                        LinkedHashMap::new
+                ));
+        allHighConfidenceResults = new ArrayList<>();
+        for (ArrayList<GlycanCandidateResult> glycanList : highConfidenceResultMap.values()) {
+            allHighConfidenceResults.addAll(glycanList);
         }
     }
 
