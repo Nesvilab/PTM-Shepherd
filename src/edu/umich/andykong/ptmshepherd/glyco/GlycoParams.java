@@ -47,7 +47,6 @@ public class GlycoParams {
     public int numThreads;
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
-    public HashMap<Integer, Double> isotopeProbTable;
     public boolean glycoLDA;
     public double topPctSpectraForConsensus;
     public int minYsForConsensus;
@@ -60,11 +59,9 @@ public class GlycoParams {
     public boolean isIMdata = false;
     public ArrayList<LDAFeature> ldaFeaturesToUse;
     public double ldaTargetProp;
-    public int decoyFragmentType;   // 0: original mass shift method; 1: shuffle intensities; 2: averaged glycan; 3: nearest mass glycan; 4: randomly pick an intensity from observed dist for each fragment; 5: random other glycan instead of nearest mass; 6: shuffle but not core Ys
     public boolean twoPassMode;
     public boolean removeGlycans2ndPass;
     public boolean cosineSimilarityScoring;
-    public boolean includeHighScoreTargets;
     public boolean glycoAvgInts;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
@@ -269,30 +266,23 @@ public class GlycoParams {
                 currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
             }
 
-            // initialize new candidate
-            if (decoyFragmentType == 0) {
-                // original method: shift decoy masses with same propensities/intensities as target
-                newCandidate = GlycanCandidate.copyCandidate(oldCandidate, this.glycanResiduesMap);
-            } else {
-                // alter fragment intensities rather than giving random masses. Init as target, then change to decoy later so avoid fragment mass shifting
-                newCandidate = GlycanCandidate.initGlycanCandidate(oldCandidate.composition,
-                        0.0,
-                        false,
-                        this.glycanResiduesMap,
-                        this.nGlycan,
-                        this.randomGenerator,
-                        this.glycoOxoniumDatabase);
-            }
+            // init new candidate: alter fragment intensities rather than giving random masses. Init as target, then change to decoy later so avoid fragment mass shifting
+            newCandidate = GlycanCandidate.initGlycanCandidate(oldCandidate.composition,
+                    0.0,
+                    false,
+                    this.glycanResiduesMap,
+                    this.nGlycan,
+                    this.randomGenerator,
+                    this.glycoOxoniumDatabase);
+
 
             GlycanCandidateFragments fragmtInfo;
             if (oldCandidate.isDecoy) {
                 fragmtInfo = decoyFragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
-                if (!(decoyFragmentType == 0)) {
-                    newCandidate.isDecoy = true;
-                    // todo: change to mass of the alternate matched glycan?
-                    newCandidate.mass = oldCandidate.mass;
-                    newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
-                }
+                newCandidate.isDecoy = true;
+                // todo: change to mass of the alternate matched glycan?
+                newCandidate.mass = oldCandidate.mass;
+                newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
             } else {
                 fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
             }

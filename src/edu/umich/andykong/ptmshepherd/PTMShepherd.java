@@ -1373,8 +1373,6 @@ public class PTMShepherd {
 		glycoParams.twoPassMode = getParam("glyco_two_pass_search").isEmpty() || Boolean.parseBoolean(getParam("glyco_two_pass_search"));	// default true
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
-		glycoParams.decoyFragmentType = getParam("decoy_fragment_type").isEmpty() ? 2 : Integer.parseInt(getParam("decoy_fragment_type"));
-		glycoParams.includeHighScoreTargets = !getParam("glyco_high_score_targets").isEmpty() && Boolean.parseBoolean(getParam("glyco_high_score_targets"));	// default false
 		glycoParams.glycoAvgInts = !getParam("glyco_avg_spectra").isEmpty() && Boolean.parseBoolean(getParam("glyco_avg_spectra"));	// default false
 
 		return glycoParams;
