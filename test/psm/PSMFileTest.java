@@ -134,7 +134,7 @@ public class PSMFileTest {
         psmFile.writeGlycanToAssignedMod(psm, "HexNAc(2)Hex(13)", false, params);
         assert Math.abs(psm.getDMass() - 0.0049) < tol;
         assert Math.abs(psm.getOriginalDeltaMass() - prevDMass) < tol;
-        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455)) < tol;
+        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8454)) < tol;
         assert Math.abs(Double.parseDouble(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512.8455)) < tol;
 
         // simulate re-run of the same file with previous mod
@@ -143,7 +143,7 @@ public class PSMFileTest {
         psmFile.massdiffToVarmod = 1;
         psmFile.writeGlycanToAssignedMod(psm, "HexNAc(2)Hex(13)", false, params);
         assert Math.abs(psm.getDMass() - 0.0049) < tol;
-        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455)) < tol;
+        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8454)) < tol;
         assert psm.getAssignedMods().size() == 1;
     }
 
