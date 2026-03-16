@@ -63,6 +63,7 @@ public class GlycoParams {
     public boolean removeGlycans2ndPass;
     public boolean cosineSimilarityScoring;
     public boolean glycoAvgInts;
+    public int numDecoysPerTarget;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -130,7 +131,7 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseString(String glycanDBString) {
         ArrayList<Glycan> glycans = GlycanParser.parseGlycanDatabaseString(glycanDBString, glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator, numDecoysPerTarget);
     }
 
     /**
@@ -141,7 +142,7 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseFile(String inputPath) {
         ArrayList<Glycan> glycans = GlycanParser.loadGlycansFromText(inputPath, GlycanParser.detectDBtype(inputPath), glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator, numDecoysPerTarget);
     }
 
     /**
@@ -156,7 +157,8 @@ public class GlycoParams {
                                                                         int decoyType,
                                                                         double glycoPPMtol,
                                                                         Integer[] glycoIsotopes,
-                                                                        Random randomGenerator) {
+                                                                        Random randomGenerator,
+                                                                        int numDecoysPerTarget) {
         LinkedHashMap<String, Boolean> glycansInDB = new LinkedHashMap<>();
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
         for (Glycan glycan: glycans) {
@@ -170,10 +172,12 @@ public class GlycoParams {
             if (!glycansInDB.containsKey(compositionHash)) {
                 glycanDB.add(candidate);
                 glycansInDB.put(compositionHash, Boolean.TRUE);
-                // also add a decoy for this composition
-                double decoyMassShift = setDecoyShift(candidate.mass, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
-                GlycanCandidate decoy = GlycanCandidate.initGlycanCandidate(glycan.composition, decoyMassShift, true, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
-                glycanDB.add(decoy);
+                // add numDecoysPerTarget decoys for this composition
+                for (int d = 0; d < numDecoysPerTarget; d++) {
+                    double decoyMassShift = setDecoyShift(candidate.mass, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+                    GlycanCandidate decoy = GlycanCandidate.initGlycanCandidate(glycan.composition, decoyMassShift, true, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
+                    glycanDB.add(decoy);
+                }
             }
         }
         return glycanDB;
@@ -395,7 +399,8 @@ public class GlycoParams {
         PTMShepherd.print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
         PTMShepherd.print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
         PTMShepherd.print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
-        PTMShepherd.print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / 2));
+        PTMShepherd.print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / (1 + numDecoysPerTarget)));
+        PTMShepherd.print(String.format("\tDecoys per target glycan: %d", numDecoysPerTarget));
         if (nGlycan) {
             PTMShepherd.print("\tmode: N-glycan");
             PTMShepherd.print("\tAllowed Sites: N in N-X-S/T sequons only");

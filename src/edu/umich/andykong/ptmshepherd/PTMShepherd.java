@@ -1332,6 +1332,7 @@ public class PTMShepherd {
 		glycoParams.glycoPPMtol = getParam("glyco_ppm_tol").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PPM_TOL : Double.parseDouble(getParam("glyco_ppm_tol"));
 		glycoParams.glycoIsotopes = GlycoParams.parseGlycoIsotopesParam();
 		glycoParams.nGlycan = getParam("n_glyco").isEmpty() || Boolean.parseBoolean(getParam("n_glyco"));		// default true
+		glycoParams.numDecoysPerTarget = getParam("glyco_num_decoys").isEmpty() ? 1 : Integer.parseInt(getParam("glyco_num_decoys"));	// default 1. Must be set before database parsing
 		String glycanDB = getParam("glycodatabase");
 		Path testPath = Paths.get(glycanDB.replaceAll("['\"]", ""));
 		if (glycanDB.isEmpty()) {

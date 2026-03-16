@@ -543,9 +543,9 @@ public class GlycoAnalysis {
 
         // Compute FDR
         PTMShepherd.print("\tCalculating Glycan FDR");
-        boolean fdrSuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR);
+        boolean fdrSuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR, glycoParams.numDecoysPerTarget);
         if (!fdrSuccess) {
-            fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR);
+            fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR, glycoParams.numDecoysPerTarget);
         }
 
         try {
@@ -579,7 +579,7 @@ public class GlycoAnalysis {
      * @param results List of GlycanAssignmentResults containing target and decoy scores
      * @return The score threshold
      */
-    public static boolean computeFDRcompetitive(List<GlycanAssignmentResult> results, double fdrCutOff) {
+    public static boolean computeFDRcompetitive(List<GlycanAssignmentResult> results, double fdrCutOff, int numDecoysPerTarget) {
         // Sort target scores in descending order
         results.sort(Comparator.comparingDouble((GlycanAssignmentResult result) -> result.glycanScore).reversed());
         long glycoResultCount = results.stream().filter(r -> r.foundGlycan).count();
@@ -590,7 +590,7 @@ public class GlycoAnalysis {
         int decoyCount = decoyIndexes.size();
         int targetCount = (int) glycoResultCount - decoyCount;
         // check if enough decoys were found (i.e., initial q-val is above the desired threshold)
-        double initialFDR = calculateFDR(targetCount, decoyCount, false);
+        double initialFDR = calculateFDR(targetCount, decoyCount, false, numDecoysPerTarget);
         if (initialFDR < fdrCutOff) {
             PTMShepherd.print(String.format("\tNot enough decoys to compute FDR at %.1f%% with competitive method, started at %.2f%%", fdrCutOff * 100, initialFDR * 100));
             return false;
@@ -611,7 +611,7 @@ public class GlycoAnalysis {
             } else {
                 targetCount--;
             }
-            double fdr = Math.min(calculateFDR(targetCount, decoyCount, false), currentMinQ);        // q = (d+1)/t recommended per 10.1021/acs.jproteome.6b00144
+            double fdr = Math.min(calculateFDR(targetCount, decoyCount, false, numDecoysPerTarget), currentMinQ);        // q = (d+1)/t recommended per 10.1021/acs.jproteome.6b00144
             if (fdr < currentMinQ) {
                 currentMinQ = fdr;
             }
@@ -640,7 +640,7 @@ public class GlycoAnalysis {
      * @param glycoFDR Maximum acceptable FDR
      * @param results List of GlycanAssignmentResults containing target and decoy scores
      */
-    public static boolean computeFDRNonCompetitive(List<GlycanAssignmentResult> results, double glycoFDR) {
+    public static boolean computeFDRNonCompetitive(List<GlycanAssignmentResult> results, double glycoFDR, int numDecoysPerTarget) {
         LinkedHashMap<String, GlycanAssignmentResult> resultMap = new LinkedHashMap<>();
 
         ArrayList<GlycoScore> scoreDistribution = new ArrayList<>();
@@ -685,7 +685,7 @@ public class GlycoAnalysis {
                 decoys--;
             }
             // compute TD ratio
-            targetDecoyRatio = calculateFDR(targets, decoys, true);
+            targetDecoyRatio = calculateFDR(targets, decoys, true, numDecoysPerTarget);
             if (decoys > targets) {
                 targetDecoyRatio = 1.0;     // cap FDR at 1
             } else if (targets == 0) {
@@ -734,17 +734,22 @@ public class GlycoAnalysis {
     }
 
     /**
-     * Calculate FDR from target and decoy counts
+     * Calculate FDR from target and decoy counts, corrected for the number of decoys per target in the database.
+     * The dbRatio (database targets / database decoys = 1 / numDecoysPerTarget) scales the observed decoy count
+     * to account for inflated decoy numbers when multiple decoys per target are used.
      *
      * @param targets target count
      * @param decoys  decoy count
+     * @param useNonCompFDR true for non-competitive FDR formula, false for competitive
+     * @param numDecoysPerTarget number of decoys generated per target glycan
      * @return FDR
      */
-    private static double calculateFDR(int targets, int decoys, boolean useNonCompFDR) {
+    private static double calculateFDR(int targets, int decoys, boolean useNonCompFDR, int numDecoysPerTarget) {
+        double dbRatio = 1.0 / numDecoysPerTarget;
         if (useNonCompFDR) {
-            return (2 * decoys) / (double) (decoys + targets);
+            return dbRatio * (2.0 * decoys) / (decoys + targets);
         } else {
-            return (decoys + 1) / (double) targets;
+            return dbRatio * (decoys + 1) / (double) targets;
         }
     }
 
