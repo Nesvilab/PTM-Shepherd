@@ -836,6 +836,10 @@ gradle-app.setting
 
 # Local History for Visual Studio
 
+# claude
+.claude/*
+claude.*
+
 
 # End of https://www.gitignore.io/api/vim,java,maven,macos,linux,emacs,csharp,gradle,eclipse,windows,netbeans,intellij,notepadpp,visualstudio,visualstudiocode
 sandbox
