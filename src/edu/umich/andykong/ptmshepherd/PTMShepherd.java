@@ -1375,6 +1375,7 @@ public class PTMShepherd {
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
 		glycoParams.glycoAvgInts = !getParam("glyco_avg_spectra").isEmpty() && Boolean.parseBoolean(getParam("glyco_avg_spectra"));	// default false
+		glycoParams.checkVariableMods = !getParam("glyco_check_variable_mods").isEmpty() && Boolean.parseBoolean(getParam("glyco_check_variable_mods"));	// default false
 
 		return glycoParams;
 	}

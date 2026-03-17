@@ -64,6 +64,7 @@ public class GlycoParams {
     public boolean cosineSimilarityScoring;
     public boolean glycoAvgInts;
     public int numDecoysPerTarget;
+    public boolean checkVariableMods;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

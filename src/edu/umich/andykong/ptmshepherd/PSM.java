@@ -387,6 +387,11 @@ public class PSM {
             // non-terminal mods
             int adjustedIndex = getModPepIndex(previousModPep, modLocation);
 
+            // Check if there is a bracket after the residue (fixed mods may not have one)
+            if (adjustedIndex + 1 >= previousModPep.length() || previousModPep.charAt(adjustedIndex + 1) != '[') {
+                return previousModPep;  // no bracket at this position, nothing to remove
+            }
+
             // Find the start and end of the bracketed number
             int startBracket = previousModPep.indexOf('[', adjustedIndex);
             int endBracket = previousModPep.indexOf(']', startBracket) + 1;
@@ -411,6 +416,29 @@ public class PSM {
             }
         }
         return residueIndex - 1;
+    }
+
+    /**
+     * Remove a variable mod from this PSM's state: remove from assignedMods, update modifiedPeptide,
+     * adjust delta mass and calc pep mass, and update the corresponding spLine columns.
+     */
+    public void applyModRemoval(Mod modToRemove, int dMassCol, int assignedModCol, int modPepCol, int calcMassCol, int calcMZcol) {
+        // remove the mod from assignedMods
+        assignedMods.removeIf(m -> m.position == modToRemove.position && m.mass == modToRemove.mass);
+
+        // remove from modified peptide
+        modifiedPeptide = removeModFromModifiedPeptide(modifiedPeptide, modToRemove.position);
+
+        // adjust masses: removing a mod adds its mass to delta, subtracts from calc pep mass
+        dMass += modToRemove.mass;
+        calcPepMass -= modToRemove.mass;
+
+        // update spLine columns
+        spLine.set(dMassCol, String.format("%.4f", dMass));
+        spLine.set(calcMassCol, String.format("%.4f", calcPepMass));
+        spLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) calcPepMass, charge)));
+        spLine.set(assignedModCol, printAssignedMods());
+        spLine.set(modPepCol, modifiedPeptide);
     }
 
     public String toString() {

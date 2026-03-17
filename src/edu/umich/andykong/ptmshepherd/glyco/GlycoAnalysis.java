@@ -869,8 +869,37 @@ public class GlycoAnalysis {
         }
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
-        // do glycan assignment
+        // do glycan assignment with original delta mass
         glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
+
+        // optionally test removing each assigned variable mod to see if a better glycan assignment is possible
+        if (!isFirstPass && glycoParams.checkVariableMods && psm.getAssignedMods() != null && psm.getDMass() > 3.5) {
+            for (Mod mod : psm.getAssignedMods()) {
+                // compute alternative masses: removing mod adds its mass to delta, subtracts from pep mass
+                float altDeltaMass = (float) (psm.getDMass() + mod.mass);
+                float altPepMass = (float) (psm.getCalcPepmass() - mod.mass);
+
+                GlycanAssignmentResult altResult = new GlycanAssignmentResult(psm.lineNum, psm.getPeptide(), altDeltaMass, altPepMass, psm.printAssignedMods(), psm.getAssignedMods(), psm.getSpec());
+                altResult = assignGlycanToPSM(spec, altResult, glycanDatabase, massErrorWidth, meanMassError);
+
+                // compare by glycanScore (summed score before LDA) - keep the better result
+                if (altResult.foundGlycan && altResult.glycanScore > glycoResult.glycanScore) {
+                    // format mod description
+                    String posStr;
+                    if (mod.position == 0) {
+                        posStr = "N-term";
+                    } else if (mod.position == psm.getPeptide().length() + 1) {
+                        posStr = "C-term";
+                    } else {
+                        posStr = mod.position + "" + psm.getPeptide().charAt(mod.position - 1);
+                    }
+                    altResult.modChangeDescription = String.format("removed %s(%+.4f)", posStr, mod.mass);
+                    altResult.removedMod = mod;
+                    glycoResult = altResult;
+                }
+            }
+        }
+
         psm.glycanAssignmentResult = glycoResult;
     }
 

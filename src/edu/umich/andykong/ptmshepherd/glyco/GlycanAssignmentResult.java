@@ -34,6 +34,10 @@ public class GlycanAssignmentResult {
     public ArrayList<GlycanCandidateResult> allCandidates = new ArrayList<>(); // all glycan candidates for this PSM
     public boolean foundGlycan = false;
 
+    // Variable mod check results
+    public String modChangeDescription = "";  // e.g., "removed 3S(+79.9663)" or empty if original was best
+    public Mod removedMod = null;  // the mod that was removed, null if original was best
+
     // Basic PSM info (prior to PTM-S)
     public int psmLineIndex; // index of the PSM line in the input file
     String peptide;

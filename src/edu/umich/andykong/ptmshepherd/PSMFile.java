@@ -42,7 +42,7 @@ public class PSMFile {
     public int dMassCol, precursorCol, assignedModCol, observedModCol, fraggerLocCol, peptideCol, modPeptideCol,
 			calcMZcol, peptideCalcMassCol, chargeCol, intensityCol, specCol, msfraggerLocalizationCol, positionScoresCol,
 			bestPositionsCol, ionsBestPosCol, scoreBestPositionCol, scoreAllUnshiftedCol, ionsAllUnshiftedCol,
-			eValCol, retentionCol, glycanCompCol, glycanScoreCol, glycanQvalCol;
+			eValCol, retentionCol, glycanCompCol, glycanScoreCol, glycanQvalCol, glycanModChangeCol;
 
 	public int massdiffToVarmod;
 	public File fname;
@@ -81,6 +81,7 @@ public class PSMFile {
 		glycanCompCol = getColumn("Total Glycan Composition");
 		glycanScoreCol = getColumn("Glycan Score");
 		glycanQvalCol = getColumn("Glycan q-value");
+		glycanModChangeCol = getColumn("Glycan Mod Change");
 		precursorCol = getPrecursorCol();
 
 		//find delta mass column for different philosopher versions
@@ -335,12 +336,19 @@ public class PSMFile {
 		ArrayList<String> glycanComps = new ArrayList<>();
 		ArrayList<String> glycanScores = new ArrayList<>();
 		ArrayList<String> glycanQvals = new ArrayList<>();
+		ArrayList<String> glycanModChanges = new ArrayList<>();
 		for (PSM psm : psms) {
 			psmKeys.add(psm.lineNum);
 
 			// check if a glycan was found
 			if (psm.glycanAssignmentResult != null && psm.glycanAssignmentResult.foundGlycan) {
 				GlycanAssignmentResult result = psm.glycanAssignmentResult;
+
+				// propagate mod removal before writing glycan to assigned mods (if a variant with removed mod was selected)
+				if (result.removedMod != null) {
+					psm.applyModRemoval(result.removedMod, dMassCol, assignedModCol, modPeptideCol, peptideCalcMassCol, calcMZcol);
+				}
+
 				String assignedGlycan;
 				String glycanScore = String.format("%.4f", result.glycanScore);
 				String glycanQval = String.format("%.6f", result.glycanQval);
@@ -363,10 +371,14 @@ public class PSMFile {
 					glycanComps.add(assignedGlycan);
 					glycanScores.add(glycanScore);
 					glycanQvals.add(glycanQval);
+					glycanModChanges.add(result.modChangeDescription);
 				} else {
 					psm.spLine.set(glycanCompCol, assignedGlycan);
 					psm.spLine.set(glycanScoreCol, glycanScore);
 					psm.spLine.set(glycanQvalCol, glycanQval);
+					if (glycanModChangeCol != -1) {
+						psm.spLine.set(glycanModChangeCol, result.modChangeDescription);
+					}
 				}
                 // update assigned mods column
                 boolean failOrDecoy = result.isDecoyGlycan || result.glycanQval >= glycoParams.glycoFDR;
@@ -387,10 +399,14 @@ public class PSMFile {
 					glycanComps.add("");
 					glycanScores.add("");
 					glycanQvals.add("");
+					glycanModChanges.add("");
 				} else {
 					psm.spLine.set(glycanCompCol, "");
 					psm.spLine.set(glycanScoreCol, "");
 					psm.spLine.set(glycanQvalCol, "");
+					if (glycanModChangeCol != -1) {
+						psm.spLine.set(glycanModChangeCol, "");
+					}
 				}
                 filteredPSMs.add(psm);  // keep non-glyco PSMs
 			}
@@ -401,6 +417,9 @@ public class PSMFile {
 			addColumn(observedModCol + 1, "Glycan q-value", psmKeys, glycanQvals);
 			addColumn(observedModCol + 1, "Glycan Score", psmKeys, glycanScores);
 			addColumn(observedModCol + 1, "Total Glycan Composition", psmKeys, glycanComps);
+			if (glycoParams.checkVariableMods) {
+				addColumn(observedModCol + 1, "Glycan Mod Change", psmKeys, glycanModChanges);
+			}
 		}
 
         // save unfiltered PSMs to separate file if glyco FDR filtering is being applied
@@ -487,21 +506,16 @@ public class PSMFile {
 
 		// add the assigned glycan to the updated mod list (from which we removed any old glycan mods) if not failed FDR or is decoy
 		if (editPSMGlycoEntry) {
-            int originalIndex = psm.getOriginalAssignedMods().indexOf(prevGlycanMod);
-            if (originalIndex == -1) {
-                // glycan not previously placed, add at appropriate position
-                int addIndex = 0;
-                for (Mod mod : psm.getAssignedMods()) {
-                    if (mod.position < glycanLocation + 1) {
-                        addIndex++;
-                    } else {
-                        break;
-                    }
+            // add glycan mod at the correct position (sorted by position)
+            int addIndex = 0;
+            for (Mod mod : psm.getAssignedMods()) {
+                if (mod.position < glycanLocation + 1) {
+                    addIndex++;
+                } else {
+                    break;
                 }
-                psm.getAssignedMods().add(addIndex, new Mod(glycanLocation + 1, glycanMass));
-            } else {
-                psm.getAssignedMods().add(originalIndex, new Mod(glycanLocation + 1, glycanMass));
             }
+            psm.getAssignedMods().add(addIndex, new Mod(glycanLocation + 1, glycanMass));
         }
 		psm.spLine.set(assignedModCol, psm.printAssignedMods());
 
