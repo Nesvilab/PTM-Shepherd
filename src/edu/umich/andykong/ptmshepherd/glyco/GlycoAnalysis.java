@@ -103,7 +103,7 @@ public class GlycoAnalysis {
                           ExecutorService executorService) {
 
         //open up output file
-        HashMap<String, ArrayList<Integer>> mappings = new HashMap<>();
+        LinkedHashMap<String, ArrayList<Integer>> mappings = new LinkedHashMap<>();
         ArrayList<String> linesWithoutSpectra = null;
         try {
             PrintWriter glycoOut = new PrintWriter(new FileWriter(glycoFile));
@@ -961,8 +961,13 @@ public class GlycoAnalysis {
 
                 if (comparisonScore == 0) {
                     // exact same score (e.g., from target/decoy if no Y/oxo ions found and using decoy mass = target mass)
-                    // Use a random tiebreaker to avoid bias from always picking the target
-                    comparisonScore += (glycoParams.randomGenerator.nextDouble() - 0.5) * 1E-6; // random yields a value between 0-1, so subtracting 0.5 gives (approx) equal chance of being positive or negative
+                    // Use a deterministic tiebreaker based on candidate composition strings.
+                    // NOTE: do NOT use glycoParams.randomGenerator here - this method runs in parallel threads,
+                    // and concurrent access to Random causes non-deterministic results even with a fixed seed.
+                    String compositionA = Glycan.toGlycanString(searchCandidates.get(bestCandidateIndex).composition);
+                    String compositionB = Glycan.toGlycanString(searchCandidates.get(i).composition);
+                    int cmp = compositionA.compareTo(compositionB);
+                    comparisonScore = (cmp != 0 ? Math.signum(cmp) : 1.0) * 1E-6;
                 }
                 if (comparisonScore < 0) {
                     // new best candidate - reset best candidate position and update scores at all other positions
