@@ -458,6 +458,7 @@ public class GlycoParams {
     public enum LDAFeature {
         kl,
         ms1,
+        ms1delta,
         glycanfreq,
     }
 }
