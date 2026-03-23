@@ -223,21 +223,14 @@ public class DiagnosticExtractor {
         double [] capYIonIntensities = new double[capYShifts.length];
         for (int i = 0; i < capYIons.length; i++)
             capYIons[i] = capYShifts[i] + pepMass;
-        //find capital Y ion intensities
-        for (int i = 0; i < capYIons.length; i++) {
-            //System.out.println(capYIons[i]);
-            capYIonIntensities[i] = spec.findIonNeutral(capYIons[i],
-                    Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol")),
-                    Integer.parseInt(PTMShepherd.getParam("spectra_maxPrecursorCharge"))); //todo simplify parameter calling
-            if (normToBasePeak == 1) {
-                //System.out.print(capYIonIntensities[i]);
-                //System.out.println(" 1");
-                //System.out.print(spec.findBasePeakInt());
-                //System.out.println(" 2");
+        //find capital Y ion intensities in a single spectrum pass
+        capYIonIntensities = spec.findIonsNeutral(capYIons,
+                Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol")),
+                Integer.parseInt(PTMShepherd.getParam("spectra_maxPrecursorCharge")));
+        if (normToBasePeak == 1) {
+            for (int i = 0; i < capYIonIntensities.length; i++) {
                 capYIonIntensities[i] /= spec.basePeakInt;
                 capYIonIntensities[i] *= 100.0;
-                //System.out.print(capYIonIntensities[i]);
-                //System.out.println(" 3");
             }
         }
         return capYIonIntensities;
@@ -249,19 +242,12 @@ public class DiagnosticExtractor {
         //implement charge states //todo
         //initialize oxonium ion intensities
         int normToBasePeak = Integer.parseInt(PTMShepherd.getParam("glyco_diag_ions_normalize"));
-        double[] oxoniumIonIntensities = new double[oxoniumIons.length];
-        //for ion in oxonium masses/capYions
-        for (int i = 0; i < oxoniumIons.length; i++) {
-            oxoniumIonIntensities[i] = spec.findIon(oxoniumIons[i], Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"))); //todo simplify parameter calling
-            if (normToBasePeak == 1) {
-                //System.out.print(oxoniumIonIntensities[i]);
-                //System.out.println(" 1");
-                //System.out.print(spec.findBasePeakInt());
-                //System.out.println(" 2");
+        //find oxonium ion intensities in a single spectrum pass
+        double[] oxoniumIonIntensities = spec.findIons(oxoniumIons, Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol")));
+        if (normToBasePeak == 1) {
+            for (int i = 0; i < oxoniumIonIntensities.length; i++) {
                 oxoniumIonIntensities[i] /= spec.basePeakInt;
                 oxoniumIonIntensities[i] *= 100.0;
-                //System.out.print(oxoniumIonIntensities[i]);
-                //System.out.println(" 3");
             }
         }
         return oxoniumIonIntensities;
