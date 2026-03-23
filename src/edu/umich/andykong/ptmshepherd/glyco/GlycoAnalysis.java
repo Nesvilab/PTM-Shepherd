@@ -924,20 +924,34 @@ public class GlycoAnalysis {
         if (!searchCandidates.isEmpty()) {
             // Search Y and oxonium ions in spectrum for each candidate
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
-            double spectrumYIntensity = spec.getYintensity(glycoResult.pepMass);
             for (GlycanCandidateResult candidate : searchCandidates) {
-                double foundYIntensity = 0;
-                for (GlycanFragment yFragment : candidate.Yfragments.values()) {
-                    yFragment.foundIntensity = spec.findIonNeutral(yFragment.neutralMass + glycoResult.pepMass, ppmTol, Integer.parseInt(PTMShepherd.getParam("spectra_maxPrecursorCharge"))) / spec.basePeakInt;  // sum of charge state intensities if >1 found
-                    foundYIntensity += yFragment.foundIntensity;
+                // Search all Y fragment ions in a single spectrum pass
+                List<GlycanFragment> yFragList = new ArrayList<>(candidate.Yfragments.values());
+                double[] yMasses = new double[yFragList.size()];
+                for (int i = 0; i < yFragList.size(); i++) {
+                    yMasses[i] = yFragList.get(i).neutralMass + glycoResult.pepMass;
                 }
-                for (GlycanFragment oxoniumFragment : candidate.oxoniumFragments.values()) {
-                    // save oxonium ion intensity relative to base peak
-                    oxoniumFragment.foundIntensity = spec.findIon(oxoniumFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
+                double[] yIntensities = spec.findIonsNeutral(yMasses, ppmTol, Integer.parseInt(PTMShepherd.getParam("spectra_maxPrecursorCharge")));
+                for (int i = 0; i < yFragList.size(); i++) {
+                    yFragList.get(i).foundIntensity = yIntensities[i] / spec.basePeakInt;
                 }
-                for (GlycanFragment generalOxoFragment: candidate.generalOxoniumFragments.values()) {
-                    // save generalized oxonium ion intensity relative to base peak
-                    generalOxoFragment.foundIntensity = spec.findIon(generalOxoFragment.neutralMass + AAMasses.protMass, ppmTol) / spec.basePeakInt;
+
+                // Search all oxonium and general oxonium ions in a single spectrum pass
+                List<GlycanFragment> oxoFragList = new ArrayList<>(candidate.oxoniumFragments.values());
+                List<GlycanFragment> genOxoFragList = new ArrayList<>(candidate.generalOxoniumFragments.values());
+                double[] oxoMasses = new double[oxoFragList.size() + genOxoFragList.size()];
+                for (int i = 0; i < oxoFragList.size(); i++) {
+                    oxoMasses[i] = oxoFragList.get(i).neutralMass + AAMasses.protMass;
+                }
+                for (int j = 0; j < genOxoFragList.size(); j++) {
+                    oxoMasses[oxoFragList.size() + j] = genOxoFragList.get(j).neutralMass + AAMasses.protMass;
+                }
+                double[] oxoIntensities = spec.findIons(oxoMasses, ppmTol);
+                for (int i = 0; i < oxoFragList.size(); i++) {
+                    oxoFragList.get(i).foundIntensity = oxoIntensities[i] / spec.basePeakInt;
+                }
+                for (int j = 0; j < genOxoFragList.size(); j++) {
+                    genOxoFragList.get(j).foundIntensity = oxoIntensities[oxoFragList.size() + j] / spec.basePeakInt;
                 }
 
                 // normalize intensities for Y and oxonium ions separately, so that the ratio of Y to oxo (or unfragmented precursor/etc) does not impact scores
