@@ -288,7 +288,7 @@ public class IterativeLocalizer {
                         runToLine = this.psmToRunToLine.get(psmfStr);
 
                     // These hold the output to insert into the PSM table //todo only need to be declared on final run
-                    ArrayList<String> specNames = new ArrayList<>();
+                    ArrayList<Integer> psmLineNums = new ArrayList<>();
                     ArrayList<String> strOutputProbs = new ArrayList<>();
                     ArrayList<String> strMaxProbs = new ArrayList<>();
                     ArrayList<String> strMaxProbsDecoy = new ArrayList<>();
@@ -337,7 +337,7 @@ public class IterativeLocalizer {
                             // Ignore zero bin, unless on the last pass and writing results TODO: set up custom bounds?
                             if ((zbL <= dMass) && (dMass <= zbR)) {
                                 if (finalPass) {
-                                    specNames.add(specName);
+                                    psmLineNums.add(psm.lineNum);
                                     strOutputProbs.add(""); // Add empty string if zero bin
                                     strMaxProbs.add("");
                                     strMaxProbsDecoy.add("");
@@ -385,7 +385,7 @@ public class IterativeLocalizer {
                             if (!finalPass)
                                 this.priorProbs[cBin].update(pep, siteProbs, allowedPoses);
                             else {
-                                specNames.add(specName);
+                                psmLineNums.add(psm.lineNum);
                                 strOutputProbs.add(probabilitiesToPepString(pep, dMass, siteProbs, allowedPoses));
                                 double maxProb = findMaxLocalizationProbability(siteProbs);
                                 String maxProbAA = findMaxLocalizationProbabilitySite(siteProbs, pep);
@@ -421,10 +421,10 @@ public class IterativeLocalizer {
                         // Update PSM table with new columns
                         int obsModsCol = psmf.getColumn("Observed Modifications");
 //                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Max Probability", specNames, strMaxProbs2);
-                        psmf.addColumn(obsModsCol + 1, "delta_mass_entropy", specNames, strEntropies);
-                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Decoy Localization", specNames, strMaxProbsDecoy);
-                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Localization", specNames, strMaxProbs);
-                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Localization", specNames, strOutputProbs);
+                        psmf.addColumn(obsModsCol + 1, "delta_mass_entropy", psmLineNums, strEntropies);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Decoy Localization", psmLineNums, strMaxProbsDecoy);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Localization", psmLineNums, strMaxProbs);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Localization", psmLineNums, strOutputProbs);
 
                         PSMFile.save(psmf.fname, psmf.headers, psmf.psms, true); // Do not overwrite
                         complete = true;
@@ -845,8 +845,11 @@ public class IterativeLocalizer {
                 }
 
                 // Send to PSM file
+                // specNames and probModelQVals are built in PSM order, so use direct PSM line ordering
+                ArrayList<Integer> psmLineNums = psmf.getPSMlineNums();
+
                 psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1, "PTM-Shepherd q-val",
-                        specNames, probModelQVals);
+                        psmLineNums, probModelQVals);
                 //psmf.addColumn(psmf.getColumn("PTM-Shepherd q-val") + 1, "PTM-Shepherd decoy q-val",
                 //        specNames, decoyModelQVals);
                 /** //TODO figure out what's going on with these before implementing them, assuming they're even worth doing

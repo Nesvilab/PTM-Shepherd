@@ -33,7 +33,6 @@ import java.util.regex.Pattern;
 import java.util.zip.CRC32;
 
 import static edu.umich.andykong.ptmshepherd.PTMShepherd.normFName;
-import static edu.umich.andykong.ptmshepherd.PTMShepherd.reNormName;
 
 public class PSMFile {
 
@@ -46,7 +45,6 @@ public class PSMFile {
 			eValCol, retentionCol, glycanCompCol, glycanScoreCol, glycanQvalCol;
 
 	public int massdiffToVarmod;
-	private final HashMap<String, Integer> scanToLineMap;
 	public File fname;
     public static final Pattern massPattern = Pattern.compile("\\(([-.\\d]+)\\)");
 
@@ -333,12 +331,12 @@ public class PSMFile {
         ArrayList<PSM> filteredPSMs = new ArrayList<>();
 
 		/* Match glycolines on PSM spectrum keys */
-		ArrayList<String> psmKeys = new ArrayList<>();
+		ArrayList<Integer> psmKeys = new ArrayList<>();
 		ArrayList<String> glycanComps = new ArrayList<>();
 		ArrayList<String> glycanScores = new ArrayList<>();
 		ArrayList<String> glycanQvals = new ArrayList<>();
 		for (PSM psm : psms) {
-			psmKeys.add(psm.getSpec());
+			psmKeys.add(psm.lineNum);
 
 			// check if a glycan was found
 			if (psm.glycanAssignmentResult != null && psm.glycanAssignmentResult.foundGlycan) {
@@ -596,7 +594,6 @@ public class PSMFile {
 	public PSMFile(File f, int massdiffToVarmod) {
 		psms = new ArrayList<>();
         glycoRemovedPsms = new ArrayList<>();
-		scanToLineMap = new HashMap<>();
 
 		try {
 			BufferedReader in = new BufferedReader(new FileReader(f), 1 << 22);
@@ -620,7 +617,6 @@ public class PSMFile {
 				if (!cline.isEmpty()) {
 					PSM thisPSM = new PSM(i, cline, this.massdiffToVarmod, specCol, peptideCol, modPeptideCol, chargeCol, peptideCalcMassCol, dMassCol, assignedModCol, msfraggerLocalizationCol);
 					psms.add(thisPSM);
-					scanToLineMap.put(thisPSM.getSpec(), i);
 					i++;
 				}
 			}
@@ -700,9 +696,9 @@ public class PSMFile {
 		return oldHeaderIndx;
 	}
 
-	public void addColumn(int colIndx, String newHead, ArrayList<String> keys, ArrayList<String> vals) {
+	public void addColumn(int colIndx, String newHead, ArrayList<Integer> psmLineNumbers, ArrayList<String> vals) {
 		// Check that PSM table editing will not fail
-		if (vals.size() != psms.size() || keys.size() != psms.size()) {
+		if (vals.size() != psms.size() || psmLineNumbers.size() != psms.size()) {
 			throw new ArrayIndexOutOfBoundsException("Input arrays and PSM table are not the same length, " +
 					"editing PSM table will fail\n");
 		}
@@ -715,16 +711,12 @@ public class PSMFile {
 		// Check that header doesn't already exist
 		int existingHeaderIndx = addHeader(colIndx, newHead);
 		if (existingHeaderIndx == -1) {
-			for (int i = 0; i < keys.size(); i++) {
-				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
-				int rowIndx = scanToLineMap.get(specKey);
-				psms.get(rowIndx).addValAtColumn(colIndx, vals.get(i));
+			for (int i = 0; i < psmLineNumbers.size(); i++) {
+				psms.get(psmLineNumbers.get(i)).addValAtColumn(colIndx, vals.get(i));
 			}
 		} else {
-			for (int i = 0; i < keys.size(); i++) {
-				String specKey = reNormName(keys.get(i)); // Automatically check for renormed name and apply
-				int rowIndx = scanToLineMap.get(specKey);
-				psms.get(rowIndx).replaceValAtColumn(colIndx, vals.get(i));
+			for (int i = 0; i < psmLineNumbers.size(); i++) {
+				psms.get(psmLineNumbers.get(i)).replaceValAtColumn(colIndx, vals.get(i));
 			}
 		}
 
@@ -774,6 +766,14 @@ public class PSMFile {
 		}
 
 		return values;
+	}
+
+	public ArrayList<Integer> getPSMlineNums() {
+		ArrayList<Integer> indices = new ArrayList<>(psms.size());
+		for (PSM psm : psms) {
+			indices.add(psm.lineNum);
+		}
+		return indices;
 	}
 
 	public static void save(File fname, String[] headers, ArrayList<PSM> psms, boolean overwrite) {
