@@ -7,6 +7,11 @@ import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 public class PSMFileTest {
 
@@ -230,6 +235,49 @@ public class PSMFileTest {
         assert cOffsetPsm.getOriginalModifiedPeptide().equals("ILTEAEIDAHLVALAERDc[17]");
         assert cOffsetPsm.getModifiedPeptide().equals("ILTEAEIDAHLVALAERDc[17]");
         assert cOffsetPsm.spLine.get(psmFile.modPeptideCol).equals("ILTEAEIDAHLVALAERDc[17]");
+    }
+
+    @Test
+    // test that mergeGlycoTable adds exactly 3 columns to every PSM, including PSMs sharing a scan number
+    public void mergeGlycoTableMultiRankTest() throws IOException {
+        // Copy to a temp file so mergeGlycoTable's save() doesn't overwrite the test resource
+        Path tempFile = Files.createTempFile("test_psms_multirank", ".tsv");
+        try {
+            Files.copy(Paths.get("test-resources/test_psms.tsv"), tempFile, StandardCopyOption.REPLACE_EXISTING);
+            PSMFile psmFile = new PSMFile(tempFile.toFile(), 0);
+
+            int initialHeaderCount = psmFile.headers.length;
+            // PSMs at indices 9, 10, 11 all share the same spectrum (scan 7005) — the multi-rank case
+            assert psmFile.psms.get(9).getScanNum() == 7005;
+            assert psmFile.psms.get(10).getScanNum() == 7005;
+            assert psmFile.psms.get(11).getScanNum() == 7005;
+
+            // Record each PSM's column count before the call (TSV rows may have trailing fields stripped)
+            int[] initialSpLineSizes = new int[psmFile.psms.size()];
+            for (int i = 0; i < psmFile.psms.size(); i++) {
+                initialSpLineSizes[i] = psmFile.psms.get(i).spLine.size();
+            }
+
+            // Leave all psm.glycanAssignmentResult null (no glycan found) — simplest valid input
+            GlycoParams glycoParams = new GlycoParams("", "", "");
+            psmFile.mergeGlycoTable("test_dataset", glycoParams);
+
+            // Headers should gain exactly 3 glyco columns
+            assert psmFile.headers.length == initialHeaderCount + 3 :
+                    String.format("Expected %d headers, got %d", initialHeaderCount + 3, psmFile.headers.length);
+
+            // Every PSM must have gained exactly 3 columns — including the multi-rank scan 7005 PSMs at
+            // indices 9, 10, 11 which share the same spectrum value and previously triggered the bug where
+            // rank-1 got 0 extra columns and rank-2 got 6 extra columns via the scanToLineMap overwrite.
+            for (int i = 0; i < psmFile.psms.size(); i++) {
+                PSM psm = psmFile.psms.get(i);
+                int gained = psm.spLine.size() - initialSpLineSizes[i];
+                assert gained == 3 :
+                        String.format("PSM lineNum=%d gained %d columns, expected 3", psm.lineNum, gained);
+            }
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
     }
 
     @Test
