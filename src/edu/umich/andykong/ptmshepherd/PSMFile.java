@@ -350,7 +350,7 @@ public class PSMFile {
 
 				String assignedGlycan;
 				String glycanScore = String.format("%.4f", result.glycanScore);
-				String glycanQval = String.format("%.6f", result.glycanQval);
+				String glycanQval = glycoParams.noFDR ? "" : String.format("%.6f", result.glycanQval);
 				if (result.isDecoyGlycan && !glycoParams.printGlycoDecoys) {
 					if (result.bestTarget == null) {
 						assignedGlycan = "No target matches";
@@ -380,7 +380,7 @@ public class PSMFile {
 					}
 				}
                 // update assigned mods column
-                boolean failOrDecoy = result.isDecoyGlycan || result.glycanQval >= glycoParams.glycoFDR;
+                boolean failOrDecoy = !glycoParams.noFDR && (result.isDecoyGlycan || result.glycanQval >= glycoParams.glycoFDR);
                 if (glycoParams.writeGlycansToAssignedMods) {
                     writeGlycanToAssignedMod(psm, assignedGlycan, failOrDecoy, glycoParams);
                 }

@@ -65,6 +65,7 @@ public class GlycoParams {
     public boolean glycoAvgInts;
     public int numDecoysPerTarget;
     public boolean checkVariableMods;
+    public boolean noFDR;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

@@ -1324,6 +1324,7 @@ public class PTMShepherd {
 		String glycoOxoDB = getParam("glyco_oxonium_list");
 		glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
 		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
+		glycoParams.noFDR = !getParam("glyco_no_fdr").isEmpty() && Boolean.parseBoolean(getParam("glyco_no_fdr"));	// default false
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
@@ -1333,6 +1334,9 @@ public class PTMShepherd {
 		glycoParams.glycoIsotopes = GlycoParams.parseGlycoIsotopesParam();
 		glycoParams.nGlycan = getParam("n_glyco").isEmpty() || Boolean.parseBoolean(getParam("n_glyco"));		// default true
 		glycoParams.numDecoysPerTarget = getParam("glyco_num_decoys").isEmpty() ? 1 : Integer.parseInt(getParam("glyco_num_decoys"));	// default 1. Must be set before database parsing
+		if (glycoParams.noFDR) {
+			glycoParams.numDecoysPerTarget = 0;	// no decoys needed in no-FDR mode
+		}
 		String glycanDB = getParam("glycodatabase");
 		Path testPath = Paths.get(glycanDB.replaceAll("['\"]", ""));
 		if (glycanDB.isEmpty()) {

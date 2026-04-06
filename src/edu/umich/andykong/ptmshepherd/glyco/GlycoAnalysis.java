@@ -460,7 +460,7 @@ public class GlycoAnalysis {
 
                 String glycanHash = Glycan.toGlycanString(fragmentInfoContainer.composition);
                 // only include good targets in fragment info
-                if (result.glycanQval < glycoParams.glycoFDR) {
+                if (glycoParams.noFDR || result.glycanQval < glycoParams.glycoFDR) {
                     if (glycoParams.minYsForConsensus > 0) {
                         int foundYs = 0;
                         boolean notEnoughYs = true;
@@ -530,25 +530,45 @@ public class GlycoAnalysis {
         // LDA method
         if (glycoParams.glycoLDA && !isFirstPass) {
             ScoreLDA lda = new ScoreLDA();
-            // add PSM results to LDA
-            for (GlycanAssignmentResult result: allResults) {
-                if (result.foundGlycan) {
-                    if (result.bestTarget != null) {
+            if (glycoParams.noFDR) {
+                // In no-FDR mode there are no decoy glycans; use low-scoring target results as decoy training data
+                for (GlycanAssignmentResult result : allResults) {
+                    if (result.foundGlycan && result.bestTarget != null) {
                         lda.targetData.add(result.bestTarget.featureVec);
                     }
-                    if (result.bestDecoy != null) {
-                        lda.decoyData.add(result.bestDecoy.featureVec);
+                }
+                // Sort by sum of feature scores ascending so the lowest-scoring results come first
+                List<double[]> sortedByScore = new ArrayList<>(lda.targetData);
+                sortedByScore.sort(Comparator.comparingDouble(fv -> Arrays.stream(fv).sum()));
+                // Bottom (1 - ldaTargetProp) fraction becomes the decoy training data
+                int decoyCount = (int) Math.floor(sortedByScore.size() * (1.0 - glycoParams.ldaTargetProp));
+                for (int i = 0; i < decoyCount; i++) {
+                    lda.decoyData.add(sortedByScore.get(i));
+                }
+            } else {
+                // Standard mode: use decoy glycan results as decoy training data
+                for (GlycanAssignmentResult result : allResults) {
+                    if (result.foundGlycan) {
+                        if (result.bestTarget != null) {
+                            lda.targetData.add(result.bestTarget.featureVec);
+                        }
+                        if (result.bestDecoy != null) {
+                            lda.decoyData.add(result.bestDecoy.featureVec);
+                        }
                     }
                 }
             }
             lda.runLDA(allResults, ldaHeader, glycoParams.ldaTargetProp);
         }
 
-        // Compute FDR
-        PTMShepherd.print("\tCalculating Glycan FDR");
-        boolean fdrSuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR, glycoParams.numDecoysPerTarget);
-        if (!fdrSuccess) {
-            fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR, glycoParams.numDecoysPerTarget);
+        // Compute FDR (skipped in no-FDR mode)
+        boolean fdrSuccess = true;
+        if (!glycoParams.noFDR) {
+            PTMShepherd.print("\tCalculating Glycan FDR");
+            fdrSuccess = computeFDRcompetitive(allResults, glycoParams.glycoFDR, glycoParams.numDecoysPerTarget);
+            if (!fdrSuccess) {
+                fdrSuccess = computeFDRNonCompetitive(allResults, glycoParams.glycoFDR, glycoParams.numDecoysPerTarget);
+            }
         }
 
         try {
@@ -801,8 +821,8 @@ public class GlycoAnalysis {
         double maxError = -10;
 
         for (GlycanAssignmentResult result : results) {
-            // only use target glyco PSMs that passed FDR
-            if (result.foundGlycan && !result.isDecoyGlycan && result.glycanQval < glycoParams.glycoFDR) {
+            // only use target glyco PSMs that passed FDR (or all targets in no-FDR mode)
+            if (result.foundGlycan && !result.isDecoyGlycan && (glycoParams.noFDR || result.glycanQval < glycoParams.glycoFDR)) {
                 // result.deltaMass is the PSM delta mass. Subtract the best candidate mass and isotope to get the final mass error
                 double massError = result.deltaMass - result.bestCandidate.mass - result.bestCandidate.isotope * AAMasses.averagineIsotopeMass;
                 massErrors.add(massError);
