@@ -79,7 +79,7 @@ public class PTMShepherd {
     public static TreeMap<String,ArrayList<String []>> datasets;
     public static HashMap<String, ArrayList<PSMFile>> psmFiles;
     public static HashMap<String,HashMap<String,File>> mzMap;
-    public static HashMap<String, HashMap<String, File>> originalMzMap;
+    public static HashMap<String, HashMap<String, File>> ms1MzMap;
     public static HashMap<String,Integer> datasetMS2;
     public static ArrayList<String> cacheFiles;
     public static String outputPath;
@@ -195,7 +195,7 @@ public class PTMShepherd {
 		params = new HashMap<>();
 		datasets = new TreeMap<>();
 		mzMap = new HashMap<>();
-		originalMzMap = new HashMap<>();
+		ms1MzMap = new HashMap<>();
 		datasetMS2 = new HashMap<>();
 
 		//default values
@@ -583,7 +583,7 @@ public class PTMShepherd {
 			}
 			PTMShepherd.print("Assigning glycans: first pass");
 			for (PSMFile pf : psmFiles.get(ds)) {
-				ga.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
+				ga.glycoPSMs(pf, mzMap.get(ds), ms1MzMap.get(ds), executorService);
 			}
 			ga.runScoresAndFDR();
 			ga.completeGlyco();
@@ -619,7 +619,7 @@ public class PTMShepherd {
 
 				ga2.glycanMassBinMap = ga.glycanMassBinMap;
 				for (PSMFile pf : psmFiles.get(ds)) {
-					ga2.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
+					ga2.glycoPSMs(pf, mzMap.get(ds), ms1MzMap.get(ds), executorService);
 				}
 				ga2.runScoresAndFDR();
 				ga2.completeGlyco();
@@ -1052,7 +1052,7 @@ public class PTMShepherd {
 		for(String ds : datasets.keySet()) {
 			ArrayList<String []> dsData = datasets.get(ds);
 			mzMap.put(ds, new HashMap<>());
-			originalMzMap.put(ds, new HashMap<>());
+			ms1MzMap.put(ds, new HashMap<>());
 			for (int i = 0; i < dsData.size(); i++) {
 				File tpf = new File(dsData.get(i)[0]);
 				HashSet<String> fNames;
@@ -1085,7 +1085,7 @@ public class PTMShepherd {
 				}
 				PTMShepherd.print("\tIndexing data from " + ds);
 				PSMFile pf = psmFiles.get(ds).get(i);
-				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), originalMzMap.get(ds), pf.getRunNames());
+				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), ms1MzMap.get(ds), pf.getRunNames());
 			}
 			// Assure that mzData was found
 			for(String crun : mzMap.get(ds).keySet()) {
@@ -1094,8 +1094,8 @@ public class PTMShepherd {
 				}
 			}
 			// Assure that mzData was found
-			for(String crun : originalMzMap.get(ds).keySet()) {
-				if(originalMzMap.get(ds).get(crun) == null) {
+			for(String crun : ms1MzMap.get(ds).keySet()) {
+				if(ms1MzMap.get(ds).get(crun) == null) {
 					die("In dataset \""+ds+"\" could not find original mzData for run " +  crun);
 				}
 			}

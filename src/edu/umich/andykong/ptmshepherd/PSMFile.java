@@ -244,7 +244,7 @@ public class PSMFile {
 		return col;
 	}
 
-	public static void getMappings(File path, HashMap<String,File> mappings, HashMap<String,File> originalMappings, HashSet<String> runNames) {
+	public static void getMappings(File path, HashMap<String,File> mappings, HashMap<String,File> ms1Mappings, HashSet<String> runNames) {
 		// File priority list, this will return the first one matched so insertion order must be consistent
 		LinkedHashMap<String, Integer> priorities = new LinkedHashMap<>();
 		priorities.put(".mzBIN_cache", 20);
@@ -258,13 +258,12 @@ public class PSMFile {
 		priorities.put(".mgf", 4);
 		priorities.put(".raw", 1);
 		priorities.put("None", 0);
-		LinkedHashMap<String, Integer> originalPriorities = new LinkedHashMap<>();		// same as priorities but without mzBIN_cache
-		for (String key : priorities.keySet()) {
-			if (key.equals(".mzBIN_cache")) {
-				continue;
-			}
-			originalPriorities.put(key, priorities.get(key));
-		}
+		LinkedHashMap<String, Integer> ms1FilePriorities = new LinkedHashMap<>();
+		ms1FilePriorities.put(".d", 20);	// IonQuant traces in .d files directly
+		ms1FilePriorities.put(".mzML", 15);
+		ms1FilePriorities.put(".mzXML", 14);
+		ms1FilePriorities.put(".raw", 1);
+		ms1FilePriorities.put("None", 0);
 
 		// Recursively search all directories
 		if(path.isDirectory()) {
@@ -274,11 +273,11 @@ public class PSMFile {
 			}
 			// get mapping for each file
             for (File l : ls) {
-                getMappings(l, mappings, originalMappings, runNames);
+                getMappings(l, mappings, ms1Mappings, runNames);
             }
 		} else { // see if valid file ext
 			tryMapFile(path, mappings, runNames, priorities);
-			tryMapFile(path, originalMappings, runNames, originalPriorities);
+			tryMapFile(path, ms1Mappings, runNames, ms1FilePriorities);
 		}
 	}
 
