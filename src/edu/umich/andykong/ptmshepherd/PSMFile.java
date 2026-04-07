@@ -266,7 +266,7 @@ public class PSMFile {
 		ms1FilePriorities.put("None", 0);
 
 		// Recursively search all directories
-		if(path.isDirectory()) {
+		if(path.isDirectory() && !path.getName().endsWith(".d")) {
 			File [] ls = path.listFiles();
 			if (ls == null) {
 				return;		// empty directory or IO error. Ignore directory

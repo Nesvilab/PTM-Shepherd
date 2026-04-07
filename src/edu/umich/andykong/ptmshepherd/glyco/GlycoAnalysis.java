@@ -202,7 +202,7 @@ public class GlycoAnalysis {
                     params.imTol,
                     params.minIsotopesIonQuant,
                     params.minScansIonQuant,
-                    !params.isIMdata
+                    !filePath.toLowerCase().endsWith(".d")      // auto-detect IM data for the "noPASEF" parameter
             );
             api.buildIndex();
             return api;
