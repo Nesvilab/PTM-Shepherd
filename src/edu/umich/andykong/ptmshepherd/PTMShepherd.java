@@ -28,6 +28,7 @@ import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import umich.ms.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
+import ionquant.api.IonQuantAPI;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.iterativelocalization.IterativeLocalizer;
 import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
@@ -77,6 +78,7 @@ public class PTMShepherd {
     public static String outputPath;
 	public static ExecutorService executorService;
     public static GlycoParams glycoParams;
+    public static HashMap<String, IonQuantAPI> ionQuantAPICache = null;
 	private static final long glycoRandomSeed = 1364955171;
 
 	// filenames for output files
@@ -558,6 +560,35 @@ public class PTMShepherd {
 		String glycoMassFilePath = normFName(glycoMassListName);
 		GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
 //        glycoParams.printGlycanDatabase(normFName(glycoDBname));
+
+		// Pre-build IonQuant indices once for the full run if total raw files <= 2x available RAM (GB)
+		boolean needsIonQuant = glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl) ||
+				glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1) ||
+				glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1delta);
+		if (needsIonQuant) {
+			int totalRawFiles = 0;
+			for (String ds : datasets.keySet()) {
+				if (mzMap.get(ds) != null)
+					totalRawFiles += mzMap.get(ds).size();
+			}
+			long maxMemGB = Runtime.getRuntime().maxMemory() / (1024L * 1024L * 1024L);
+			if (totalRawFiles <= 2 * maxMemGB) {
+				print(String.format("\tPre-building IonQuant indices for all %d raw files (%d GB JVM heap available)", totalRawFiles, maxMemGB));
+				ionQuantAPICache = new HashMap<>();
+				for (String ds : datasets.keySet()) {
+					HashMap<String, File> ms1Files = ms1MzMap.get(ds);
+					if (ms1Files == null) continue;
+					for (Map.Entry<String, File> entry : ms1Files.entrySet()) {
+						String filePath = String.valueOf(entry.getValue());
+						IonQuantAPI builtApi = GlycoAnalysis.indexBuilder(filePath, glycoParams);
+						if (builtApi != null)
+							ionQuantAPICache.put(filePath, builtApi);
+					}
+				}
+			} else {
+				print(String.format("\tSkipping global IonQuant pre-build: %d raw files exceeds 2x available RAM (%d GB); indices will be built per-pass", totalRawFiles, maxMemGB));
+			}
+		}
 
 		// Glyco: first pass
 		TreeMap<String, GlycoAnalysis> glycoAnalysisMap = new TreeMap<>();
