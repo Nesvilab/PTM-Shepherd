@@ -66,6 +66,10 @@ public class GlycoParams {
     public int numDecoysPerTarget;
     public boolean checkVariableMods;
     public boolean noFDR;
+    public String glycoLibPath;
+    public HashMap<String, GlycanCandidateFragments> glycoLibFragments;
+    public HashMap<String, Integer> glycoLibCounts;
+    public boolean useGlycoLibFirstPass;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -127,13 +131,159 @@ public class GlycoParams {
     }
 
     /**
+     * Parse glyco library (.glycolib) file. Glycolib file format:
+     *  ion type~composition [tab] expected intensity [tab] count in library
+     *  Lines for each glycan are grouped together, starting with a line with the glycan composition alone (starting with "GLYCAN"), followed by lines for each fragment ion and associated info. Example:
+     *   GLYCAN        HexNAc(4)Hex(5)NeuAc(1)
+     *   Y~HexNAc(1)   0.999900        0.000141        2
+     *   Y~HexNAc(2)   0.529000        0.008556        2
+     *   ...
+     *   Ox~NeuAc(1)   0.034600        0.008202        2
+     *   END
+     * Populates glycoLibFragments (keyed by glycan composition string) and glycoLibCounts (count of PSMs per glycan).
+     */
+    public void parseGlycoLib() {
+        glycoLibFragments = new HashMap<>();
+        glycoLibCounts = new HashMap<>();
+        if (glycoLibPath == null || glycoLibPath.isEmpty()) {
+            return;
+        }
+        HashSet<String> diagnosticIonHashes = buildDiagnosticIonSet();
+        try (BufferedReader reader = new BufferedReader(new FileReader(glycoLibPath))) {
+            String line;
+            String currentGlycan = null;
+            LinkedHashMap<String, Double> yFragments = null;
+            LinkedHashMap<String, Double> oxFragments = null;
+            LinkedHashMap<String, Double> generalOxFragments = null;
+            int currentCount = 0;
+
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                String[] parts = line.split("\t");
+                if (parts[0].equals("GLYCAN")) {
+                    currentGlycan = parts.length > 1 ? parts[1].trim() : null;
+                    yFragments = new LinkedHashMap<>();
+                    oxFragments = new LinkedHashMap<>();
+                    generalOxFragments = new LinkedHashMap<>();
+                    currentCount = 0;
+                } else if (parts[0].equals("END")) {
+                    if (currentGlycan != null) {
+                        glycoLibFragments.put(currentGlycan, new GlycanCandidateFragments(yFragments, oxFragments, generalOxFragments));
+                        glycoLibCounts.put(currentGlycan, currentCount);
+                    }
+                    currentGlycan = null;
+                } else if (currentGlycan != null && parts.length >= 4) {
+                    String ionKey = parts[0].trim();
+                    double intensity = Double.parseDouble(parts[1].trim());
+                    int count = Integer.parseInt(parts[3].trim());
+                    if (count > currentCount) {
+                        currentCount = count;
+                    }
+                    if (ionKey.startsWith("Y~")) {
+                        yFragments.put(ionKey.substring(2), intensity);
+                    } else if (ionKey.startsWith("Ox~")) {
+                        String fragKey = ionKey.substring(3);
+                        // All Ox~ ions are general oxonium ions
+                        generalOxFragments.put(fragKey, intensity);
+                        // Also add to diagnostic oxonium ions if this key is in the diagnostic set
+                        if (diagnosticIonHashes.contains(fragKey)) {
+                            oxFragments.put(fragKey, intensity);
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            PTMShepherd.die("Error reading glyco library file " + glycoLibPath + ": " + e.getMessage());
+        }
+        PTMShepherd.print(String.format("\tLoaded glyco library with %d glycan entries", glycoLibFragments.size()));
+    }
+
+    /**
+     * Build a set of fragment hashes for all diagnostic oxonium ions in the glycoOxoniumDatabase.
+     * Uses the fragment's hash field (which encodes composition and any composition comment).
+     * Only non-decoy fragments are included since glycolib keys are target-oriented.
+     * @return set of hash strings for diagnostic oxonium ions
+     */
+    public HashSet<String> buildDiagnosticIonSet() {
+        HashSet<String> diagnosticHashes = new HashSet<>();
+        for (ArrayList<GlycanFragment> fragments : glycoOxoniumDatabase.values()) {
+            for (GlycanFragment fragment : fragments) {
+                if (fragment.isDiagnostic && !fragment.isDecoy) {
+                    diagnosticHashes.add(fragment.hash);
+                }
+            }
+        }
+        return diagnosticHashes;
+    }
+
+    /**
+     * Find the GlycanCandidateFragments for the given glycan composition from the glycolib.
+     * If an exact match is not found, returns the library entry with the smallest number of total
+     * residue differences to the query glycan. On ties, returns the entry with the largest PSM count.
+     * @param glycanString glycan composition string (e.g., "HexNAc(4)Hex(5)NeuAc(1)")
+     * @return GlycanCandidateFragments for the nearest library entry, or empty if library is empty
+     */
+    public GlycanCandidateFragments findNearestGlycanInLib(String glycanString) {
+        if (glycoLibFragments == null || glycoLibFragments.isEmpty()) {
+            return new GlycanCandidateFragments();
+        }
+        if (glycoLibFragments.containsKey(glycanString)) {
+            return glycoLibFragments.get(glycanString);
+        }
+        HashMap<String, Integer> queryComp = parseGlycanStringToResidueMap(glycanString);
+        String nearestKey = null;
+        int minDistance = Integer.MAX_VALUE;
+        int maxCount = -1;
+        for (String libKey : glycoLibFragments.keySet()) {
+            HashMap<String, Integer> libComp = parseGlycanStringToResidueMap(libKey);
+            int distance = computeCompositionDistance(queryComp, libComp);
+            int count = glycoLibCounts.getOrDefault(libKey, 0);
+            if (distance < minDistance || (distance == minDistance && count > maxCount)) {
+                minDistance = distance;
+                maxCount = count;
+                nearestKey = libKey;
+            }
+        }
+        return nearestKey != null ? glycoLibFragments.get(nearestKey) : new GlycanCandidateFragments();
+    }
+
+    /**
+     * Parse a glycan composition string (e.g., "HexNAc(4)Hex(5)NeuAc(1)") into a map of residue name to count.
+     */
+    private static HashMap<String, Integer> parseGlycanStringToResidueMap(String glycanString) {
+        HashMap<String, Integer> compositionMap = new HashMap<>();
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(\\w+)\\((\\d+)\\)");
+        java.util.regex.Matcher matcher = pattern.matcher(glycanString);
+        while (matcher.find()) {
+            compositionMap.put(matcher.group(1), Integer.parseInt(matcher.group(2)));
+        }
+        return compositionMap;
+    }
+
+    /**
+     * Compute the total number of residue differences between two glycan compositions.
+     * Counts each residue type's count difference, including residues present in one but not the other.
+     */
+    private static int computeCompositionDistance(HashMap<String, Integer> comp1, HashMap<String, Integer> comp2) {
+        int distance = 0;
+        HashSet<String> allKeys = new HashSet<>(comp1.keySet());
+        allKeys.addAll(comp2.keySet());
+        for (String key : allKeys) {
+            distance += Math.abs(comp1.getOrDefault(key, 0) - comp2.getOrDefault(key, 0));
+        }
+        return distance;
+    }
+
+    /**
      * Parse FragPipe glycan database string to list of glycan candidates
      * @param glycanDBString
      * @return
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseString(String glycanDBString) {
         ArrayList<Glycan> glycans = GlycanParser.parseGlycanDatabaseString(glycanDBString, glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator, numDecoysPerTarget);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator, numDecoysPerTarget, useGlycoLibFirstPass);
     }
 
     /**
@@ -144,7 +294,7 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseFile(String inputPath) {
         ArrayList<Glycan> glycans = GlycanParser.loadGlycansFromText(inputPath, GlycanParser.detectDBtype(inputPath), glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator, numDecoysPerTarget);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator, numDecoysPerTarget, useGlycoLibFirstPass);
     }
 
     /**
@@ -160,7 +310,8 @@ public class GlycoParams {
                                                                         double glycoPPMtol,
                                                                         Integer[] glycoIsotopes,
                                                                         Random randomGenerator,
-                                                                        int numDecoysPerTarget) {
+                                                                        int numDecoysPerTarget,
+                                                                        boolean useGlycoLib) {
         LinkedHashMap<String, Boolean> glycansInDB = new LinkedHashMap<>();
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
         for (Glycan glycan: glycans) {
@@ -177,7 +328,23 @@ public class GlycoParams {
                 // add numDecoysPerTarget decoys for this composition
                 for (int d = 0; d < numDecoysPerTarget; d++) {
                     double decoyMassShift = setDecoyShift(candidate.mass, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
-                    GlycanCandidate decoy = GlycanCandidate.initGlycanCandidate(glycan.composition, decoyMassShift, true, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
+                    GlycanCandidate decoy;
+                    if (!useGlycoLib) {
+                        // original method: shift fragment masses (up to 20)
+                        decoy = GlycanCandidate.initGlycanCandidate(glycan.composition, decoyMassShift, true, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
+                    } else {
+                        // glycolib method: alter fragment intensities rather than giving random masses. Init as target, then change to decoy later so avoid fragment mass shifting
+                        decoy = GlycanCandidate.initGlycanCandidate(candidate.composition,
+                                0.0,
+                                false,
+                                glycanResiduesMap,
+                                nGlycan,
+                                randomGenerator,
+                                glycoOxoniumDatabase);
+                        decoy.isDecoy = true;
+                        decoy.mass = candidate.mass + decoyMassShift;
+                        decoy.decoyMassShift = decoyMassShift;
+                    }
                     glycanDB.add(decoy);
                 }
             }

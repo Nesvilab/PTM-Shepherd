@@ -73,6 +73,9 @@ public class GlycoAnalysis {
     private final String ldaHeader;
     private static IonQuantAPI api;
     public final boolean isFirstPass;
+    final boolean useGlycoLibFirstPass;
+    private final HashMap<String, GlycanCandidateFragments> glycoLibCache;
+    private final HashMap<String, GlycanCandidateFragments> decoyGlycoLibCache;
     private static final float ISOTOPE_MASS_DIFF = 1.00235f;
     private static final int MAX_ISOTOPE_PEAKS = 6;
     public static final IsotopeDistributionApi isotopeDistributionApi = new IsotopeDistributionApi();
@@ -98,6 +101,22 @@ public class GlycoAnalysis {
         this.targetGlycanFragmentProps = new LinkedHashMap<>();
         this.decoyGlycanFragmentProps = new LinkedHashMap<>();
         ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "\t";
+        this.useGlycoLibFirstPass = isFirstPass && glycoParams.useGlycoLibFirstPass;
+        this.glycoLibCache = new HashMap<>();
+        this.decoyGlycoLibCache = new HashMap<>();
+        if (useGlycoLibFirstPass) {
+            // Precompute glycolib lookups for all candidates to avoid repeated nearest-neighbor searches during PSM processing
+            for (GlycanCandidate candidate : glycoDatabase) {
+                String glycanHash = Glycan.toGlycanString(candidate.composition).replace("Decoy_", "");
+                if (!glycoLibCache.containsKey(glycanHash)) {
+                    glycoLibCache.put(glycanHash, glycoParams.findNearestGlycanInLib(glycanHash));
+                }
+            }
+            // Build decoy cache by sampling random glycolib entries (mirrors getGlycanCandidateFragmentsRandom)
+            for (Map.Entry<String, GlycanCandidateFragments> entry : glycoLibCache.entrySet()) {
+                decoyGlycoLibCache.put(entry.getKey(), getGlycoLibDecoyFragments(entry.getKey(), entry.getValue()));
+            }
+        }
     }
 
     public void glycoPSMs(PSMFile psmFile,
@@ -198,6 +217,7 @@ public class GlycoAnalysis {
                 api = PTMShepherd.ionQuantAPICache.get(filePath);
                 return api;
             }
+            PTMShepherd.print("\tBuilding IonQuant index for " + filePath);
             api = new IonQuantAPI(
                     filePath,
                     params.numThreads,
@@ -413,6 +433,86 @@ public class GlycoAnalysis {
         }
 
         // save determined propensities to the output container
+        return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+    }
+
+    /**
+     * Generate decoy fragment intensity profile for a glycolib entry by randomly sampling intensities
+     * from other glycans in the glycolib. Mirrors getGlycanCandidateFragmentsRandom but uses glycolib
+     * entries instead of PSMs.
+     *
+     * @param targetGlycanHash the glycan hash to exclude from sampling (so decoy doesn't use target's own profile)
+     * @param targetFragments  the fragment structure of the target (determines which fragment keys to populate)
+     * @return decoy GlycanCandidateFragments with randomly sampled intensities from other library glycans
+     */
+    private GlycanCandidateFragments getGlycoLibDecoyFragments(String targetGlycanHash, GlycanCandidateFragments targetFragments) {
+        LinkedHashMap<String, Double> yFragmentIntensities = new LinkedHashMap<>();
+        LinkedHashMap<String, Double> OxFragmentIntensities = new LinkedHashMap<>();
+        LinkedHashMap<String, Double> generalOxFragmentIntensities = new LinkedHashMap<>();
+
+        // Build eligible pool: all glycolib entries except the target
+        List<String> eligibleKeys = new ArrayList<>();
+        for (String key : glycoParams.glycoLibFragments.keySet()) {
+            if (!key.equals(targetGlycanHash)) {
+                eligibleKeys.add(key);
+            }
+        }
+
+        if (eligibleKeys.isEmpty()) {
+            return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
+        }
+
+        final int MAX_RETRIES = 100;
+
+        for (String fragmentHash : targetFragments.yFragmentIntensities.keySet()) {
+            double intensity = -1;
+            int retries = 0;
+            while (intensity == -1 && retries < MAX_RETRIES) {
+                GlycanCandidateFragments randomLib = glycoParams.glycoLibFragments.get(
+                        eligibleKeys.get(glycoParams.randomGenerator.nextInt(eligibleKeys.size())));
+                if (randomLib.yFragmentIntensities.containsKey(fragmentHash)) {
+                    intensity = randomLib.yFragmentIntensities.get(fragmentHash);
+                    yFragmentIntensities.put(fragmentHash, intensity);
+                }
+                retries++;
+            }
+            if (intensity == -1) {
+                yFragmentIntensities.put(fragmentHash, 0.0);
+            }
+        }
+        for (String fragmentHash : targetFragments.OxFragmentIntensities.keySet()) {
+            double intensity = -1;
+            int retries = 0;
+            while (intensity == -1 && retries < MAX_RETRIES) {
+                GlycanCandidateFragments randomLib = glycoParams.glycoLibFragments.get(
+                        eligibleKeys.get(glycoParams.randomGenerator.nextInt(eligibleKeys.size())));
+                if (randomLib.OxFragmentIntensities.containsKey(fragmentHash)) {
+                    intensity = randomLib.OxFragmentIntensities.get(fragmentHash);
+                    OxFragmentIntensities.put(fragmentHash, intensity);
+                }
+                retries++;
+            }
+            if (intensity == -1) {
+                OxFragmentIntensities.put(fragmentHash, 0.0);
+            }
+        }
+        for (String fragmentHash : targetFragments.generalOxFragmentIntensities.keySet()) {
+            double intensity = -1;
+            int retries = 0;
+            while (intensity == -1 && retries < MAX_RETRIES) {
+                GlycanCandidateFragments randomLib = glycoParams.glycoLibFragments.get(
+                        eligibleKeys.get(glycoParams.randomGenerator.nextInt(eligibleKeys.size())));
+                if (randomLib.generalOxFragmentIntensities.containsKey(fragmentHash)) {
+                    intensity = randomLib.generalOxFragmentIntensities.get(fragmentHash);
+                    generalOxFragmentIntensities.put(fragmentHash, intensity);
+                }
+                retries++;
+            }
+            if (intensity == -1) {
+                generalOxFragmentIntensities.put(fragmentHash, 0.0);
+            }
+        }
+
         return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
     }
 
@@ -953,6 +1053,9 @@ public class GlycoAnalysis {
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
             for (GlycanCandidateResult candidate : searchCandidates) {
                 matchFragmentsToSpectra(spec, glycoResult, candidate, ppmTol);
+                if (useGlycoLibFirstPass) {
+                    loadGlycoLibExpectedIntensities(candidate);
+                }
             }
 
             // score candidates and save results
@@ -963,7 +1066,7 @@ public class GlycoAnalysis {
                     continue;
                 }
                 double comparisonScore;
-                if (!isFirstPass) {
+                if (!isFirstPass || useGlycoLibFirstPass) {
                     comparisonScore = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
                     comparisonScore = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
@@ -990,7 +1093,7 @@ public class GlycoAnalysis {
 
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i < bestCandidateIndex; i++) {
-                if (!isFirstPass) {
+                if (!isFirstPass || useGlycoLibFirstPass) {
                     scoresVsBestCandidate[i] = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
                     scoresVsBestCandidate[i] = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
@@ -1023,7 +1126,7 @@ public class GlycoAnalysis {
             }
 
             // compute absolute score for best glycan
-            if (!isFirstPass) {
+            if (!isFirstPass || useGlycoLibFirstPass) {
                 computeAbsoluteScore2ndPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult);
             } else {
                 computeAbsoluteScore1stPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult);
@@ -1047,6 +1150,32 @@ public class GlycoAnalysis {
         }
 
         return glycoResult;
+    }
+
+    /**
+     * Load expected fragment intensities from the glyco library into a candidate's fragment objects.
+     * Uses the precomputed glycoLibCache for efficient lookup. For decoy candidates, looks up using
+     * the target composition (Decoy_ prefix removed).
+     * @param candidate the glycan candidate result to update
+     */
+    private void loadGlycoLibExpectedIntensities(GlycanCandidateResult candidate) {
+        String glycanHash = Glycan.toGlycanString(candidate.composition).replace("Decoy_", "");
+        // Decoys use shuffled intensity profiles (second-pass style); targets use true library profiles
+        GlycanCandidateFragments libFragments = candidate.isDecoy
+                ? decoyGlycoLibCache.getOrDefault(glycanHash, new GlycanCandidateFragments())
+                : glycoLibCache.getOrDefault(glycanHash, new GlycanCandidateFragments());
+        for (Map.Entry<String, GlycanFragment> entry : candidate.Yfragments.entrySet()) {
+            String key = entry.getKey().replace("Decoy_", "");
+            entry.getValue().expectedIntensity = libFragments.yFragmentIntensities.getOrDefault(key, 0.0);
+        }
+        for (Map.Entry<String, GlycanFragment> entry : candidate.oxoniumFragments.entrySet()) {
+            String key = entry.getKey().replace("Decoy_", "");
+            entry.getValue().expectedIntensity = libFragments.OxFragmentIntensities.getOrDefault(key, 0.0);
+        }
+        for (Map.Entry<String, GlycanFragment> entry : candidate.generalOxoniumFragments.entrySet()) {
+            String key = entry.getKey().replace("Decoy_", "");
+            entry.getValue().expectedIntensity = libFragments.generalOxFragmentIntensities.getOrDefault(key, 0.0);
+        }
     }
 
     private static void matchFragmentsToSpectra(Spectrum spec, GlycanAssignmentResult glycoResult, GlycanCandidateResult candidate, float ppmTol) {
@@ -1103,7 +1232,7 @@ public class GlycoAnalysis {
         // compute scores for all candidates (except the best, since it was already computed)
         for (int i = 1; i < glycoResult.allCandidates.size(); i++) {
             GlycanCandidateResult nextCandidate = glycoResult.allCandidates.get(i);
-            if (!isFirstPass) {
+            if (!isFirstPass || useGlycoLibFirstPass) {
                 computeAbsoluteScore2ndPass(spec, nextCandidate, glycoResult);
             } else {
                 computeAbsoluteScore1stPass(spec, nextCandidate, glycoResult);
@@ -1775,7 +1904,7 @@ public class GlycoAnalysis {
 
         // some scores are always included
         // Y ions
-        if (isFirstPass) {
+        if (isFirstPass && !useGlycoLibFirstPass) {
             features.add(candidate.YFragmentScore);
             summedScore += candidate.YFragmentScore;
         } else {
@@ -1785,7 +1914,7 @@ public class GlycoAnalysis {
         // oxonium ions
         features.add(candidate.OxFragmentScore);
         summedScore += candidate.OxFragmentScore;
-        if (!isFirstPass) {
+        if (!isFirstPass || useGlycoLibFirstPass) {
             features.add(candidate.oxSpecSim);
             summedScore += candidate.oxSpecSim;
         }

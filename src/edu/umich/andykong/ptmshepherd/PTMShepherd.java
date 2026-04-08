@@ -1348,6 +1348,11 @@ public class PTMShepherd {
 		glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
 		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
 		glycoParams.noFDR = !getParam("glyco_no_fdr").isEmpty() && Boolean.parseBoolean(getParam("glyco_no_fdr"));	// default false
+		glycoParams.glycoLibPath = getParam("glyco_lib_path");	// default empty (no library)
+		if (!glycoParams.glycoLibPath.isEmpty()) {
+			glycoParams.parseGlycoLib();
+		}
+		glycoParams.useGlycoLibFirstPass = glycoParams.glycoLibFragments != null && !glycoParams.glycoLibFragments.isEmpty();
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
