@@ -1408,6 +1408,7 @@ public class PTMShepherd {
 		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
 		glycoParams.glycoAvgInts = !getParam("glyco_avg_spectra").isEmpty() && Boolean.parseBoolean(getParam("glyco_avg_spectra"));	// default false
 		glycoParams.checkVariableMods = !getParam("glyco_check_variable_mods").isEmpty() && Boolean.parseBoolean(getParam("glyco_check_variable_mods"));	// default false
+		glycoParams.minDecoyFragmentDiff = getParam("glyco_min_fragment_diff").isEmpty() ? 0.05 : Double.parseDouble(getParam("glyco_min_fragment_diff"));	// default 0.05
 
 		return glycoParams;
 	}

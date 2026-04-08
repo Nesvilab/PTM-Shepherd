@@ -26,14 +26,12 @@ import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 import ionquant.api.Entry;
 import ionquant.api.IonQuantAPI;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import org.hipparchus.stat.descriptive.rank.Median;
 import umich.ms.glyco.Glycan;
 import umich.ms.glyco.GlycanCandidate;
 import umich.ms.glyco.GlycanFragment;
-import umich.ms.util.AminoAcids;
 import umich.ms.util.ElementalComposition;
 import precise.IsotopeDistributionApi;
 
@@ -386,50 +384,91 @@ public class GlycoAnalysis {
 
         // randomly select fragment intensities from input PSMs. Input PSMs do not need to be of the same glycan.
         for (String fragmentHash : targetGlycan.Yfragments.keySet()) {
+            double targetIntensity = targetGlycan.Yfragments.get(fragmentHash).expectedIntensity;
             double intensity = -1;
+            double fallbackIntensity = -1;
             int retries = 0;
-            while (intensity == -1 && retries < MAX_RETRIES) {
+            while (retries < MAX_RETRIES) {
                 GlycanCandidateResult randomPSM = eligiblePSMs.get(glycoParams.randomGenerator.nextInt(eligiblePSMs.size()));
                 if (randomPSM.Yfragments.containsKey(fragmentHash)) {
-                    intensity = randomPSM.Yfragments.get(fragmentHash).foundIntensity;
-                    yFragmentIntensities.put(fragmentHash, intensity);
+                    double candidateIntensity = randomPSM.Yfragments.get(fragmentHash).foundIntensity;
+                    if (Math.abs(candidateIntensity - targetIntensity) >= glycoParams.minDecoyFragmentDiff) {
+                        intensity = candidateIntensity;
+                        break;
+                    } else if (fallbackIntensity == -1) {
+                        fallbackIntensity = candidateIntensity;
+                    }
                 }
                 retries++;
             }
-            // If no match found after max retries, use intensity of 0
             if (intensity == -1) {
-                yFragmentIntensities.put(fragmentHash, 0.0);
+                if (fallbackIntensity != -1) {
+                    intensity = fallbackIntensity >= targetIntensity
+                            ? Math.min(1.0, targetIntensity + glycoParams.minDecoyFragmentDiff)
+                            : Math.max(0.0, targetIntensity - glycoParams.minDecoyFragmentDiff);
+                } else {
+                    intensity = 0.0;
+                }
             }
+            yFragmentIntensities.put(fragmentHash, intensity);
         }
         for (String fragmentHash : targetGlycan.oxoniumFragments.keySet()) {
+            double targetIntensity = targetGlycan.oxoniumFragments.get(fragmentHash).expectedIntensity;
             double intensity = -1;
+            double fallbackIntensity = -1;
             int retries = 0;
-            while (intensity == -1 && retries < MAX_RETRIES) {
+            while (retries < MAX_RETRIES) {
                 GlycanCandidateResult randomPSM = eligiblePSMs.get(glycoParams.randomGenerator.nextInt(eligiblePSMs.size()));
                 if (randomPSM.oxoniumFragments.containsKey(fragmentHash)) {
-                    intensity = randomPSM.oxoniumFragments.get(fragmentHash).foundIntensity;
-                    OxFragmentIntensities.put(fragmentHash, intensity);
+                    double candidateIntensity = randomPSM.oxoniumFragments.get(fragmentHash).foundIntensity;
+                    if (Math.abs(candidateIntensity - targetIntensity) >= glycoParams.minDecoyFragmentDiff) {
+                        intensity = candidateIntensity;
+                        break;
+                    } else if (fallbackIntensity == -1) {
+                        fallbackIntensity = candidateIntensity;
+                    }
                 }
                 retries++;
             }
             if (intensity == -1) {
-                OxFragmentIntensities.put(fragmentHash, 0.0);
+                if (fallbackIntensity != -1) {
+                    intensity = fallbackIntensity >= targetIntensity
+                            ? Math.min(1.0, targetIntensity + glycoParams.minDecoyFragmentDiff)
+                            : Math.max(0.0, targetIntensity - glycoParams.minDecoyFragmentDiff);
+                } else {
+                    intensity = 0.0;
+                }
             }
+            OxFragmentIntensities.put(fragmentHash, intensity);
         }
         for (String fragmentHash : targetGlycan.generalOxoniumFragments.keySet()) {
+            double targetIntensity = targetGlycan.generalOxoniumFragments.get(fragmentHash).expectedIntensity;
             double intensity = -1;
+            double fallbackIntensity = -1;
             int retries = 0;
-            while (intensity == -1 && retries < MAX_RETRIES) {
+            while (retries < MAX_RETRIES) {
                 GlycanCandidateResult randomPSM = eligiblePSMs.get(glycoParams.randomGenerator.nextInt(eligiblePSMs.size()));
                 if (randomPSM.generalOxoniumFragments.containsKey(fragmentHash)) {
-                    intensity = randomPSM.generalOxoniumFragments.get(fragmentHash).foundIntensity;
-                    generalOxFragmentIntensities.put(fragmentHash, intensity);
+                    double candidateIntensity = randomPSM.generalOxoniumFragments.get(fragmentHash).foundIntensity;
+                    if (Math.abs(candidateIntensity - targetIntensity) >= glycoParams.minDecoyFragmentDiff) {
+                        intensity = candidateIntensity;
+                        break;
+                    } else if (fallbackIntensity == -1) {
+                        fallbackIntensity = candidateIntensity;
+                    }
                 }
                 retries++;
             }
             if (intensity == -1) {
-                generalOxFragmentIntensities.put(fragmentHash, 0.0);
+                if (fallbackIntensity != -1) {
+                    intensity = fallbackIntensity >= targetIntensity
+                            ? Math.min(1.0, targetIntensity + glycoParams.minDecoyFragmentDiff)
+                            : Math.max(0.0, targetIntensity - glycoParams.minDecoyFragmentDiff);
+                } else {
+                    intensity = 0.0;
+                }
             }
+            generalOxFragmentIntensities.put(fragmentHash, intensity);
         }
 
         // save determined propensities to the output container
@@ -465,52 +504,94 @@ public class GlycoAnalysis {
         final int MAX_RETRIES = 100;
 
         for (String fragmentHash : targetFragments.yFragmentIntensities.keySet()) {
+            double targetIntensity = targetFragments.yFragmentIntensities.get(fragmentHash);
             double intensity = -1;
+            double fallbackIntensity = -1;
             int retries = 0;
-            while (intensity == -1 && retries < MAX_RETRIES) {
+            while (retries < MAX_RETRIES) {
                 GlycanCandidateFragments randomLib = glycoParams.glycoLibFragments.get(
                         eligibleKeys.get(glycoParams.randomGenerator.nextInt(eligibleKeys.size())));
                 if (randomLib.yFragmentIntensities.containsKey(fragmentHash)) {
-                    intensity = randomLib.yFragmentIntensities.get(fragmentHash);
-                    yFragmentIntensities.put(fragmentHash, intensity);
+                    double candidateIntensity = randomLib.yFragmentIntensities.get(fragmentHash);
+                    if (Math.abs(candidateIntensity - targetIntensity) >= glycoParams.minDecoyFragmentDiff) {
+                        intensity = candidateIntensity;
+                        break;
+                    } else if (fallbackIntensity == -1) {
+                        fallbackIntensity = candidateIntensity;
+                    }
                 }
                 retries++;
             }
             if (intensity == -1) {
-                yFragmentIntensities.put(fragmentHash, 0.0);
+                if (fallbackIntensity != -1) {
+                    intensity = fallbackIntensity >= targetIntensity
+                            ? Math.min(1.0, targetIntensity + glycoParams.minDecoyFragmentDiff)
+                            : Math.max(0.0, targetIntensity - glycoParams.minDecoyFragmentDiff);
+                } else {
+                    intensity = 0.0;
+                }
             }
+            yFragmentIntensities.put(fragmentHash, intensity);
         }
         for (String fragmentHash : targetFragments.OxFragmentIntensities.keySet()) {
+            double targetIntensity = targetFragments.OxFragmentIntensities.get(fragmentHash);
             double intensity = -1;
+            double fallbackIntensity = -1;
             int retries = 0;
-            while (intensity == -1 && retries < MAX_RETRIES) {
+            while (retries < MAX_RETRIES) {
                 GlycanCandidateFragments randomLib = glycoParams.glycoLibFragments.get(
                         eligibleKeys.get(glycoParams.randomGenerator.nextInt(eligibleKeys.size())));
                 if (randomLib.OxFragmentIntensities.containsKey(fragmentHash)) {
-                    intensity = randomLib.OxFragmentIntensities.get(fragmentHash);
-                    OxFragmentIntensities.put(fragmentHash, intensity);
+                    double candidateIntensity = randomLib.OxFragmentIntensities.get(fragmentHash);
+                    if (Math.abs(candidateIntensity - targetIntensity) >= glycoParams.minDecoyFragmentDiff) {
+                        intensity = candidateIntensity;
+                        break;
+                    } else if (fallbackIntensity == -1) {
+                        fallbackIntensity = candidateIntensity;
+                    }
                 }
                 retries++;
             }
             if (intensity == -1) {
-                OxFragmentIntensities.put(fragmentHash, 0.0);
+                if (fallbackIntensity != -1) {
+                    intensity = fallbackIntensity >= targetIntensity
+                            ? Math.min(1.0, targetIntensity + glycoParams.minDecoyFragmentDiff)
+                            : Math.max(0.0, targetIntensity - glycoParams.minDecoyFragmentDiff);
+                } else {
+                    intensity = 0.0;
+                }
             }
+            OxFragmentIntensities.put(fragmentHash, intensity);
         }
         for (String fragmentHash : targetFragments.generalOxFragmentIntensities.keySet()) {
+            double targetIntensity = targetFragments.generalOxFragmentIntensities.get(fragmentHash);
             double intensity = -1;
+            double fallbackIntensity = -1;
             int retries = 0;
-            while (intensity == -1 && retries < MAX_RETRIES) {
+            while (retries < MAX_RETRIES) {
                 GlycanCandidateFragments randomLib = glycoParams.glycoLibFragments.get(
                         eligibleKeys.get(glycoParams.randomGenerator.nextInt(eligibleKeys.size())));
                 if (randomLib.generalOxFragmentIntensities.containsKey(fragmentHash)) {
-                    intensity = randomLib.generalOxFragmentIntensities.get(fragmentHash);
-                    generalOxFragmentIntensities.put(fragmentHash, intensity);
+                    double candidateIntensity = randomLib.generalOxFragmentIntensities.get(fragmentHash);
+                    if (Math.abs(candidateIntensity - targetIntensity) >= glycoParams.minDecoyFragmentDiff) {
+                        intensity = candidateIntensity;
+                        break;
+                    } else if (fallbackIntensity == -1) {
+                        fallbackIntensity = candidateIntensity;
+                    }
                 }
                 retries++;
             }
             if (intensity == -1) {
-                generalOxFragmentIntensities.put(fragmentHash, 0.0);
+                if (fallbackIntensity != -1) {
+                    intensity = fallbackIntensity >= targetIntensity
+                            ? Math.min(1.0, targetIntensity + glycoParams.minDecoyFragmentDiff)
+                            : Math.max(0.0, targetIntensity - glycoParams.minDecoyFragmentDiff);
+                } else {
+                    intensity = 0.0;
+                }
             }
+            generalOxFragmentIntensities.put(fragmentHash, intensity);
         }
 
         return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);

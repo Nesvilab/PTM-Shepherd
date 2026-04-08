@@ -66,6 +66,7 @@ public class GlycoParams {
     public int numDecoysPerTarget;
     public boolean checkVariableMods;
     public boolean noFDR;
+    public double minDecoyFragmentDiff;
     public String glycoLibPath;
     public HashMap<String, GlycanCandidateFragments> glycoLibFragments;
     public HashMap<String, Integer> glycoLibCounts;
