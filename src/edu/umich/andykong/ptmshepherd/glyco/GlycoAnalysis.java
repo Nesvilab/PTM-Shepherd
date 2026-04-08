@@ -195,11 +195,9 @@ public class GlycoAnalysis {
         if (params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl) || params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1) || params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1delta)) {
             // Use pre-built API from cache if available
             if (PTMShepherd.ionQuantAPICache != null && PTMShepherd.ionQuantAPICache.containsKey(filePath)) {
-                PTMShepherd.print("\tUsing cached IonQuant index for " + filePath);
                 api = PTMShepherd.ionQuantAPICache.get(filePath);
                 return api;
             }
-            PTMShepherd.print("\tBuilding IonQuant index for " + filePath);
             api = new IonQuantAPI(
                     filePath,
                     params.numThreads,
