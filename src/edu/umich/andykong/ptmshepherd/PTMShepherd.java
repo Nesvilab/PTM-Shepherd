@@ -26,6 +26,7 @@ import edu.umich.andykong.ptmshepherd.diagnosticanalysis.DiagnosticExtractor;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticAnalysis;
 import edu.umich.andykong.ptmshepherd.diagnosticmining.DiagnosticPeakPicker;
 import umich.ms.glyco.GlycanCandidate;
+import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidateFragments;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import ionquant.api.IonQuantAPI;
@@ -615,6 +616,7 @@ public class PTMShepherd {
 
 		// second pass: calculate fragment propensity-based glycan assignment and update results
 		int passNum = 1;
+		TreeMap<String, GlycoAnalysis> finalGlycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = glycoAnalysisMap.get(ds);
 			boolean converged = false;
@@ -648,7 +650,7 @@ public class PTMShepherd {
 				ga2.completeGlyco();
 				ga = ga2; // set ga to the new analysis for next iteration
 			}
-
+			finalGlycoAnalysisMap.put(ds, ga);
 		}
 
 
@@ -656,6 +658,23 @@ public class PTMShepherd {
 		for (String ds : datasets.keySet()) {
 			for (PSMFile pf: psmFiles.get(ds)) {
 				pf.mergeGlycoTable(ds, glycoParams);
+			}
+		}
+
+		/* Update glycolib with results from this analysis if requested */
+		if (glycoParams.updateGlycoLib) {
+			if (glycoParams.glycoLibPath == null || glycoParams.glycoLibPath.isEmpty()) {
+				print("Warning: glyco_update_lib is true but no glyco_lib_path is set; skipping glycolib update");
+			} else {
+				print("Updating glyco library with results from this analysis");
+				for (Map.Entry<String, GlycoAnalysis> entry : finalGlycoAnalysisMap.entrySet()) {
+					GlycoAnalysis finalGa = entry.getValue();
+					if (finalGa == null) continue;
+					Map.Entry<LinkedHashMap<String, GlycanCandidateFragments>, HashMap<String, Integer>> fragData =
+							finalGa.computeFragmentDataForGlycoLibUpdate();
+					glycoParams.updateGlycoLibInMemory(fragData.getKey(), fragData.getValue());
+				}
+				glycoParams.writeGlycoLib();
 			}
 		}
 
@@ -1410,6 +1429,7 @@ public class PTMShepherd {
 		glycoParams.checkVariableMods = !getParam("glyco_check_variable_mods").isEmpty() && Boolean.parseBoolean(getParam("glyco_check_variable_mods"));	// default false
 		glycoParams.minDecoyFragmentDiff = getParam("glyco_min_fragment_diff").isEmpty() ? 0.05 : Double.parseDouble(getParam("glyco_min_fragment_diff"));	// default 0.05
 		glycoParams.glycoSkipPairwise = !getParam("glyco_skip_pairwise").isEmpty() && Boolean.parseBoolean(getParam("glyco_skip_pairwise"));	// default false
+		glycoParams.updateGlycoLib = !getParam("glyco_update_lib").isEmpty() && Boolean.parseBoolean(getParam("glyco_update_lib"));	// default false
 
 		return glycoParams;
 	}

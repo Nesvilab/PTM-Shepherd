@@ -697,6 +697,31 @@ public class GlycoAnalysis {
         }
     }
 
+    /**
+     * Compute fragment intensities and PSM counts for all target glycans passing FDR, for updating the glycolib.
+     * Includes all non-decoy results with q-value below the FDR threshold (or all results in noFDR mode).
+     * @return Map.Entry where the key is a map of glycan composition string to fragment intensities,
+     *         and the value is a map of glycan composition string to PSM count
+     */
+    public Map.Entry<LinkedHashMap<String, GlycanCandidateFragments>, HashMap<String, Integer>> computeFragmentDataForGlycoLibUpdate() {
+        LinkedHashMap<String, ArrayList<GlycanCandidateResult>> passingResultsByGlycan = new LinkedHashMap<>();
+        for (GlycanAssignmentResult result : allResults) {
+            if (!result.foundGlycan) continue;
+            GlycanCandidateResult glycan = result.bestCandidate;
+            if (glycan.isDecoy) continue;
+            if (!glycoParams.noFDR && result.glycanQval >= glycoParams.glycoFDR) continue;
+            String glycanHash = Glycan.toGlycanString(glycan.composition);
+            passingResultsByGlycan.computeIfAbsent(glycanHash, k -> new ArrayList<>()).add(glycan);
+        }
+        LinkedHashMap<String, GlycanCandidateFragments> fragmentProps = new LinkedHashMap<>();
+        HashMap<String, Integer> counts = new HashMap<>();
+        for (Map.Entry<String, ArrayList<GlycanCandidateResult>> entry : passingResultsByGlycan.entrySet()) {
+            fragmentProps.put(entry.getKey(), getGlycanCandidateFragments(entry.getValue()));
+            counts.put(entry.getKey(), entry.getValue().size());
+        }
+        return new AbstractMap.SimpleEntry<>(fragmentProps, counts);
+    }
+
     private static void addGlycanToMap(LinkedHashMap<String, ArrayList<GlycanCandidateResult>> targetInputGlycans, String glycanHash, GlycanCandidateResult glycan) {
         if (targetInputGlycans.containsKey(glycanHash)) {
             targetInputGlycans.get(glycanHash).add(glycan);

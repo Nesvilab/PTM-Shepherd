@@ -72,6 +72,7 @@ public class GlycoParams {
     public HashMap<String, Integer> glycoLibCounts;
     public boolean useGlycoLibFirstPass;
     public boolean glycoSkipPairwise;
+    public boolean updateGlycoLib;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -148,6 +149,11 @@ public class GlycoParams {
         glycoLibFragments = new HashMap<>();
         glycoLibCounts = new HashMap<>();
         if (glycoLibPath == null || glycoLibPath.isEmpty()) {
+            return;
+        }
+        File libFile = new File(glycoLibPath);
+        if (!libFile.exists()) {
+            PTMShepherd.print("\tGlyco library file not found at " + glycoLibPath + "; will create new library if glyco_update_lib is enabled");
             return;
         }
         HashSet<String> diagnosticIonHashes = buildDiagnosticIonSet();
@@ -630,5 +636,94 @@ public class GlycoParams {
         ms1,
         ms1delta,
         glycanfreq,
+    }
+
+    /**
+     * Update the in-memory glycolib with new fragment intensity results from a completed glyco analysis.
+     * New glycans not already in the library are added directly. Existing glycans receive a weighted merge:
+     * for each fragment, if the new median intensity is > 0, the updated intensity is the weighted average
+     * of the existing value (weighted by existing library count) and the new value (weighted by new count).
+     * The library PSM count is incremented by the new count.
+     * @param newFragments map of glycan composition string → fragment intensities from new results
+     * @param newCounts map of glycan composition string → number of PSMs in new results
+     */
+    public void updateGlycoLibInMemory(LinkedHashMap<String, GlycanCandidateFragments> newFragments, HashMap<String, Integer> newCounts) {
+        if (glycoLibFragments == null) glycoLibFragments = new HashMap<>();
+        if (glycoLibCounts == null) glycoLibCounts = new HashMap<>();
+        for (Map.Entry<String, GlycanCandidateFragments> entry : newFragments.entrySet()) {
+            String glycanKey = entry.getKey();
+            GlycanCandidateFragments newFragData = entry.getValue();
+            int newCount = newCounts.getOrDefault(glycanKey, 0);
+            if (newCount == 0) {
+                continue;
+            }
+
+            if (!glycoLibFragments.containsKey(glycanKey)) {
+                glycoLibFragments.put(glycanKey, newFragData);
+                glycoLibCounts.put(glycanKey, newCount);
+            } else {
+                GlycanCandidateFragments existing = glycoLibFragments.get(glycanKey);
+                int existingCount = glycoLibCounts.getOrDefault(glycanKey, 0);
+                glycoLibFragments.put(glycanKey, weightedMergeFragments(existing, existingCount, newFragData, newCount));
+                glycoLibCounts.put(glycanKey, existingCount + newCount);
+            }
+        }
+    }
+
+    private GlycanCandidateFragments weightedMergeFragments(GlycanCandidateFragments existing, int existingCount,
+                                                             GlycanCandidateFragments newFrags, int newCount) {
+        return new GlycanCandidateFragments(
+                weightedMergeFragmentMap(existing.yFragmentIntensities, existingCount, newFrags.yFragmentIntensities, newCount),
+                weightedMergeFragmentMap(existing.OxFragmentIntensities, existingCount, newFrags.OxFragmentIntensities, newCount),
+                weightedMergeFragmentMap(existing.generalOxFragmentIntensities, existingCount, newFrags.generalOxFragmentIntensities, newCount)
+        );
+    }
+
+    private LinkedHashMap<String, Double> weightedMergeFragmentMap(LinkedHashMap<String, Double> existing, int existingCount,
+                                                                     LinkedHashMap<String, Double> newMap, int newCount) {
+        LinkedHashMap<String, Double> result = new LinkedHashMap<>(existing);
+        for (Map.Entry<String, Double> entry : newMap.entrySet()) {
+            String key = entry.getKey();
+            double newIntensity = entry.getValue();
+            if (newIntensity <= 0.0) {
+                continue;  // only update if new median intensity > 0
+            }
+
+            if (result.containsKey(key)) {
+                double existingIntensity = result.get(key);
+                result.put(key, (existingIntensity * existingCount + newIntensity * newCount) / (double) (existingCount + newCount));
+            } else {
+                result.put(key, newIntensity);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Write the current in-memory glycolib (glycoLibFragments and glycoLibCounts) to the glycolib file at glycoLibPath.
+     * Format: tab-delimited, one glycan entry per GLYCAN...END block.
+     */
+    public void writeGlycoLib() {
+        if (glycoLibPath == null || glycoLibPath.isEmpty()) {
+            PTMShepherd.print("Warning: glyco_update_lib is true but no glyco_lib_path is set; skipping glycolib update");
+            return;
+        }
+        try (PrintWriter out = new PrintWriter(new FileWriter(glycoLibPath))) {
+            for (String glycanKey : glycoLibFragments.keySet()) {
+                GlycanCandidateFragments frags = glycoLibFragments.get(glycanKey);
+                int count = glycoLibCounts.getOrDefault(glycanKey, 0);
+                out.write("GLYCAN\t" + glycanKey + "\n");
+                for (Map.Entry<String, Double> fragEntry : frags.yFragmentIntensities.entrySet()) {
+                    out.write(String.format("Y~%s\t%.6f\t0.000000\t%d\n", fragEntry.getKey(), fragEntry.getValue(), count));
+                }
+                for (Map.Entry<String, Double> fragEntry : frags.generalOxFragmentIntensities.entrySet()) {
+                    out.write(String.format("Ox~%s\t%.6f\t0.000000\t%d\n", fragEntry.getKey(), fragEntry.getValue(), count));
+                }
+                out.write("END\n");
+            }
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing updated glyco library to " + glycoLibPath + ": " + e.getMessage());
+        }
+        PTMShepherd.print(String.format("\tUpdated glyco library written to %s with %d glycan entries", glycoLibPath, glycoLibFragments.size()));
     }
 }
