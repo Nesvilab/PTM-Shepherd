@@ -71,6 +71,7 @@ public class GlycoParams {
     public HashMap<String, GlycanCandidateFragments> glycoLibFragments;
     public HashMap<String, Integer> glycoLibCounts;
     public boolean useGlycoLibFirstPass;
+    public boolean glycoSkipPairwise;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

@@ -1078,7 +1078,9 @@ public class GlycoAnalysis {
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
         // do glycan assignment with original delta mass
-        glycoResult = assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
+        glycoResult = glycoParams.glycoSkipPairwise
+                ? assignGlycanToPSMNoPairwise(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError)
+                : assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
 
         // optionally test removing each assigned variable mod to see if a better glycan assignment is possible
         if (!isFirstPass && glycoParams.checkVariableMods && psm.getAssignedMods() != null && psm.getDMass() > 3.5) {
@@ -1088,7 +1090,9 @@ public class GlycoAnalysis {
                 float altPepMass = (float) (psm.getCalcPepmass() - mod.mass);
 
                 GlycanAssignmentResult altResult = new GlycanAssignmentResult(psm.lineNum, psm.getPeptide(), altDeltaMass, altPepMass, psm.printAssignedMods(), psm.getAssignedMods(), psm.getSpec());
-                altResult = assignGlycanToPSM(spec, altResult, glycanDatabase, massErrorWidth, meanMassError);
+                altResult = glycoParams.glycoSkipPairwise
+                        ? assignGlycanToPSMNoPairwise(spec, altResult, glycanDatabase, massErrorWidth, meanMassError)
+                        : assignGlycanToPSM(spec, altResult, glycanDatabase, massErrorWidth, meanMassError);
 
                 // compare by glycanScore (summed score before LDA) - keep the better result
                 if (altResult.foundGlycan && altResult.glycanScore > glycoResult.glycanScore) {
@@ -1225,6 +1229,75 @@ public class GlycoAnalysis {
             boolean bestWasTarget = !searchCandidates.get(bestCandidateIndex).isDecoy;
             glycoResult.isDecoyGlycan = !bestWasTarget;
             getNextGlycanScores(spec, bestWasTarget, glycoResult, massErrorWidth, meanMassError);
+        } else {
+            // no glycan candidates found for this delta mass - filter out of results
+            glycoResult.foundGlycan = false;
+        }
+
+        return glycoResult;
+    }
+
+    /**
+     * Glycan assignment at PSM level without pairwise comparisons. Computes absolute scores for all
+     * mass-matching candidates, ranks them in descending order of absolute score, and sets the top
+     * target and decoy directly from the ranked list without repeating score calculations.
+     *
+     * @param spec           spectrum being searched
+     * @param glycoResult    result container with spectrum information. Will have glycan results added
+     * @param glycanDatabase possible glycan candidates
+     * @param massErrorWidth Width of the mass error distribution for non-delta mass peptides
+     * @param meanMassError  Mean mass error for scoring
+     */
+    public GlycanAssignmentResult assignGlycanToPSMNoPairwise(Spectrum spec, GlycanAssignmentResult glycoResult, ArrayList<GlycanCandidate> glycanDatabase, double massErrorWidth, double meanMassError) {
+        // skip non-delta mass PSMs - leave added columns empty
+        if (glycoResult.deltaMass < 3.5 && glycoResult.deltaMass > -1.5) {
+            return glycoResult;
+        }
+
+        // Determine possible glycan candidates from mass
+        ArrayList<GlycanCandidateResult> searchCandidates = getMatchingGlycansByMass(glycoResult.pepMass, glycoResult.deltaMass, glycanDatabase, glycoParams.glycoIsotopes, glycoParams.glycoPPMtol);
+        if (!searchCandidates.isEmpty()) {
+            // Search Y and oxonium ions in spectrum for each candidate
+            float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
+            for (GlycanCandidateResult candidate : searchCandidates) {
+                matchFragmentsToSpectra(spec, glycoResult, candidate, ppmTol);
+                if (useGlycoLibFirstPass) {
+                    loadGlycoLibExpectedIntensities(candidate);
+                }
+            }
+
+            // compute absolute score for ALL candidates
+            for (GlycanCandidateResult candidate : searchCandidates) {
+                if (!isFirstPass || useGlycoLibFirstPass) {
+                    computeAbsoluteScore2ndPass(spec, candidate, glycoResult);
+                } else {
+                    computeAbsoluteScore1stPass(spec, candidate, glycoResult);
+                }
+            }
+
+            // sort candidates in descending order by absolute score
+            searchCandidates.sort(Comparator.comparingDouble((GlycanCandidateResult c) -> c.summedScore).reversed());
+
+            GlycanCandidateResult bestCandidate = searchCandidates.get(0);
+            glycoResult.bestCandidate = bestCandidate;
+            glycoResult.allCandidates.addAll(searchCandidates);
+            glycoResult.summedScore = bestCandidate.summedScore;
+            glycoResult.glycanScore = bestCandidate.summedScore;
+            glycoResult.foundGlycan = true;
+            glycoResult.isDecoyGlycan = bestCandidate.isDecoy;
+
+            // set bestTarget and bestDecoy directly from ranked list (scores already computed above)
+            for (GlycanCandidateResult candidate : searchCandidates) {
+                if (glycoResult.bestTarget == null && !candidate.isDecoy) {
+                    glycoResult.bestTarget = candidate;
+                }
+                if (glycoResult.bestDecoy == null && candidate.isDecoy) {
+                    glycoResult.bestDecoy = candidate;
+                }
+                if (glycoResult.bestTarget != null && glycoResult.bestDecoy != null) {
+                    break;
+                }
+            }
         } else {
             // no glycan candidates found for this delta mass - filter out of results
             glycoResult.foundGlycan = false;
