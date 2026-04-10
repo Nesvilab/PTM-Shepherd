@@ -75,6 +75,7 @@ public class GlycoParams {
     public boolean useGlycoLibFirstPass;
     public boolean glycoSkipPairwise;
     public boolean updateGlycoLib;
+    public boolean incr1stFDR;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
