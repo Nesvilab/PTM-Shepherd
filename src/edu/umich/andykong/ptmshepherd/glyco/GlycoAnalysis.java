@@ -737,8 +737,8 @@ public class GlycoAnalysis {
      * Handles various old and new methods and LDA.
      */
     public void runScoresAndFDR() {
-        // LDA or NN scoring method
-        if ((glycoParams.glycoLDA || glycoParams.glycoNN) && !isFirstPass) {
+        // LDA or NN scoring method: 2nd pass, or first pass if using library scoring
+        if ((glycoParams.glycoLDA || glycoParams.glycoNN) && (useGlycoLibFirstPass)) {
             // Collect training data (shared by both LDA and NN)
             List<double[]> trainTargets = new ArrayList<>();
             List<double[]> trainDecoys = new ArrayList<>();
