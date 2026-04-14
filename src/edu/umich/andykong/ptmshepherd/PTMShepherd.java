@@ -624,7 +624,7 @@ public class PTMShepherd {
 		TreeMap<String, GlycoAnalysis> finalGlycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = glycoAnalysisMap.get(ds);
-			boolean converged = false;
+			boolean converged = !glycoParams.twoPassMode;
             while (!converged) {
 				if (glycoParams.twoPassMode && passNum == 2) {
 					break;
