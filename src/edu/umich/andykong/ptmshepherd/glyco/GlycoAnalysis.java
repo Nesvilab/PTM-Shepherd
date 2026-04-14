@@ -98,7 +98,7 @@ public class GlycoAnalysis {
         this.highConfidenceResultMap = new LinkedHashMap<>();
         this.targetGlycanFragmentProps = new LinkedHashMap<>();
         this.decoyGlycanFragmentProps = new LinkedHashMap<>();
-        ldaHeader = glycoParams.glycoLDA ? glycoParams.generateLDAheader() : "\t";
+        ldaHeader = (glycoParams.glycoLDA || glycoParams.glycoNN) ? glycoParams.generateLDAheader() : "\t";
         this.useGlycoLibFirstPass = isFirstPass && glycoParams.useGlycoLibFirstPass;
         this.glycoLibCache = new HashMap<>();
         this.decoyGlycoLibCache = new HashMap<>();
@@ -737,38 +737,51 @@ public class GlycoAnalysis {
      * Handles various old and new methods and LDA.
      */
     public void runScoresAndFDR() {
-        // LDA method
-        if (glycoParams.glycoLDA && !isFirstPass) {
-            ScoreLDA lda = new ScoreLDA();
+        // LDA or NN scoring method
+        if ((glycoParams.glycoLDA || glycoParams.glycoNN) && !isFirstPass) {
+            // Collect training data (shared by both LDA and NN)
+            List<double[]> trainTargets = new ArrayList<>();
+            List<double[]> trainDecoys = new ArrayList<>();
             if (glycoParams.noFDR) {
                 // In no-FDR mode there are no decoy glycans; use low-scoring target results as decoy training data
                 for (GlycanAssignmentResult result : allResults) {
                     if (result.foundGlycan && result.bestTarget != null) {
-                        lda.targetData.add(result.bestTarget.featureVec);
+                        trainTargets.add(result.bestTarget.featureVec);
                     }
                 }
                 // Sort by sum of feature scores ascending so the lowest-scoring results come first
-                List<double[]> sortedByScore = new ArrayList<>(lda.targetData);
+                List<double[]> sortedByScore = new ArrayList<>(trainTargets);
                 sortedByScore.sort(Comparator.comparingDouble(fv -> Arrays.stream(fv).sum()));
                 // Bottom (1 - ldaTargetProp) fraction becomes the decoy training data
                 int decoyCount = (int) Math.floor(sortedByScore.size() * (1.0 - glycoParams.ldaTargetProp));
                 for (int i = 0; i < decoyCount; i++) {
-                    lda.decoyData.add(sortedByScore.get(i));
+                    trainDecoys.add(sortedByScore.get(i));
                 }
             } else {
                 // Standard mode: use decoy glycan results as decoy training data
                 for (GlycanAssignmentResult result : allResults) {
                     if (result.foundGlycan) {
                         if (result.bestTarget != null) {
-                            lda.targetData.add(result.bestTarget.featureVec);
+                            trainTargets.add(result.bestTarget.featureVec);
                         }
                         if (result.bestDecoy != null) {
-                            lda.decoyData.add(result.bestDecoy.featureVec);
+                            trainDecoys.add(result.bestDecoy.featureVec);
                         }
                     }
                 }
             }
-            lda.runLDA(allResults, ldaHeader, glycoParams.ldaTargetProp);
+
+            if (glycoParams.glycoNN) {
+                ScoreNN nn = new ScoreNN();
+                nn.targetData = trainTargets;
+                nn.decoyData = trainDecoys;
+                nn.runNN(allResults, ldaHeader, glycoParams.ldaTargetProp);
+            } else {
+                ScoreLDA lda = new ScoreLDA();
+                lda.targetData = trainTargets;
+                lda.decoyData = trainDecoys;
+                lda.runLDA(allResults, ldaHeader, glycoParams.ldaTargetProp);
+            }
         }
 
         // Compute FDR (skipped in no-FDR mode)
@@ -2125,7 +2138,7 @@ public class GlycoAnalysis {
             }
         }
         candidate.summedScore = summedScore;
-        if (!glycoParams.glycoLDA || isFirstPass) {
+        if ((!glycoParams.glycoLDA && !glycoParams.glycoNN) || isFirstPass) {
             candidate.glycanScore = candidate.summedScore;
         }
         candidate.featureVec = features.stream().mapToDouble(Double::doubleValue).toArray();

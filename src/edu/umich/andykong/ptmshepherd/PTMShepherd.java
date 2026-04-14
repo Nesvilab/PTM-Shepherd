@@ -1371,6 +1371,7 @@ public class PTMShepherd {
 		String glycoOxoDB = getParam("glyco_oxonium_list");
 		glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
 		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
+		glycoParams.glycoNN = !getParam("glyco_nn").isEmpty() && Boolean.parseBoolean(getParam("glyco_nn"));	// default false
 		glycoParams.noFDR = !getParam("glyco_no_fdr").isEmpty() && Boolean.parseBoolean(getParam("glyco_no_fdr"));	// default false
 		glycoParams.glycoLibPath = getParam("glyco_lib_path");	// default empty (no library)
 		if (!glycoParams.glycoLibPath.isEmpty()) {

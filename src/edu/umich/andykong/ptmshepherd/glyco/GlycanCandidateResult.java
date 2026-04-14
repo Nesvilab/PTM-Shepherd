@@ -15,6 +15,7 @@ import java.util.TreeMap;
 public class GlycanCandidateResult extends GlycanCandidate {
     public double glycanScore;
     public double ldaScore;
+    public double nnScore;
     public double summedScore;
     public double massError;
     public int isotope;

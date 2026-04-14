@@ -50,6 +50,7 @@ public class GlycoParams {
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
     public boolean glycoLDA;
+    public boolean glycoNN;
     public double topPctSpectraForConsensus;
     public int minYsForConsensus;
     public int minPSMsForConsensus;
