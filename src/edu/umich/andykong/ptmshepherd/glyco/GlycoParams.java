@@ -574,33 +574,64 @@ public class GlycoParams {
      */
     public void printGlycoParams() {
         PTMShepherd.print("Glycan Assignment params:");
-        PTMShepherd.print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
-        PTMShepherd.print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
-        PTMShepherd.print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
-        PTMShepherd.print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / (1 + numDecoysPerTarget)));
-        PTMShepherd.print(String.format("\tDecoys per target glycan: %d", numDecoysPerTarget));
         if (nGlycan) {
-            PTMShepherd.print("\tmode: N-glycan");
+            PTMShepherd.print("\tMode: N-glycan");
             PTMShepherd.print("\tAllowed Sites: N in N-X-S/T sequons only");
         } else {
+            PTMShepherd.print("\tMode: O-glycan");
             PTMShepherd.print(String.format("\tAllowed Sites: %s", allowedLocalizationResidues));
         }
-        // print residue and mod lists
+        if (noFDR) {
+            PTMShepherd.print("\tFDR: disabled (reporting all assignments)");
+        } else {
+            PTMShepherd.print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
+        }
+        PTMShepherd.print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
+        PTMShepherd.print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
+        PTMShepherd.print(String.format("\tGlycan database size: %d targets, %d decoys (%d per target)",
+                glycoDatabase.size() / (1 + numDecoysPerTarget),
+                glycoDatabase.size() - glycoDatabase.size() / (1 + numDecoysPerTarget),
+                numDecoysPerTarget));
+        PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
+        PTMShepherd.print(String.format("\tTwo-pass mode: %s", twoPassMode));
+        if (twoPassMode) {
+            if (glycoNN) {
+                PTMShepherd.print("\tNN scoring (2nd pass)");
+            } else if (glycoLDA) {
+                PTMShepherd.print("\tLDA scoring (2nd pass)");
+            } else {
+                PTMShepherd.print("\tEmpirical scoring (all passes)");
+            }
+            PTMShepherd.print(String.format("\tReduce glycan database 2nd pass: %s", removeGlycans2ndPass));
+            if (glycoLDA || glycoNN) {
+                PTMShepherd.print(String.format("\t\tScore features: %s", ldaFeaturesToUse));
+                PTMShepherd.print(String.format("\tMin PSMs for consensus: %d", minPSMsForConsensus));
+                PTMShepherd.print(String.format("\tMin Y ions for consensus: %d", minYsForConsensus));
+                PTMShepherd.print(String.format("\tTop proportion spectra for consensus: %.2f", topPctSpectraForConsensus));
+                PTMShepherd.print(String.format("\tTraining target top proportion: %.2f", ldaTargetProp));
+                PTMShepherd.print(String.format("\tMin decoy fragment diff: %.3f", minDecoyFragmentDiff));
+            }
+        }
+        if (useGlycoLib) {
+            PTMShepherd.print(String.format("\tUsing glyco library for 1st pass: %s", glycoLibPath));
+        }
+        if (updateGlycoLib) {
+            PTMShepherd.print(String.format("\tUpdating glyco library: %s", glycoLibPath));
+        }
+        if (checkVariableMods) {
+            PTMShepherd.print("\tCheck variable mods: true");
+        }
+
         if (printFullParams) {
             PTMShepherd.print("\tGlycan residue definitions:");
             for (GlycanResidue residue : glycanResidues) {
                 PTMShepherd.print("\t\t" + residue.printToDatabaseFile());
             }
-        }
-
-        if (printFullParams) {
-            // todo: add new params
-            PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
             if (printGlycoDecoys) {
                 PTMShepherd.print("\tPrinting decoy glycans");
             }
-            if (removeGlycanDeltaMass) {
-                PTMShepherd.print("\tRemoving glycan delta mass from PSM table");
+            if (printScoreGraphs) {
+                PTMShepherd.print("\tPrinting score distribution graphs");
             }
         }
     }
