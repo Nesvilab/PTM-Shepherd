@@ -71,7 +71,7 @@ public class GlycoAnalysis {
     private final String ldaHeader;
     private static IonQuantAPI api;
     public final boolean isFirstPass;
-    final boolean useGlycoLibFirstPass;
+    final boolean useGlycoLib;
     private final HashMap<String, GlycanCandidateFragments> glycoLibCache;
     private final HashMap<String, GlycanCandidateFragments> decoyGlycoLibCache;
     private static final float ISOTOPE_MASS_DIFF = 1.00235f;
@@ -99,10 +99,10 @@ public class GlycoAnalysis {
         this.targetGlycanFragmentProps = new LinkedHashMap<>();
         this.decoyGlycanFragmentProps = new LinkedHashMap<>();
         ldaHeader = (glycoParams.glycoLDA || glycoParams.glycoNN) ? glycoParams.generateLDAheader() : "\t";
-        this.useGlycoLibFirstPass = isFirstPass && glycoParams.useGlycoLibFirstPass;
+        this.useGlycoLib = !isFirstPass || glycoParams.useGlycoLib;     // if external library provided, use it for 1st pass; if not, use lib generated from 1st pass for 2nd pass
         this.glycoLibCache = new HashMap<>();
         this.decoyGlycoLibCache = new HashMap<>();
-        if (useGlycoLibFirstPass) {
+        if (useGlycoLib) {
             // Precompute glycolib lookups for all candidates to avoid repeated nearest-neighbor searches during PSM processing
             for (GlycanCandidate candidate : glycoDatabase) {
                 String glycanHash = Glycan.toGlycanString(candidate.composition).replace("Decoy_", "");
@@ -732,7 +732,7 @@ public class GlycoAnalysis {
      */
     public void runScoresAndFDR() {
         // LDA or NN scoring method: 2nd pass, or first pass if using library scoring
-        if ((glycoParams.glycoLDA || glycoParams.glycoNN) && (useGlycoLibFirstPass)) {
+        if ((glycoParams.glycoLDA || glycoParams.glycoNN) && (useGlycoLib)) {
             // Collect training data (shared by both LDA and NN)
             List<double[]> trainTargets = new ArrayList<>();
             List<double[]> trainDecoys = new ArrayList<>();
@@ -1110,7 +1110,7 @@ public class GlycoAnalysis {
         spec.conditionOptNorm(condPeaks, condRatio, false);
 
         // do glycan assignment with original delta mass
-        glycoResult = glycoParams.glycoSkipPairwise
+        glycoResult = useGlycoLib
                 ? assignGlycanToPSMNoPairwise(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError)
                 : assignGlycanToPSM(spec, glycoResult, glycanDatabase, massErrorWidth, meanMassError);
 
@@ -1122,7 +1122,7 @@ public class GlycoAnalysis {
                 float altPepMass = (float) (psm.getCalcPepmass() - mod.mass);
 
                 GlycanAssignmentResult altResult = new GlycanAssignmentResult(psm.lineNum, psm.getPeptide(), altDeltaMass, altPepMass, psm.printAssignedMods(), psm.getAssignedMods(), psm.getSpec());
-                altResult = glycoParams.glycoSkipPairwise
+                altResult = useGlycoLib
                         ? assignGlycanToPSMNoPairwise(spec, altResult, glycanDatabase, massErrorWidth, meanMassError)
                         : assignGlycanToPSM(spec, altResult, glycanDatabase, massErrorWidth, meanMassError);
 
@@ -1170,7 +1170,7 @@ public class GlycoAnalysis {
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
             for (GlycanCandidateResult candidate : searchCandidates) {
                 matchFragmentsToSpectra(spec, glycoResult, candidate, ppmTol);
-                if (useGlycoLibFirstPass) {
+                if (useGlycoLib) {
                     loadGlycoLibExpectedIntensities(candidate);
                 }
             }
@@ -1183,7 +1183,7 @@ public class GlycoAnalysis {
                     continue;
                 }
                 double comparisonScore;
-                if (!isFirstPass || useGlycoLibFirstPass) {
+                if (useGlycoLib) {
                     comparisonScore = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
                     comparisonScore = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
@@ -1210,7 +1210,7 @@ public class GlycoAnalysis {
 
             // update comparison scores against the final best candidate for those that weren't compared to best in the first pass
             for (int i = 0; i < bestCandidateIndex; i++) {
-                if (!isFirstPass || useGlycoLibFirstPass) {
+                if (useGlycoLib) {
                     scoresVsBestCandidate[i] = pairwiseCompare2ndPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
                 } else {
                     scoresVsBestCandidate[i] = pairwiseCompare1stPass(searchCandidates.get(bestCandidateIndex), searchCandidates.get(i), glycoResult, spec);
@@ -1243,7 +1243,7 @@ public class GlycoAnalysis {
             }
 
             // compute absolute score for best glycan
-            if (!isFirstPass || useGlycoLibFirstPass) {
+            if (useGlycoLib) {
                 computeAbsoluteScore2ndPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult);
             } else {
                 computeAbsoluteScore1stPass(spec, searchCandidates.get(bestCandidateIndex), glycoResult);
@@ -1293,14 +1293,14 @@ public class GlycoAnalysis {
             float ppmTol = Float.parseFloat(PTMShepherd.getParam("spectra_ppmtol"));
             for (GlycanCandidateResult candidate : searchCandidates) {
                 matchFragmentsToSpectra(spec, glycoResult, candidate, ppmTol);
-                if (useGlycoLibFirstPass) {
+                if (useGlycoLib) {
                     loadGlycoLibExpectedIntensities(candidate);
                 }
             }
 
             // compute absolute score for ALL candidates
             for (GlycanCandidateResult candidate : searchCandidates) {
-                if (!isFirstPass || useGlycoLibFirstPass) {
+                if (useGlycoLib) {
                     computeAbsoluteScore2ndPass(spec, candidate, glycoResult);
                 } else {
                     computeAbsoluteScore1stPass(spec, candidate, glycoResult);
@@ -1418,7 +1418,7 @@ public class GlycoAnalysis {
         // compute scores for all candidates (except the best, since it was already computed)
         for (int i = 1; i < glycoResult.allCandidates.size(); i++) {
             GlycanCandidateResult nextCandidate = glycoResult.allCandidates.get(i);
-            if (!isFirstPass || useGlycoLibFirstPass) {
+            if (useGlycoLib) {
                 computeAbsoluteScore2ndPass(spec, nextCandidate, glycoResult);
             } else {
                 computeAbsoluteScore1stPass(spec, nextCandidate, glycoResult);
@@ -2085,7 +2085,7 @@ public class GlycoAnalysis {
 
         // some scores are always included
         // Y ions
-        if (isFirstPass && !useGlycoLibFirstPass) {
+        if (isFirstPass && !useGlycoLib) {
             features.add(candidate.YFragmentScore);
             summedScore += candidate.YFragmentScore;
         } else {
@@ -2095,7 +2095,7 @@ public class GlycoAnalysis {
         // oxonium ions
         features.add(candidate.OxFragmentScore);
         summedScore += candidate.OxFragmentScore;
-        if (!isFirstPass || useGlycoLibFirstPass) {
+        if (useGlycoLib) {
             features.add(candidate.oxSpecSim);
             summedScore += candidate.oxSpecSim;
         }

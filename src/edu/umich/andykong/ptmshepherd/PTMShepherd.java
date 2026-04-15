@@ -1372,7 +1372,7 @@ public class PTMShepherd {
 		if (!glycoParams.glycoLibPath.isEmpty()) {
 			glycoParams.parseGlycoLib();
 		}
-		glycoParams.useGlycoLibFirstPass = glycoParams.glycoLibFragments != null && !glycoParams.glycoLibFragments.isEmpty();
+		glycoParams.useGlycoLib = glycoParams.glycoLibFragments != null && !glycoParams.glycoLibFragments.isEmpty();
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
@@ -1427,7 +1427,6 @@ public class PTMShepherd {
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
 		glycoParams.checkVariableMods = !getParam("glyco_check_variable_mods").isEmpty() && Boolean.parseBoolean(getParam("glyco_check_variable_mods"));	// default false
 		glycoParams.minDecoyFragmentDiff = getParam("glyco_min_fragment_diff").isEmpty() ? 0.05 : Double.parseDouble(getParam("glyco_min_fragment_diff"));	// default 0.05
-		glycoParams.glycoSkipPairwise = !getParam("glyco_skip_pairwise").isEmpty() && Boolean.parseBoolean(getParam("glyco_skip_pairwise"));	// default false
 		glycoParams.updateGlycoLib = !getParam("glyco_update_lib").isEmpty() && Boolean.parseBoolean(getParam("glyco_update_lib"));	// default false
 
 		return glycoParams;

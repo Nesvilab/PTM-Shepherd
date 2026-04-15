@@ -71,8 +71,7 @@ public class GlycoParams {
     public String glycoLibPath;
     public HashMap<String, GlycanCandidateFragments> glycoLibFragments;
     public HashMap<String, Integer> glycoLibCounts;
-    public boolean useGlycoLibFirstPass;
-    public boolean glycoSkipPairwise;
+    public boolean useGlycoLib;
     public boolean updateGlycoLib;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
@@ -292,7 +291,7 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseString(String glycanDBString) {
         ArrayList<Glycan> glycans = GlycanParser.parseGlycanDatabaseString(glycanDBString, glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, DECOY_PPM_SHIFT, DECOY_ISOTOPES, randomGenerator, numDecoysPerTarget, useGlycoLibFirstPass);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, DECOY_PPM_SHIFT, DECOY_ISOTOPES, randomGenerator, numDecoysPerTarget, useGlycoLib);
     }
 
     /**
@@ -303,7 +302,7 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseFile(String inputPath) {
         ArrayList<Glycan> glycans = GlycanParser.loadGlycansFromText(inputPath, GlycanParser.detectDBtype(inputPath), glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, DECOY_PPM_SHIFT, DECOY_ISOTOPES, randomGenerator, numDecoysPerTarget, useGlycoLibFirstPass);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, DECOY_PPM_SHIFT, DECOY_ISOTOPES, randomGenerator, numDecoysPerTarget, useGlycoLib);
     }
 
     /**
