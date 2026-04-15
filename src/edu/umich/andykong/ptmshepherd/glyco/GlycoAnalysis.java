@@ -341,15 +341,9 @@ public class GlycoAnalysis {
             }
         }
         // combine intensities
-        if (glycoParams.glycoAvgInts) {
-            yFragmentIntensities = calculateFragmentAvgInts(YInts);
-            OxFragmentIntensities = calculateFragmentAvgInts(OxInts);
-            generalOxFragmentIntensities = calculateFragmentAvgInts(generalOxInts);
-        } else {
-            yFragmentIntensities = calculateFragmentMedianInts(YInts);
-            OxFragmentIntensities = calculateFragmentMedianInts(OxInts);
-            generalOxFragmentIntensities = calculateFragmentMedianInts(generalOxInts);
-        }
+        yFragmentIntensities = calculateFragmentMedianInts(YInts);
+        OxFragmentIntensities = calculateFragmentMedianInts(OxInts);
+        generalOxFragmentIntensities = calculateFragmentMedianInts(generalOxInts);
 
         // save determined propensities to the output container
         return new GlycanCandidateFragments(yFragmentIntensities, OxFragmentIntensities, generalOxFragmentIntensities);
@@ -1796,12 +1790,7 @@ public class GlycoAnalysis {
             return MIN_SIMILARITY; // no matching ions found, return minimum similarity
         }
 
-        double score;
-        if (glycoParams.cosineSimilarityScoring) {
-            score = cosineSimilarity(expectedYs, foundYs);
-        } else {
-            score = entropyScore(expectedYs, foundYs);
-        }
+        double score = cosineSimilarity(expectedYs, foundYs);
         if (score < MIN_SIMILARITY) {
             score = MIN_SIMILARITY;     // cap at minimum similarity to prevent extreme values and log(0) issues
         }

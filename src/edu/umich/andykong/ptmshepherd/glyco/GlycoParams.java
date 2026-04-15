@@ -64,8 +64,6 @@ public class GlycoParams {
     public double ldaTargetProp;
     public boolean twoPassMode;
     public boolean removeGlycans2ndPass;
-    public boolean cosineSimilarityScoring;
-    public boolean glycoAvgInts;
     public int numDecoysPerTarget;
     public boolean checkVariableMods;
     public boolean noFDR;
@@ -76,7 +74,6 @@ public class GlycoParams {
     public boolean useGlycoLibFirstPass;
     public boolean glycoSkipPairwise;
     public boolean updateGlycoLib;
-    public boolean incr1stFDR;
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

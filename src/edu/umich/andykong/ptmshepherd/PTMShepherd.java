@@ -592,10 +592,6 @@ public class PTMShepherd {
 		}
 
 		// Glyco: first pass
-		double originalFDR = glycoParams.glycoFDR;
-		if (!glycoParams.noFDR && glycoParams.incr1stFDR) {
-			glycoParams.glycoFDR = Math.min(0.95, glycoParams.glycoFDR * 5);     // more lenient FDR for 1st pass
-		}
 		TreeMap<String, GlycoAnalysis> glycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams, true);
@@ -620,7 +616,6 @@ public class PTMShepherd {
 
 		// second pass: calculate fragment propensity-based glycan assignment and update results
 		int passNum = 1;
-		glycoParams.glycoFDR = originalFDR;
 		TreeMap<String, GlycoAnalysis> finalGlycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = glycoAnalysisMap.get(ds);
@@ -1430,13 +1425,10 @@ public class PTMShepherd {
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));
 		glycoParams.twoPassMode = getParam("glyco_two_pass_search").isEmpty() || Boolean.parseBoolean(getParam("glyco_two_pass_search"));	// default true
 		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
-		glycoParams.cosineSimilarityScoring = !getParam("glyco_cosine_sim").isEmpty() && Boolean.parseBoolean(getParam("glyco_cosine_sim"));	// default false
-		glycoParams.glycoAvgInts = !getParam("glyco_avg_spectra").isEmpty() && Boolean.parseBoolean(getParam("glyco_avg_spectra"));	// default false
 		glycoParams.checkVariableMods = !getParam("glyco_check_variable_mods").isEmpty() && Boolean.parseBoolean(getParam("glyco_check_variable_mods"));	// default false
 		glycoParams.minDecoyFragmentDiff = getParam("glyco_min_fragment_diff").isEmpty() ? 0.05 : Double.parseDouble(getParam("glyco_min_fragment_diff"));	// default 0.05
 		glycoParams.glycoSkipPairwise = !getParam("glyco_skip_pairwise").isEmpty() && Boolean.parseBoolean(getParam("glyco_skip_pairwise"));	// default false
 		glycoParams.updateGlycoLib = !getParam("glyco_update_lib").isEmpty() && Boolean.parseBoolean(getParam("glyco_update_lib"));	// default false
-		glycoParams.incr1stFDR = !getParam("incr_first_fdr").isEmpty() && Boolean.parseBoolean(getParam("incr_first_fdr"));	// default false
 
 		return glycoParams;
 	}
