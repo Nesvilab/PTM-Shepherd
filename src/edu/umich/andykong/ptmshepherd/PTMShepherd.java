@@ -1373,8 +1373,8 @@ public class PTMShepherd {
 		String glycanModDB = getParam("glyco_mod_list");
 		String glycoOxoDB = getParam("glyco_oxonium_list");
 		glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
-		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
-		glycoParams.glycoNN = !getParam("glyco_nn").isEmpty() && Boolean.parseBoolean(getParam("glyco_nn"));	// default false
+		glycoParams.glycoLDA = getParam("glyco_lda").isEmpty() || Boolean.parseBoolean(getParam("glyco_lda"));	// default true
+		glycoParams.glycoNN = getParam("glyco_nn").isEmpty() || Boolean.parseBoolean(getParam("glyco_nn"));	// default true
 		glycoParams.noFDR = !getParam("glyco_no_fdr").isEmpty() && Boolean.parseBoolean(getParam("glyco_no_fdr"));	// default false
 		glycoParams.glycoLibPath = getParam("glyco_lib_path");	// default empty (no library)
 		if (!glycoParams.glycoLibPath.isEmpty()) {
@@ -1426,13 +1426,15 @@ public class PTMShepherd {
 		glycoParams.printGlycoDecoys = !getParam("print_decoys").isEmpty() && Boolean.parseBoolean(getParam("print_decoys"));	// default false
 		glycoParams.allowedLocalizationResidues = getParam("localization_allowed_res");
 		glycoParams.numThreads = Integer.parseInt(params.get("threads"));
-		glycoParams.ldaFeaturesToUse = GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
-        glycoParams.ldaTargetProp = getParam("glyco_lda_target_proportion").isEmpty() ? 0.5 : Double.parseDouble(getParam("glyco_lda_target_proportion"));
-        glycoParams.topPctSpectraForConsensus = getParam("top_pct_gpsms").isEmpty() ? 1.0 : Double.parseDouble(getParam("top_pct_gpsms"));
-        glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 1 : Integer.parseInt(getParam("min_y_consensus"));
+		glycoParams.ldaFeaturesToUse = getParam("glyco_lda_features").isEmpty() ?
+				GlycoParams.parseLDAfeatures("glycanfreq,ms1,ms1delta") :		// default features if param not provided
+				GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
+        glycoParams.ldaTargetProp = getParam("glyco_lda_target_proportion").isEmpty() ? 0.2 : Double.parseDouble(getParam("glyco_lda_target_proportion"));
+        glycoParams.topPctSpectraForConsensus = getParam("top_pct_gpsms").isEmpty() ? 0.2 : Double.parseDouble(getParam("top_pct_gpsms"));
+        glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 3 : Integer.parseInt(getParam("min_y_consensus"));
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));
 		glycoParams.twoPassMode = getParam("glyco_two_pass_search").isEmpty() || Boolean.parseBoolean(getParam("glyco_two_pass_search"));	// default true
-		glycoParams.removeGlycans2ndPass = !getParam("glyco_reduce_database_second_pass").isEmpty() && Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default false
+		glycoParams.removeGlycans2ndPass = getParam("glyco_reduce_database_second_pass").isEmpty() || Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default true
 		glycoParams.checkVariableMods = !getParam("glyco_check_variable_mods").isEmpty() && Boolean.parseBoolean(getParam("glyco_check_variable_mods"));	// default false
 		glycoParams.minDecoyFragmentDiff = getParam("glyco_min_fragment_diff").isEmpty() ? 0.05 : Double.parseDouble(getParam("glyco_min_fragment_diff"));	// default 0.05
 		glycoParams.updateGlycoLib = !getParam("glyco_update_lib").isEmpty() && Boolean.parseBoolean(getParam("glyco_update_lib"));	// default false

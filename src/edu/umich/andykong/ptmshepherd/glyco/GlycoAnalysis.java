@@ -70,7 +70,7 @@ public class GlycoAnalysis {
     LinkedHashMap<String, GlycanCandidate> glycanDBmap;
     Double meanMassError;
     double massErrorWidth;
-    public static final double DEFAULT_GLYCO_PPM_TOL = 30;
+    public static final double DEFAULT_GLYCO_PPM_TOL = 20;
     public static final double DEFAULT_GLYCO_FDR = 0.01;
     public static final int DEFAULT_GLYCO_DECOY_TYPE = 1;
     public static final String GLYCAN_COMP_COL_NAME = "Total Glycan Composition";
