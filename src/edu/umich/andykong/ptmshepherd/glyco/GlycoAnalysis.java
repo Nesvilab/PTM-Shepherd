@@ -329,15 +329,16 @@ public class GlycoAnalysis {
         generateDecoys2ndPass();
 
         // generate plots of target vs decoy fragment intensities
+        new File(normFName("glycan_score_plots")).mkdirs();
         for (String glycanKey : targetGlycanFragmentProps.keySet()) {
             // make plots
-            plotFragmentComparison(normFName(glycanKey + "_Y.png"),
+            plotFragmentComparison(normFName("glycan_score_plots/" + glycanKey + "_Y.png"),
                 targetGlycanFragmentProps.get(glycanKey).yFragmentIntensities,
                 decoyGlycanFragmentProps.get(glycanKey).yFragmentIntensities,
                 targetGlycanFragmentProps.get(glycanKey).yFragmentStdDevs,
                 decoyGlycanFragmentProps.get(glycanKey).yFragmentStdDevs,
                 "Target", "Decoy", glycanKey + "_Y", "Fragment", "Intensity");
-            plotFragmentComparison(normFName(glycanKey + "_ox.png"),
+            plotFragmentComparison(normFName("glycan_score_plots/" + glycanKey + "_ox.png"),
                 targetGlycanFragmentProps.get(glycanKey).generalOxFragmentIntensities,
                 decoyGlycanFragmentProps.get(glycanKey).generalOxFragmentIntensities,
                 targetGlycanFragmentProps.get(glycanKey).generalOxFragmentStdDevs,
@@ -1032,13 +1033,14 @@ public class GlycoAnalysis {
 
         // Plot histograms for each individual glycan
         if (!isFirstPass) {
+            new File(normFName("glycan_score_plots")).mkdirs();
             Set<String> allGlycans = new HashSet<>();
             allGlycans.addAll(targetScoresByGlycan.keySet());
             allGlycans.addAll(decoyScoresByGlycan.keySet());
             for (String glycan : allGlycans) {
                 List<Double> targetScores = targetScoresByGlycan.getOrDefault(glycan, Collections.emptyList());
                 List<Double> decoyScores = decoyScoresByGlycan.getOrDefault(glycan, Collections.emptyList());
-                String filename = normFName(datasetName + firstPass + glycan + glycoHistoName);
+                String filename = normFName("glycan_score_plots/" + firstPass + glycan + glycoHistoName);
                 plotGlycanScoreHistogramDensity(filename, targetScores, decoyScores);
             }
         }
