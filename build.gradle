@@ -73,7 +73,7 @@ dependencies {
     implementation 'org.hipparchus:hipparchus-stat:1.8'
     implementation 'org.apache.commons:commons-lang3:3.0'
 //    implementation name: 'msftbx'
-    implementation 'org.jfree:jfreechart:1.5.4'
+    implementation 'org.jfree:jfreechart:1.5.3'
 
     // testing
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.2'
