@@ -29,7 +29,6 @@ import umich.ms.glyco.GlycanCandidate;
 import edu.umich.andykong.ptmshepherd.glyco.GlycanCandidateFragments;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoAnalysis;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
-import ionquant.api.IonQuantAPI;
 import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.iterativelocalization.IterativeLocalizer;
 import edu.umich.andykong.ptmshepherd.localization.LocalizationProfile;
@@ -79,7 +78,7 @@ public class PTMShepherd {
     public static String outputPath;
 	public static ExecutorService executorService;
     public static GlycoParams glycoParams;
-    public static HashMap<String, IonQuantAPI> ionQuantAPICache = null;
+    public static HashMap<String, Object> ionQuantAPICache = null;
 	private static final long glycoRandomSeed = 1364955171;
 
 	// filenames for output files
@@ -582,7 +581,7 @@ public class PTMShepherd {
 					if (ms1Files == null) continue;
 					for (Map.Entry<String, File> entry : ms1Files.entrySet()) {
 						String filePath = String.valueOf(entry.getValue());
-						IonQuantAPI builtApi = GlycoAnalysis.indexBuilder(filePath, glycoParams);
+						Object builtApi = GlycoAnalysis.indexBuilder(filePath, glycoParams);
 						if (builtApi != null)
 							ionQuantAPICache.put(filePath, builtApi);
 					}

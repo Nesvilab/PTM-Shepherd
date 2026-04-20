@@ -24,8 +24,6 @@ import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
-import ionquant.api.Entry;
-import ionquant.api.IonQuantAPI;
 import org.apache.commons.math3.fitting.GaussianCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 import org.jfree.chart.ChartUtils;
@@ -84,7 +82,7 @@ public class GlycoAnalysis {
     public LinkedHashMap<String, GlycanCandidateFragments> targetGlycanFragmentProps;
     public LinkedHashMap<String, GlycanCandidateFragments> decoyGlycanFragmentProps;
     private final String ldaHeader;
-    private static IonQuantAPI api;
+    private static Object api;
     public final boolean isFirstPass;
     final boolean useGlycoLib;
     private final HashMap<String, GlycanCandidateFragments> glycoLibCache;
@@ -223,7 +221,7 @@ public class GlycoAnalysis {
      * @param filePath Path to the MS data file
      * @param params Parameters controlling the feature detection
      */
-    public static IonQuantAPI indexBuilder(String filePath, GlycoParams params) {
+    public static Object indexBuilder(String filePath, GlycoParams params) {
         if (!params.skipMS1) {
             // Use pre-built API from cache if available
             if (PTMShepherd.ionQuantAPICache != null && PTMShepherd.ionQuantAPICache.containsKey(filePath)) {
@@ -231,20 +229,54 @@ public class GlycoAnalysis {
                 return api;
             }
             PTMShepherd.print("\tBuilding IonQuant index for " + filePath);
-            api = new IonQuantAPI(
-                    filePath,
-                    params.numThreads,
-                    (float) params.glycoPPMtol,
-                    params.rtTol,
-                    params.imTol,
-                    params.minIsotopesIonQuant,
-                    params.minScansIonQuant,
-                    !filePath.toLowerCase().endsWith(".d")      // auto-detect IM data for the "noPASEF" parameter
-            );
-            api.buildIndex();
+            try {
+                Class<?> ionQuantAPIClass = Class.forName("ionquant.api.IonQuantAPI");
+                api = ionQuantAPIClass.getConstructor(String.class, int.class, float.class, float.class, float.class, int.class, int.class, boolean.class)
+                        .newInstance(filePath, params.numThreads, (float) params.glycoPPMtol, params.rtTol, params.imTol,
+                                params.minIsotopesIonQuant, params.minScansIonQuant, !filePath.toLowerCase().endsWith(".d"));
+                ionQuantAPIClass.getMethod("buildIndex").invoke(api);
+            } catch (ClassNotFoundException e) {
+                PTMShepherd.die("IonQuantAPI not found on classpath. MS1 scoring features (kl, ms1, ms1delta) require the IonQuant API library.");
+            } catch (ReflectiveOperationException e) {
+                PTMShepherd.die("Failed to initialize IonQuantAPI: " + e.getMessage());
+            }
             return api;
         } else {
             return null;
+        }
+    }
+
+    private static Object invokeQuantXIC123(float mz, float rt, float im, int charge, float cv) {
+        try {
+            return api.getClass().getMethod("quantXIC123", float.class, float.class, float.class, int.class, float.class)
+                    .invoke(api, mz, rt, im, charge, cv);
+        } catch (ReflectiveOperationException e) {
+            return null;
+        }
+    }
+
+    private static Object invokeQuantXIC(float mz, float rt, float im, int charge, float cv) {
+        try {
+            return api.getClass().getMethod("quantXIC", float.class, float.class, float.class, int.class, float.class)
+                    .invoke(api, mz, rt, im, charge, cv);
+        } catch (ReflectiveOperationException e) {
+            return null;
+        }
+    }
+
+    private static double getEntryKL(Object entry) {
+        try {
+            return ((Number) entry.getClass().getField("kl").get(entry)).doubleValue();
+        } catch (ReflectiveOperationException e) {
+            return 0;
+        }
+    }
+
+    private static double getEntryIntensity(Object entry) {
+        try {
+            return ((Number) entry.getClass().getField("intensity").get(entry)).doubleValue();
+        } catch (ReflectiveOperationException e) {
+            return 0;
         }
     }
 
@@ -2230,13 +2262,13 @@ public class GlycoAnalysis {
         double candidateMass = candidate.mass + pepmass;    // pep mass + glycan mass
         double mz = Spectrum.calcMZ(candidateMass, spec.charge);
         // todo: change to use exact comp (plus compare) (needs IonQuant API to expose that option)
-        Entry quantifiedEntry = api.quantXIC123((float) mz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
+        Object quantifiedEntry = invokeQuantXIC123((float) mz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
 
         double score;
         if (quantifiedEntry == null) {
             score = 0;      // no peak found at this m/z
         } else {
-            score = Math.log(1.0 / Math.abs(quantifiedEntry.kl));
+            score = Math.log(1.0 / Math.abs(getEntryKL(quantifiedEntry)));
         }
         return score;
     }
@@ -2275,9 +2307,9 @@ public class GlycoAnalysis {
         // Find and normalize experimental isotope envelope (assumes 1st theoretical peak is mono, but might not be true if there are unusual elements in the glycan)
         LinkedHashMap<Integer, Double> isotopeEnvelope = new LinkedHashMap<>();
         double theoMonoMz = Spectrum.calcMZ(monoMassThy, spec.charge);
-        Entry monoisotopicPeak = api.quantXIC((float) theoMonoMz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
+        Object monoisotopicPeak = invokeQuantXIC((float) theoMonoMz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
         if (monoisotopicPeak != null) {
-            isotopeEnvelope.put(0, (double) monoisotopicPeak.intensity);
+            isotopeEnvelope.put(0, getEntryIntensity(monoisotopicPeak));
         }
         isotopeEnvelope.putAll(searchForIsotopePeaks(spec, monoMassThy, 1, 1));
         isotopeEnvelope.putAll(searchForIsotopePeaks(spec, monoMassThy, -1, -1));
@@ -2329,9 +2361,9 @@ public class GlycoAnalysis {
             double newMz2 = Spectrum.calcMZ(mz + ((isoIndex + step) * ISOTOPE_MASS_DIFF), spec.charge);
             double newMzGood = Spectrum.calcMZ(neutralMass + ((isoIndex + step) * ISOTOPE_MASS_DIFF), spec.charge);
 
-            Entry isotopePeak = api.quantXIC((float) newMz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
+            Object isotopePeak = invokeQuantXIC((float) newMz, (float) spec.rt, (float) spec.im, spec.charge, spec.cv);
             if (isotopePeak != null) {
-                double intensity = isotopePeak.intensity;
+                double intensity = getEntryIntensity(isotopePeak);
                 if (prevPeakIntensity != null) {
                     // Once decreasing has started, any increase is invalid (outside a 5% tolerance to account for noise)
                     if (wasDecreasing && intensity > (prevPeakIntensity * 1.05)) {
