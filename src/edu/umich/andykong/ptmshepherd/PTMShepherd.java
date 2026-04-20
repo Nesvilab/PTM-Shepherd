@@ -324,6 +324,8 @@ public class PTMShepherd {
 	}
 
 	public static void main(String [] args) {
+		// prevent AWT Event Dispatch Thread from keeping the JVM alive after main() exits
+		System.setProperty("java.awt.headless", "true");
 		// allow program to terminate even when the ExecutorServices are not shutdown
 		Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
 			e.printStackTrace();
@@ -420,6 +422,7 @@ public class PTMShepherd {
 		deleteFilesOnClose();
 
 		executorService.shutdown();
+		System.exit(0);
 	}
 
 	private static void deleteFilesOnClose() {
