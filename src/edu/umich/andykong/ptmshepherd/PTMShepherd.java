@@ -564,10 +564,7 @@ public class PTMShepherd {
 //        glycoParams.printGlycanDatabase(normFName(glycoDBname));
 
 		// Pre-build IonQuant indices once for the full run if total raw files <= 2x available RAM (GB)
-		boolean needsIonQuant = glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl) ||
-				glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1) ||
-				glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1delta);
-		if (needsIonQuant) {
+		if (!glycoParams.skipMS1) {
 			int totalRawFiles = 0;
 			for (String ds : datasets.keySet()) {
 				if (mzMap.get(ds) != null)
@@ -1381,6 +1378,7 @@ public class PTMShepherd {
 			glycoParams.parseGlycoLib();
 		}
 		glycoParams.useGlycoLib = glycoParams.glycoLibFragments != null && !glycoParams.glycoLibFragments.isEmpty();
+		glycoParams.skipMS1 = !getParam("glyco_skip_ms1").isEmpty() && Boolean.parseBoolean(getParam("glyco_skip_ms1"));	// default false
 
 		// parse glyco parameters and initialize database and ratio tables
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
@@ -1440,6 +1438,11 @@ public class PTMShepherd {
 		glycoParams.updateGlycoLib = !getParam("glyco_update_lib").isEmpty() && Boolean.parseBoolean(getParam("glyco_update_lib"));	// default false
 
         glycoParams.printScoreGraphs = !getParam("glyco_score_plots").isEmpty() && Boolean.parseBoolean(getParam("glyco_score_plots"));	// default false
+		if (!glycoParams.skipMS1 && !(glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)
+				|| glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1delta)
+				|| glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl))) {
+			glycoParams.skipMS1 = true;		// skip MS1 not explicitly specified, but no features require MS1, so set to true to save time in glyco analysis
+		}
 		return glycoParams;
 	}
 

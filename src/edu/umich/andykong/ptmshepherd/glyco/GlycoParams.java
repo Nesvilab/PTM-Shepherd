@@ -74,6 +74,7 @@ public class GlycoParams {
     public HashMap<String, Integer> glycoLibCounts;
     public boolean useGlycoLib;
     public boolean updateGlycoLib;
+    public boolean skipMS1;     // if true, does not need IonQuant API access
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";

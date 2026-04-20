@@ -224,7 +224,7 @@ public class GlycoAnalysis {
      * @param params Parameters controlling the feature detection
      */
     public static IonQuantAPI indexBuilder(String filePath, GlycoParams params) {
-        if (params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl) || params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1) || params.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1delta)) {
+        if (!params.skipMS1) {
             // Use pre-built API from cache if available
             if (PTMShepherd.ionQuantAPICache != null && PTMShepherd.ionQuantAPICache.containsKey(filePath)) {
                 api = PTMShepherd.ionQuantAPICache.get(filePath);
