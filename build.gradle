@@ -101,12 +101,19 @@ task packageWithDeps(group: 'ptm-shepherd') {
     tasks.findByName('installShadowDist').mustRunAfter 'test'
 }
 
-task packageNoDeps(group: 'ptm-shepherd') {
-    dependsOn 'clean'
-    dependsOn 'jar'
-    dependsOn 'test'
-    tasks.findByName('jar').mustRunAfter 'clean'
-    tasks.findByName('jar').mustRunAfter 'test'
+task packageNoDeps(group: 'ptm-shepherd', type: Jar) {
+    dependsOn 'clean', 'test', 'compileJava', 'processResources'
+    tasks.findByName('compileJava').mustRunAfter 'clean'
+    tasks.findByName('test').mustRunAfter 'clean'
+
+    from sourceSets.main.output
+    from zipTree(file("lib/Isotope-1.1.2.jar"))
+
+    manifest {
+        attributes 'Main-Class': 'edu.umich.andykong.ptmshepherd.PTMShepherd'
+    }
+    archiveFileName = "ptmshepherd-${version}.jar"
+    exclude '**/*.java'
 }
 
 task updateFragpipeJar(group: 'ptm-shepherd', type: Copy) {
