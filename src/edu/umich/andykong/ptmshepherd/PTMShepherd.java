@@ -1445,6 +1445,12 @@ public class PTMShepherd {
 				|| glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl))) {
 			glycoParams.skipMS1 = true;		// skip MS1 not explicitly specified, but no features require MS1, so set to true to save time in glyco analysis
 		}
+		if (glycoParams.skipMS1) {
+			// skipMS1 overrides any LDA features that require the IonQuant API
+			glycoParams.ldaFeaturesToUse.remove(GlycoParams.LDAFeature.ms1);
+			glycoParams.ldaFeaturesToUse.remove(GlycoParams.LDAFeature.ms1delta);
+			glycoParams.ldaFeaturesToUse.remove(GlycoParams.LDAFeature.kl);
+		}
 		return glycoParams;
 	}
 
