@@ -1031,25 +1031,16 @@ public class GlycoAnalysis {
                 .filter(r -> r.foundGlycan && r.bestDecoy != null)
                 .map(r -> r.bestDecoy.massErrorScore)
                 .collect(Collectors.toList());
-        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "best" + glycoHistoName), targetBestScores, decoyBestScores);
-        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestY" + glycoHistoName), targetBestYScores, decoyBestYScores);
-        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestOx" + glycoHistoName), targetBestOxScores, decoyBestOxScores);
-        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestGenOx" + glycoHistoName), targetBestGenOxScores, decoyBestGenOxScores);
-        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "bestMass" + glycoHistoName), targetBestMassScores, decoyBestMassScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "score" + glycoHistoName), targetBestScores, decoyBestScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "Y-score" + glycoHistoName), targetBestYScores, decoyBestYScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "Ox-diagnostic" + glycoHistoName), targetBestOxScores, decoyBestOxScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "Ox-general" + glycoHistoName), targetBestGenOxScores, decoyBestGenOxScores);
+        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "Mass-score" + glycoHistoName), targetBestMassScores, decoyBestMassScores);
 
-        List<Double> targetAllScores = new ArrayList<>();
-        List<Double> decoyAllScores = new ArrayList<>();
         Map<String, List<Double>> targetScoresByGlycan = new LinkedHashMap<>();
         Map<String, List<Double>> decoyScoresByGlycan = new LinkedHashMap<>();
         for (GlycanAssignmentResult result : allResults) {
             if (result.foundGlycan) {
-                for (GlycanCandidateResult candidate : result.allCandidates) {
-                    if (candidate.isDecoy) {
-                        decoyAllScores.add(candidate.glycanScore);
-                    } else {
-                        targetAllScores.add(candidate.glycanScore);
-                    }
-                }
                 if (result.bestTarget != null) {
                     String glycanName = Glycan.toGlycanString(result.bestTarget.composition);
                     targetScoresByGlycan.computeIfAbsent(glycanName, k -> new ArrayList<>())
@@ -1062,8 +1053,6 @@ public class GlycoAnalysis {
                 }
             }
         }
-        plotGlycanScoreHistogram(normFName(datasetName + firstPass + "all" + glycoHistoName), targetAllScores, decoyAllScores);
-        plotGlycanScoreHistogramDensity(normFName(datasetName + firstPass + "density" + "all" + glycoHistoName), targetAllScores, decoyAllScores);
 
         // Plot histograms for each individual glycan
         if (!isFirstPass) {
@@ -1123,37 +1112,6 @@ public class GlycoAnalysis {
             ChartUtils.saveChartAsPNG(new File(outputPath), chart, width, height);
         } catch (IOException e) {
             PTMShepherd.print(String.format("Error saving q-value cumulative PSMs plot at %s due to %s", outputPath, e.getMessage()));
-        }
-    }
-
-    public void plotGlycanScoreHistogram(String outputPath, List<Double> targetScores, List<Double> decoyScores) {
-        double[] targetArray = targetScores.stream().mapToDouble(Double::doubleValue).toArray();
-        double[] decoyArray = decoyScores.stream().mapToDouble(Double::doubleValue).toArray();
-
-        // Create histogram dataset
-        HistogramDataset dataset = new HistogramDataset();
-        int numBins = 100; // Adjust number of bins as needed
-        dataset.addSeries("Target", targetArray, numBins);
-        dataset.addSeries("Decoy", decoyArray, numBins);
-
-        // Create the histogram chart
-        JFreeChart chart = ChartFactory.createHistogram(
-                "Glycan Score Distribution",
-                "Glycan Score",
-                "Count",
-                dataset,
-                PlotOrientation.VERTICAL,
-                true,
-                true,
-                false
-        );
-
-        int width = 900;
-        int height = 600;
-        try {
-            ChartUtils.saveChartAsPNG(new File(outputPath), chart, width, height);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
