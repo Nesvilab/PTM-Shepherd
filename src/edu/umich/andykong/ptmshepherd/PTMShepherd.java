@@ -595,10 +595,6 @@ public class PTMShepherd {
 		TreeMap<String, GlycoAnalysis> glycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams, true);
-			if (ga.isGlycoComplete()) {
-				print(String.format("\tGlyco analysis already done for dataset %s, skipping", ds));
-				continue;
-			}
 
 			// print params here to avoid printing if the analysis is already done/not being run
 			if (!alreadyPrintedParams) {
@@ -642,6 +638,11 @@ public class PTMShepherd {
 
 				// run glyco PSM-level analysis with the new database
 				PTMShepherd.print("Assigning glycans: pass " + passNum);
+				// for non-library mode, supply first-pass fragment propensities as the library for 2nd-pass scoring
+				if (!glycoParams.useGlycoLib && !ga.targetGlycanFragmentProps.isEmpty()) {
+					glycoParams.glycoLibFragments = new HashMap<>(ga.targetGlycanFragmentProps);
+					glycoParams.useGlycoLib = true;
+				}
 				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams, false);
 				ga2.getMassErrorsSecondPass(ga.allResults);
 
