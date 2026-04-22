@@ -15,6 +15,8 @@ public class Mod {
 
     public boolean equals(Mod other) {
         return this.position == other.position && this.mass == other.mass;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o)
