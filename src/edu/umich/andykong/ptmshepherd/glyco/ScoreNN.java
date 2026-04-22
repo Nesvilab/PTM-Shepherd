@@ -65,12 +65,12 @@ public class ScoreNN {
     private double mB3, vB3;
     private int adamT;
 
-    private Random rng;
+    private final Random randomGenerator;
 
-    public ScoreNN() {
+    public ScoreNN(Random randomGenerator) {
         targetData = new ArrayList<>();
         decoyData = new ArrayList<>();
-        rng = new Random(42);
+        this.randomGenerator = randomGenerator;
     }
 
     /**
@@ -187,7 +187,7 @@ public class ScoreNN {
                         double sum = b1[j];
                         for (int k = 0; k < inputSize; k++) sum += x[k] * w1[k][j];
                         z1[j] = sum;
-                        drop1[j] = rng.nextDouble() < DROPOUT_RATE;
+                        drop1[j] = randomGenerator.nextDouble() < DROPOUT_RATE;
                         a1[j] = drop1[j] ? 0.0 : Math.max(0, z1[j]) / (1.0 - DROPOUT_RATE);
                     }
 
@@ -199,7 +199,7 @@ public class ScoreNN {
                         double sum = b2[j];
                         for (int k = 0; k < hidden1Size; k++) sum += a1[k] * w2[k][j];
                         z2[j] = sum;
-                        drop2[j] = rng.nextDouble() < DROPOUT_RATE;
+                        drop2[j] = randomGenerator.nextDouble() < DROPOUT_RATE;
                         a2[j] = drop2[j] ? 0.0 : Math.max(0, z2[j]) / (1.0 - DROPOUT_RATE);
                     }
 
@@ -373,14 +373,14 @@ public class ScoreNN {
         double[][] w = new double[fanIn][fanOut];
         for (int i = 0; i < fanIn; i++)
             for (int j = 0; j < fanOut; j++)
-                w[i][j] = rng.nextGaussian() * scale;
+                w[i][j] = randomGenerator.nextGaussian() * scale;
         return w;
     }
 
     private double[] xavierInit1D(int fanIn) {
         double scale = Math.sqrt(2.0 / (fanIn + 1));
         double[] w = new double[fanIn];
-        for (int i = 0; i < fanIn; i++) w[i] = rng.nextGaussian() * scale;
+        for (int i = 0; i < fanIn; i++) w[i] = randomGenerator.nextGaussian() * scale;
         return w;
     }
 
@@ -543,7 +543,7 @@ public class ScoreNN {
 
     private void shuffle(int[] arr) {
         for (int i = arr.length - 1; i > 0; i--) {
-            int j = rng.nextInt(i + 1);
+            int j = randomGenerator.nextInt(i + 1);
             int tmp = arr[i];
             arr[i] = arr[j];
             arr[j] = tmp;
