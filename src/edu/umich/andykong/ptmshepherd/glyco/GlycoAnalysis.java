@@ -905,12 +905,14 @@ public class GlycoAnalysis {
             glycoOut.close();
 
             // for debugging
-            PrintWriter glycoOut2 = new PrintWriter(new FileWriter(glycoFile + "2"));
-            glycoOut2.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value", GLYCAN_COMP_COL_NAME) + ldaHeader + "Fragments:");
-            printLines(glycoOut2, allResults.stream().sorted(Comparator.comparingInt(result -> result.psmLineIndex))
-                    .map(GlycanAssignmentResult::printAllCandidates)
-                    .collect(Collectors.joining("")));
-            glycoOut2.close();
+            if (glycoParams.printScoreGraphs) {
+                PrintWriter glycoOut2 = new PrintWriter(new FileWriter(glycoFile + "2"));
+                glycoOut2.println(String.format("%s\t%s\t%s\t%s\t%s", "Spectrum", "Peptide", "Mods", "Pep Mass", "Mass Shift") + String.format("\t%s\tGlycan Score\tGlycan q-value", GLYCAN_COMP_COL_NAME) + ldaHeader + "Fragments:");
+                printLines(glycoOut2, allResults.stream().sorted(Comparator.comparingInt(result -> result.psmLineIndex))
+                        .map(GlycanAssignmentResult::printAllCandidates)
+                        .collect(Collectors.joining("")));
+                glycoOut2.close();
+            }
         } catch (IOException e) {
             PTMShepherd.die("Error writing to glyco file " + glycoFile.getAbsolutePath() + "\n" + e.getMessage());
         }
