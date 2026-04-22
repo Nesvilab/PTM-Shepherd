@@ -652,8 +652,7 @@ public class PTMShepherd {
 				}
 				ga2.runScoresAndFDR();
                 if (glycoParams.printScoreGraphs) {
-					String firstPass = passNum > 1 ? String.format("%d", passNum) : "";
-                    ga2.plotAllGlycoHistograms(ds, firstPass);
+                    ga2.plotAllGlycoHistograms(ds, "");
                 }
                 ga2.completeGlyco();
 				ga = ga2; // set ga to the new analysis for next iteration
