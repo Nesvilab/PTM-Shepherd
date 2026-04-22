@@ -466,7 +466,7 @@ public class PTMShepherd {
 		if(!Boolean.parseBoolean(params.get("output_extended"))) {
 			// delete dataset files with specific extensions
 			extsToDelete = Arrays
-					.asList(rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, histoName, glycoHistoName, diagBinFilename, mzBinFilename);
+					.asList(rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, histoName, glycoHistoName, diagBinFilename, mzBinFilename);
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -1019,7 +1019,7 @@ public class PTMShepherd {
 
 			// delete dataset files with specific extensions
 			List<String> extsToDelete = Arrays
-					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, glycoHistoName, modSummaryName, diagIonsExtractName);
+					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoFirstPass + rawGlycoName + "2", rawGlycoName, rawGlycoName + "2", glycoHistoName, modSummaryName, diagIonsExtractName);
 			for (String ds : datasets.keySet()) {
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
