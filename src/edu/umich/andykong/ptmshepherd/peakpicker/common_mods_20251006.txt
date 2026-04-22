@@ -36,6 +36,7 @@ hexuronic acid	176.0321
 aldehyde and ketone modifications 	13.9793
 intact disulfide bridge	-2.0157
 Half of a disulfide bridge	-1.007825
+Disulfide (fixed carbamidomethyl)	-116.0586
 Hex(1)	162.0528
 HexNAc(1)Hex(1)	365.1322
 HexNAc(1)	203.0794

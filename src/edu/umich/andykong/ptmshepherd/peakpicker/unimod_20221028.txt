@@ -1147,3 +1147,4 @@ RNA-protein UVA-crosslinked, hydrofluoride-digested 4-thiouridine adduct	226.058
 RNA-protein UVA-crosslinked, hydrofluoride-digested 6-thioguanosine adduct	265.081104
 Monomodification with glutamine	128.058578
 Glyceroyl	88.016044
+Disulfide (fixed carbamidomethyl)	-116.0586

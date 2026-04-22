@@ -193,3 +193,4 @@ HexNAc(2) on Nxt	406.1587
 HexNAc(2) on S	406.1587
 HexNAc(2) on T	406.1587
 ADP Ribose addition	541.06111
+Disulfide (fixed carbamidomethyl)	-116.0586
