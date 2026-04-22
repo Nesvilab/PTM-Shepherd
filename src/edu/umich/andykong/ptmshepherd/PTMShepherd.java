@@ -562,7 +562,6 @@ public class PTMShepherd {
 		boolean alreadyPrintedParams = false;
 		glycoParams = parseGlycoParams();
 		String glycoMassFilePath = normFName(glycoMassListName);
-		GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
 //        glycoParams.printGlycanDatabase(normFName(glycoDBname));
 
 		// Pre-build IonQuant indices once for the full run if total raw files <= 2x available RAM (GB)
@@ -654,9 +653,11 @@ public class PTMShepherd {
                 if (glycoParams.printScoreGraphs) {
                     ga2.plotAllGlycoHistograms(ds, "");
                 }
+				glycoParams.glycoDatabase = propensityGlycanDB;		// update glycoDatabase to the reduced DB for final printing
                 ga2.completeGlyco();
 				ga = ga2; // set ga to the new analysis for next iteration
 			}
+			GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
 			finalGlycoAnalysisMap.put(ds, ga);
 		}
 
