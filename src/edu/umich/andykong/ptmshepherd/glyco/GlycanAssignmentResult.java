@@ -133,7 +133,9 @@ public class GlycanAssignmentResult {
             }
             // general oxonium ions
             for (GlycanFragment ion : candidate.generalOxoniumFragments.values()) {
-                sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
+                if (ion.foundIntensity > 0) {
+                    sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
+                }
             }
         }
     }
