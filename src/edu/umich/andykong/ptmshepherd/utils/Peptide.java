@@ -9,21 +9,21 @@ import java.util.*;
 
 public class Peptide { //TODO theoretical peptide fragments, should this not start at 0? Skip b1/y1/a1?
     public String pepSeq;
-    public float[] mods;
+    public double[] mods;
     public int mutatedResidue; // for mono-mutated decoys, 0 indexed
 
-    public Peptide(String pepSeq, float[] mods) {
+    public Peptide(String pepSeq, double[] mods) {
         this.pepSeq = pepSeq;
         this.mods = mods;
     }
 
-    private Peptide(String pepSeq, float[] mods, int mutatedResidue) {
+    private Peptide(String pepSeq, double[] mods, int mutatedResidue) {
         this(pepSeq, mods);
         this.mutatedResidue = mutatedResidue;
     }
 
     // Add mod, 0-index
-    public void addMod(float dmass, int residue) {
+    public void addMod(double dmass, int residue) {
         this.mods[residue] += dmass;
     }
 
@@ -31,7 +31,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
        return  calculatePeptideFragments(this.pepSeq, this.mods, ionTypes, maxCharge);
     }
 
-    public static ArrayList<Float> calculatePeptideFragments(String seq, float[] mods, String ionTypes, int maxCharge) {
+    public static ArrayList<Float> calculatePeptideFragments(String seq, double[] mods, String ionTypes, int maxCharge) {
         ArrayList<Float> knownFrags = new ArrayList<>(seq.length() * ionTypes.length());
 
         ArrayList<Character> nIonTypes = new ArrayList<>();
@@ -54,7 +54,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
                 float cmass = AAMasses.protMass + nTermMass;
                 for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
-                    cmass += (aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge;
+                    cmass += (float) ((aaMasses[seq.charAt(i) - 'A'] + mods[i]) / ccharge);
                     if (i != 0) // todo skip a1/b1 ion, check if this needs to be skipped for c too
                         knownFrags.add(cmass);
                 }
@@ -66,7 +66,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
                 float cmass = (cTermMass + ccharge * AAMasses.protMass) / ccharge;
                 for (int i = 0; i < cLen - 1; i++) {
-                    cmass += (aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+                    cmass += (float) ((aaMasses[seq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge);
                     knownFrags.add(cmass);
                 }
             }
@@ -115,7 +115,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
                 float cmass = AAMasses.protMass + nTermMass;
                 for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
-                    cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + mods[i]) / ccharge;
+                    cmass += (float) ((aaMasses[this.pepSeq.charAt(i) - 'A'] + mods[i]) / ccharge);
                     if (i != 0) { // todo skip a1/b1 ion, check if this needs to be skipped for c too
                         if ((leftI <= i) && (i < rightI)) {
                             knownFrags.add(cmass);
@@ -130,7 +130,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
                 float cmass = (cTermMass + ccharge * AAMasses.protMass) / ccharge;
                 for (int i = 0; i < cLen - 1; i++) {
-                    cmass += (aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+                    cmass += (float) ((aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge);
                     if ((leftI < (cLen - 1 - i)) && ((cLen - 1 - i) <= rightI)) {
                         knownFrags.add(cmass);
                     }
@@ -175,7 +175,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) { //loop through charge states
                 float cmass = AAMasses.protMass + nTermMass; //todo this doesn't account for charge?
                 for (int i = 0; i < cLen - 1; i++) { //loop through positions on the peptide
-                    cmass += (aaMasses[this.pepSeq.charAt(i) - 'A'] + mods[i]) / ccharge;
+                    cmass += (float) ((aaMasses[this.pepSeq.charAt(i) - 'A'] + mods[i]) / ccharge);
                     if (i != 0) { // todo skip a1/b1 ion, check if this needs to be skipped for c too
                         if (i < site) {
                             knownFrags.add(cmass + (dmass / ccharge));
@@ -192,7 +192,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             for (int ccharge = 1; ccharge <= maxCharge; ccharge++) {
                 float cmass = (cTermMass + ccharge * AAMasses.protMass) / ccharge;
                 for (int i = 0; i < cLen - 1; i++) {
-                    cmass += (aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge;
+                    cmass += (float) ((aaMasses[this.pepSeq.charAt(cLen - 1 - i) - 'A'] + mods[cLen - 1 - i]) / ccharge);
                     if ((cLen - 1 - i) > site) {
                         knownFrags.add(cmass + (dmass / ccharge));
                     } else {
@@ -220,7 +220,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             return null; //TODO
     }
 
-    public static Peptide generateDecoy(String pep, float[] mods, Random rng, String method) {
+    public static Peptide generateDecoy(String pep, double[] mods, Random rng, String method) {
         if (method.equals("shuffled"))
             return generateShuffledDecoy(pep, mods, rng);
         else if (method.equals("full-shuffled"))
@@ -235,14 +235,14 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
             return null; //TODO
     }
 
-    public static Peptide generateDecoy(String pep, float[] mods, int pos, Random rng, String method) {
+    public static Peptide generateDecoy(String pep, double[] mods, int pos, Random rng, String method) {
         if (method.equals("mono-swapped"))
             return generateMonoSwappedDecoy(pep, mods, pos, rng);
         else
             return null; //TODO
     }
 
-    public static Peptide generateShuffledDecoy(String pep, float[] mods, Random rng) {
+    public static Peptide generateShuffledDecoy(String pep, double[] mods, Random rng) {
         ArrayList<Site> sites = new ArrayList<>(pep.length());
 
         // Shuffle core
@@ -251,7 +251,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         Collections.shuffle(sites, rng);
 
         StringBuilder newPep = new StringBuilder();
-        float[] newMods = new float[mods.length];
+        double[] newMods = new double[mods.length];
         // N-term AA
         newPep.append(pep.charAt(0));
         newMods[0] = mods[0];
@@ -266,7 +266,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return new Peptide(newPep.toString(), newMods);
     }
 
-    public static Peptide generateFullShuffledDecoy(String pep, float[] mods, Random rng) {
+    public static Peptide generateFullShuffledDecoy(String pep, double[] mods, Random rng) {
         ArrayList<Site> sites = new ArrayList<>(pep.length());
 
         // Shuffle pep
@@ -275,7 +275,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         Collections.shuffle(sites, rng);
 
         StringBuilder newPep = new StringBuilder();
-        float[] newMods = new float[mods.length];
+        double[] newMods = new double[mods.length];
 
         for (int i = 0; i < sites.size(); i++) {
             newPep.append(sites.get(i).aa);
@@ -285,7 +285,7 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return new Peptide(newPep.toString(), newMods);
     }
 
-    public static Peptide generateMutatedDecoy(String pep, float[] mods) {
+    public static Peptide generateMutatedDecoy(String pep, double[] mods) {
         ArrayList<Site> sites = new ArrayList<>(pep.length());
         for (int i = 0; i < pep.length(); i++)
             sites.add(new Site(pep.charAt(i), mods[i]));
@@ -300,12 +300,12 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return new Peptide(newPep.toString(), mods);
     }
 
-    public static Peptide generateMonoMutatedDecoy(String pep, float[] mods, Random rng) {
+    public static Peptide generateMonoMutatedDecoy(String pep, double[] mods, Random rng) {
         int randomSite = rng.nextInt(pep.length());
         return generateMonoMutatedDecoy(pep, mods, randomSite);
     }
 
-    public static Peptide generateMonoMutatedDecoy(String pep, float[] mods, int mutSite) {
+    public static Peptide generateMonoMutatedDecoy(String pep, double[] mods, int mutSite) {
         StringBuilder newPep = new StringBuilder();
         for (int i = 0; i < pep.length(); i++) {
             if (i != mutSite)
@@ -316,14 +316,14 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return new Peptide(newPep.toString(), mods, mutSite);
     }
 
-    public static Peptide generateSwappedDecoy(String pepSeq, float[] mods, Random rng) {
+    public static Peptide generateSwappedDecoy(String pepSeq, double[] mods, Random rng) {
         int pos = rng.nextInt(pepSeq.length());
         int swapPos = pos;
         while (swapPos == pos)
             swapPos = rng.nextInt(pepSeq.length());
 
         char swapAA = pepSeq.charAt(swapPos);
-        float swapMod = mods[swapPos];
+        double swapMod = mods[swapPos];
 
         char[] pepSeqArray = pepSeq.toCharArray();
         pepSeqArray[swapPos] = pepSeqArray[pos];
@@ -335,13 +335,13 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
         return new Peptide(pepSeqArray.toString(), mods);
     }
 
-    public static Peptide generateMonoSwappedDecoy(String pepSeq, float[] mods, int pos, Random rng) {
+    public static Peptide generateMonoSwappedDecoy(String pepSeq, double[] mods, int pos, Random rng) {
         int swapPos = pos;
         while (Math.abs(swapPos - pos) < (pepSeq.length() / 2))
             swapPos = rng.nextInt(pepSeq.length());
 
         char swapAA = pepSeq.charAt(swapPos);
-        float swapMod = mods[swapPos];
+        double swapMod = mods[swapPos];
 
         char[] pepSeqArray = pepSeq.toCharArray();
         pepSeqArray[swapPos] = pepSeqArray[pos];
@@ -355,9 +355,9 @@ public class Peptide { //TODO theoretical peptide fragments, should this not sta
 
     static class Site {
         char aa;
-        float mod;
+        double mod;
 
-        Site(char aa, float mod) {
+        Site(char aa, double mod) {
             this.aa = aa;
             this.mod = mod;
         }

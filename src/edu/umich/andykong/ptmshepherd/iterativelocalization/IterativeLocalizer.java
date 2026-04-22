@@ -124,14 +124,14 @@ public class IterativeLocalizer {
                     // Get matched ion intensities for unmodified peptides
                     for (int j : runToLine.get(cf)) {
                         PSM psm = psmf.getLine(j);
-                        float dMass = psm.getDMass();
+                        float dMass = (float) psm.getDMass();
 
                         // Limit to unmodified peptides
                         if ((dMass <= zbL) || (dMass >= zbR))
                             continue;
                         String specName = psm.getSpec();
                         String pep = psm.getPeptide();
-                        float[] mods = psm.getModsAsArray();
+                        double[] mods = psm.getModsAsArray();
 
                         Spectrum spec = mr.getSpectrum(specName);
                         if(spec == null) {
@@ -288,7 +288,7 @@ public class IterativeLocalizer {
                         runToLine = this.psmToRunToLine.get(psmfStr);
 
                     // These hold the output to insert into the PSM table //todo only need to be declared on final run
-                    ArrayList<String> specNames = new ArrayList<>();
+                    ArrayList<Integer> psmLineNums = new ArrayList<>();
                     ArrayList<String> strOutputProbs = new ArrayList<>();
                     ArrayList<String> strMaxProbs = new ArrayList<>();
                     ArrayList<String> strMaxProbsDecoy = new ArrayList<>();
@@ -318,7 +318,7 @@ public class IterativeLocalizer {
                             }
 
                             PSM psm = psmf.getLine(j);
-                            float dMass = psm.getDMass();
+                            float dMass = (float) psm.getDMass();
                             String pep = psm.getPeptide();
                             String specName = psm.getSpec();
                             int cBin = this.locate.getIndex(dMass);
@@ -337,7 +337,7 @@ public class IterativeLocalizer {
                             // Ignore zero bin, unless on the last pass and writing results TODO: set up custom bounds?
                             if ((zbL <= dMass) && (dMass <= zbR)) {
                                 if (finalPass) {
-                                    specNames.add(specName);
+                                    psmLineNums.add(psm.lineNum);
                                     strOutputProbs.add(""); // Add empty string if zero bin
                                     strMaxProbs.add("");
                                     strMaxProbsDecoy.add("");
@@ -377,7 +377,7 @@ public class IterativeLocalizer {
                             //}
 
                             // Calculate site-specific localization probabilities
-                            float[] mods = psm.getModsAsArray();
+                            double[] mods = psm.getModsAsArray();
                             boolean[] allowedPoses = parseAllowedPositions(pep, this.allowedAAs, mods);
                             double[] siteProbs = localizePsm(psm, spec, pep, mods, dMassApex, cBin, allowedPoses, false);
 
@@ -385,7 +385,7 @@ public class IterativeLocalizer {
                             if (!finalPass)
                                 this.priorProbs[cBin].update(pep, siteProbs, allowedPoses);
                             else {
-                                specNames.add(specName);
+                                psmLineNums.add(psm.lineNum);
                                 strOutputProbs.add(probabilitiesToPepString(pep, dMass, siteProbs, allowedPoses));
                                 double maxProb = findMaxLocalizationProbability(siteProbs);
                                 String maxProbAA = findMaxLocalizationProbabilitySite(siteProbs, pep);
@@ -421,10 +421,10 @@ public class IterativeLocalizer {
                         // Update PSM table with new columns
                         int obsModsCol = psmf.getColumn("Observed Modifications");
 //                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Max Probability", specNames, strMaxProbs2);
-                        psmf.addColumn(obsModsCol + 1, "delta_mass_entropy", specNames, strEntropies);
-                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Decoy Localization", specNames, strMaxProbsDecoy);
-                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Localization", specNames, strMaxProbs);
-                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Localization", specNames, strOutputProbs);
+                        psmf.addColumn(obsModsCol + 1, "delta_mass_entropy", psmLineNums, strEntropies);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Decoy Localization", psmLineNums, strMaxProbsDecoy);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Best Localization", psmLineNums, strMaxProbs);
+                        psmf.addColumn(obsModsCol + 1, "PTM-Shepherd Localization", psmLineNums, strOutputProbs);
 
                         PSMFile.save(psmf.fname, psmf.headers, psmf.psms, true); // Do not overwrite
                         complete = true;
@@ -484,7 +484,7 @@ public class IterativeLocalizer {
     }
 
     //todo mods should be parsed here if we don't want to localize on top of var mods
-    public static boolean[] parseAllowedPositions(String seq, String allowedAAs, float[] mods) {
+    public static boolean[] parseAllowedPositions(String seq, String allowedAAs, double[] mods) {
         boolean[] allowedPoses = new boolean[seq.length()];
         if (allowedAAs.equals("all") || allowedAAs.equals(""))
             Arrays.fill(allowedPoses, true);
@@ -845,8 +845,11 @@ public class IterativeLocalizer {
                 }
 
                 // Send to PSM file
+                // specNames and probModelQVals are built in PSM order, so use direct PSM line ordering
+                ArrayList<Integer> psmLineNums = psmf.getPSMlineNums();
+
                 psmf.addColumn(psmf.getColumn("PTM-Shepherd Best Localization") + 1, "PTM-Shepherd q-val",
-                        specNames, probModelQVals);
+                        psmLineNums, probModelQVals);
                 //psmf.addColumn(psmf.getColumn("PTM-Shepherd q-val") + 1, "PTM-Shepherd decoy q-val",
                 //        specNames, decoyModelQVals);
                 /** //TODO figure out what's going on with these before implementing them, assuming they're even worth doing
@@ -890,7 +893,7 @@ public class IterativeLocalizer {
      * @param allowedPoses  array of allowed positions based on peptide sequence localization restrictions TODO add mods
      * @return double[] of localization probabilities
      */
-    private double[] localizePsm (PSM psm, Spectrum spec, String pep, float[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
+    private double[] localizePsm (PSM psm, Spectrum spec, String pep, double[] mods, float dMass, int cBin, boolean[] allowedPoses, boolean isDecoy) {
         double[] sitePriorProbs;
         double[] siteLikelihoods = new double[pep.length()];
         double marginalProb = 0.0;
@@ -954,7 +957,7 @@ public class IterativeLocalizer {
      * @param spec Spectrum object containing peaks
      * @return likelihoods of each site as double array
      */
-    private double[] computePoissonBinomialLikelihood(String pep, float[] mods, float dMass, boolean[] allowedPoses,
+    private double[] computePoissonBinomialLikelihood(String pep, double[] mods, float dMass, boolean[] allowedPoses,
                                                       Spectrum spec) {
         // First calculate the set of shifted and unshifted ions
         ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);
@@ -1051,7 +1054,7 @@ public class IterativeLocalizer {
      * @param spec
      * @return likelihood of a particular site
      */
-    private double[] computeLikelihoods(String pep, float[] mods, float dMass, boolean[] allowedPoses,
+    private double[] computeLikelihoods(String pep, double[] mods, float dMass, boolean[] allowedPoses,
                                       Spectrum spec) {
         // First calculate the set of shifted and unshifted ions
         ArrayList<Float> pepFrags = Peptide.calculatePeptideFragments(pep, mods, this.ionTypes, 1);

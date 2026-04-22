@@ -14,7 +14,7 @@ public class DownstreamPepFragGeneratorTest {
     @Test
     void calculatePeptideFragments() {
         String seq = "PEPT";
-        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        double[] mods = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         Peptide pep = new Peptide(seq, mods);
 
         // Only b2, b3

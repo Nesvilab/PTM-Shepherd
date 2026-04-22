@@ -23,6 +23,8 @@ import umich.ms.glyco.*;
 import java.io.*;
 import java.util.*;
 
+import static umich.ms.glyco.Glycan.toGlycanString;
+
 /**
  * Organization - putting a bunch of glyco-specific utilities here rather than cluttering the main PTM-S.java
  */
@@ -32,27 +34,23 @@ public class GlycoParams {
     public HashMap<String, GlycanResidue> glycanResiduesMap;
     public ArrayList<GlycanResidue> glycanResidues;
     public ArrayList<GlycanCandidate> glycoDatabase;
+    public ArrayList<GlycanCandidate> sortedGlycansByMass;
     public int decoyType;
     public double glycoPPMtol;
+    public static final double DECOY_PPM_SHIFT = 30;
     public Integer[] glycoIsotopes;
+    public static final Integer[] DECOY_ISOTOPES = {-1, 0, 1, 2, 3};
     public boolean nGlycan;
-    public boolean glycoYnorm;
-    public double absScoreErrorParam;
     public double glycoFDR;
     public boolean printFullParams;
     public boolean writeGlycansToAssignedMods;
     public boolean removeGlycanDeltaMass;
     public boolean printGlycoDecoys;
     public int numThreads;
-    public boolean useGlycanFragmentProbs;
-    public boolean useNonCompFDR ;
-    public double defaultProp;
     public String allowedLocalizationResidues;
     public HashMap<GlycanResidue, ArrayList<GlycanFragment>> glycoOxoniumDatabase;
-    public HashMap<Integer, Double> isotopeProbTable;
-    public double massProbScaling;
     public boolean glycoLDA;
-    public boolean normFragmentIntensities;     // (separately) normalize Y and oxonium fragment intensities
+    public boolean glycoNN;
     public double topPctSpectraForConsensus;
     public int minYsForConsensus;
     public int minPSMsForConsensus;
@@ -64,7 +62,19 @@ public class GlycoParams {
     public boolean isIMdata = false;
     public ArrayList<LDAFeature> ldaFeaturesToUse;
     public double ldaTargetProp;
-    public boolean useShuffledIntensities;
+    public boolean twoPassMode;
+    public boolean removeGlycans2ndPass;
+    public boolean printScoreGraphs;
+    public int numDecoysPerTarget;
+    public boolean checkVariableMods;
+    public boolean noFDR;
+    public double minDecoyFragmentDiff;
+    public String glycoLibPath;
+    public HashMap<String, GlycanCandidateFragments> glycoLibFragments;
+    public HashMap<String, Integer> glycoLibCounts;
+    public boolean useGlycoLib;
+    public boolean updateGlycoLib;
+    public boolean skipMS1;     // if true, does not need IonQuant API access
 
     private static final String defaultResiduePath = "glycan_residues.txt";
     private static final String defaultModsPath = "glycan_mods.txt";
@@ -126,13 +136,164 @@ public class GlycoParams {
     }
 
     /**
+     * Parse glyco library (.glycolib) file. Glycolib file format:
+     *  ion type~composition [tab] expected intensity [tab] count in library
+     *  Lines for each glycan are grouped together, starting with a line with the glycan composition alone (starting with "GLYCAN"), followed by lines for each fragment ion and associated info. Example:
+     *   GLYCAN        HexNAc(4)Hex(5)NeuAc(1)
+     *   Y~HexNAc(1)   0.999900        0.000141        2
+     *   Y~HexNAc(2)   0.529000        0.008556        2
+     *   ...
+     *   Ox~NeuAc(1)   0.034600        0.008202        2
+     *   END
+     * Populates glycoLibFragments (keyed by glycan composition string) and glycoLibCounts (count of PSMs per glycan).
+     */
+    public void parseGlycoLib() {
+        glycoLibFragments = new HashMap<>();
+        glycoLibCounts = new HashMap<>();
+        if (glycoLibPath == null || glycoLibPath.isEmpty()) {
+            return;
+        }
+        File libFile = new File(glycoLibPath);
+        if (!libFile.exists()) {
+            PTMShepherd.print("\tGlyco library file not found at " + glycoLibPath + "; will create new library if glyco_update_lib is enabled");
+            return;
+        }
+        HashSet<String> diagnosticIonHashes = buildDiagnosticIonSet();
+        try (BufferedReader reader = new BufferedReader(new FileReader(glycoLibPath))) {
+            String line;
+            String currentGlycan = null;
+            LinkedHashMap<String, Double> yFragments = null;
+            LinkedHashMap<String, Double> oxFragments = null;
+            LinkedHashMap<String, Double> generalOxFragments = null;
+            int currentCount = 0;
+
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                String[] parts = line.split("\t");
+                if (parts[0].equals("GLYCAN")) {
+                    currentGlycan = parts.length > 1 ? parts[1].trim() : null;
+                    yFragments = new LinkedHashMap<>();
+                    oxFragments = new LinkedHashMap<>();
+                    generalOxFragments = new LinkedHashMap<>();
+                    currentCount = 0;
+                } else if (parts[0].equals("END")) {
+                    if (currentGlycan != null) {
+                        glycoLibFragments.put(currentGlycan, new GlycanCandidateFragments(yFragments, oxFragments, generalOxFragments));
+                        glycoLibCounts.put(currentGlycan, currentCount);
+                    }
+                    currentGlycan = null;
+                } else if (currentGlycan != null && parts.length >= 4) {
+                    String ionKey = parts[0].trim();
+                    double intensity = Double.parseDouble(parts[1].trim());
+                    int count = Integer.parseInt(parts[3].trim());
+                    if (count > currentCount) {
+                        currentCount = count;
+                    }
+                    if (ionKey.startsWith("Y~")) {
+                        yFragments.put(ionKey.substring(2), intensity);
+                    } else if (ionKey.startsWith("Ox~")) {
+                        String fragKey = ionKey.substring(3);
+                        // All Ox~ ions are general oxonium ions
+                        generalOxFragments.put(fragKey, intensity);
+                        // Also add to diagnostic oxonium ions if this key is in the diagnostic set
+                        if (diagnosticIonHashes.contains(fragKey)) {
+                            oxFragments.put(fragKey, intensity);
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            PTMShepherd.die("Error reading glyco library file " + glycoLibPath + ": " + e.getMessage());
+        }
+        PTMShepherd.print(String.format("\tLoaded glyco library with %d glycan entries", glycoLibFragments.size()));
+    }
+
+    /**
+     * Build a set of fragment hashes for all diagnostic oxonium ions in the glycoOxoniumDatabase.
+     * Uses the fragment's hash field (which encodes composition and any composition comment).
+     * Only non-decoy fragments are included since glycolib keys are target-oriented.
+     * @return set of hash strings for diagnostic oxonium ions
+     */
+    public HashSet<String> buildDiagnosticIonSet() {
+        HashSet<String> diagnosticHashes = new HashSet<>();
+        for (ArrayList<GlycanFragment> fragments : glycoOxoniumDatabase.values()) {
+            for (GlycanFragment fragment : fragments) {
+                if (fragment.isDiagnostic && !fragment.isDecoy) {
+                    diagnosticHashes.add(fragment.hash);
+                }
+            }
+        }
+        return diagnosticHashes;
+    }
+
+    /**
+     * Find the GlycanCandidateFragments for the given glycan composition from the glycolib.
+     * If an exact match is not found, returns the library entry with the smallest number of total
+     * residue differences to the query glycan. On ties, returns the entry with the largest PSM count.
+     * @param glycanString glycan composition string (e.g., "HexNAc(4)Hex(5)NeuAc(1)")
+     * @return GlycanCandidateFragments for the nearest library entry, or empty if library is empty
+     */
+    public GlycanCandidateFragments findNearestGlycanInLib(String glycanString) {
+        if (glycoLibFragments == null || glycoLibFragments.isEmpty()) {
+            return new GlycanCandidateFragments();
+        }
+        if (glycoLibFragments.containsKey(glycanString)) {
+            return glycoLibFragments.get(glycanString);
+        }
+        HashMap<String, Integer> queryComp = parseGlycanStringToResidueMap(glycanString);
+        String nearestKey = null;
+        int minDistance = Integer.MAX_VALUE;
+        int maxCount = -1;
+        for (String libKey : glycoLibFragments.keySet()) {
+            HashMap<String, Integer> libComp = parseGlycanStringToResidueMap(libKey);
+            int distance = computeCompositionDistance(queryComp, libComp);
+            int count = glycoLibCounts.getOrDefault(libKey, 0);
+            if (distance < minDistance || (distance == minDistance && count > maxCount)) {
+                minDistance = distance;
+                maxCount = count;
+                nearestKey = libKey;
+            }
+        }
+        return nearestKey != null ? glycoLibFragments.get(nearestKey) : new GlycanCandidateFragments();
+    }
+
+    /**
+     * Parse a glycan composition string (e.g., "HexNAc(4)Hex(5)NeuAc(1)") into a map of residue name to count.
+     */
+    private static HashMap<String, Integer> parseGlycanStringToResidueMap(String glycanString) {
+        HashMap<String, Integer> compositionMap = new HashMap<>();
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(\\w+)\\((\\d+)\\)");
+        java.util.regex.Matcher matcher = pattern.matcher(glycanString);
+        while (matcher.find()) {
+            compositionMap.put(matcher.group(1), Integer.parseInt(matcher.group(2)));
+        }
+        return compositionMap;
+    }
+
+    /**
+     * Compute the total number of residue differences between two glycan compositions.
+     * Counts each residue type's count difference, including residues present in one but not the other.
+     */
+    private static int computeCompositionDistance(HashMap<String, Integer> comp1, HashMap<String, Integer> comp2) {
+        int distance = 0;
+        HashSet<String> allKeys = new HashSet<>(comp1.keySet());
+        allKeys.addAll(comp2.keySet());
+        for (String key : allKeys) {
+            distance += Math.abs(comp1.getOrDefault(key, 0) - comp2.getOrDefault(key, 0));
+        }
+        return distance;
+    }
+
+    /**
      * Parse FragPipe glycan database string to list of glycan candidates
      * @param glycanDBString
      * @return
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseString(String glycanDBString) {
         ArrayList<Glycan> glycans = GlycanParser.parseGlycanDatabaseString(glycanDBString, glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, DECOY_PPM_SHIFT, DECOY_ISOTOPES, randomGenerator, numDecoysPerTarget, useGlycoLib);
     }
 
     /**
@@ -143,7 +304,7 @@ public class GlycoParams {
      */
     public ArrayList<GlycanCandidate> parseGlycanDatabaseFile(String inputPath) {
         ArrayList<Glycan> glycans = GlycanParser.loadGlycansFromText(inputPath, GlycanParser.detectDBtype(inputPath), glycanResiduesMap);
-        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+        return convertGlycansToCandidates(glycans, glycanResiduesMap, nGlycan, glycoOxoniumDatabase, decoyType, DECOY_PPM_SHIFT, DECOY_ISOTOPES, randomGenerator, numDecoysPerTarget, useGlycoLib);
     }
 
     /**
@@ -158,8 +319,10 @@ public class GlycoParams {
                                                                         int decoyType,
                                                                         double glycoPPMtol,
                                                                         Integer[] glycoIsotopes,
-                                                                        Random randomGenerator) {
-        HashMap<String, Boolean> glycansInDB = new HashMap<>();
+                                                                        Random randomGenerator,
+                                                                        int numDecoysPerTarget,
+                                                                        boolean useGlycoLib) {
+        LinkedHashMap<String, Boolean> glycansInDB = new LinkedHashMap<>();
         ArrayList<GlycanCandidate> glycanDB = new ArrayList<>();
         for (Glycan glycan: glycans) {
             if (glycan.composition.isEmpty()) {
@@ -172,10 +335,28 @@ public class GlycoParams {
             if (!glycansInDB.containsKey(compositionHash)) {
                 glycanDB.add(candidate);
                 glycansInDB.put(compositionHash, Boolean.TRUE);
-                // also add a decoy for this composition
-                double decoyMassShift = setDecoyShift(candidate.mass, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
-                GlycanCandidate decoy = GlycanCandidate.initGlycanCandidate(glycan.composition, decoyMassShift, true, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
-                glycanDB.add(decoy);
+                // add numDecoysPerTarget decoys for this composition
+                for (int d = 0; d < numDecoysPerTarget; d++) {
+                    double decoyMassShift = setDecoyShift(candidate.mass, decoyType, glycoPPMtol, glycoIsotopes, randomGenerator);
+                    GlycanCandidate decoy;
+                    if (!useGlycoLib) {
+                        // original method: shift fragment masses (up to 20)
+                        decoy = GlycanCandidate.initGlycanCandidate(glycan.composition, decoyMassShift, true, glycanResiduesMap, nGlycan, randomGenerator, glycoOxoniumDatabase);
+                    } else {
+                        // glycolib method: alter fragment intensities rather than giving random masses. Init as target, then change to decoy later so avoid fragment mass shifting
+                        decoy = GlycanCandidate.initGlycanCandidate(candidate.composition,
+                                0.0,
+                                false,
+                                glycanResiduesMap,
+                                nGlycan,
+                                randomGenerator,
+                                glycoOxoniumDatabase);
+                        decoy.isDecoy = true;
+                        decoy.mass = candidate.mass + decoyMassShift;
+                        decoy.decoyMassShift = decoyMassShift;
+                    }
+                    glycanDB.add(decoy);
+                }
             }
         }
         return glycanDB;
@@ -228,50 +409,69 @@ public class GlycoParams {
     }
 
     /**
+     * Initialize sorted glycan database by mass for efficient nearest mass lookups.
+     * Call this after glycoDatabase is populated.
+     */
+    public void initSortedGlycanDatabase(ArrayList<GlycanCandidate> glycoDatabase) {
+        sortedGlycansByMass = new ArrayList<>(glycoDatabase);
+        sortedGlycansByMass.sort(Comparator.comparingDouble(g -> g.mass));
+    }
+
+    /**
      * Generate a new glycan candidate database from the provided database of glycan fragment-specific propensities
      * and the input database for this glycoAnalysis
      * @param fragmentDB map of glycan string: fragment container
      * @param oldGlycoDB original glycan DB used for bootstrap analysis (or just initial DB provided by user)
      * @return glycan candidate arraylist
      */
-    public ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, ArrayList<GlycanCandidate> oldGlycoDB) {
+    public ArrayList<GlycanCandidate> updateGlycanDatabase(HashMap<String, GlycanCandidateFragments> fragmentDB, LinkedHashMap<String, GlycanCandidateFragments> decoyFragmentDB, ArrayList<GlycanCandidate> oldGlycoDB) {
         ArrayList<GlycanCandidate> newGlycoDB = new ArrayList<>();
+        if (removeGlycans2ndPass) {
+            ArrayList<GlycanCandidate> reducedDB = new ArrayList<>();
+            for (GlycanCandidate candidate : oldGlycoDB) {
+                String glycanHash = toGlycanString(candidate.composition);
+                if (candidate.isDecoy) {
+                    glycanHash = glycanHash.replace("Decoy_", "");
+                }
+                if (fragmentDB.containsKey(glycanHash)) {
+                    reducedDB.add(candidate);
+                }
+            }
+            oldGlycoDB = reducedDB;
+        }
+
+        // update the glycan candidates to generate the new database
         for (GlycanCandidate oldCandidate : oldGlycoDB) {
             GlycanCandidate newCandidate;
-            String currentGlycanHash = Glycan.toGlycanString(oldCandidate.composition);
+            String currentGlycanHash = toGlycanString(oldCandidate.composition);
             if (oldCandidate.isDecoy) {
                 // use target glycan propensity information for decoys as well
                 currentGlycanHash = currentGlycanHash.replace("Decoy_", "");
             }
 
-            // Get fragment info if present and initialize new candidate based on the old and fragment info (if present)
-            GlycanCandidateFragments fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
-            if (useShuffledIntensities) {
-                // new method: shuffle fragment intensities rather than giving random masses. Init as target, then change
-                newCandidate = GlycanCandidate.initGlycanCandidate(oldCandidate.composition,
-                        0.0,
-                        false,
-                        this.glycanResiduesMap,
-                        this.nGlycan,
-                        this.randomGenerator,
-                        this.glycoOxoniumDatabase);
-                newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
-                newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
+            // init new candidate: alter fragment intensities rather than giving random masses. Init as target, then change to decoy later so avoid fragment mass shifting
+            newCandidate = GlycanCandidate.initGlycanCandidate(oldCandidate.composition,
+                    0.0,
+                    false,
+                    this.glycanResiduesMap,
+                    this.nGlycan,
+                    this.randomGenerator,
+                    this.glycoOxoniumDatabase);
 
-                if (oldCandidate.isDecoy) {
-                    newCandidate.isDecoy = true;
-                    newCandidate.mass = oldCandidate.mass;
-                    newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
-                    // shuffle intensities
-                    shuffleFragmentIntensities(newCandidate.Yfragments);
-                    shuffleFragmentIntensities(newCandidate.oxoniumFragments);
-                }
+
+            GlycanCandidateFragments fragmtInfo;
+            if (oldCandidate.isDecoy) {
+                fragmtInfo = decoyFragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
+                newCandidate.isDecoy = true;
+                // todo: change to mass of the alternate matched glycan?
+                newCandidate.mass = oldCandidate.mass;
+                newCandidate.decoyMassShift = oldCandidate.decoyMassShift;
             } else {
-                // original method: shift decoy masses with same propensities/intensities as target
-                newCandidate = GlycanCandidate.copyCandidate(oldCandidate, this.glycanResiduesMap);
-                newCandidate.Yfragments = initFragmentsFromConsensus(oldCandidate.Yfragments, fragmtInfo.yFragmentProps, fragmtInfo.yFragmentIntensities);
-                newCandidate.oxoniumFragments = initFragmentsFromConsensus(oldCandidate.oxoniumFragments, fragmtInfo.OxFragmentProps, fragmtInfo.OxFragmentIntensities);
+                fragmtInfo = fragmentDB.getOrDefault(currentGlycanHash, new GlycanCandidateFragments());
             }
+            newCandidate.Yfragments = initFragmentsFromConsensus(newCandidate.Yfragments, fragmtInfo.yFragmentIntensities);
+            newCandidate.oxoniumFragments = initFragmentsFromConsensus(newCandidate.oxoniumFragments, fragmtInfo.OxFragmentIntensities);
+            newCandidate.generalOxoniumFragments = initFragmentsFromConsensus(oldCandidate.generalOxoniumFragments, fragmtInfo.generalOxFragmentIntensities);
 
             newGlycoDB.add(newCandidate);
         }
@@ -279,43 +479,16 @@ public class GlycoParams {
     }
 
     private TreeMap<String, GlycanFragment> initFragmentsFromConsensus(TreeMap<String, GlycanFragment> originalFragments,
-                                                                      HashMap<String, Double> fragmentPropensities,
-                                                                      HashMap<String, Double> fragmentIntensities) {
+                                                                      LinkedHashMap<String, Double> fragmentIntensities) {
         TreeMap<String, GlycanFragment> fragments = new TreeMap<>();
         for (Map.Entry<String, GlycanFragment> originalFragEntry : originalFragments.entrySet()) {
             String fragmentKey = originalFragEntry.getKey().replace("Decoy_", "");  // give decoys same fragment info as targets
-            double expectedIntensity;
-            double propensity;
             GlycanFragment origFrag = originalFragEntry.getValue();
-            if (fragmentPropensities.containsKey(fragmentKey)) {
-                // have propensity/intensity info for this fragment - read from input fragmentInfo
-                expectedIntensity = fragmentIntensities.get(fragmentKey);
-                propensity = fragmentPropensities.get(fragmentKey);
-            } else {
-                // no added info - copy the original
-                expectedIntensity = origFrag.expectedIntensity;
-                propensity = origFrag.propensity;
-            }
-            GlycanFragment newFragment = GlycanFragment.copyFragmentWithPropensity(origFrag, expectedIntensity, propensity);
+            double expectedIntensity = fragmentIntensities.getOrDefault(fragmentKey, 0.0);
+            GlycanFragment newFragment = GlycanFragment.copyFragmentWithPropensity(origFrag, expectedIntensity, 0);
             fragments.put(originalFragEntry.getKey(), newFragment);
         }
         return fragments;
-    }
-
-    private void shuffleFragmentIntensities(TreeMap<String, GlycanFragment> fragments) {
-        // extract intensities
-        ArrayList<Double> intensities = new ArrayList<>();
-        for (GlycanFragment fragment : fragments.values()) {
-            intensities.add(fragment.expectedIntensity);
-        }
-        // shuffle
-        Collections.shuffle(intensities, randomGenerator);
-        // reassign
-        int index = 0;
-        for (GlycanFragment fragment : fragments.values()) {
-            fragment.expectedIntensity = intensities.get(index);
-            index++;
-        }
     }
 
     // Print glycan database (including decoys and associated mass shifts) to file
@@ -325,7 +498,7 @@ public class GlycoParams {
             out.write("Composition\tMass\tIs Decoy\tDecoy Shift (Da)\tFragment Ions\n");
             for (GlycanCandidate candidate : glycoDatabase) {
                 StringBuilder sb = new StringBuilder();
-                sb.append(Glycan.toGlycanString(candidate.composition)).append("\t");
+                sb.append(toGlycanString(candidate.composition)).append("\t");
                 sb.append(candidate.mass).append("\t");
                 sb.append(candidate.isDecoy).append("\t");
                 sb.append(candidate.decoyMassShift).append("\t");
@@ -397,141 +570,69 @@ public class GlycoParams {
             return isotopes.toArray(new Integer[0]);
         }
     }
-
-    /**
-     * Initialize a default glyco probability table and update it with probabilities from
-     * parameters, if any are present.
-     * Param formats:
-     * -Fragments (Y/Oxo): 8 values, comma separated
-     * -mass/isotope: key1:value1,key2:value2,etc
-     * @return ProbabilityTable to use
-     */
-    public void initIsotopeProbs(String paramStr) {
-        isotopeProbTable = new HashMap<>();
-        if (!paramStr.matches("")) {
-            String[] isoSplits = paramStr.split(",");
-            for (String split : isoSplits) {
-                String[] keyValue = split.trim().split(":");
-                try {
-                    isotopeProbTable.put(Integer.parseInt(keyValue[0]), Double.parseDouble(keyValue[1]));
-                } catch (NumberFormatException ex) {
-                    System.out.printf("Illegal character %s in parameter prob_isotopes, must pairs of numbers like '0:1.5,1:0.75'", split);
-                }
-            }
-        }
-        if (isotopeProbTable.isEmpty()) {
-            // init defaults
-            isotopeProbTable.put(-2, 0.125);
-            isotopeProbTable.put(-1, 0.25);
-            isotopeProbTable.put(0, 1.0);
-            isotopeProbTable.put(1, 0.95);
-            isotopeProbTable.put(2, 0.5);
-            isotopeProbTable.put(3, 0.25);
-            isotopeProbTable.put(4, 0.125);
-        }
-    }
-
-    /**
-     * Update isotope probabilities from the first pass of glycan assignment.
-     * New probability is the proportion of the Results with this isotope, scaled so that the most common
-     * isotope has a probability of 1.0.
-     * @param isotopeCounts map of isotope: count
-     */
-    public void updateIsotopesProbsFromFirstPass(HashMap<Integer, Integer> isotopeCounts) {
-        int maxCount = isotopeCounts.values().stream().max(Integer::compare).orElse(0);
-        // set min prob to the lowest observed prob divided by 2
-        double minProb = ((double) isotopeCounts.values().stream().min(Integer::compare).orElse(0) / maxCount) / 2.0;
-
-        for (Map.Entry<Integer, Double> entry : isotopeProbTable.entrySet()) {
-            int isotope = entry.getKey();
-            if (isotopeCounts.containsKey(isotope)) {
-                double newProb = (double) isotopeCounts.get(isotope) / maxCount;  // normalize to max count
-                isotopeProbTable.put(isotope, newProb);
-            } else {
-                isotopeProbTable.put(isotope, minProb);
-            }
-        }
-    }
-
-    /**
-     * Helper method to parse probability arrays from provided parameters with error checking. Returns
-     * double[] of length 2 if successful or empty array if failed.
-     * @param paramStr param to parse
-     * @return double[] of length 2 if successful or empty array if failed.
-     */
-    public static double[] parseProbParam(String paramStr, String paramName) {
-        String[] splits = paramStr.split(",");
-        if (splits.length == 2 || splits.length == 3) {
-            double[] values = new double[splits.length];
-            for (int i = 0; i < splits.length; i++) {
-                try {
-                    values[i] = Double.parseDouble(splits[i]);
-                } catch (NumberFormatException ex) {
-                    System.out.printf("Invalid character in value %s, must be a number", splits[i]);
-                    return new double[0];
-                }
-            }
-            return values;
-        } else {
-            System.out.printf("Invalid format for parameter %s, must have 2 or 3 comma-separated values. Param was: %s\n", paramName, paramStr);
-            return new double[0];
-        }
-    }
-
-    /**
-     * Helper method for determining column numbers in the .rawglyco file
-     * @param headerSplits file header string, split on the appropriate delimiter
-     * @param columnName name of the column to find
-     * @return column index
-     */
-    public static int getHeaderColIndex(String[] headerSplits, String columnName) {
-        for (int i = 0; i < headerSplits.length; i++) {
-            if (headerSplits[i].trim().matches(columnName)) {
-                return i;
-            }
-        }
-        // column not found, return -1
-        return -1;
-    }
-
     /**
      * Print glyco params used
      */
     public void printGlycoParams() {
         PTMShepherd.print("Glycan Assignment params:");
-        PTMShepherd.print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
-        PTMShepherd.print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
-        PTMShepherd.print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
-        PTMShepherd.print(String.format("\tGlycan Database size (including adducts): %d", glycoDatabase.size() / 2));
         if (nGlycan) {
-            PTMShepherd.print("\tmode: N-glycan");
+            PTMShepherd.print("\tMode: N-glycan");
             PTMShepherd.print("\tAllowed Sites: N in N-X-S/T sequons only");
         } else {
+            PTMShepherd.print("\tMode: O-glycan");
             PTMShepherd.print(String.format("\tAllowed Sites: %s", allowedLocalizationResidues));
         }
-        // print residue and mod lists
+        if (noFDR) {
+            PTMShepherd.print("\tFDR: disabled (reporting all assignments)");
+        } else {
+            PTMShepherd.print(String.format("\tGlycan FDR: %.1f%%", glycoFDR * 100));
+        }
+        PTMShepherd.print(String.format("\tMass error (ppm): %.1f", glycoPPMtol));
+        PTMShepherd.print(String.format("\tIsotope errors: %s", Arrays.toString(glycoIsotopes)));
+        PTMShepherd.print(String.format("\tGlycan database size: %d targets, %d decoys (%d per target)",
+                glycoDatabase.size() / (1 + numDecoysPerTarget),
+                glycoDatabase.size() - glycoDatabase.size() / (1 + numDecoysPerTarget),
+                numDecoysPerTarget));
+        PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
+        PTMShepherd.print(String.format("\tTwo-pass mode: %s", twoPassMode));
+        if (twoPassMode) {
+            if (glycoNN) {
+                PTMShepherd.print("\tNN scoring (2nd pass)");
+            } else if (glycoLDA) {
+                PTMShepherd.print("\tLDA scoring (2nd pass)");
+            } else {
+                PTMShepherd.print("\tEmpirical scoring (all passes)");
+            }
+            PTMShepherd.print(String.format("\tReduce glycan database 2nd pass: %s", removeGlycans2ndPass));
+            if (glycoLDA || glycoNN) {
+                PTMShepherd.print(String.format("\t\tScore features: %s", ldaFeaturesToUse));
+                PTMShepherd.print(String.format("\tMin PSMs for consensus: %d", minPSMsForConsensus));
+                PTMShepherd.print(String.format("\tMin Y ions for consensus: %d", minYsForConsensus));
+                PTMShepherd.print(String.format("\tTop proportion spectra for consensus: %.2f", topPctSpectraForConsensus));
+                PTMShepherd.print(String.format("\tTraining target top proportion: %.2f", ldaTargetProp));
+                PTMShepherd.print(String.format("\tMin decoy fragment diff: %.3f", minDecoyFragmentDiff));
+            }
+        }
+        if (useGlycoLib) {
+            PTMShepherd.print(String.format("\tUsing glyco library for 1st pass: %s", glycoLibPath));
+        }
+        if (updateGlycoLib) {
+            PTMShepherd.print(String.format("\tUpdating glyco library: %s", glycoLibPath));
+        }
+        if (checkVariableMods) {
+            PTMShepherd.print("\tCheck variable mods: true");
+        }
+
         if (printFullParams) {
             PTMShepherd.print("\tGlycan residue definitions:");
             for (GlycanResidue residue : glycanResidues) {
                 PTMShepherd.print("\t\t" + residue.printToDatabaseFile());
             }
-        }
-
-        if (printFullParams) {
-            PTMShepherd.print(String.format("\tMass prob (score scaling): %.1f", massProbScaling));
-            StringBuilder isoString = new StringBuilder("\tIsotope probs:");
-            for (Map.Entry<Integer, Double> isoEntry: isotopeProbTable.entrySet()) {
-                isoString.append(String.format(" %d:%.1f", isoEntry.getKey(), isoEntry.getValue()));
-            }
-            PTMShepherd.print(isoString.toString());
-            PTMShepherd.print(String.format("\tNormalize Y ion counts: %s", glycoYnorm));
-            PTMShepherd.print(String.format("\tTypical mass error std devs (for absolute score): %.1f", absScoreErrorParam));
-            PTMShepherd.print(String.format("\tDecoy type: %d", decoyType));
             if (printGlycoDecoys) {
                 PTMShepherd.print("\tPrinting decoy glycans");
             }
-            if (removeGlycanDeltaMass) {
-                PTMShepherd.print("\tRemoving glycan delta mass from PSM table");
+            if (printScoreGraphs) {
+                PTMShepherd.print("\tPrinting score distribution graphs");
             }
         }
     }
@@ -539,6 +640,7 @@ public class GlycoParams {
     public String generateLDAheader() {
         StringBuilder sb = new StringBuilder();
         sb.append("\t");
+        sb.append("Y score\tOx diagnostic score\tOx similarity score\tMass score\t");      // always used
         for (LDAFeature feature : ldaFeaturesToUse) {
             sb.append(feature.name()).append("\t");
         }
@@ -548,12 +650,6 @@ public class GlycoParams {
     public static ArrayList<LDAFeature> parseLDAfeatures(String featuresStr) {
         ArrayList<LDAFeature> features = new ArrayList<>();
         if (featuresStr.isEmpty()) {
-            // use default (original) set of features
-            PTMShepherd.print("No score features specified, using default set.");
-            features.add(LDAFeature.yscore);
-            features.add(LDAFeature.oxo);
-            features.add(LDAFeature.mass);
-            features.add(LDAFeature.iso);
             return features;
         }
         String[] featureSplits = featuresStr.split("[,\\s;/]+");
@@ -570,15 +666,97 @@ public class GlycoParams {
 
     public enum LDAFeature {
         kl,
-        yprop,
-        yscore,
-        oxo,
-        mass,
-        iso,
-        mass2nd,
-        iso2nd,
+        ms1,
+        ms1delta,
         glycanfreq,
-        ysim,
-        oxsim,
+    }
+
+    /**
+     * Update the in-memory glycolib with new fragment intensity results from a completed glyco analysis.
+     * New glycans not already in the library are added directly. Existing glycans receive a weighted merge:
+     * for each fragment, if the new median intensity is > 0, the updated intensity is the weighted average
+     * of the existing value (weighted by existing library count) and the new value (weighted by new count).
+     * The library PSM count is incremented by the new count.
+     * @param newFragments map of glycan composition string → fragment intensities from new results
+     * @param newCounts map of glycan composition string → number of PSMs in new results
+     */
+    public void updateGlycoLibInMemory(LinkedHashMap<String, GlycanCandidateFragments> newFragments, HashMap<String, Integer> newCounts) {
+        if (glycoLibFragments == null) glycoLibFragments = new HashMap<>();
+        if (glycoLibCounts == null) glycoLibCounts = new HashMap<>();
+        for (Map.Entry<String, GlycanCandidateFragments> entry : newFragments.entrySet()) {
+            String glycanKey = entry.getKey();
+            GlycanCandidateFragments newFragData = entry.getValue();
+            int newCount = newCounts.getOrDefault(glycanKey, 0);
+            if (newCount == 0) {
+                continue;
+            }
+
+            if (!glycoLibFragments.containsKey(glycanKey)) {
+                glycoLibFragments.put(glycanKey, newFragData);
+                glycoLibCounts.put(glycanKey, newCount);
+            } else {
+                GlycanCandidateFragments existing = glycoLibFragments.get(glycanKey);
+                int existingCount = glycoLibCounts.getOrDefault(glycanKey, 0);
+                glycoLibFragments.put(glycanKey, weightedMergeFragments(existing, existingCount, newFragData, newCount));
+                glycoLibCounts.put(glycanKey, existingCount + newCount);
+            }
+        }
+    }
+
+    private GlycanCandidateFragments weightedMergeFragments(GlycanCandidateFragments existing, int existingCount,
+                                                             GlycanCandidateFragments newFrags, int newCount) {
+        return new GlycanCandidateFragments(
+                weightedMergeFragmentMap(existing.yFragmentIntensities, existingCount, newFrags.yFragmentIntensities, newCount),
+                weightedMergeFragmentMap(existing.OxFragmentIntensities, existingCount, newFrags.OxFragmentIntensities, newCount),
+                weightedMergeFragmentMap(existing.generalOxFragmentIntensities, existingCount, newFrags.generalOxFragmentIntensities, newCount)
+        );
+    }
+
+    private LinkedHashMap<String, Double> weightedMergeFragmentMap(LinkedHashMap<String, Double> existing, int existingCount,
+                                                                     LinkedHashMap<String, Double> newMap, int newCount) {
+        LinkedHashMap<String, Double> result = new LinkedHashMap<>(existing);
+        for (Map.Entry<String, Double> entry : newMap.entrySet()) {
+            String key = entry.getKey();
+            double newIntensity = entry.getValue();
+            if (newIntensity <= 0.0) {
+                continue;  // only update if new median intensity > 0
+            }
+
+            if (result.containsKey(key)) {
+                double existingIntensity = result.get(key);
+                result.put(key, (existingIntensity * existingCount + newIntensity * newCount) / (double) (existingCount + newCount));
+            } else {
+                result.put(key, newIntensity);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Write the current in-memory glycolib (glycoLibFragments and glycoLibCounts) to the glycolib file at glycoLibPath.
+     * Format: tab-delimited, one glycan entry per GLYCAN...END block.
+     */
+    public void writeGlycoLib() {
+        if (glycoLibPath == null || glycoLibPath.isEmpty()) {
+            PTMShepherd.print("Warning: glyco_update_lib is true but no glyco_lib_path is set; skipping glycolib update");
+            return;
+        }
+        try (PrintWriter out = new PrintWriter(new FileWriter(glycoLibPath))) {
+            for (String glycanKey : glycoLibFragments.keySet()) {
+                GlycanCandidateFragments frags = glycoLibFragments.get(glycanKey);
+                int count = glycoLibCounts.getOrDefault(glycanKey, 0);
+                out.write("GLYCAN\t" + glycanKey + "\n");
+                for (Map.Entry<String, Double> fragEntry : frags.yFragmentIntensities.entrySet()) {
+                    out.write(String.format("Y~%s\t%.6f\t0.000000\t%d\n", fragEntry.getKey(), fragEntry.getValue(), count));
+                }
+                for (Map.Entry<String, Double> fragEntry : frags.generalOxFragmentIntensities.entrySet()) {
+                    out.write(String.format("Ox~%s\t%.6f\t0.000000\t%d\n", fragEntry.getKey(), fragEntry.getValue(), count));
+                }
+                out.write("END\n");
+            }
+        } catch (IOException e) {
+            PTMShepherd.die("Error writing updated glyco library to " + glycoLibPath + ": " + e.getMessage());
+        }
+        PTMShepherd.print(String.format("\tUpdated glyco library written to %s with %d glycan entries", glycoLibPath, glycoLibFragments.size()));
     }
 }

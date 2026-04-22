@@ -53,20 +53,11 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Random;
-import java.util.StringTokenizer;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
 import umich.ms.fileio.filetypes.mzbin.MZBINFile;
@@ -75,18 +66,19 @@ import umich.ms.fileio.filetypes.mzbin.MZBINFile.MZBINSpectrum;
 public class PTMShepherd {
 
 	public static final String name = "PTM-Shepherd";
- 	public static final String version = "3.0.11";
+ 	public static final String version = "3.0.13";
 
 	public static HashMap<String,String> params;
     public static TreeMap<String,ArrayList<String []>> datasets;
     public static HashMap<String, ArrayList<PSMFile>> psmFiles;
     public static HashMap<String,HashMap<String,File>> mzMap;
-    public static HashMap<String, HashMap<String, File>> originalMzMap;
+    public static HashMap<String, HashMap<String, File>> ms1MzMap;
     public static HashMap<String,Integer> datasetMS2;
     public static ArrayList<String> cacheFiles;
     public static String outputPath;
 	public static ExecutorService executorService;
     public static GlycoParams glycoParams;
+    public static HashMap<String, Object> ionQuantAPICache = null;
 	private static final long glycoRandomSeed = 1364955171;
 
 	// filenames for output files
@@ -109,7 +101,8 @@ public class PTMShepherd {
 	public static final String rawSimRTName = ".rawsimrt";
 	public static final String rawGlycoName = ".rawglyco";
 	public static final String rawGlycoFirstPass = "-1stPass";
-	public static final String modSummaryName = ".modsummary.tsv";
+    public static final String glycoHistoName = ".glycoscores.png";
+    public static final String modSummaryName = ".modsummary.tsv";
 	public static final String diagBinFilename = ".diagBIN";
 	public static final String diagMineName = ".diagmine.tsv";
 	public static final String diagIonsExtractName = ".diagnosticIons.tsv";
@@ -197,7 +190,7 @@ public class PTMShepherd {
 		params = new HashMap<>();
 		datasets = new TreeMap<>();
 		mzMap = new HashMap<>();
-		originalMzMap = new HashMap<>();
+		ms1MzMap = new HashMap<>();
 		datasetMS2 = new HashMap<>();
 
 		//default values
@@ -336,6 +329,8 @@ public class PTMShepherd {
 	}
 
 	public static void main(String [] args) {
+		// prevent AWT Event Dispatch Thread from keeping the JVM alive after main() exits
+		System.setProperty("java.awt.headless", "true");
 		// allow program to terminate even when the ExecutorServices are not shutdown
 		Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
 			e.printStackTrace();
@@ -442,6 +437,7 @@ public class PTMShepherd {
 		deleteFilesOnClose();
 
 		executorService.shutdown();
+		System.exit(0);
 	}
 
 	private static void deleteFilesOnClose() {
@@ -470,7 +466,7 @@ public class PTMShepherd {
 		if(!Boolean.parseBoolean(params.get("output_extended"))) {
 			// delete dataset files with specific extensions
 			extsToDelete = Arrays
-					.asList(rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, histoName, diagBinFilename, mzBinFilename);
+					.asList(rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, histoName, glycoHistoName, diagBinFilename, mzBinFilename);
 			for (String ds : datasets.keySet()) {
 				//System.out.println("Writing combined table for dataset " + ds);
 				//CombinedTable.writeCombinedTable(ds);
@@ -566,17 +562,38 @@ public class PTMShepherd {
 		boolean alreadyPrintedParams = false;
 		glycoParams = parseGlycoParams();
 		String glycoMassFilePath = normFName(glycoMassListName);
-		GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
 //        glycoParams.printGlycanDatabase(normFName(glycoDBname));
+
+		// Pre-build IonQuant indices once for the full run if total raw files <= 2x available RAM (GB)
+		if (!glycoParams.skipMS1) {
+			int totalRawFiles = 0;
+			for (String ds : datasets.keySet()) {
+				if (mzMap.get(ds) != null)
+					totalRawFiles += mzMap.get(ds).size();
+			}
+			long maxMemGB = Runtime.getRuntime().maxMemory() / (1024L * 1024L * 1024L);
+			if (totalRawFiles <= 2 * maxMemGB) {
+				print(String.format("\tPre-building IonQuant indices for all %d raw files (%d GB JVM heap available)", totalRawFiles, maxMemGB));
+				ionQuantAPICache = new HashMap<>();
+				for (String ds : datasets.keySet()) {
+					HashMap<String, File> ms1Files = ms1MzMap.get(ds);
+					if (ms1Files == null) continue;
+					for (Map.Entry<String, File> entry : ms1Files.entrySet()) {
+						String filePath = String.valueOf(entry.getValue());
+						Object builtApi = GlycoAnalysis.indexBuilder(filePath, glycoParams);
+						if (builtApi != null)
+							ionQuantAPICache.put(filePath, builtApi);
+					}
+				}
+			} else {
+				print(String.format("\tSkipping global IonQuant pre-build: %d raw files exceeds 2x available RAM (%d GB); indices will be built per-pass", totalRawFiles, maxMemGB));
+			}
+		}
 
 		// Glyco: first pass
 		TreeMap<String, GlycoAnalysis> glycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = new GlycoAnalysis(ds, glycoParams.glycoDatabase, glycoParams, true);
-			if (ga.isGlycoComplete()) {
-				print(String.format("\tGlyco analysis already done for dataset %s, skipping", ds));
-				continue;
-			}
 
 			// print params here to avoid printing if the analysis is already done/not being run
 			if (!alreadyPrintedParams) {
@@ -585,38 +602,63 @@ public class PTMShepherd {
 			}
 			PTMShepherd.print("Assigning glycans: first pass");
 			for (PSMFile pf : psmFiles.get(ds)) {
-				ga.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
+				ga.glycoPSMs(pf, mzMap.get(ds), ms1MzMap.get(ds), executorService);
 			}
 			ga.runScoresAndFDR();
+            if (glycoParams.printScoreGraphs) {
+                ga.plotAllGlycoHistograms(ds, "first-pass");
+            }
 			ga.completeGlyco();
 			glycoAnalysisMap.put(ds, ga);
 		}
 
 		// second pass: calculate fragment propensity-based glycan assignment and update results
+		int passNum = 1;
+		TreeMap<String, GlycoAnalysis> finalGlycoAnalysisMap = new TreeMap<>();
 		for (String ds : datasets.keySet()) {
 			GlycoAnalysis ga = glycoAnalysisMap.get(ds);
-
-			if (glycoParams.useGlycanFragmentProbs) {
-				// second pass - calculate fragment propensities, regenerate database, and re-run
-				PTMShepherd.print("Assigning glycans: second pass");
-				HashMap<String, GlycanCandidateFragments> fragmentDB = ga.computeGlycanFragmentProbs(glycoParams);
-				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(fragmentDB, glycoParams.glycoDatabase);
+			boolean converged = !glycoParams.twoPassMode;
+            while (!converged) {
+				if (glycoParams.twoPassMode && passNum == 2) {
+					break;
+				}
+				// calculate fragment propensities, regenerate database, and re-run
+				ga.summarizeGlycanResults();
+				ga.computeGlycanFragmentProbs();
+				ArrayList<GlycanCandidate> propensityGlycanDB = glycoParams.updateGlycanDatabase(ga.targetGlycanFragmentProps, ga.decoyGlycanFragmentProps, glycoParams.glycoDatabase);
 //                glycoParams.printGlycanDatabase(normFName(glycoDBname.split("\\.")[0] + "_2nd.tsv"));
+				converged = ga.checkConvergence(passNum, propensityGlycanDB);
+				PTMShepherd.print("\tGlycan list reduced from " + ga.glycanDatabase.size() / 2 + " to " + propensityGlycanDB.size() / 2 + " high confidence glycans from pass " + passNum);
+				if (converged) {
+					PTMShepherd.print("Glycan assignment converged after pass " + passNum);
+					break;
+				}
+				passNum++;
 
 				// run glyco PSM-level analysis with the new database
-				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams, false);
-				if (glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.mass2nd) || glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.iso2nd)) {
-					ga2.getMassErrorsSecondPass(ga.allResults);
+				PTMShepherd.print("Assigning glycans: pass " + passNum);
+				// for non-library mode, supply first-pass fragment propensities as the library for 2nd-pass scoring
+				if (!glycoParams.useGlycoLib && !ga.targetGlycanFragmentProps.isEmpty()) {
+					glycoParams.glycoLibFragments = new HashMap<>(ga.targetGlycanFragmentProps);
+					glycoParams.useGlycoLib = true;
 				}
+				GlycoAnalysis ga2 = new GlycoAnalysis(ds, propensityGlycanDB, glycoParams, false);
+				ga2.getMassErrorsSecondPass(ga.allResults);
+
 				ga2.glycanMassBinMap = ga.glycanMassBinMap;
-				ga2.useFragmentSpecificProbs = true;
-				ga2.defaultPropensity = glycoParams.defaultProp;
 				for (PSMFile pf : psmFiles.get(ds)) {
-					ga2.glycoPSMs(pf, mzMap.get(ds), originalMzMap.get(ds), executorService);
+					ga2.glycoPSMs(pf, mzMap.get(ds), ms1MzMap.get(ds), executorService);
 				}
 				ga2.runScoresAndFDR();
-				ga2.completeGlyco();
+                if (glycoParams.printScoreGraphs) {
+                    ga2.plotAllGlycoHistograms(ds, "");
+                }
+				glycoParams.glycoDatabase = propensityGlycanDB;		// update glycoDatabase to the reduced DB for final printing
+                ga2.completeGlyco();
+				ga = ga2; // set ga to the new analysis for next iteration
 			}
+			GlycoParams.writeGlycanMassList(glycoParams.glycoDatabase, glycoMassFilePath);
+			finalGlycoAnalysisMap.put(ds, ga);
 		}
 
 
@@ -624,6 +666,23 @@ public class PTMShepherd {
 		for (String ds : datasets.keySet()) {
 			for (PSMFile pf: psmFiles.get(ds)) {
 				pf.mergeGlycoTable(ds, glycoParams);
+			}
+		}
+
+		/* Update glycolib with results from this analysis if requested */
+		if (glycoParams.updateGlycoLib) {
+			if (glycoParams.glycoLibPath == null || glycoParams.glycoLibPath.isEmpty()) {
+				print("Warning: glyco_update_lib is true but no glyco_lib_path is set; skipping glycolib update");
+			} else {
+				print("Updating glyco library with results from this analysis");
+				for (Map.Entry<String, GlycoAnalysis> entry : finalGlycoAnalysisMap.entrySet()) {
+					GlycoAnalysis finalGa = entry.getValue();
+					if (finalGa == null) continue;
+					Map.Entry<LinkedHashMap<String, GlycanCandidateFragments>, HashMap<String, Integer>> fragData =
+							finalGa.computeFragmentDataForGlycoLibUpdate();
+					glycoParams.updateGlycoLibInMemory(fragData.getKey(), fragData.getValue());
+				}
+				glycoParams.writeGlycoLib();
 			}
 		}
 
@@ -960,7 +1019,7 @@ public class PTMShepherd {
 
 			// delete dataset files with specific extensions
 			List<String> extsToDelete = Arrays
-					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoName, modSummaryName, diagIonsExtractName);
+					.asList(histoName, locProfileName, glycoProfileName, ms2countsName, simRTProfileName, rawLocalizeName, rawSimRTName, rawGlycoFirstPass + rawGlycoName, rawGlycoFirstPass + rawGlycoName + "2", rawGlycoName, rawGlycoName + "2", glycoHistoName, modSummaryName, diagIonsExtractName);
 			for (String ds : datasets.keySet()) {
 				for (String ext : extsToDelete) {
 					Path p = Paths.get(normFName(ds + ext)).toAbsolutePath().normalize();
@@ -1043,7 +1102,7 @@ public class PTMShepherd {
 		for(String ds : datasets.keySet()) {
 			ArrayList<String []> dsData = datasets.get(ds);
 			mzMap.put(ds, new HashMap<>());
-			originalMzMap.put(ds, new HashMap<>());
+			ms1MzMap.put(ds, new HashMap<>());
 			for (int i = 0; i < dsData.size(); i++) {
 				File tpf = new File(dsData.get(i)[0]);
 				HashSet<String> fNames;
@@ -1076,7 +1135,7 @@ public class PTMShepherd {
 				}
 				PTMShepherd.print("\tIndexing data from " + ds);
 				PSMFile pf = psmFiles.get(ds).get(i);
-				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), originalMzMap.get(ds), pf.getRunNames());
+				PSMFile.getMappings(new File(dsData.get(i)[1]), mzMap.get(ds), ms1MzMap.get(ds), pf.getRunNames());
 			}
 			// Assure that mzData was found
 			for(String crun : mzMap.get(ds).keySet()) {
@@ -1085,8 +1144,8 @@ public class PTMShepherd {
 				}
 			}
 			// Assure that mzData was found
-			for(String crun : originalMzMap.get(ds).keySet()) {
-				if(originalMzMap.get(ds).get(crun) == null) {
+			for(String crun : ms1MzMap.get(ds).keySet()) {
+				if(ms1MzMap.get(ds).get(crun) == null) {
 					die("In dataset \""+ds+"\" could not find original mzData for run " +  crun);
 				}
 			}
@@ -1314,17 +1373,27 @@ public class PTMShepherd {
 		String glycanModDB = getParam("glyco_mod_list");
 		String glycoOxoDB = getParam("glyco_oxonium_list");
 		glycoParams = new GlycoParams(glycanResidueDB, glycanModDB, glycoOxoDB);
-		glycoParams.glycoLDA = !getParam("glyco_lda").isEmpty() && Boolean.parseBoolean(getParam("glyco_lda"));	// default false
+		glycoParams.glycoLDA = getParam("glyco_lda").isEmpty() || Boolean.parseBoolean(getParam("glyco_lda"));	// default true
+		glycoParams.glycoNN = getParam("glyco_nn").isEmpty() || Boolean.parseBoolean(getParam("glyco_nn"));	// default true
+		glycoParams.noFDR = !getParam("glyco_no_fdr").isEmpty() && Boolean.parseBoolean(getParam("glyco_no_fdr"));	// default false
+		glycoParams.glycoLibPath = getParam("glyco_lib_path");	// default empty (no library)
+		if (!glycoParams.glycoLibPath.isEmpty()) {
+			glycoParams.parseGlycoLib();
+		}
+		glycoParams.useGlycoLib = glycoParams.glycoLibFragments != null && !glycoParams.glycoLibFragments.isEmpty();
+		glycoParams.skipMS1 = !getParam("glyco_skip_ms1").isEmpty() && Boolean.parseBoolean(getParam("glyco_skip_ms1"));	// default false
 
 		// parse glyco parameters and initialize database and ratio tables
-		glycoParams.initIsotopeProbs(getParam("prob_isotope"));
-		glycoParams.massProbScaling = getParam("prob_mass").isEmpty() ? GlycoAnalysis.DEFAULT_MASS_PROB_SCALING :  Double.parseDouble(getParam("prob_mass"));
 		glycoParams.randomGenerator = new Random(glycoRandomSeed);
 		String decoyParam = getParam("decoy_type");
 		glycoParams.decoyType = !decoyParam.isEmpty() ? Integer.parseInt(decoyParam): GlycoAnalysis.DEFAULT_GLYCO_DECOY_TYPE;
 		glycoParams.glycoPPMtol = getParam("glyco_ppm_tol").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PPM_TOL : Double.parseDouble(getParam("glyco_ppm_tol"));
 		glycoParams.glycoIsotopes = GlycoParams.parseGlycoIsotopesParam();
 		glycoParams.nGlycan = getParam("n_glyco").isEmpty() || Boolean.parseBoolean(getParam("n_glyco"));		// default true
+		glycoParams.numDecoysPerTarget = getParam("glyco_num_decoys").isEmpty() ? 1 : Integer.parseInt(getParam("glyco_num_decoys"));	// default 1. Must be set before database parsing
+		if (glycoParams.noFDR) {
+			glycoParams.numDecoysPerTarget = 0;	// no decoys needed in no-FDR mode
+		}
 		String glycanDB = getParam("glycodatabase");
 		Path testPath = Paths.get(glycanDB.replaceAll("['\"]", ""));
 		if (glycanDB.isEmpty()) {
@@ -1350,8 +1419,6 @@ public class PTMShepherd {
 			// default method - glycans passed as string parameter
             glycoParams.glycoDatabase = glycoParams.parseGlycanDatabaseString(glycanDB);
 		}
-		glycoParams.glycoYnorm = getParam("norm_Ys").isEmpty() || Boolean.parseBoolean(getParam("norm_Ys"));		// default to True if not specified
-		glycoParams.absScoreErrorParam = getParam("glyco_abs_score_base").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_ABS_SCORE_BASE : Double.parseDouble(getParam("glyco_abs_score_base"));
 		String glycoFDRParam = getParam("glyco_fdr");
 		glycoParams.glycoFDR = glycoFDRParam.isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_FDR : Double.parseDouble(glycoFDRParam); 	// default 0.01 if param not provided, otherwise read provided value
 		glycoParams.printFullParams = !getParam("print_full_glyco_params").isEmpty() && Boolean.parseBoolean(getParam("print_full_glyco_params"));		// default false - for diagnostics
@@ -1360,17 +1427,31 @@ public class PTMShepherd {
 		glycoParams.printGlycoDecoys = !getParam("print_decoys").isEmpty() && Boolean.parseBoolean(getParam("print_decoys"));	// default false
 		glycoParams.allowedLocalizationResidues = getParam("localization_allowed_res");
 		glycoParams.numThreads = Integer.parseInt(params.get("threads"));
-		glycoParams.useGlycanFragmentProbs = !getParam("use_glycan_fragment_probs").isEmpty() && Boolean.parseBoolean(getParam("use_glycan_fragment_probs"));	// default false
-		glycoParams.useNonCompFDR = !getParam("use_noncomp_glycan_fdr").isEmpty() && Boolean.parseBoolean(getParam("use_noncomp_glycan_fdr"));	// default false
-		glycoParams.defaultProp = getParam("glyco_default_propensity").isEmpty() ? GlycoAnalysis.DEFAULT_GLYCO_PROPENSITY : Double.parseDouble(getParam("glyco_default_propensity"));
-		glycoParams.ldaFeaturesToUse = GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
-        glycoParams.ldaTargetProp = getParam("glyco_lda_target_proportion").isEmpty() ? 0.5 : Double.parseDouble(getParam("glyco_lda_target_proportion"));
-        glycoParams.normFragmentIntensities = getParam("norm_fragment_intensities").isEmpty() || Boolean.parseBoolean(getParam("norm_fragment_intensities"));	// default true
-        glycoParams.topPctSpectraForConsensus = getParam("top_pct_gpsms").isEmpty() ? 1.0 : Double.parseDouble(getParam("top_pct_gpsms"));
-        glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 1 : Integer.parseInt(getParam("min_y_consensus"));
+		glycoParams.ldaFeaturesToUse = getParam("glyco_lda_features").isEmpty() ?
+				GlycoParams.parseLDAfeatures("glycanfreq,ms1,ms1delta") :		// default features if param not provided
+				GlycoParams.parseLDAfeatures(getParam("glyco_lda_features"));
+        glycoParams.ldaTargetProp = getParam("glyco_lda_target_proportion").isEmpty() ? 0.2 : Double.parseDouble(getParam("glyco_lda_target_proportion"));
+        glycoParams.topPctSpectraForConsensus = getParam("top_pct_gpsms").isEmpty() ? 0.2 : Double.parseDouble(getParam("top_pct_gpsms"));
+        glycoParams.minYsForConsensus = getParam("min_y_consensus").isEmpty() ? 3 : Integer.parseInt(getParam("min_y_consensus"));
         glycoParams.minPSMsForConsensus = getParam("min_psms_consensus").isEmpty() ? 10 : Integer.parseInt(getParam("min_psms_consensus"));
-        glycoParams.useShuffledIntensities = !getParam("shuffle_decoy_intensities").isEmpty() && Boolean.parseBoolean(getParam("shuffle_decoy_intensities"));	// default false
+		glycoParams.twoPassMode = getParam("glyco_two_pass_search").isEmpty() || Boolean.parseBoolean(getParam("glyco_two_pass_search"));	// default true
+		glycoParams.removeGlycans2ndPass = getParam("glyco_reduce_database_second_pass").isEmpty() || Boolean.parseBoolean(getParam("glyco_reduce_database_second_pass"));	// default true
+		glycoParams.checkVariableMods = !getParam("glyco_check_variable_mods").isEmpty() && Boolean.parseBoolean(getParam("glyco_check_variable_mods"));	// default false
+		glycoParams.minDecoyFragmentDiff = getParam("glyco_min_fragment_diff").isEmpty() ? 0.05 : Double.parseDouble(getParam("glyco_min_fragment_diff"));	// default 0.05
+		glycoParams.updateGlycoLib = !getParam("glyco_update_lib").isEmpty() && Boolean.parseBoolean(getParam("glyco_update_lib"));	// default false
 
+        glycoParams.printScoreGraphs = !getParam("glyco_score_plots").isEmpty() && Boolean.parseBoolean(getParam("glyco_score_plots"));	// default false
+		if (!glycoParams.skipMS1 && !(glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1)
+				|| glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.ms1delta)
+				|| glycoParams.ldaFeaturesToUse.contains(GlycoParams.LDAFeature.kl))) {
+			glycoParams.skipMS1 = true;		// skip MS1 not explicitly specified, but no features require MS1, so set to true to save time in glyco analysis
+		}
+		if (glycoParams.skipMS1) {
+			// skipMS1 overrides any LDA features that require the IonQuant API
+			glycoParams.ldaFeaturesToUse.remove(GlycoParams.LDAFeature.ms1);
+			glycoParams.ldaFeaturesToUse.remove(GlycoParams.LDAFeature.ms1delta);
+			glycoParams.ldaFeaturesToUse.remove(GlycoParams.LDAFeature.kl);
+		}
 		return glycoParams;
 	}
 

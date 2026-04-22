@@ -147,8 +147,8 @@ public class DiagnosticAnalysis {
         String specName = psm.getSpec();
         int charge = psm.getCharge();
         String pepSeq = psm.getPeptide();
-        float dmass = psm.getDMass();
-        float pepMass = psm.getCalcPepmass();
+        float dmass = (float) psm.getDMass();
+        float pepMass = (float) (double) psm.getCalcPepmass();
         ArrayList<Mod> smods = psm.getAssignedMods();
 
         /* Prep spec and normalize to base peak */

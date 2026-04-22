@@ -141,7 +141,7 @@ public class DiagnosticPeakPicker {
             int scanNum = psm.getScanNum();
             String mods = psm.printAssignedMods();
             float eVal = Float.parseFloat(psm.getSpLine().get(pf.eValCol));
-            float dmass = psm.getDMass();
+            float dmass = (float) psm.getDMass();
             int peakIndx = locate.getIndex(dmass);
             String pepKey = pepSeq + mods + charge;
 
@@ -517,8 +517,8 @@ public class DiagnosticPeakPicker {
         int scanNum = psm.getScanNum();
         String pepSeq = psm.getPeptide();
         ArrayList<Mod> smods = psm.getAssignedMods();
-        float dmass = psm.getDMass();
-        float pepMass = psm.getCalcPepmass();
+        float dmass = (float) psm.getDMass();
+        float pepMass = (float) (double) psm.getCalcPepmass();
 
         // Make sure PSM falls into PTMS MS1 bin
         int dmassIndx = locate.getIndex(dmass);
@@ -539,32 +539,55 @@ public class DiagnosticPeakPicker {
             return;
         spec.condition(this.condPeaks, this.condRatio);
 
-        // Find ions of interest
+        // Partition records by type, then batch-search diagnostic and peptide ions
+        List<DiagnosticProfileRecord> diagRecs = new ArrayList<>();
+        List<DiagnosticProfileRecord> peptideRecs = new ArrayList<>();
         for (DiagnosticProfileRecord dpr : binDiagMetrics[dmassIndx].diagProfRecs) {
             if (dpr.type.equals("diagnostic")) {
-                double immInt = spec.findIon(dpr.adjustedMass, this.spectraTol);
-                if (immInt > 0.01) {
-                    dpr.nWithIon.incrementAndGet();
-                    dpr.zSum.addAndGet(charge);
-                    dpr.wIonInt.addAndGet(immInt);
-                }
-                dpr.nTotal.incrementAndGet();
+                diagRecs.add(dpr);
             } else if (dpr.type.equals("peptide")) {
-                double capYInt = spec.findIonNeutral(pepMass + dpr.adjustedMass, this.spectraTol, 1);
-                if (capYInt > 0.01) {
-                    dpr.nWithIon.incrementAndGet();
-                    dpr.wIonInt.addAndGet(capYInt);
-                }
-                dpr.nTotal.incrementAndGet();
+                peptideRecs.add(dpr);
             } else {
                 dpr.nTotal.incrementAndGet();
                 int nUnshiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, 0.0f);
                 dpr.nUnshiftedIons.getAndAdd(pepSeq.length());
                 int nShiftedIons = spec.getFrags(pepSeq, formatMods(smods, pepSeq), this.spectraTol, dpr.type, (float)dpr.adjustedMass);
                 dpr.nShiftedIons.addAndGet(nShiftedIons);
-                //dpr.pctCoverage.addAndGet(nShiftedIons / (double) pepSeq.length());
                 if (nUnshiftedIons + nShiftedIons != 0)
                     dpr.pctCoverage.addAndGet(nShiftedIons / (double) (nUnshiftedIons + nShiftedIons));
+            }
+        }
+
+        if (!diagRecs.isEmpty()) {
+            double[] diagMasses = new double[diagRecs.size()];
+            for (int i = 0; i < diagRecs.size(); i++)
+                diagMasses[i] = diagRecs.get(i).adjustedMass;
+            double[] diagIntensities = spec.findIons(diagMasses, this.spectraTol);
+            for (int i = 0; i < diagRecs.size(); i++) {
+                DiagnosticProfileRecord dpr = diagRecs.get(i);
+                double immInt = diagIntensities[i];
+                if (immInt > 0.01) {
+                    dpr.nWithIon.incrementAndGet();
+                    dpr.zSum.addAndGet(charge);
+                    dpr.wIonInt.addAndGet(immInt);
+                }
+                dpr.nTotal.incrementAndGet();
+            }
+        }
+
+        if (!peptideRecs.isEmpty()) {
+            double[] peptideMasses = new double[peptideRecs.size()];
+            for (int i = 0; i < peptideRecs.size(); i++)
+                peptideMasses[i] = pepMass + peptideRecs.get(i).adjustedMass;
+            double[] peptideIntensities = spec.findIonsNeutral(peptideMasses, this.spectraTol, 1);
+            for (int i = 0; i < peptideRecs.size(); i++) {
+                DiagnosticProfileRecord dpr = peptideRecs.get(i);
+                double capYInt = peptideIntensities[i];
+                if (capYInt > 0.01) {
+                    dpr.nWithIon.incrementAndGet();
+                    dpr.wIonInt.addAndGet(capYInt);
+                }
+                dpr.nTotal.incrementAndGet();
             }
         }
     }

@@ -162,7 +162,7 @@ public class SiteLocalization {
 		StringBuilder sb = new StringBuilder();
 		PSM psm = psmFile.psms.get(lineIndex);
 		String seq = psm.getPeptide();
-		float dmass = psm.getDMass();
+		float dmass = (float) psm.getDMass();
 		float [] scores = new float[seq.length()];
 		int [] frags = new int[seq.length()];
 		String specName = psm.getSpec();
@@ -227,7 +227,7 @@ public class SiteLocalization {
 		StringBuilder sb = new StringBuilder();
 		PSM psm = psmFile.psms.get(lineIndex);
 		String seq = psm.getPeptide();
-		float dmass = psm.getDMass();
+		float dmass = (float) psm.getDMass();
 		float [] scores = new float[seq.length()];
 		int [] frags = new int[seq.length()];
 		String specName = psm.getSpec();
@@ -305,7 +305,7 @@ public class SiteLocalization {
             } else {
                 pos = mod.position - 1;     // all other mods
             }
-			float mass = mod.mass;
+			float mass = (float) mod.mass;
             mods[pos] += mass;
 		}
 	}

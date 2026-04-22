@@ -16,6 +16,7 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
+import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import umich.ms.glyco.GlycanFragment;
 import java.util.ArrayList;
@@ -33,6 +34,10 @@ public class GlycanAssignmentResult {
     public ArrayList<GlycanCandidateResult> allCandidates = new ArrayList<>(); // all glycan candidates for this PSM
     public boolean foundGlycan = false;
 
+    // Variable mod check results
+    public String modChangeDescription = "";  // e.g., "removed 3S(+79.9663)" or empty if original was best
+    public Mod removedMod = null;  // the mod that was removed, null if original was best
+
     // Basic PSM info (prior to PTM-S)
     public int psmLineIndex; // index of the PSM line in the input file
     String peptide;
@@ -40,15 +45,15 @@ public class GlycanAssignmentResult {
     float pepMass;
     String assignedMods;
     String specName;
+    ArrayList<Mod> assignedModsList;
 
-
-
-    public GlycanAssignmentResult(int psmLineIndex, String peptide, float deltaMass, float pepMass, String assignedMods, String specName) {
+    public GlycanAssignmentResult(int psmLineIndex, String peptide, float deltaMass, float pepMass, String assignedMods, ArrayList<Mod> assignedModsList, String specName) {
         this.psmLineIndex = psmLineIndex;
         this.peptide = peptide;
         this.deltaMass = deltaMass;
         this.pepMass = pepMass;
         this.assignedMods = assignedMods;
+        this.assignedModsList = assignedModsList;
         this.specName = specName;
 
         this.bestTarget = null;
@@ -81,7 +86,7 @@ public class GlycanAssignmentResult {
     }
 
     private void printBestGlycan(StringBuilder sb) {
-        sb.append(String.format("\t%s\t%.2f\t%.4f", bestCandidate, glycanScore, glycanQval));
+        sb.append(String.format("\t%s\t%.4f\t%.4f", bestCandidate, glycanScore, glycanQval));
     }
 
     private void printFeatureVector(StringBuilder sb, GlycanCandidateResult candidate) {
@@ -97,14 +102,14 @@ public class GlycanAssignmentResult {
         if (!isDecoyGlycan) {
             // for target glycans, append best decoy as well
             if (bestDecoy != null) {
-                sb.append(String.format("\t%s\t%.2f", bestDecoy, bestDecoy.glycanScore));
+                sb.append(String.format("\t%s\t%.4f", bestDecoy, bestDecoy.glycanScore));
             } else {
                 sb.append(String.format("\t%s\t", "no decoy matches"));
             }
         } else {
             // for decoy glycans, append best target as well
             if (bestTarget != null) {
-                sb.append(String.format("\t%s\t%.2f", bestTarget, bestTarget.glycanScore));
+                sb.append(String.format("\t%s\t%.4f", bestTarget, bestTarget.glycanScore));
             } else {
                 sb.append(String.format("\t%s\t", "no target matches"));
             }
@@ -122,6 +127,12 @@ public class GlycanAssignmentResult {
             }
             // oxonium ions
             for (GlycanFragment ion : candidate.oxoniumFragments.values()) {
+                if (ion.foundIntensity > 0) {
+                    sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
+                }
+            }
+            // general oxonium ions
+            for (GlycanFragment ion : candidate.generalOxoniumFragments.values()) {
                 if (ion.foundIntensity > 0) {
                     sb.append(String.format("\tOx~%s", ion));      // format is [ion type] [ion comp] [found intensity]
                 }

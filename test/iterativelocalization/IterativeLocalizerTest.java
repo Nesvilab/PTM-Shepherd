@@ -12,7 +12,7 @@ public class IterativeLocalizerTest {
     @Test
     void parseAllowedPositions() {
         String seq = "PEPTIDE";
-        float[] mods = new float[]{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        double[] mods = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         String allowedAAs = "";
         boolean[] expectedPoses = new boolean[]{true, true, true, true, true, true, true};
         assertArrayEquals(expectedPoses, IterativeLocalizer.parseAllowedPositions(seq, allowedAAs, mods));

@@ -516,7 +516,7 @@ public class Spectrum implements Comparable<Spectrum> {
 		return nB+nY;
 	}
 
-	public float[] getMatchedFrags(String seq, float [] mods, double ppmTol, String it, float dMass) {
+	public float[] getMatchedFrags(String seq, double [] mods, double ppmTol, String it, float dMass) {
 		int maxCharge = 1;
 
 		float [] aaMasses = AAMasses.monoisotopic_masses;
@@ -610,6 +610,35 @@ public class Spectrum implements Comparable<Spectrum> {
 		return ionIntensity;
 	}
 
+	/**
+	 * Search for multiple m/z ions in a single pass through the spectrum.
+	 * @return array of summed intensities, one per input ion, in the same order as the input
+	 */
+	public double[] findIons(double[] ions, double ppmTol) {
+		double[] result = new double[ions.length];
+		if (ions.length == 0) return result;
+
+		// Sort ions by value while keeping track of original indices
+		Integer[] sortedIdx = new Integer[ions.length];
+		for (int i = 0; i < ions.length; i++) sortedIdx[i] = i;
+		Arrays.sort(sortedIdx, (a, b) -> Double.compare(ions[a], ions[b]));
+
+		int peakStart = 0;
+		for (int si : sortedIdx) {
+			double ion = ions[si];
+			double ppmRange = ppmTol * (1.0 / 1000000) * ion;
+			double min = ion - ppmRange;
+			double max = ion + ppmRange;
+			while (peakStart < peakMZ.length && peakMZ[peakStart] < min)
+				peakStart++;
+			for (int i = peakStart; i < peakMZ.length && peakMZ[i] <= max; i++) {
+				if (Math.abs(peakMZ[i] - ion) < ppmRange)
+					result[si] += peakInt[i];
+			}
+		}
+		return result;
+	}
+
 	public double findIonNeutral(double neutralIonMass, double ppmTol, int maxCharge) {
 		double ionIntensity = 0;
 		int charge = this.charge == 0 ? maxCharge : Math.min(this.charge, maxCharge);	// use max charge if charge was not read from spectrum file
@@ -625,6 +654,50 @@ public class Spectrum implements Comparable<Spectrum> {
 			}
 		}
 		return ionIntensity;
+	}
+
+	/**
+	 * Search for multiple neutral masses across charge states in a single pass through the spectrum.
+	 * @return array of summed intensities (across charge states), one per input neutral mass, in the same order as the input
+	 */
+	public double[] findIonsNeutral(double[] neutralMasses, double ppmTol, int maxCharge) {
+		double[] result = new double[neutralMasses.length];
+		if (neutralMasses.length == 0) return result;
+
+		int charge = this.charge == 0 ? maxCharge : Math.min(this.charge, maxCharge);
+
+		// Expand each neutral mass × charge state into a flat list of (mz, originalIndex) queries
+		int total = neutralMasses.length * charge;
+		double[] queryMZ = new double[total];
+		int[] queryOrigIdx = new int[total];
+		int q = 0;
+		for (int i = 0; i < neutralMasses.length; i++) {
+			for (int z = 1; z <= charge; z++) {
+				queryMZ[q] = calcMZ(neutralMasses[i], z);
+				queryOrigIdx[q] = i;
+				q++;
+			}
+		}
+
+		// Sort queries by m/z for a single left-to-right pass through peakMZ
+		Integer[] sortedQ = new Integer[total];
+		for (int i = 0; i < total; i++) sortedQ[i] = i;
+		Arrays.sort(sortedQ, (a, b) -> Double.compare(queryMZ[a], queryMZ[b]));
+
+		int peakStart = 0;
+		for (int qi : sortedQ) {
+			double ion = queryMZ[qi];
+			double ppmRange = ppmTol * (1.0 / 1000000) * ion;
+			double min = ion - ppmRange;
+			double max = ion + ppmRange;
+			while (peakStart < peakMZ.length && peakMZ[peakStart] < min)
+				peakStart++;
+			for (int i = peakStart; i < peakMZ.length && peakMZ[i] <= max; i++) {
+				if (Math.abs(peakMZ[i] - ion) < ppmRange)
+					result[queryOrigIdx[qi]] += peakInt[i];
+			}
+		}
+		return result;
 	}
 
 	/**

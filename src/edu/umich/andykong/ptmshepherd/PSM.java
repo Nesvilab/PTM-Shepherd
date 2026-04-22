@@ -19,12 +19,12 @@ public class PSM {
     private String fileName;
     private final int specNum;
     private final String peptide;
-    private float [] modArr;
-    private Float dMass;
-    private float calcPepMass;
-    private float originalCalcPepMass;
+    private double [] modArr;
+    private double dMass;
+    private double calcPepMass;
+    private double originalCalcPepMass;
     private final int charge;
-    private float originalDeltaMass;	// what was listed in the PSM table before analysis
+    private double originalDeltaMass;	// what was listed in the PSM table before analysis
     private ArrayList<Mod> originalAssignedMods;
     private ArrayList<Mod> assignedMods;		// position -> mass
     private String modifiedPeptide;
@@ -77,11 +77,11 @@ public class PSM {
         return charge;
     }
 
-    public Float getCalcPepmass() {
+    public Double getCalcPepmass() {
         return calcPepMass;
     }
 
-    public float getOriginalDeltaMass() {
+    public double getOriginalDeltaMass() {
         return originalDeltaMass;
     }
     public String getModifiedPeptide() {
@@ -90,10 +90,10 @@ public class PSM {
     public String getOriginalModifiedPeptide() {
         return originalModifiedPeptide;
     }
-    public float getCalcPepMass() {
+    public double getCalcPepMass() {
         return calcPepMass;
     }
-    public float getOriginalCalcPepMass() {
+    public double getOriginalCalcPepMass() {
         return originalCalcPepMass;
     }
 
@@ -103,10 +103,10 @@ public class PSM {
      * @param massdiffToVarmod MSFragger setting for mass diff to varmod (0 = none, 1 = remove, 2 = keep)
      */
     public void initializeMods(int massdiffToVarmod, int dMassCol, int assignedModCol, int modPepCol, int msfraggerLocalizationCol, int calcMassCol) {
-        originalDeltaMass = Float.parseFloat(spLine.get(dMassCol));
+        originalDeltaMass = Double.parseDouble(spLine.get(dMassCol));
         originalAssignedMods = initAssignedMods(assignedModCol);
         originalModifiedPeptide = spLine.get(modPepCol).isEmpty() ? peptide : spLine.get(modPepCol);    // use peptide if no modified peptide
-        originalCalcPepMass = Float.parseFloat(spLine.get(calcMassCol));
+        originalCalcPepMass = Double.parseDouble(spLine.get(calcMassCol));
 
         if (massdiffToVarmod == 0) {
             // no mass diff to varmod, use original delta mass and assigned mods
@@ -136,26 +136,26 @@ public class PSM {
                 // remove the delta mass from the assigned mods and add its mass to the dMass for analysis
                 assignedMods = new ArrayList<>();
                 boolean foundDeltaMod = false;
-                float modMassAtDeltaPos = 0.0f;
+                double modMassAtDeltaPos = 0.0;
                 for (Mod mod : originalAssignedMods) {
                     if (mod.position != deltaMassPos) {
                         assignedMods.add(mod);
                     } else {
                         // this is the delta mod. Do not include it in the new assigned mods
                         foundDeltaMod = true;
-                        modMassAtDeltaPos += mod.mass;  // in case there are multiple (e.g., fixed + offset at same site)
+                        modMassAtDeltaPos = modMassAtDeltaPos + mod.mass;  // in case there are multiple (e.g., fixed + offset at same site)
                     }
                 }
                 // handle C-2 (disulfide) case where the delta mass is actually removal of 2 fixed mods
                 boolean overrideForCysDisulfide = false;
                 if (deltaMassPos > 0 && deltaMassPos < peptide.length() && peptide.charAt(deltaMassPos - 1) == 'C') {
                     if (checkCysDisulfide(deltaMassPos)) {
-                        modMassAtDeltaPos = -2.01565f;  // found disulfide: set mass manually
+                        modMassAtDeltaPos = -2.01565;  // found disulfide: set mass manually
                         // keep all original assigned mods because we don't know which Cys had the disulfide links if there were >2
                         assignedMods = copyMods(originalAssignedMods);
                         overrideForCysDisulfide = true;
                         if (massdiffToVarmod == 2 ) {
-                            dMass = originalDeltaMass + 2 * 57.02146f; // add back two fixed mods if delta mass was kept
+                            dMass = originalDeltaMass + 2 * 57.02146; // add back two fixed mods if delta mass was kept
                         }
                     }
                 }
@@ -240,7 +240,7 @@ public class PSM {
                 int p = spMod.indexOf("(");
                 int q = spMod.indexOf(")");
                 String spos = spMod.substring(0, p).trim();
-                float mass = Float.parseFloat(spMod.substring(p + 1, q).trim());
+                double mass = Double.parseDouble(spMod.substring(p + 1, q).trim());
                 int pos;
                 if (spos.equals("N-term"))
                     pos = 0;
@@ -254,10 +254,10 @@ public class PSM {
         return mods;
     }
 
-    public float [] getModsAsArray() {
+    public double [] getModsAsArray() {
         if (modArr == null) {
-            modArr = new float[getPeptide().length()];
-            Arrays.fill(modArr, 0.0f);
+            modArr = new double[getPeptide().length()];
+            Arrays.fill(modArr, 0.0);
             for (Mod mod : assignedMods) {
                 if (mod.position == 0)
                     modArr[0] = mod.mass;
@@ -271,7 +271,7 @@ public class PSM {
     }
 
     // use this to get the delta mass for actual analyses
-    public float getDMass() {
+    public double getDMass() {
         return dMass;
     }
 
@@ -322,10 +322,10 @@ public class PSM {
      * reset the delta mass to the original value before updating with the new delta mass.
      * @param newTheoreticalMass new delta mass
      */
-    public void updateDeltaMass(float newTheoreticalMass, int massdiffToVarmod, float prevTheoreticalMass, int peptideCalcMassCol, int calcMZcol, int dmassCol, int assignedModCol) {
+    public void updateDeltaMass(double newTheoreticalMass, int massdiffToVarmod, double prevTheoreticalMass, int peptideCalcMassCol, int calcMZcol, int dmassCol, int assignedModCol) {
         if (massdiffToVarmod == 1) {
             // Original dMass does not have the glycan: only need to adjust if the glycan composition has changed. If same composition, changeInDeltaMass will be 0
-            float changeInDeltaMass = newTheoreticalMass - prevTheoreticalMass;
+            double changeInDeltaMass = newTheoreticalMass - prevTheoreticalMass;
             dMass = originalDeltaMass + changeInDeltaMass;
             calcPepMass = originalCalcPepMass + changeInDeltaMass;
         } else {
@@ -336,7 +336,7 @@ public class PSM {
 
         // update the spLine
         spLine.set(peptideCalcMassCol, String.format("%.4f", calcPepMass));
-        spLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ(calcPepMass, getCharge())));
+        spLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) calcPepMass, getCharge())));
         spLine.set(dmassCol, String.format("%.4f", dMass));
         spLine.set(assignedModCol, printAssignedMods());
     }
@@ -387,6 +387,11 @@ public class PSM {
             // non-terminal mods
             int adjustedIndex = getModPepIndex(previousModPep, modLocation);
 
+            // Check if there is a bracket after the residue (fixed mods may not have one)
+            if (adjustedIndex + 1 >= previousModPep.length() || previousModPep.charAt(adjustedIndex + 1) != '[') {
+                return previousModPep;  // no bracket at this position, nothing to remove
+            }
+
             // Find the start and end of the bracketed number
             int startBracket = previousModPep.indexOf('[', adjustedIndex);
             int endBracket = previousModPep.indexOf(']', startBracket) + 1;
@@ -411,6 +416,29 @@ public class PSM {
             }
         }
         return residueIndex - 1;
+    }
+
+    /**
+     * Remove a variable mod from this PSM's state: remove from assignedMods, update modifiedPeptide,
+     * adjust delta mass and calc pep mass, and update the corresponding spLine columns.
+     */
+    public void applyModRemoval(Mod modToRemove, int dMassCol, int assignedModCol, int modPepCol, int calcMassCol, int calcMZcol) {
+        // remove the mod from assignedMods
+        assignedMods.removeIf(m -> m.position == modToRemove.position && m.mass == modToRemove.mass);
+
+        // remove from modified peptide
+        modifiedPeptide = removeModFromModifiedPeptide(modifiedPeptide, modToRemove.position);
+
+        // adjust masses: removing a mod adds its mass to delta, subtracts from calc pep mass
+        dMass += modToRemove.mass;
+        calcPepMass -= modToRemove.mass;
+
+        // update spLine columns
+        spLine.set(dMassCol, String.format("%.4f", dMass));
+        spLine.set(calcMassCol, String.format("%.4f", calcPepMass));
+        spLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ((float) calcPepMass, charge)));
+        spLine.set(assignedModCol, printAssignedMods());
+        spLine.set(modPepCol, modifiedPeptide);
     }
 
     public String toString() {

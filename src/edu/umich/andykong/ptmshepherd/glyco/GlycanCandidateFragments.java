@@ -16,30 +16,48 @@
 
 package edu.umich.andykong.ptmshepherd.glyco;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 /**
  * Container for holding fragment propensities for a given glycan
  */
 public class GlycanCandidateFragments {
-    HashMap<String, Double> yFragmentProps;
-    HashMap<String, Double> yFragmentIntensities;
-    HashMap<String, Double> OxFragmentProps;
-    HashMap<String, Double> OxFragmentIntensities;
+    LinkedHashMap<String, Double> yFragmentIntensities;
+    LinkedHashMap<String, Double> OxFragmentIntensities;
+    LinkedHashMap<String, Double> generalOxFragmentIntensities;
+
+    // Standard deviations for error bars
+    LinkedHashMap<String, Double> yFragmentStdDevs;
+    LinkedHashMap<String, Double> OxFragmentStdDevs;
+    LinkedHashMap<String, Double> generalOxFragmentStdDevs;
 
 
-    public GlycanCandidateFragments(HashMap<String, Double> yFragmentProps, HashMap<String, Double> OxFragmentProps, HashMap<String, Double> yFragmentIntensities, HashMap<String, Double> OxFragmentIntensities) {
-        this.yFragmentProps = yFragmentProps;
-        this.OxFragmentProps = OxFragmentProps;
+    public GlycanCandidateFragments(LinkedHashMap<String, Double> yFragmentIntensities, LinkedHashMap<String, Double> OxFragmentIntensities, LinkedHashMap<String, Double> generalOxFragmentIntensities) {
         this.yFragmentIntensities = yFragmentIntensities;
         this.OxFragmentIntensities = OxFragmentIntensities;
+        this.generalOxFragmentIntensities = generalOxFragmentIntensities;
+        this.yFragmentStdDevs = new LinkedHashMap<>();
+        this.OxFragmentStdDevs = new LinkedHashMap<>();
+        this.generalOxFragmentStdDevs = new LinkedHashMap<>();
+    }
+
+    public GlycanCandidateFragments(LinkedHashMap<String, Double> yFragmentIntensities, LinkedHashMap<String, Double> OxFragmentIntensities, LinkedHashMap<String, Double> generalOxFragmentIntensities,
+                                   LinkedHashMap<String, Double> yFragmentStdDevs, LinkedHashMap<String, Double> OxFragmentStdDevs, LinkedHashMap<String, Double> generalOxFragmentStdDevs) {
+        this.yFragmentIntensities = yFragmentIntensities;
+        this.OxFragmentIntensities = OxFragmentIntensities;
+        this.generalOxFragmentIntensities = generalOxFragmentIntensities;
+        this.yFragmentStdDevs = yFragmentStdDevs;
+        this.OxFragmentStdDevs = OxFragmentStdDevs;
+        this.generalOxFragmentStdDevs = generalOxFragmentStdDevs;
     }
 
     // empty constructor for candidates without fragment info
     public GlycanCandidateFragments() {
-        this.yFragmentProps = new HashMap<>();
-        this.OxFragmentProps = new HashMap<>();
-        this.yFragmentIntensities = new HashMap<>();
-        this.OxFragmentIntensities = new HashMap<>();
+        this.yFragmentIntensities = new LinkedHashMap<>();
+        this.OxFragmentIntensities = new LinkedHashMap<>();
+        this.generalOxFragmentIntensities = new LinkedHashMap<>();
+        this.yFragmentStdDevs = new LinkedHashMap<>();
+        this.OxFragmentStdDevs = new LinkedHashMap<>();
+        this.generalOxFragmentStdDevs = new LinkedHashMap<>();
     }
 }
