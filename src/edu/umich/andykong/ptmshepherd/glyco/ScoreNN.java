@@ -46,7 +46,7 @@ public class ScoreNN {
     private static final int SMALL_INPUT_THRESHOLD = 5;
     private static final double LEARNING_RATE = 0.001;
     private static final double WEIGHT_DECAY = 1e-4;
-    private static final double LABEL_SMOOTHING = 0.1;
+    private static final double LABEL_SMOOTHING = 0.01;
     private static final double DROPOUT_RATE = 0.3;
     private static final int BATCH_SIZE = 64;
     private static final int MAX_EPOCHS = 200;

@@ -86,7 +86,7 @@ public class GlycanAssignmentResult {
     }
 
     private void printBestGlycan(StringBuilder sb) {
-        sb.append(String.format("\t%s\t%.2f\t%.4f", bestCandidate, glycanScore, glycanQval));
+        sb.append(String.format("\t%s\t%.4f\t%.4f", bestCandidate, glycanScore, glycanQval));
     }
 
     private void printFeatureVector(StringBuilder sb, GlycanCandidateResult candidate) {
@@ -102,14 +102,14 @@ public class GlycanAssignmentResult {
         if (!isDecoyGlycan) {
             // for target glycans, append best decoy as well
             if (bestDecoy != null) {
-                sb.append(String.format("\t%s\t%.2f", bestDecoy, bestDecoy.glycanScore));
+                sb.append(String.format("\t%s\t%.4f", bestDecoy, bestDecoy.glycanScore));
             } else {
                 sb.append(String.format("\t%s\t", "no decoy matches"));
             }
         } else {
             // for decoy glycans, append best target as well
             if (bestTarget != null) {
-                sb.append(String.format("\t%s\t%.2f", bestTarget, bestTarget.glycanScore));
+                sb.append(String.format("\t%s\t%.4f", bestTarget, bestTarget.glycanScore));
             } else {
                 sb.append(String.format("\t%s\t", "no target matches"));
             }

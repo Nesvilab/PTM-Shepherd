@@ -873,7 +873,7 @@ public class GlycoAnalysis {
             }
 
             if (glycoParams.glycoNN) {
-                ScoreNN nn = new ScoreNN();
+                ScoreNN nn = new ScoreNN(glycoParams.randomGenerator);
                 nn.targetData = trainTargets;
                 nn.decoyData = trainDecoys;
                 nn.runNN(allResults, ldaHeader, glycoParams.ldaTargetProp);
@@ -1227,7 +1227,7 @@ public class GlycoAnalysis {
             if (!foundThreshold) {
                 if (fdr < fdrCutOff) {
 //                    scoreThreshold = results.get(i).glycanScore;
-                    PTMShepherd.print(String.format("\tFound glycan score threshold: %.2f with %d decoys, %d targets for %.2f%% estimated FDR (%d total inputs)",
+                    PTMShepherd.print(String.format("\tFound glycan score threshold: %.4f with %d decoys, %d targets for %.2f%% estimated FDR (%d input glycoPSMs)",
                             result.glycanScore, decoyCount, targetCount, fdr * 100, glycoResultCount));
                     foundThreshold = true;
                 }
@@ -1315,7 +1315,7 @@ public class GlycoAnalysis {
                 if (targetDecoyRatio <= glycoFDR) {
                     // stop here, found cutoff
                     scoreThreshold = scoreObj.score;
-                    PTMShepherd.print(String.format("\tFound score threshold of %.2f for %.1f%% FDR with %d targets and %d decoys from non-competitive method (%d total inputs)", scoreThreshold, targetDecoyRatio * 100, targets, decoys, totalGlycoResults));
+                    PTMShepherd.print(String.format("\tFound score threshold of %.4f for %.1f%% FDR with %d targets and %d decoys from non-competitive method (%d input glycoPSMs)", scoreThreshold, targetDecoyRatio * 100, targets, decoys, totalGlycoResults));
                     foundScoreThresh = true;
                 }
             }
