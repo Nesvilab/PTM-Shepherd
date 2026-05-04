@@ -1153,7 +1153,13 @@ public class PTMShepherd {
 			return s;
 
 		// Remove leading zeros from the string
-		String snString = sp[1].replaceFirst("^0+", "");
+		int scanNum;
+		try {
+			scanNum = Integer.parseInt(sp[1]);
+		} catch (NumberFormatException e) {
+			throw new RuntimeException(String.format("Error parsing scan number for spectrum %s", s), e);
+		}
+		String snString = String.valueOf(scanNum);
 
 		// Using StringBuilder for potentially better performance
 		StringBuilder sb = new StringBuilder();
