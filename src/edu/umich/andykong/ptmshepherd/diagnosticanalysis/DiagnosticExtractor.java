@@ -22,7 +22,6 @@ import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PTMShepherd;
 import edu.umich.andykong.ptmshepherd.core.MXMLReader;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import edu.umich.andykong.ptmshepherd.glyco.GlycoProfile;
 import edu.umich.andykong.ptmshepherd.localization.SiteLocalization;
 
 import java.io.*;
@@ -392,32 +391,6 @@ public class DiagnosticExtractor {
             out.close();
         } catch (IOException e) {
             PTMShepherd.die("Error writing to diagnostic file: " + rawDiagnosticFile.getAbsolutePath());
-        }
-    }
-    public void updateGlycoProfiles(GlycoProfile[] profiles) {
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(rawDiagnosticFile));
-            String cline;
-            in.readLine();
-            while ((cline = in.readLine()) != null) {
-                if (cline.equals("COMPLETE"))
-                    break;
-                if (cline.startsWith("Spectrum"))
-                    continue;
-                if (cline.startsWith("ERROR"))
-                    continue;
-                String[] sp = cline.split("\\t");
-                double md = Double.parseDouble(sp[4]);
-                for (int i = 0; i < profiles.length; i++) {
-                    int cind = profiles[i].locate.getIndex(md);
-                    if (cind != -1) {
-                        profiles[i].records[cind].updateWithLine(sp);
-                    }
-                }
-            }
-            in.close();
-        } catch (IOException e) {
-            PTMShepherd.die("Error updating glyco profiles: could not read diagnostic file " + rawDiagnosticFile.getAbsolutePath() + "\n" + e.getMessage());
         }
     }
 }

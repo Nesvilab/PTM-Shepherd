@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/dpolasky/Repositories/PTM-Shepherd/test -name \"*.java\" -type f 2>/dev/null | head -20)",
+      "Bash(find /c/Users/dpolasky/Repositories/PTM-Shepherd/src/edu/umich/andykong/ptmshepherd -name \"*.java\" -type f | xargs grep -l \"Interface\\\\|abstract\" | head -10)",
+      "Bash(./gradlew compileJava 2>&1 | tail -20)",
+      "Bash(./gradlew build:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(grep:*)",
+      "Bash(cd:*)",
+      "Bash(./gradlew compileJava)"
+    ]
+  }
+}

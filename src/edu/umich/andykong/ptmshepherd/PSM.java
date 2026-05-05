@@ -2,7 +2,6 @@ package edu.umich.andykong.ptmshepherd;
 
 import edu.umich.andykong.ptmshepherd.core.AAMasses;
 import edu.umich.andykong.ptmshepherd.core.Spectrum;
-import edu.umich.andykong.ptmshepherd.glyco.GlycanAssignmentResult;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -29,7 +28,6 @@ public class PSM {
     private ArrayList<Mod> assignedMods;		// position -> mass
     private String modifiedPeptide;
     private String originalModifiedPeptide;
-    public GlycanAssignmentResult glycanAssignmentResult = null; // result of glycan assignment, if any
 
     PSM(int lineNum, String line, int massdiffToVarmod, int specCol, int pepCol, int modPepCol, int chargeCol, int calcMassCol, int dMassCol, int assignedModCol, int msfraggerLocalizationCol) {
         this.lineNum = lineNum;
@@ -314,31 +312,6 @@ public class PSM {
 
     public ArrayList<String> getSpLine() {
         return spLine;
-    }
-
-    /**
-     * Update the delta mass for this PSM (e.g., after glycan analysis), including updating the
-     * calculated peptide mz and mass columns. If the delta mass was previously placed as a variable mod,
-     * reset the delta mass to the original value before updating with the new delta mass.
-     * @param newTheoreticalMass new delta mass
-     */
-    public void updateDeltaMass(float newTheoreticalMass, int massdiffToVarmod, float prevTheoreticalMass, int peptideCalcMassCol, int calcMZcol, int dmassCol, int assignedModCol) {
-        if (massdiffToVarmod == 1) {
-            // Original dMass does not have the glycan: only need to adjust if the glycan composition has changed. If same composition, changeInDeltaMass will be 0
-            float changeInDeltaMass = newTheoreticalMass - prevTheoreticalMass;
-            dMass = originalDeltaMass + changeInDeltaMass;
-            calcPepMass = originalCalcPepMass + changeInDeltaMass;
-        } else {
-            // original delta mass was left intact, simply subtract the glycan mass
-            dMass = dMass - newTheoreticalMass;
-            calcPepMass = originalCalcPepMass + newTheoreticalMass;
-        }
-
-        // update the spLine
-        spLine.set(peptideCalcMassCol, String.format("%.4f", calcPepMass));
-        spLine.set(calcMZcol, String.format("%.4f", Spectrum.neutralMassToMZ(calcPepMass, getCharge())));
-        spLine.set(dmassCol, String.format("%.4f", dMass));
-        spLine.set(assignedModCol, printAssignedMods());
     }
 
     /**

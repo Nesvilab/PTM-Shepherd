@@ -1,9 +1,7 @@
 package psm;
 
-import edu.umich.andykong.ptmshepherd.Mod;
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
-import edu.umich.andykong.ptmshepherd.glyco.GlycoParams;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -112,34 +110,6 @@ public class PSMFileTest {
         for (int i=0; i < psmCysDisulfide.getOriginalAssignedMods().size(); i++) {
             assert psmCysDisulfide.getAssignedMods().get(i).equals(psmCysDisulfide.getOriginalAssignedMods().get(i));
         }
-    }
-
-    @Test
-    public void updateDeltaMassTest() {
-        File testFile = new File("test-resources/test_psms.tsv");
-        PSMFile psmFile = new PSMFile(testFile, 0);
-
-        PSM psm = psmFile.psms.get(3);
-        float prevCalcMass = psm.getCalcPepMass();
-        float prevDMass = psm.getDMass();
-        GlycoParams params = new GlycoParams("", "", "");
-        params.removeGlycanDeltaMass = true;
-        params.writeGlycansToAssignedMods = true;
-
-        psmFile.writeGlycanToAssignedMod(psm, "HexNAc(2)Hex(13)", false, params);
-        assert Math.abs(psm.getDMass() - 0.0049) < tol;
-        assert Math.abs(psm.getOriginalDeltaMass() - prevDMass) < tol;
-        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455f)) < tol;
-        assert Math.abs(Float.parseFloat(psm.spLine.get(psmFile.peptideCalcMassCol)) - (prevCalcMass + 2512.8455)) < tol;
-
-        // simulate re-run of the same file with previous mod
-        psm.spLine.set(psmFile.peptideCalcMassCol, String.format("%.4f", psm.getCalcPepMass()));    // reset calc mass column as if reading from new psm file
-        psm.initializeMods(1, psmFile.dMassCol, psmFile.assignedModCol, psmFile.modPeptideCol, psmFile.msfraggerLocalizationCol, psmFile.peptideCalcMassCol);
-        psmFile.massdiffToVarmod = 1;
-        psmFile.writeGlycanToAssignedMod(psm, "HexNAc(2)Hex(13)", false, params);
-        assert Math.abs(psm.getDMass() - 0.0049) < tol;
-        assert Math.abs(psm.getCalcPepMass() - (prevCalcMass + 2512.8455f)) < tol;
-        assert psm.getAssignedMods().size() == 1;
     }
 
     @Test
