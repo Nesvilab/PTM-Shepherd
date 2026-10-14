@@ -191,7 +191,7 @@ public class SimRTAnalysis {
 				List<String> linesWithoutSpectra = new ArrayList<>();
 				for (String pepZ : zTolLines.keySet()) {
 					ArrayList<Integer> relLines = zTolLines.get(pepZ);
-					Collections.shuffle(zTolLines.get(pepZ)); //shuffled to remove bias
+					Collections.shuffle(zTolLines.get(pepZ), new java.util.Random(42)); //shuffled to remove bias
 					int nComp = Math.min(relLines.size(), MAX_ZERO_COMPARE);
 					zTolSpecs.put(pepZ, new ArrayList<>());
 					for (int i = 0; i < nComp; i++) {

@@ -28,8 +28,9 @@ public class Prominence {
 		Arrays.fill(res,1e100);
 		int pos = 0;
 		pv[0] = pv[pv.length-1] = 1e100; //sets terminal values of pv
+		java.util.Random rng = new java.util.Random(42);
 		for(int i = 0; i < v.length; i++) 
-			pv[i+1] = v[i] + (Math.random() / 100000.0); //sets pv to be noisy v
+			pv[i+1] = v[i] + (rng.nextDouble() / 100000.0); //sets pv to be noisy v
 		RMQ rmq = new RMQ(pv); //takes pv (noisy v)
 		
 		qPos[pos++] = 0;
