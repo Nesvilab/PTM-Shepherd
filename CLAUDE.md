@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew shadowJar               # Alternative fat JAR target
 ```
 
-Tests are in `test/` with resources in `test-resources/`. The CI workflow (`.github/workflows/gradle.yml`) runs `gradle build` and `gradle test` separately on Java 15.
+Tests are in `test/` with resources in `test-resources/`. The CI workflow (`.github/workflows/gradle.yml`) runs `gradle build` and `gradle test` separately on Java 17.
 
 Running the tool:
 ```bash
