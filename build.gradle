@@ -106,19 +106,8 @@ task packageNoDeps(group: 'ptm-shepherd') {
     tasks.findByName('jar').mustRunAfter 'test'
 }
 
-task updateFragpipeJar(group: 'ptm-shepherd', type: Copy) {
+task updateFragpipeJar(group: 'ptm-shepherd') {
     dependsOn 'packageNoDeps'
-    String dest = "$buildDir/libs/"
-    if (!file(dest).exists()) {
-        println "ERROR: Destination directory does not exist: " + dest
-    } else {
-        copy {
-            from "$buildDir/libs/"
-            include "ptms*.jar"
-            into file(dest)
-            //rename '(.+)(\\.jar)', '$1' + '.jazz'
-        }
-    }
 }
 
 
