@@ -17,8 +17,11 @@
 package edu.umich.andykong.ptmshepherd.peakpicker;
 
 import java.util.Arrays;
+import java.util.Random;
 
 public class Prominence {
+
+	static final long SEED = 123456;
 
 	//takes histo heights as argument
 	public static double [] computeProminence(double [] v) {
@@ -27,9 +30,10 @@ public class Prominence {
 		double [] res = new double[v.length];
 		Arrays.fill(res,1e100);
 		int pos = 0;
+		Random rng = new Random(SEED); //fixed seed so that reruns pick the same peaks
 		pv[0] = pv[pv.length-1] = 1e100; //sets terminal values of pv
 		for(int i = 0; i < v.length; i++) 
-			pv[i+1] = v[i] + (Math.random() / 100000.0); //sets pv to be noisy v
+			pv[i+1] = v[i] + (rng.nextDouble() / 100000.0); //sets pv to be noisy v
 		RMQ rmq = new RMQ(pv); //takes pv (noisy v)
 		
 		qPos[pos++] = 0;

@@ -20,6 +20,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Random;
 
 import edu.umich.andykong.ptmshepherd.PSM;
 import edu.umich.andykong.ptmshepherd.PSMFile;
@@ -44,6 +45,7 @@ public class SimRTAnalysis {
 	boolean calcIntensity;
 	
 	static final int MAX_ZERO_COMPARE = 20;
+	static final long SEED = 123456;
 	
 	public SimRTAnalysis(String dsName) {
 		this.dsName = dsName;
@@ -191,7 +193,7 @@ public class SimRTAnalysis {
 				List<String> linesWithoutSpectra = new ArrayList<>();
 				for (String pepZ : zTolLines.keySet()) {
 					ArrayList<Integer> relLines = zTolLines.get(pepZ);
-					Collections.shuffle(zTolLines.get(pepZ)); //shuffled to remove bias
+					Collections.shuffle(zTolLines.get(pepZ), new Random(SEED)); //shuffled to remove bias, seeded so that reruns match
 					int nComp = Math.min(relLines.size(), MAX_ZERO_COMPARE);
 					zTolSpecs.put(pepZ, new ArrayList<>());
 					for (int i = 0; i < nComp; i++) {
