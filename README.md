@@ -13,7 +13,7 @@ We strongly recommend running PTM-Shepherd via [FragPipe](http://fragpipe.nesvil
 * You can download the latest standlone release of PTM-Shepherd [here](https://github.com/Nesvilab/PTM-Shepherd/releases).
 
 #### Command line usage
-If running via command line, parameters should be passed to PTM-Shepherd as a text configuration file. PTM-Shepherd can be executed by the command line by running
+If running via command line, parameters should be passed to PTM-Shepherd as a text configuration file. PTM-Shepherd requires Java 17 or higher and can be executed by the command line by running
 ```
 java -jar ptm-shepherd.jar path/to/config.txt
 ```
