@@ -37,6 +37,28 @@ aldehyde and ketone modifications 	13.9793
 intact disulfide bridge	-2.0157
 Half of a disulfide bridge	-1.007825
 Disulfide (fixed carbamidomethyl)	-116.0586
+ADP Ribose addition (fixed carbamidomethyl)	484.039646
+Palmitoylation (fixed carbamidomethyl)	181.208202
+Myristoylation (fixed carbamidomethyl)	153.176902
+Farnesylation (fixed carbamidomethyl)	147.166337
+Hexose (fixed carbamidomethyl)	105.031360
+Cysteinylation (fixed carbamidomethyl)	61.982635
+Malonylation (fixed carbamidomethyl)	28.978930
+Phosphorylation (fixed carbamidomethyl)	22.944867
+Sulfation (fixed carbamidomethyl)	22.935351
+Crotonaldehyde (fixed carbamidomethyl)	13.020401
+Trioxidation (fixed carbamidomethyl)	-9.036720
+Carbamylation (fixed carbamidomethyl)	-14.015650
+Acetylation (fixed carbamidomethyl)	-15.010899
+Dioxidation (fixed carbamidomethyl)	-25.031635
+Persulfide (fixed carbamidomethyl)	-25.049393
+Nitrosylation (fixed carbamidomethyl)	-28.031300
+Oxidation (fixed carbamidomethyl)	-41.026549
+Methylation (fixed carbamidomethyl)	-43.005814
+Thiazolidine/formaldehyde (fixed carbamidomethyl)	-45.021464
+Half of a disulfide bridge (fixed carbamidomethyl)	-58.029289
+Dehydroalanine (fixed carbamidomethyl)	-91.009185
+Hydroxymethyl	30.010565
 Hex(1)	162.0528
 HexNAc(1)Hex(1)	365.1322
 HexNAc(1)	203.0794
@@ -47,6 +69,7 @@ Malonylation	86.000394
 Methionine loss + acetaldehyde	-105.0248
 Methionine loss + Acetylation	-89.0299
 Methylation	14.0157
+Methylglyoxal-derived hydroimidazolone	54.010565
 Myristoylation	210.1984
 Nitrosylation	28.990164
 Methionine oxidation to aspartic semialdehyde	-32.0085
@@ -61,6 +84,7 @@ Pyridoxal phosphate	229.014009
 Proline oxidation to pyrrolidinone	-30.0106
 quinone	29.9742
 Replacement of 2 protons by magnesium	21.969392
+Replacement of 2 protons by nickel	55.919696
 Replacement of 3 protons by aluminium	23.95806
 Replacement of proton by copper	61.921774
 Replacement of proton by potassium	37.955882
