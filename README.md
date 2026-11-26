@@ -111,13 +111,13 @@ output_path =   #direct output to directory
 
 ### How to cite
 #### For all PTM-Shepherd uses, please cite this manuscript:
-Daniel J. Geiszler, Andy T. Kong, Dmitry M. Avtonomov, Fengchao Yu, Felipe V. Leprevost, Alexey I. Nesvizhskii. *PTM-Shepherd: analysis and summarization of post-translational and chemical modifications from open search results*. doi: (https://doi.org/10.1074/mcp.TIR120.002216)[https://doi.org/10.1074/mcp.TIR120.002216].
+Daniel J. Geiszler, Andy T. Kong, Dmitry M. Avtonomov, Fengchao Yu, Felipe V. Leprevost, Alexey I. Nesvizhskii. *PTM-Shepherd: analysis and summarization of post-translational and chemical modifications from open search results*. Molecular & Cellular Proteomics 20, 100018 (2021). doi: [10.1074/mcp.TIR120.002216](https://doi.org/10.1074/mcp.TIR120.002216).
 
 #### For glycan assignment, please cite this manuscript:
-Daniel A. Polasky, Daniel J. Geiszler, Fengchao Yu, Alexey I. Nesvizhskii. *Multiattribute Glycan Identification and FDR Control for Glycoproteomics*. doi: (https://doi.org/10.1016/j.mcpro.2022.100205)[https://doi.org/10.1016/j.mcpro.2022.100205].
+Daniel A. Polasky, Daniel J. Geiszler, Fengchao Yu, Alexey I. Nesvizhskii. *Multiattribute Glycan Identification and FDR Control for Glycoproteomics*. Molecular & Cellular Proteomics 21, 100205 (2022). doi: [10.1016/j.mcpro.2022.100205](https://doi.org/10.1016/j.mcpro.2022.100205).
 
 ##### For diagnostic feature mining, please cite this manuscript:
- Daniel J. Geiszler, Daniel A. Polasky, Fengchao Yu, Alexey I. Nesvizhskii. *Mining for ions: diagnostic feature detection in MS/MS spectra of post-translationally modified peptides*. doi: (https://doi.org/10.1101/2022.09.12.507594)[https://doi.org/10.1101/2022.09.12.507594].
+ Daniel J. Geiszler, Daniel A. Polasky, Fengchao Yu, Alexey I. Nesvizhskii. *Detecting diagnostic features in MS/MS spectra of post-translationally modified peptides*. Nature Communications 14, 4132 (2023). doi: [10.1038/s41467-023-39828-0](https://doi.org/10.1038/s41467-023-39828-0).
 
 ### Check out our other tools!
 
